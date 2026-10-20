@@ -11,15 +11,15 @@
    Three pieces, each held to the archive by utilities/asm_check.mjs:
 
    dvmOffsetSites(b, resid)
-     Every place in a script resource that holds an offset into that same
+     Every place in a script resource that has an offset into that same
      resource. Branch targets, a conditional's `then`, a switch's cases, a
      call_subroutine, a conversation response's resume point, and the near
      words all count from the resource's start (dvmConversation's header
-     says the same); so do the header's table offset, the object table's
+     shows the same); so do the header's table offset, the object table's
      entries, and a pointer word -- a `word` operand, an array or table
      entry, a far word, or a word inside a data block -- whose resource id
      is this one. Survey of the shipped file, 24 September 2026: 40
-     call_subroutines, 4 near words, 173 data blocks of which 109 carry such
+     call_subroutines, 4 near words, 173 data blocks of which 109 have such
      pointers.
 
    dvmRelink(b, resid, at, removeLen, insert, opts)
@@ -30,21 +30,21 @@
      put in front of a whole object. A site that points into the bytes taken
      out is an error. The result is checked by finding the sites again in it
      and comparing them with where they should have gone; an edit that does
-     not come out exact is refused rather than written.
+     not come out exact is rejected rather than written.
 
    dvmAssemble(text, resid)
-     One instruction per line, in the raw listing's own words: a line copied
+     One instruction per line, in the raw listing's notation: a line copied
      out of the listing -- its offset, its indent and a `// note` included --
      assembles to the bytes it was read from, which is the round trip the
      check runs over every instruction of every function in the archive.
      Symbolic names are delvmod's (DVM_SYM) or, for a syscall, the program's
-     (dvmSyscallShown). New code may use local labels, `name:` on a line of
-     its own and `-> name` or `branch name` as a target; a numeric target is
+     (dvmSyscallShown). New code may use local labels, `name:` on a separate
+     line and `-> name` or `branch name` as a target; a numeric target is
      an offset in the resource as it stood before the edit, and moves with
-     everything else. `data` takes its bytes as hex, since the listing does
+     everything else. `data` is given its bytes as hex, since the listing does
      not print them.
 
-   The tier's rule holds: bytes in, bytes out, no DOM. The editor on the
+   The tier's rule applies: bytes in, bytes out, no DOM. The editor on the
    script page is in js/page-views.js.
    =========================================================================== */
 
@@ -80,11 +80,11 @@ function dvmContainerSites(b, p, end, resid, out, kind, all) {
   }
 }
 
-/* `extra`, when given, takes two things the walk sees on the way, so a caller
-   that wants them does not disassemble the resource a second time (the text
-   edits of js/delv-datapatch.js, which want every `data` block, whose size
+/* `extra`, when given, collects two things the walk sees on the way, so a caller
+   that needs them does not disassemble the resource a second time (the text
+   edits of js/delv-datapatch.js, which need every `data` block, whose size
    word a change of length inside it must correct, and every keyword list,
-   which a spelling must leave alone): extra.blocks gets { a, size } for each
+   which a spelling must leave alone): extra.blocks is given { a, size } for each
    `data` instruction, and extra.keys [start, end) for each
    conversation_response, its words and its target. */
 function dvmOffsetSites(b, resid, extra) {
@@ -165,7 +165,7 @@ function dvmRelink(b, resid, at, removeLen, insert, opts) {
     if (v !== s.value) { dvmWriteSite(out, { at: p, size: s.size }, v); moved++; }
     expect.set(p, v);
   }
-  // The new code's own targets: a numeric one is an old offset and moves
+  // The new code's targets: a numeric one is an old offset and moves
   // like any other; a label is already where it is going.
   for (const s of ins.sites || []) {
     const v = s.label ? at + s.value : mapVal(s.value);
@@ -353,7 +353,7 @@ function dvmAssemble(text, resid) {
    reason this is not a list. The low twelve bits of its first halfword are
    its size; a key's first slot is the key mod the size; and a probe moves on
    by the first of k*3+1, (k*3+1)*3+1, ... (the low sixteen bits) that is not
-   0 mod the size, until a slot holds the key or None. A table of one slot
+   0 mod the size, until a slot has the key or None. A table of one slot
    never yields a step, and the first gremlin written by hand had one: the
    game froze on the lookup, before any of its code ran. The size here is the
    smallest prime above the number of methods and at least 3, as 0x1E20's
@@ -361,8 +361,8 @@ function dvmAssemble(text, resid) {
    lookup for a method the class lacks ends at None, and the engine runs its
    default instead.
 
-   `methods` is [{ key, text }], each text a listing dvmAssemble takes. A
-   label is counted from the method's own first byte and moved here to where
+   `methods` is [{ key, text }], each text a listing dvmAssemble accepts. A
+   label is counted from the method's first byte and moved here to where
    the method lands, since the engine counts a target from the resource's. */
 function dvmWriteClass(resid, methods) {
   const fns = [];

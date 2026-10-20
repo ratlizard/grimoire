@@ -11,18 +11,18 @@
 
    WHAT IT DOES, in order:
 
-   1. Holds the data fork to APP_FIXES_TARGET: a PEF container whose code
+   1. Checks the data fork against APP_FIXES_TARGET: a PEF container whose code
       section begins and ends where 1.0.4's does and whose data section
       follows it at once. That is the layout step 4 grows; a program laid
-      out otherwise is refused rather than grown by a rule written for
+      out otherwise is rejected rather than grown by a rule written for
       another.
    2. Places the caves. Every chosen fix's cave, one after another, from
       the end of the code section, each label at its word. A branch in a
-      site to `@cave` or a label reaches its own fix's cave, never
+      site to `@cave` or a label reaches its fix's cave, never
       another's.
    3. Writes each site's words, after checking every word the site
-      replaces is the word the fix says is there now. Two fixes that change
-      one word are refused together.
+      replaces is the word the fix expects there now. Two fixes that change
+      one word are rejected together.
    4. Grows the code section by the caves' length rounded up to 16 (the
       sections' alignment) and moves everything after it by that much: the
       data section's container offset in the section header, the code
@@ -31,21 +31,21 @@
       the data fork. The loader's relocations, imports, exports and entry
       point are all relative to their sections and do not move. The
       traceback tables between routines would have held the code instead,
-      at the price of the names every tool here reads from them; nothing
+      at the price of the names that every tool here reads from them; nothing
       at run time reads them, but the tools do.
    5. Rewrites the text: each `data` edit where the string sits, written in
-      place at its own length or shorter, the rest NUL. Cythera's strings
+      place at its length or shorter, the rest NUL. Cythera's strings
       are in the code section, after the routines, where CodeWarrior put
       its constant data, so they neither move nor pass through the data
       section's packing; one in the data section's packed stream would be
-      stored literally too, and the check holds the unpacked section to
+      stored literally too, and the check compares the unpacked section with
       exactly the letters changed either way.
    6. Rewrites the resources: a string in a STR#, or a whole resource, and
       the cfrg of step 4, through writeResourceFork.
    7. The 68K half, in the same resource fork before it is written: the
       program a 68K Mac runs is CODE 0 to 8 and DATA 0 there, and every fix
       read again in that code has its part in js/delv-appfixes68k.js, which
-      js/delv-app68k.js applies (it says how). A fix with no 68K part changes
+      js/delv-app68k.js applies (it explains how). A fix with no 68K part changes
       nothing there; `applied` gives each fix's 68K changes as `m68k`.
 
    C STRINGS, AND ONE THAT GROWS (29 September 2026, for the program in
@@ -58,19 +58,19 @@
    `nowInner`). One no longer than it was, with its inner points where they
    were, is written in place and NUL-filled. One that grows is placed after
    the caves, NUL-terminated, and every load of a pointer to it is sent
-   there: each string the program uses has its own word in the TOC, set by
+   there: each string the program uses has a separate word in the TOC, set by
    the loader to the string's address and loaded by `lwz rD, d(r2)`, so
    that one instruction becomes a branch to four new ones, the same `lwz`,
    `addis` and `addi` adding the distance from the old string to the new
    (both in the code section, so the distance is the same wherever the
    loader puts it), and a branch back. The TOC, which the loader's
    relocations fill and which sits in the data section's packed stream, is
-   not touched. Refused: a string that is not what the fix expects, one
+   not touched. Rejected: a string that is not what the fix expects, one
    that grows while some word of the data section points at it or into it
    and no instruction loads that word (a table of pointers, which only an
    edit of the packed stream could change). A load into r0, which `addis`
    and `addi` would read as 0, adds the distance with `addic` instead, in
-   steps of at most 32767; it sets the carry, which nothing compiled keeps
+   steps of at most 32767; it sets the carry bit, which nothing compiled preserves
    across a load of a pointer.
 
    A string marked `pascal` is a length byte and its text, with no NUL,
@@ -80,7 +80,7 @@
    the start of the next string; moved, it is the length and the text, and
    the loads are sent to the length byte.
 
-   Nothing here knows which fixes exist: that is js/delv-appfixes.js. The
+   Nothing here lists which fixes exist: that is js/delv-appfixes.js. The
    assembler is js/mac-ppc-asm.js; the reader of what comes out,
    js/mac-pef.js and js/mac-ppc.js. */
 
@@ -239,7 +239,7 @@ function applyAppFixes(app, fixes, opts) {
       stringPlan.push({ fix: f, c, was, now, place: 'moved', sites });
     }
     // Trampolines first, four words a load; then the strings, each on a word.
-    // A load into r0 takes `addic` in steps of up to 32767, since addis and
+    // A load into r0 uses `addic` in steps of up to 32767, since addis and
     // addi read r0 as 0; the distance is bounded by the strings laid after.
     for (const sp of stringPlan) if (sp.place === 'moved') for (const st of sp.sites) {
       st.r0 = ((codeWord(st.at) >>> 21) & 31) === 0;
@@ -352,7 +352,7 @@ function applyAppFixes(app, fixes, opts) {
     (a.text = a.text || []).push({ at: d.at, was: d.was, now: d.now });
   }
 
-  // 6. The resources, and the cfrg that says where the fragments are.
+  // 6. The resources, and the cfrg that records where the fragments are.
   let rsrcOut = rsrc || null;
   const rsrcEdits = fixes.filter(f => (f.rsrc || []).length);
   const has68k = typeof APP_FIXES_68K !== 'undefined' && fixes.some(f => app68kNames(f.id));

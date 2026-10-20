@@ -9,8 +9,8 @@
 // all open now, so `Cythera Data` can be taken out of each and run through
 // `describeDelverDiff`, and the answer is a finding rather than a property of
 // the code. A finding written only into prose goes stale silently; written
-// here it is re-derived on every run, and a change to what the decoder thinks
-// "the same resource" means moves these numbers without moving any snapshot.
+// here it is re-derived on every run, and a change to what the decoder treats as
+// "the same resource" moves these numbers without moving any snapshot.
 //
 // THE ONE WORTH KNOWING is the last row: `Cythera Data` is byte for byte
 // identical in 1.0.3 and 1.0.4. Whatever the 1.0.4 release fixed, it fixed in
@@ -62,7 +62,7 @@ const out = ev(`(() => {
   for (const [x, y] of [['1.0.1','1.0.2'], ['1.0.2','1.0.3'], ['1.0.3','1.0.4']]) {
     if (!specs[x] || !specs[y]) { rows.push({pair: x + ' to ' + y, missing: true}); continue; }
     const d = describeDelverDiff(specs[x], specs[y]);
-    // Where in a changed resource the bytes differ is the diff's own
+    // Where in a changed resource the bytes differ is the diff's
     // reading (delverUnsetKeysOnly in js/delv-archive.js): a script
     // resource whose only differences are the key halves of its object
     // table's None entries, which the compiler never set, did not change.
@@ -183,11 +183,11 @@ if (firstApp && firstApp.added) ok('1.0.1 to 1.0.2 in the program',
    it cannot quietly stop being true.
  *
  * WHAT IS ASSERTED IS THE JOIN, not the prose: for each documented claim, the
- * resource or routine that carries it must still be one that changed in that
+ * resource or routine that has it must still be one that changed in that
  * release. If a decoder change or a re-mirrored installer moves what changed,
  * the join breaks here rather than in a paragraph nobody re-reads.
  *
- * Three findings are pinned in their own right because they are the ones that
+ * Three findings are pinned separately because they are the ones that
  * would be re-derived from scratch otherwise: 1.0.4 is null guards and nothing
  * else; the five TInterp routines are a compiler artifact and NOT an
  * undocumented interpreter change; and a combat-AI debugger was added in 1.0.2
@@ -227,7 +227,7 @@ const notes = ev(`(() => {
   const out = {};
 
   /* Who really calls a routine, resolved from the branch displacement rather
-     than guessed from what changed nearby. */
+     than inferred from what changed nearby. */
   const codeOf = data => { const pef = parsePEF(data); const c = pef.sections.find(s => s.kind === 0);
     return {img: data.subarray(c.containerOffset, c.containerOffset + c.totalSize), rs: pefTracebacks(pef, data)}; };
   const callersOf = (data, rx) => { const C = codeOf(data);
@@ -259,7 +259,7 @@ const notes = ev(`(() => {
     const d = fileDiff(x, y);
     out.files[x + '->' + y] = {changed: d.changed.length, of: d.count, added: d.added, gone: d.gone,
       inputSprocket: d.changed.filter(p => /InputSprocket/.test(p)).length,
-      // Every release swaps its own notes file in and the previous one out,
+      // Every release swaps its notes file in and the previous one out,
       // which is churn rather than content and would otherwise sit in the
       // added/gone lists forever.
       addedReal: d.added.filter(p => !/Notes\.text$/.test(p)),
@@ -313,7 +313,7 @@ const notes = ev(`(() => {
     return r ? ((r.data[0] << 8) | r.data[1]) : null; };
   out.size = ['1.0.1','1.0.2','1.0.3','1.0.4'].map(sizeOf);
 
-  // --- which named resources carry which claim ---
+  // --- which named resources have which claim ---
   const c12 = changedIds('1.0.1', '1.0.2'), c23 = changedIds('1.0.2', '1.0.3');
   out.carriers = {
     '1.0.2 Halos shop': c12.has(0x183e), '1.0.2 Alaric training': c12.has(0x1802),
@@ -415,7 +415,7 @@ eq('and it grows', notes.defendAiBytes.join(' -> '), '584 -> 712');
   eq('1.0.3 adds one routine', notes.r23added.join(','), 'TDroppableWindow::ClearNeeds()');
 }
 
-/* THE 1.0.2 CLAIMS, JOINED TO THE ROUTINES THAT CARRY THEM.
+/* THE 1.0.2 CLAIMS, JOINED TO THE ROUTINES THAT HAVE THEM.
  *
  * 1.0.2 is the release whose notes are mostly about the application rather
  * than the scenario, so its claims cannot be joined to a resource the way
@@ -445,7 +445,7 @@ eq('and it grows', notes.defendAiBytes.join(' -> '), '584 -> 712');
         'TTextContext gains 236 bytes of text layout');
   /* "If something is in a doorway to the east or south, it is now correctly
      considered close (in range for a touch spell, CAN BE SEARCHED...)" -- and
-     the routine is CanSearch, gaining four bit tests. The note names the
+     the routine is CanSearch, gaining four bit tests. The note gives the
      routine almost outright. */
   claim('a doorway to the east or south counts as close',
         (notes.r12['TDroppableWindow::CanSearch(Point)'] || {}).up.indexOf('4 bf') >= 0,
@@ -484,10 +484,10 @@ eq('DisplayManagerAware is set in 1.0.3 and not before',
  * "Seldane object stops working, turning all white" is listed under 1.0.3.
  * The Seldane object is the **strange device** (prop type 0x175, the
  * Think-a-Dot), whose state lives in persistent storage slots 256 and 257 --
- * which is what the note's own parenthetical blames, "a corrupted persistance
+ * which is what the note's parenthetical blames, "a corrupted persistance
  * storage heap in 1.0.x that was fixed in 1.0.2".
  *
- * Three things follow and all three are asserted: the device's own item class
+ * Three things follow and all three are asserted: the device's item class
  * did not change in 1.0.3; no THeap routine changed in 1.0.3; and every piece
  * of heap work -- two routines added and three recompiled -- is in 1.0.2. So
  * the line describes 1.0.2's fix and the residual cases it left, rather than a
@@ -500,7 +500,7 @@ eq('every heap change is 1.0.2 (recompiled)', notes.heap12.join(', '),
 eq('and added there', notes.heap12added.join(', '),
    'THeap::PerformGC(), THeap::SimpleAllocate(long, long&)');
 
-// Each documented claim still landing on the resource that carries it.
+// Each documented claim still landing on the resource that has it.
 {
   const missing = Object.entries(notes.carriers).filter(([, v]) => !v).map(([k]) => k);
   if (missing.length) fail('every claim still lands on its resource', missing.join('; '));
@@ -513,7 +513,7 @@ const neg = ev(`(() => {
   if (!a || !b) return null;
   // One byte of one resource, which the comparison must see. Without this the
   // "unchanged between 1.0.3 and 1.0.4" result above is indistinguishable
-  // from a comparison that always says identical.
+  // from a comparison that always reports identical.
   const bent = {scenarioTitle: b.scenarioTitle, playerName: b.playerName,
                 formatMajor: b.formatMajor, formatMinor: b.formatMinor,
                 resources: b.resources.map(r => ({...r}))};

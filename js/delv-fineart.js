@@ -6,7 +6,7 @@
    (redrawDelverArt in delv-graphics.js: stick men and blobs) or take it
    from a pack of somebody else's tiles (delv-artpack.js). The maintainer
    asked for the opposite of the badly-drawn set: the page's best attempt
-   at a set of its own. This file is that attempt, and it plugs into
+   at a separate set. This file is that attempt, and it plugs into
    redrawDelverArt as the art pack does, as its `from` argument.
 
    WHAT IS DRAWN FROM NOTHING, AND WHAT IS PAINTED OVER THE OLD LAYOUT.
@@ -14,14 +14,14 @@
    beast, a face, a square of grass. Others are pieces: a wall is a dozen
    tiles in the game's leaning projection that must meet edge to edge, a
    tree is four, a shoreline is thirty. A piece drawn from nothing does
-   not join its neighbours, and nothing in the file says which pieces go
+   not join its neighbours, and nothing in the file shows which pieces go
    together, so the two kinds are treated differently and this header
-   says which is which rather than leaving it to be found out:
+   states which is which rather than leaving it to be found out:
 
      people and beasts   from nothing (faFigure). Small upright figures,
                          shaded from the upper left and outlined, in the
                          four facings and the strides the frame's place
-                         in its run asks for. The old tile gives two
+                         in its run needs. The old tile gives two
                          things only: the colour of the clothes or the
                          hide, so that two kinds of villager stay two
                          kinds, and nothing else.
@@ -47,7 +47,7 @@
                          cut to a few flat steps with shadows pushed
                          cool and lights warm, a dark line is put where
                          two surfaces meet, and a thing with see-through
-                         round it gets a dark rim. It is a repainting
+                         round it is given a dark rim. It is a repainting
                          and not a new drawing, and it is here because
                          the alternative was pieces that do not join.
 
@@ -132,7 +132,7 @@ function faSwatch(mat) {
   } else if (mat === 'stone' || mat === 'rock') {
     const rock = mat === 'rock', base = rock ? [138, 132, 128] : [156, 156, 164], cell = cells(rock ? 7 : 9, rock ? 12 : 13);
     fill((x, y) => { const c = cell(x, y); if (c.edge < 1.1) return faTone(base, -0.45);
-      // Each stone a tone of its own, lit on its upper left edge and dark on its lower right.
+      // Each stone a separate tone, lit on its upper left edge and dark on its lower right.
       return faTone(base, band((c.tone - 0.5) * 0.3 + (c.dx + c.dy < -5 ? 0.16 : c.dx + c.dy > 5 ? -0.16 : 0) + (faNoise(x, y, 4, 14) - 0.5) * 0.1, 8)); });
   } else if (mat === 'snow') {
     const base = [236, 240, 252];
@@ -166,7 +166,7 @@ function faMaterial(i) {
    upper material casts a line: foam where water meets land, a dark lip
    where grass overhangs sand or earth. Rock, snow and earth also take the
    old tile's light and shade at a blur of three pixels, which is the only
-   thing that says a mountain has a lit side. Null when the tile is not
+   thing that shows a mountain has a lit side. Null when the tile is not
    mostly ground, for the painter to take. */
 const FA_MATS = ['grass', 'water', 'sand', 'earth', 'rock', 'snow', 'lava', 'leaves', 'purple', 'dark', 'stone'];
 function faGroundTile(old, name) {
@@ -206,7 +206,7 @@ function faGroundTile(old, name) {
 
 /* ---- the painter ----------------------------------------------------------
    An old picture painted over: what a piece of a wall, a chair, a button
-   or a full picture gets. Four steps. (1) The picture is smoothed twice
+   or a full picture is given. Four steps. (1) The picture is smoothed twice
    with a filter that averages a pixel with those of its neighbours near
    it in colour, so dithering goes flat and an edge stays an edge. (2) The
    light of each pixel is cut to steps of a twelfth, colour is pushed a
@@ -257,7 +257,7 @@ function faPaint(img, W, H, rim) {
 
 /* ---- the whole set, as redrawDelverArt's `from` ---------------------------
    `name(id)` is the page's: what the file calls a tile. Ground is a name
-   the first list below holds on a tile with no see-through pixels; a tile
+   the first list below applies to a tile with no see-through pixels; a tile
    with some is ground only by the second list, since a shore or a snowcap
    laid over another tile is still ground and a tree standing on one is
    not. */
@@ -277,7 +277,7 @@ function fineArt(name) {
     picture(subn, resid, d) {
       /* A picture that is one texture from edge to edge (the backdrop
          behind the windows is the case) has nothing for the painter to
-         keep: smoothed, its grain comes out as blotches. It is told by
+         keep: smoothed, its grain comes out as blotches. It is recognised by
          its blocks of eight pixels all having much the same mean while
          its pixels differ, and is laid afresh as its mean colour with a
          quiet grain. */

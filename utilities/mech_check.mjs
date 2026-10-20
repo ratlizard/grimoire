@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // The closed-form rule models in js/delv-mechanics.js against the Monte Carlo
 // ones in utilities/mech_ref.mjs -- two implementations of Cythera's rules,
-// neither derived from the other, required to agree.
+// neither derived from the other, required to match.
 //
 //     node utilities/mech_check.mjs js/delv-mechanics.js
 //
 // WHY THIS EXISTS. Every other number the Mechanics sheet shows is read off
 // the archive, so delvmod and the disassembly checks stand behind it. The
-// probabilities are different: nothing in the file says how often a blow
+// probabilities are different: nothing in the file states how often a blow
 // lands, and a closed form that computes the wrong thing draws a perfectly
 // plausible curve. Left alone it would be the one part of the sheet with no
 // evidence behind it at all.
@@ -21,7 +21,7 @@
 // third-party implementation of Cythera's combat maths to borrow.
 //
 // It is worth being clear about what agreement proves and what it does not.
-// It proves the two agree about the rule as the sheet states it; it says
+// It proves the two match on the rule as the sheet states it; it shows
 // nothing about whether the sheet reads the bytecode rightly, which is the
 // disassembler's job and the archaeology's. Where the prose is ambiguous both
 // implementations take the same documented reading, each with a comment
@@ -74,10 +74,10 @@ function exactly(what, got, want) {
 }
 
 // The shipped file's numbers, as the page reads them off the scripts. The
-// model keeps no copy of its own since 11 September 2026 -- it is handed
-// what the open archive says, as on the sheet -- so the check hands it the
+// model has no copy since 11 September 2026 -- it is handed
+// what is in the open archive, as on the sheet -- so the check hands it the
 // shipped archive's figures here, and mech_ref.mjs states the same rules
-// with its own constants, written from the prose. The blow words are the
+// with its constants, written from the prose. The blow words are the
 // reference's names for the thresholds, which is what they are compared by.
 const SHIPPED = {
   dice: { faces: [6, 6, 6], matchPay: 2, skillFaces: 6 },           // 0x812
@@ -111,7 +111,7 @@ for (const gambling of [false, true]) {
   const total = [...x.dist.values()].reduce((a, b) => a + b, 0);
   near(`${label}: the distribution sums to one`, total, 1, 1e-9);
 }
-// The one figure that came from outside: the page's own enumeration, which
+// The one figure that came from outside: the page's enumeration, which
 // CLAUDE.md records and the smoke test pins.
 const plain = ctx.mechDiceExact(SHIPPED.dice);
 exactly('dice: 96 wins of 216', Math.round(plain.wins * 216), 96);
@@ -127,17 +127,17 @@ const FIGHTS = [
   { name: 'a hero with an enchanted blade', p: { attackerReflex: 30, defenderReflex: 14, weaponSkill: 12, attackSkill: 6, defenceSkill: 2, shieldBlock: null, shieldSkill: 0, damage: 30, enchant: 5 } },
   // The body roll of the attack routine. The first is the matchup counted in
   // the fork on 27 September 2026 (a fighter's short sword, body for reflex,
-  // on the hero): the model and the reference have to agree on the words a
+  // on the hero): the model and the reference have to match on the words a
   // body of 25 adds, "crushed" among them, which a figure of 15 alone never
   // names. The second is under a body of 16, where the roll is always 0 and
-  // the words have to be the weapon's own.
+  // the words have to be the weapon's.
   { name: 'a short sword and a body of 25', p: { attackerReflex: 25, defenderReflex: 18, weaponSkill: 0, attackSkill: 6, defenceSkill: 0, shieldBlock: null, shieldSkill: 0, damage: 15, enchant: 0, body: 25 } },
   { name: 'a strong arm behind a shield', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 4, attackSkill: 0, defenceSkill: 0, shieldBlock: 20, shieldSkill: 2, damage: 20, enchant: 2, body: 40 } },
   { name: 'a body too weak to add anything', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 0, attackSkill: 0, defenceSkill: 0, shieldBlock: null, shieldSkill: 0, damage: 15, enchant: 0, body: 9 } }
 ];
-// What the page hands the model for a body: how many values the roll takes,
+// What the page hands the model for a body: how many values the roll can give,
 // worked out here from the shipped figures, while the reference works the
-// same rule out from its own transcription of the two scripts.
+// same rule out from its transcription of the two scripts.
 const bodyRoll = body => body === undefined ? 0 : Math.trunc((body - SHIPPED.body.sub) / SHIPPED.body.div) + SHIPPED.body.add;
 let seed = 21;
 for (const f of FIGHTS) {
@@ -158,7 +158,7 @@ for (const f of FIGHTS) {
   const named = x.words.reduce((s, w) => s + w.p, 0);
   near(`combat (${f.name}): the blow words account for every hit`, named, x.hit, 1e-9);
 }
-// The body roll has to move something, or the fights above could agree by
+// The body roll has to move something, or the fights above could match by
 // both leaving it out. Against the same blow without a body, a body of 25
 // names "crushed" where none was possible, and a body of 9 changes nothing.
 {
@@ -197,7 +197,7 @@ for (const casting of [0, 2, 5, 10, 20]) for (const level of [1, 5, 8]) {
 }
 
 // ---- 5. hunger, healing and a night's sleep --------------------------------
-// No rolls in either, so these must agree exactly rather than nearly.
+// No rolls in either, so these must match exactly rather than nearly.
 const RUNS = [
   { name: 'fed', p: { level: 6, hours: 8, nutrition: 24, health: 40, fullHealth: 100 } },
   { name: 'starving', p: { level: 6, hours: 8, nutrition: 0, health: 40, fullHealth: 100 } },
@@ -245,7 +245,7 @@ exactly('levels: the threshold doubles', [1, 2, 3, 4, 5].map(l => ctx.mechLevelT
 exactly('levels: the eleventh is the last reachable', ctx.mechLevelThreshold(10, SHIPPED.level.base) < SHIPPED.level.cap && ctx.mechLevelThreshold(11, SHIPPED.level.base) > SHIPPED.level.cap, true);
 exactly('healing: the rate by level', [1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => ctx.mechHealRate(l, SHIPPED.clock)).join(','), '1,2,2,3,3,4,4,5,5');
 exactly('healing: the period by level', [1, 2, 4, 6, 8].map(l => ctx.mechHealPeriodMinutes(l, SHIPPED.clock)).join(','), '60,30,20,15,12');
-exactly('healing: the reference agrees about the period', [1, 2, 4, 6, 8].map(l => ref.healPeriodMinutes(l)).join(','),
+exactly('healing: the reference matches on the period', [1, 2, 4, 6, 8].map(l => ref.healPeriodMinutes(l)).join(','),
   [1, 2, 4, 6, 8].map(l => ctx.mechHealPeriodMinutes(l, SHIPPED.clock)).join(','));
 exactly('the clock: the table\'s first period is the hour, its sixth six minutes', [0, 5].map(i => ctx.mechPeriodMinutes(SHIPPED.clock, i)).join(','), '60,6');
 exactly('regeneration: ten an hour', ctx.mechRegenRate(SHIPPED.clock), 10);

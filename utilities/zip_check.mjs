@@ -22,15 +22,15 @@
 //    and without its flag, a Mac Roman name, and AppleDouble entries both
 //    under __MACOSX/ and beside the file.
 // 3. Info-ZIP's `zip` and Apple's `ditto`, when this machine has them: two
-//    other programs' containers, and ditto's __MACOSX/ AppleDouble carrying a
+//    other programs' containers, and ditto's __MACOSX/ AppleDouble with a
 //    resource fork and a Finder type and creator set on a real file. ditto
 //    also writes UTF-8 names without setting the flag, which is why the
 //    reader does not rely on it.
 // 4. The add-on that is a zip, Rocky the Flying Chicken, through
-//    extractDelverArchive -- the path a dropped file takes -- held to what
+//    extractDelverArchive -- the path a dropped file follows -- held to what
 //    `unar` extracts from it, both saves, both forks.
 //
-// THE NEGATIVE CONTROLS. A byte flipped in a deflated entry must be refused,
+// THE NEGATIVE CONTROLS. A byte flipped in a deflated entry must be rejected,
 // not handed back; so must an encrypted entry, a method this page does not
 // decompress (named), and a zip with its end record cut off. And the
 // Compact Pro add-on must be named as what it is, when the add-ons are here
@@ -83,7 +83,7 @@ function writeZip(files, comment = Buffer.alloc(0)) {
     lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt16LE(flags, 6);
     lh.writeUInt16LE(f.method, 8);
     // With a data descriptor the local header's CRC and sizes are zero, and
-    // only the directory and the descriptor carry them.
+    // only the directory and the descriptor have them.
     lh.writeUInt32LE(f.descriptor ? 0 : crc, 14);
     lh.writeUInt32LE(f.descriptor ? 0 : payload.length, 18);
     lh.writeUInt32LE(f.descriptor ? 0 : f.data.length, 22);
@@ -119,7 +119,7 @@ const deflated = (name, data, opts = {}, extra = {}) =>
   ({name: Buffer.from(name), data, method: 8, deflated: zlib.deflateRawSync(data, opts), ...extra});
 
 // Read a whole zip through the page: [{path, data, rsrc, type, creator}], or
-// {error} when the reader refuses it.
+// {error} when the reader rejects it.
 function readAll(zipBytes) {
   sandbox.__z = new Uint8Array(zipBytes);
   return ev(`(() => {
@@ -133,7 +133,7 @@ function readAll(zipBytes) {
 }
 function expectFiles(label, zipBytes, want) {
   const got = readAll(zipBytes);
-  if (got.error) { fail(label, 'refused: ' + got.error); return false; }
+  if (got.error) { fail(label, 'rejected: ' + got.error); return false; }
   const paths = got.map(g => g.path).sort(), wantPaths = want.map(w => w.path).sort();
   if (JSON.stringify(paths) !== JSON.stringify(wantPaths)) {
     fail(label, `entries ${JSON.stringify(paths)} where ${JSON.stringify(wantPaths)} were zipped`); return false;
@@ -223,10 +223,10 @@ function expectFiles(label, zipBytes, want) {
   for (const [what, bytes, want] of refusals) {
     const got = readAll(bytes);
     if (!got.error) missed.push(what + ' was read');
-    else if (!want.test(got.error)) missed.push(what + ' was refused for the wrong reason: ' + got.error);
+    else if (!want.test(got.error)) missed.push(what + ' was rejected for the wrong reason: ' + got.error);
   }
   if (missed.length) fail('the negative controls', missed.join('; '));
-  else ok('the negative controls', refusals.map(r => r[0]).join(', ') + ': each refused, and for its own reason');
+  else ok('the negative controls', refusals.map(r => r[0]).join(', ') + ': each rejected, and for its reason');
 }
 
 // ---- 2b. a zip in parts -------------------------------------------------------
@@ -235,7 +235,7 @@ function expectFiles(label, zipBytes, want) {
 // past 0 (rEV_Windows001.zip to 003.zip in archive.org's EV Nova collection,
 // 14 October 2026). With no directory to read, the reader walks the local
 // headers: the parts joined give every entry, a data descriptor's among them,
-// and each part alone the entries it holds whole, those cut by its ends left
+// and each part alone the entries it contains whole, those cut by its ends left
 // out. The end record is made to name disk 2, as a split archive's does.
 {
   const pay = n => Buffer.from(Array.from({length: n}, (_, i) => (i * 131 + (i >> 5)) & 255));
@@ -253,11 +253,11 @@ function expectFiles(label, zipBytes, want) {
   const good = expectFiles('a zip in parts, joined', marked, want) &&
     expectFiles('its first part alone', parts[0], want.slice(0, 1)) &&
     expectFiles('its last part alone', parts[2], want.slice(3));
-  if (good) ok('a zip in parts', 'joined, every entry and a data descriptor\'s; each part alone, the entries it holds whole');
+  if (good) ok('a zip in parts', 'joined, every entry and a data descriptor\'s; each part alone, the entries it contains whole');
 }
 
 // ---- 2c. a ZipIt self-extractor ------------------------------------------------
-// ZipIt's self-extracting archive keeps a zip in its data fork after a PowerPC
+// ZipIt's self-extracting archive has a zip in its data fork after a PowerPC
 // program ('Joy!', a PEF), its offsets counted from the start of the fork, and
 // eight bytes after the end record ('TIPZ' and a version): Mr.T's Paint and
 // More in archive.org's EV Nova collection, 14 October 2026. Read as a zip
@@ -331,7 +331,7 @@ function expectFiles(label, zipBytes, want) {
     const bytes = readFileSync(addon);
     sandbox.__z = new Uint8Array(bytes);
     const opened = ev(`(() => { try { const x = extractDelverArchive(__z); return {via: x.via, name: x.forks.name, type: x.forks.type, creator: x.forks.creator, player: x.info.player, data: x.bytes, rsrc: x.forks.rsrc}; } catch (e) { return {error: e.message}; } })()`);
-    if (opened.error) fail('the add-on', 'extractDelverArchive refused it: ' + opened.error);
+    if (opened.error) fail('the add-on', 'extractDelverArchive rejected it: ' + opened.error);
     else if (opened.via !== 'zip archive' || opened.type !== 'DelP' || opened.creator !== 'Delv' || !opened.player)
       fail('the add-on', `opened as ${JSON.stringify({via: opened.via, name: opened.name, type: opened.type, creator: opened.creator, player: opened.player})}`);
     else if (!haveUnar) ok('the add-on', `"${opened.name}" opens as a saved game; unar is not installed, so not compared`);

@@ -13,14 +13,14 @@
 // the other half of a Mac file at all.
 //
 // A writer is easy to get almost right and there is no oracle for the format
-// -- delvmod knows nothing about classic-Mac structures, and the retired port
+// -- delvmod has nothing on classic-Mac structures, and the retired port
 // is the only second implementation in the project. But this format has
 // something better than an oracle available: **two real files, written by
-// Apple's own Resource Manager in 1999, sitting in the repository.** So the
+// Apple's Resource Manager in 1999, sitting in the repository.** So the
 // check is the strongest kind there is for a writer. Read each of them, hand
 // what comes out straight back to the writer, and require the bytes to be
 // identical -- all 452 resources across 70 types, 2.25 MB of them. A writer
-// that gets any offset, any order or any field wrong cannot pass that by
+// that has any offset, any order or any field wrong cannot pass that by
 // accident.
 //
 // FOUR ORDERS AND FOUR JUNK FIELDS, all of them found by failing this check
@@ -37,7 +37,7 @@
 //     Cythera did;
 //   - and the reserved 240, the map's header copy, the next-map handle, the
 //     file reference number and every reference entry's handle are memory
-//     rather than data. A fresh fork zeroes them, a rewrite carries them.
+//     rather than data. A fresh fork zeroes them, a rewrite copies them.
 //
 // The synthetic half is what guards the *other* path -- a fork built from
 // nothing, with none of that carried through, which is what every real caller
@@ -88,7 +88,7 @@ for (const [label, path] of [['Cythera Data', dataRsrcPath], ['Cythera', appRsrc
   realForks++; realResources += fork.total(); realTypes += fork.typeList.length;
 
   // And the round trip through the reader, which is a different claim: the
-  // bytes could be identical and the reader still disagree about what they
+  // bytes could be identical and the reader still differ about what they
   // mean if both sides shared a misreading of the map.
   const again = ctx.openResourceFork(out);
   let mismatched = 0;
@@ -102,9 +102,9 @@ for (const [label, path] of [['Cythera Data', dataRsrcPath], ['Cythera', appRsrc
 }
 
 // ---- 2. a fork built from nothing ------------------------------------------
-// The path every caller of this writer actually takes, and the one no real
+// The path every caller of this writer actually follows, and the one no real
 // file can check: nothing is carried through, so every offset, order and
-// length is the writer's own arithmetic.
+// length is the writer's arithmetic.
 const enc = s => new Uint8Array([...s].map(c => c.charCodeAt(0) & 0xFF));
 const synthetic = [
   { type: 'Pref', id: 130, name: 'UI Prefs', data: new Uint8Array([0x9A, 0x80, 0x00, 0x01]) },
@@ -132,37 +132,37 @@ check('every resource comes back with its name, attributes and bytes', wrong.len
 check('a negative id survives', !!(reread.resourcesByType['STR '] || []).find(e => e.id === -16396),
       'system resources use them, and reading one unsigned lists it as #49140');
 check('two resources may share a name', (reread.resourcesByType['Pref'] || []).filter(e => e.name === 'CurScen').length === 2);
-check('the header says what it does', reread.dataOff === 256 && reread.mapOff === 256 + reread.dataLen &&
+check('the header describes what it does', reread.dataOff === 256 && reread.mapOff === 256 + reread.dataLen &&
       reread.mapOff + reread.mapLen === built.length,
       `data at ${reread.dataOff}, map at ${reread.mapOff}, ${built.length} bytes`);
-check('a fresh fork carries no memory in it', built.slice(16, 256).every(b => b === 0),
+check('a fresh fork has no memory in it', built.slice(16, 256).every(b => b === 0),
       'the reserved 240 bytes are zero rather than whatever was in the heap');
 // Writing the same spec twice must give the same bytes, or nothing built on
 // this can be compared with anything.
 check('the writer is deterministic', bytesEqual(built, ctx.writeResourceFork(synthetic)).same);
 
-// ---- 3. what it refuses ----------------------------------------------------
+// ---- 3. what it rejects ----------------------------------------------------
 const refuses = (what, fn) => {
   let threw = null;
   try { fn(); } catch (e) { threw = e; }
-  check('it refuses ' + what, !!threw, threw ? threw.message.slice(0, 70) : 'it did not');
+  check('it rejects ' + what, !!threw, threw ? threw.message.slice(0, 70) : 'it did not');
 };
 refuses('a type that is not four characters', () => ctx.writeResourceFork([{ type: 'ABC', id: 1, data: new Uint8Array(1) }]));
 refuses('an empty fork', () => ctx.writeResourceFork([]));
 refuses('a typeOrder naming a type nothing has',
         () => ctx.writeResourceFork(synthetic, { typeOrder: ['Pref', 'STR ', 'TEXT', 'ICN#', 'nul ', 'QQQQ'] }));
 
-// ---- 4. the file this writer was wanted for --------------------------------
+// ---- 4. the file this writer was needed for --------------------------------
 // Cythera's preferences file: an empty data fork and one four-byte 'Pref'
-// resource, two of whose bits decide whether the game moves smoothly and
+// resource, two of whose bits set whether the game moves smoothly and
 // whether it will listen to the cheat keys at all. The bytes are pinned here
 // because they are the whole point of the file -- a writer that produced a
 // structurally perfect fork with the wrong record in it would install
 // cleanly and do nothing.
 //
 // Since v1.52.0 where each switch lands in the record is read out of the
-// application's code (cytheraPrefsLayout), so this half wants the
-// application's data fork and says so when it is not given; the bytes it
+// application's code (cytheraPrefsLayout), so this half needs the
+// application's data fork and states it when it is not given; the bytes it
 // requires are still the ones measured in the game, which now hold the
 // program's reading to them.
 let appData = null;
@@ -180,7 +180,7 @@ const prefRecord = (o) => {
 };
 const onOn = prefFork({ smooth: true, cheats: true });
 const entry = (onOn.resourcesByType['Pref'] || [])[0];
-check('the preferences file holds one named resource', onOn.total() === 1 && entry && entry.id === 130 && entry.name === 'UI Prefs',
+check('the preferences file has one named resource', onOn.total() === 1 && entry && entry.id === 130 && entry.name === 'UI Prefs',
       entry ? `'Pref' ${entry.id} "${entry.name}"` : 'none');
 const hex = a => a.map(b => b.toString(16).padStart(2, '0')).join('');
 check('smooth movement and the cheat gate together are 9a800001', hex(prefRecord({ smooth: true, cheats: true })) === '9a800001', hex(prefRecord({ smooth: true, cheats: true })));
@@ -188,7 +188,7 @@ check('neither is 18800000, the 68040 default the game would pick', hex(prefReco
 check('the cheat gate alone is 18800001, the record watched to print “Cheat mode activated.”',
       hex(prefRecord({ cheats: true })) === '18800001', hex(prefRecord({ cheats: true })));
 // The 256-colour answer, added 23 September 2026. Two bits of byte 1 that
-// TDelverApp::PostInitMac writes from its own startup dialog and no control of
+// TDelverApp::PostInitMac writes from its startup dialog and no control of
 // the Preferences dialog touches, so they are the one thing in the record this
 // page sets that the game's stored default never has. Pinned by value because
 // a file that answers the question wrongly is worse than one that leaves it.
@@ -204,18 +204,18 @@ check('the cheat gate is bit 0 of byte 3 and touches nothing else',
         return a.length === 4 && b.length === 4 && a.every((v, i) => i === 3 ? (v ^ b[i]) === 1 : v === b[i]); })());
 // The other keys. Until v1.151.0 this writer made one resource; the file it
 // makes now has one per key the visitor moved, and only those -- an ordinal
-// left where a fresh install would read it is not written, so the file says
-// only what it means to say. Exactly four bytes each, because GetOrdinal
-// hands its caller the fallback for a resource holding more longs than the
-// index asks for.
+// left where a fresh install would read it is not written, so the file records
+// only what it means to. Exactly four bytes each, because GetOrdinal
+// hands its caller the fallback for a resource with more longs than the
+// index requests.
 const forkNames = o => ctx.openResourceFork(ctx.buildCytheraPreferences(o)).all().map(x => `${x.entry.name}`);
 const ordBytes = (o, name) => { const f = ctx.openResourceFork(ctx.buildCytheraPreferences(o));
   const e = (f.resourcesByType['Pref'] || []).find(x => x.name === name); return e ? [...f.dataOf('Pref', e)] : null; };
-check('a file that changes nothing else holds only the record', forkNames({}).join() === 'UI Prefs', forkNames({}).join());
+check('a file that changes nothing else has only the record', forkNames({}).join() === 'UI Prefs', forkNames({}).join());
 check('an ordinal left at what a fresh install reads is not written',
       forkNames({ Volume: 5, Music: 2, Ambient: 1, Backdrop: 0 }).join() === 'UI Prefs',
       forkNames({ Volume: 5, Music: 2, Ambient: 1, Backdrop: 0 }).join());
-check('each ordinal moved adds its own named resource',
+check('each ordinal moved adds a separate named resource',
       forkNames({ Volume: -1, Backdrop: -2 }).join() === 'UI Prefs,Volume,Backdrop',
       forkNames({ Volume: -1, Backdrop: -2 }).join());
 check('an ordinal is four bytes, and a negative is written whole',
@@ -236,7 +236,7 @@ const bin = ctx.writeMacBinary({ name: 'Cythera Preferences', type: 'pref', crea
 check('it wraps as MacBinary', bin.length > 128 && bin[1] === 'Cythera Preferences'.length, `${bin.length} bytes`);
 const dsk = ctx.buildPrefsDiskImage({ smooth: true, cheats: true });
 check('it builds a disk image with two files on it', dsk.length > 0 && dsk.length % 512 === 0, `${dsk.length.toLocaleString('en-US')} bytes`);
-check('the install script names the file and the volume',
+check('the install script gives the file and the volume',
       /Cythera Preferences/.test(ctx.prefsInstallScript({})) && /Cythera Prefs/.test(ctx.prefsInstallScript({})));
 } else console.log('  skip the preferences file: its record is read out of the application, and no data fork was given');
 

@@ -1,6 +1,6 @@
 // smoke_saves.mjs -- one part of the UI smoke: a saved game opened through adoptArchive and what a visitor sees of it, then the archive reopened.
 // Cut out of viewer_smoke.mjs on 18 September 2026 at a point where the open
-// file changes, so it runs from a fresh boot (smoke_boot.mjs) as its own
+// file changes, so it runs from a fresh boot (smoke_boot.mjs) as a separate
 // process. Run alone with
 //   node utilities/viewer_smoke.mjs index.html "$TMPDIR/Cythera Data.data" "" <installers .sit> <saved game> saves
 // and with the other parts by naming them; with none named the runner drives
@@ -17,7 +17,7 @@ if (savePath && !onlyCat) {
     const save = new Uint8Array(readFileSync(savePath));
     const name = savePath.replace(/^.*\//, '');
     // Dropped while the World tab is up, which is where a visit starts: the
-    // page carries the current view across a swap through the hash, and a
+    // page passes the current view across a swap through the hash, and a
     // world link names nothing in a file with no world, so this is the case
     // the landing rule has to win.
     ctx.location.hash = '#c=WORLD';
@@ -60,11 +60,11 @@ if (savePath && !onlyCat) {
                 `zone prop list 0x${(lists[0] || 0).toString(16).toUpperCase()} with ${records} records, exports as DelP`);
 
     /* The Saved Game sheet, and the edit that is the whole point of it. Judged
-       by what the REBUILT archive holds rather than by what the form returned:
+       by what is in the REBUILT archive rather than by what the form returned:
        every commit re-serializes the table, rebuilds the archive and re-enters
        parseArchiveBytes, so a changed field is only changed if it comes back
        out of the rebuilt file. The names are the borrowed ones -- this run
-       opened Cythera Data first, which is also how a visitor gets here -- so
+       opened Cythera Data first, which is also how a visitor comes here -- so
        the sheet has to say so. */
     ctx.showCategory('SAVEGAME');
     const sheet = REGISTRY.get('sheetGrid').innerHTML || '';
@@ -75,8 +75,8 @@ if (savePath && !onlyCat) {
       if (!sheet.includes(where)) fail('saved game sheet', 'the head does not say where the player is: ' + where);
       if (!ctx.namesAreBorrowed() || !/come from the scenario opened earlier/.test(sheet))
         fail('saved game sheet', 'the borrowed names are not admitted');
-      if (!sheet.includes('0xF307')) fail('saved game sheet', 'the parts table does not list the persistent store');
-      // I.M.Cheater is the community's cheated save and its hero carries 255
+      if (!sheet.includes('0xF307')) fail('saved game sheet', 'the parts table does not show the persistent store');
+      // I.M.Cheater is the community's cheated save and its hero has 255
       // training points; if that stops being true the file is not the one.
       if (heroBefore.training !== 255)
         fail('saved game sheet', 'I.M.Cheater\u2019s hero has ' + heroBefore.training + ' training points, expected 255');
@@ -105,7 +105,7 @@ if (savePath && !onlyCat) {
        the scenario this run opened first, kept as the save replaced it; the
        quest flags are read back through saveQuestState, which the map's day
        also reads, so a writer that put a flag in the wrong bit would come back
-       as a different flag here. I.M.Cheater sets quest flag 0 and holds To Do
+       as a different flag here. I.M.Cheater sets quest flag 0 and has To Do
        slot 0, line 0. */
     try {
       const w = ctx.SCENARIO_SAVE_WORDS;
@@ -137,7 +137,7 @@ if (savePath && !onlyCat) {
       else console.log('  save forms: the scenario\u2019s words kept, quest flags 77 and 200 and value 5 through the Char block, room 2 entered, ' +
                        'To Do line 114 in slot 10 shown by its text, and prop type 66 given to the hero');
     } catch (e) { fail('save forms', e); }
-    /* The gremlins a save holds (26 September 2026). I.M.Cheater has every
+    /* The gremlins in a save (26 September 2026). I.M.Cheater has every
        one as none, since the shipped game has no gremlin scripts, and the
        scenario kept before it lists none. Switching gremlin 5 on goes
        through the rebuild and reads back from the Grem block with its
@@ -150,7 +150,7 @@ if (savePath && !onlyCat) {
       if (!w || !Array.isArray(w.gremlins) || w.gremlins.length) fail('save gremlins', 'the kept scenario words list gremlins: ' + JSON.stringify(w && w.gremlins));
       else if (!before.includes('>Gremlins</h4>')) fail('save gremlins', 'the sheet does not show the gremlins');
       else if ([4, 5, 6].some(n => stateOf(n) !== 2)) fail('save gremlins', 'I.M.Cheater has a gremlin that is not none: ' + [4, 5, 6].map(stateOf).join(','));
-      else if (!ctx.writeGremlinStates({ 5: 0 })) fail('save gremlins', 'the page refused the edit');
+      else if (!ctx.writeGremlinStates({ 5: 0 })) fail('save gremlins', 'the page rejected the edit');
       else if (stateOf(5) !== 0 || stateOf(4) !== 2 || stateOf(6) !== 2) fail('save gremlins', 'the Grem block reads ' + [4, 5, 6].map(stateOf).join(','));
       else if (!(ctx.EDITED_RESIDS || new Set()).has(0x0400)) fail('save gremlins', '0x0400 is not on the dirty list');
       else {
@@ -160,8 +160,8 @@ if (savePath && !onlyCat) {
       }
     } catch (e) { fail('save gremlins', e); }
     /* A record's form names all 32 bytes (25 September 2026): five groups,
-       32 flags, the two bytes nothing reads said to be so, and bytes the
-       parser carries no field for written through the raw path and read
+       32 flags, the two bytes nothing reads marked as such, and bytes the
+       parser has no field for written through the raw path and read
        back from the rebuilt table. */
     try {
       {
@@ -171,14 +171,14 @@ if (savePath && !onlyCat) {
         const boxes = (f.match(/id="ce-1-flag\d+"/g) || []).length;
         if (boxes !== 32) fail('record form', boxes + ' flag boxes, not 32');
         if (!/move countdown/.test(f) || !/byte 31/.test(f) || /party byte|state byte/.test(f)) fail('record form', 'the relabelled bytes are not as written');
-        // Bytes 23 and 31, read on 26 September 2026. A save holds no
+        // Bytes 23 and 31, read on 26 September 2026. A save has no
         // scripts and this part opens no application, so here the price
-        // says what it is with no starting value (pinned below, on the
-        // scenario) and the size says what it is with no link (pinned with
+        // shows what it is with no starting value (pinned below, on the
+        // scenario) and the size shows what it is with no link (pinned with
         // the application in the installer part's program figures).
         const plain = withoutApp(() => ctx.charEditHTML(1));
         if (!/a merchant’s price, in tenths of a thing’s worth/.test(f) || /shops start at/.test(f))
-          fail('record form', 'byte 23 is not the price, or states starting values a save cannot hold');
+          fail('record form', 'byte 23 is not the price, or states starting values a save cannot have');
         else if (!/stats it was made at;/.test(plain) || /jumpToExeAt/.test(plain))
           fail('record form', 'byte 31 is not the size, or links to the program with no application open');
       }
@@ -239,7 +239,7 @@ if (savePath && !onlyCat) {
       else console.log('  every byte: ' + opened + ' saves, ' + bytes.toLocaleString('en-US') + ' bytes, each in one labelled field whose meaning is read');
     } catch (e) { fail('every byte', e); }
     // Back to the game archive, and the identity goes back with it. With no
-    // hash to carry a view across, the landing is the default one.
+    // hash to pass a view across, the landing is the default one.
     ctx.location.hash = '';
     ctx.parseArchiveBytes(archive, 'Cythera Data (after the saved game)', { via: 'data fork', rsrc: rsrcFork });
     if (ctx.ARCHIVE_FINDER.type !== 'DelS') fail('saved game', 'Cythera Data reopened as ' + JSON.stringify(ctx.ARCHIVE_FINDER));

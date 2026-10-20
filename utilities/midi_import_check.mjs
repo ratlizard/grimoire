@@ -7,12 +7,12 @@
 // into one (midiToQtma). Nothing reads a tune but QuickTime and this page's
 // own parser, so a writer that is wrong in a field the parser does not look
 // at would pass any check that only parses its output back. The shipped
-// tunes are the oracle instead: each was written by Apple's own tools.
+// tunes are the oracle instead: each was written by Apple's tools.
 //
-// WHAT IT HOLDS, over the eleven tunes 0x9000 to 0x900A:
+// WHAT IS CHECKED, over the eleven tunes 0x9000 to 0x900A:
 //   header   the sample description and tune header, rebuilt by qtmaWrite
 //            from what qtmaHeaderParts read out of the tune and from the
-//            tune's own notes, is the shipped header byte for byte. That
+//            tune's notes, is the shipped header byte for byte. That
 //            covers the description's layout, the general events' framing,
 //            the MIDI channel event, the used-notes bitmap (worked out from
 //            the notes, so its bit order is tested against Apple's) and the
@@ -21,10 +21,10 @@
 //            shipped one parses to, in order.
 //   midi     the tune exported as MIDI (qtmaToMidi) and made back into a
 //            tune (midiToQtma) has every note beginning at its time, key
-//            and velocity and every end where it fell, on a part asking for
+//            and velocity and every end where it fell, on a part requesting
 //            the same instrument, and each controller's settings from the
 //            part's first note on, each value within what MIDI's seven bits
-//            can carry.
+//            can hold.
 //
 // NEGATIVE CONTROLS. One note's key changed in the MIDI file must fail the
 // midi comparison; one bit of a rebuilt header must fail the header one.
@@ -81,7 +81,7 @@ for (let r = 0x9000; r <= 0x900A; r++) {
   ctx.MADE = made.data;
   const got = ev('qtmaToMidi(MADE)');
   // A part is followed through the MIDI file by its channel, and must come
-  // back asking for the same instrument: the kit, or the same General MIDI
+  // back requesting the same instrument: the kit, or the same General MIDI
   // number.
   const instOf = (tones, part) => { const t = tones[part]; return t ? (t.instrument >= 16384 ? 'kit' : 'gm' + t.gm) : '?'; };
   const chanOfGot = {};
@@ -90,8 +90,8 @@ for (let r = 0x9000; r <= 0x900A; r++) {
   const byInst = (res, chanOf, k) => { const m = new Map(); for (const e of res.events) if (e.k === k) { const key = label(res, chanOf, e.part); if (!m.has(key)) m.set(key, []); m.get(key).push(e); } return m; };
   const a = byInst(src, src.chanOf, 'note'), b = byInst(got, chanOfGot, 'note');
   // A note is held to where it begins and how hard, and the ends to where
-  // they fall. Two notes on one key that overlap cannot be told apart by
-  // their ends in a MIDI file (a note-off names a key, not a note), so which
+  // they fall. Two notes on one key that overlap cannot be distinguished by
+  // their ends in a MIDI file (a note-off identifies a key, not a note), so which
   // end goes with which beginning is not compared: the theme has one such
   // pair, key 69 at 35162 and 35340.
   for (const [inst, list] of a) {
@@ -103,18 +103,18 @@ for (let r = 0x9000; r <= 0x900A; r++) {
     notes += list.length;
   }
   // Controllers: the same count of each on each instrument, values within
-  // a step of what seven bits carry (a level's fraction is lost; pan and
+  // a step of what seven bits hold (a level's fraction is lost; pan and
   // the wheel are rounded twice).
   const ca = byInst(src, src.chanOf, 'ctl'), cb = byInst(got, chanOfGot, 'ctl');
   const signed = v => v >= 0x8000 ? v - 0x10000 : v;
   for (const [inst, list] of ca) {
     for (const ctl of new Set(list.map(e => e.ctl))) {
       // A part begins with its first note, so of a controller's settings
-      // before that only the last is carried, and it arrives as the part
+      // before that only the last is carried, and it comes as the part
       // begins. The comparison is of the settings from the first note on,
       // and of that last one.
       const first = Math.min(...(a.get(inst) || [{ t: Infinity }]).map(e => e.t));
-      // "Before" takes in the first note's own instant: the MIDI file puts a
+      // "Before" includes the first note's instant: the MIDI file puts a
       // controller ahead of a note at the same tick.
       const all = list.filter(e => e.ctl === ctl), early = all.filter(e => e.t <= first);
       const x = (early.length ? [early[early.length - 1]] : []).concat(all.filter(e => e.t > first));
@@ -136,7 +136,7 @@ for (let r = 0x9000; r <= 0x900A; r++) {
   tunes++;
 }
 
-// What a refusal says.
+// What a rejection reports.
 const throws = (what, code, want) => { try { ev(code); fail(what, 'did not throw'); } catch (e) { if (!want.test(e.message)) fail(what, 'threw "' + e.message + '"'); } };
 throws('not a MIDI file', 'midiRead(new Uint8Array(32))', /MThd/);
 ctx.R = 0x9000;

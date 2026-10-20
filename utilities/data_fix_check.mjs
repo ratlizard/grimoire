@@ -12,7 +12,7 @@
 // checks what it expects before it writes: an offset's instruction, a
 // run of instructions found once, a word found so many times, a record's
 // fields. So what has to be held is that no fix leans on another having run
-// (or not run) in a way its own expectations do not catch. Four things:
+// (or not run) in a way its expectations do not catch. Four things:
 //
 // 1. EVERY FIX ALONE on the shipped file applies, and the patch written
 //    from it, merged back onto the shipped file, gives the patched file byte
@@ -33,7 +33,7 @@
 //    spelling and every option, every place dataFixTextChanges gives a row
 //    must hold the row's words in the shipped file, which is what the link
 //    opens. A place the text changed twice (a British stem inside a word a
-//    fix put there) is counted and named, and must be one this says why.
+//    fix put there) is counted and named, and must be one this explains.
 // 6. (Ye olde spelling leaving what is typed, until 1 October 2026, when the
 //    option was taken off the page.)
 // 4. THE COMMUNITY'S LIST, DATA_FIX_COMMUNITY_TYPOS, against the collection
@@ -43,9 +43,9 @@
 //    list edited by hand, or a collection since changed, fails here.
 //
 // NEGATIVE CONTROLS. A fix applied to a file it has already been applied to
-// must refuse, naming the fix: one of each kind (an edit at an offset, a
+// must stop, naming the fix: one of each kind (an edit at an offset, a
 // place found, a record, a text) is tried twice. And a copy of the list
-// with one pair's fix changed must fail 4. A refusal that could not happen
+// with one pair's fix changed must fail 4. A rejection that could not happen
 // would pass a patch of the wrong file.
 import {readFileSync, existsSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -106,7 +106,7 @@ for (const ids of textRuns) {
   else alone++;
 }
 // An option counts without its fix (since 1 October 2026), and the first of
-// two spellings wins.
+// two spellings is used.
 {
   const chosen = ids => JSON.parse(vm.runInContext(`JSON.stringify([...dataFixesChosen(${JSON.stringify(ids)})])`, ctx));
   if (!chosen(['text-land-king']).length) fail('one of the text\u2019s choices without the text does not count');
@@ -145,7 +145,7 @@ if (FULL) {
   console.log(`  each left out: ${n} of ${all.length} apply`);
 }
 
-// ---- the refusals ----------------------------------------------------------
+// ---- the rejections --------------------------------------------------------
 {
   const twice = ids => vm.runInContext(`(() => {
     const once = writeDelverArchive(applyDataFixes(__a, ${JSON.stringify(ids)}).spec);
@@ -156,13 +156,13 @@ if (FULL) {
     const why = twice([id]);
     const f = FIXES.find(x => x.id === id);
     if (!why) fail('control: ' + id + ' applied twice without a word');
-    else if (why.indexOf(f.title) !== 0) fail('control: ' + id + ' refused, but without naming the fix: ' + why);
+    else if (why.indexOf(f.title) !== 0) fail('control: ' + id + ' rejected, but without naming the fix: ' + why);
     else refused++;
   }
   // The text's words, once fixed, are not there to fix again.
   const whyText = twice(['text']);
   if (!whyText) fail('control: the text applied twice without a word'); else refused++;
-  console.log(`  refusals: ${refused} of 6 fixes applied to a file they had fixed already refuse, naming the fix`);
+  console.log(`  rejections: ${refused} of 6 fixes applied to a file they had fixed already stop, naming the fix`);
 }
 
 // ---- 5. the places the text's list links to --------------------------------
@@ -179,8 +179,8 @@ if (FULL) {
         if (loc.at === null) { unmapped++; continue; }
         const b = bytes(loc.resid);
         let ok = true; for (let k = 0; k < row.find.length; k++) if (b[loc.at + k] !== row.find.charCodeAt(k)) { ok = false; break; }
-        // A place inside words an earlier edit wrote holds what that edit
-        // replaced, and says so; any other place must hold its own words.
+        // A place inside words an earlier edit wrote has what that edit
+        // replaced, and is marked so; any other place must have its words.
         if (loc.touched) { touched++; continue; }
         if (!ok) { let was = ''; for (let k = 0; k < row.find.length + 6; k++) was += String.fromCharCode(b[loc.at + k] || 32); off.push(row.part + ' "' + row.find + '" at 0x' + loc.resid.toString(16) + '+' + loc.at.toString(16) + ' reads "' + was + '"'); }
       }
@@ -192,7 +192,7 @@ if (FULL) {
     if (x.unmapped) fail('text list, ' + (x.sp || 'as shipped') + ': ' + x.unmapped + ' places with no offset');
     if (x.off.length) fail('text list, ' + (x.sp || 'as shipped') + ': ' + x.off.length + ' places do not hold their words: ' + x.off.slice(0, 4).join('; '));
   }
-  console.log('  text list: ' + r.map(x => (x.sp || 'as shipped') + ' ' + x.rows + ' rows, ' + x.places + ' places (' + x.touched + ' inside words a fix wrote)').join('; ') + '; every other place holds its words in the shipped file');
+  console.log('  text list: ' + r.map(x => (x.sp || 'as shipped') + ' ' + x.rows + ' rows, ' + x.places + ' places (' + x.touched + ' inside words a fix wrote)').join('; ') + '; every other place has its words in the shipped file');
 }
 
 // ---- 7. a row of the text's changes left out ------------------------------
@@ -216,7 +216,7 @@ if (FULL) {
   else if (!r.kept) fail('a row left out was made anyway: "kind looking" is hyphenated');
   else if (!r.other) fail('leaving out one row left out the others');
   else if (!r.wearly || r.weary) fail('with "wearly" left out, Helen\u2019s line was changed after all');
-  else console.log('  a choice alone makes its own changes and none of the corrections; rows left out: "kind looking" left as the game has it and the other hyphens made; "wearly" left out takes the hyphen after it along, and the build goes on');
+  else console.log('  a choice alone makes its changes and none of the corrections; rows left out: "kind looking" left as the game has it and the other hyphens made; "wearly" left out removes the hyphen after it too, and the build goes on');
 }
 
 // ---- 6. (ye olde spelling leaving what is typed; the option was taken off
@@ -227,7 +227,7 @@ if (collDir && existsSync(collDir)) {
   const read = readCollection(collDir);
   const baked = JSON.parse(vm.runInContext('JSON.stringify(DATA_FIX_COMMUNITY_TYPOS)', ctx));
   const same = (a, b) => a.length === b.length && a.every((t, i) => JSON.stringify(t) === JSON.stringify(b[i]));
-  if (!same(read, baked)) fail('DATA_FIX_COMMUNITY_TYPOS is not what the collection holds: run community_text_patch.mjs --write-js');
+  if (!same(read, baked)) fail('DATA_FIX_COMMUNITY_TYPOS is not what is in the collection: run community_text_patch.mjs --write-js');
   else console.log(`  community list: ${baked.length} pairs, as the collection has them`);
   // Control: one fix changed must be seen.
   const off = baked.map(t => t.slice()); off[0][2] += 'x';

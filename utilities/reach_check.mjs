@@ -5,8 +5,8 @@
    written, documented and reported as landed, and `drawLighting` was never
    changed to call it, so the reader sat in the page unreachable while the old
    gradient kept drawing. Every one of the twenty-four checks passed, and
-   rightly: `verify_viewer` asks whether every name the JS *calls* is declared
-   somewhere, which is the opposite question. Nothing asked whether a
+   rightly: `verify_viewer` tests whether every name the JS *calls* is declared
+   somewhere, which is the opposite question. Nothing tested whether a
    declaration is ever reached.
 
    This does. It collects every top-level `function` the page declares and
@@ -15,7 +15,7 @@
 
    Where a reference can legitimately come from, and all four count:
 
-     - the page's own scripts, index.html's inline block and js/*.js
+     - the page's scripts, index.html's inline block and js/*.js
      - an inline HTML handler, onclick="foo()"
      - another harness in utilities/, which reaches a page function through the
        vm sandbox as `G.foo(...)`. nfntSpec and writeNFNT have no caller in the
@@ -33,7 +33,7 @@
    wolf is turned off, so this errs towards silence, and it still catches the
    case it was written for: a name that appears literally nowhere else.
 
-   A function's own body is cut out before its name is counted, so a recursive
+   A function's body is cut out before its name is counted, so a recursive
    function that nothing else calls is still reported.
 
      node utilities/reach_check.mjs index.html
@@ -56,7 +56,7 @@ const htmlPath = process.argv[2] || 'index.html';
    unreached is a failure: either it found a caller, in which case take it out
    of this list, or the name changed and the entry is stale. */
 /* The first run found twenty-two, and none of them is this check misfiring:
-   each appears exactly once in the whole repository, which is its own
+   each appears exactly once in the whole repository, which is its
    declaration, and canvas.html mentions none of them. Four appear twice, the
    second being a call to themselves from inside themselves, which is why the
    body is cut out before counting.
@@ -96,7 +96,7 @@ function buildCorpus(htmlPath) {
      `decl` has strings and comments stripped, because a `function foo` inside
      a string or a comment is not a declaration.
 
-     `code` keeps the strings, because a reference can legitimately live in
+     `code` retains the strings, because a reference can legitimately live in
      one: this page builds markup in JS, so `onclick="undoStrikeSwap()"` is a
      string and nothing else reaches that function. Counting references over
      the stripped text reported 48 live functions as dead on the first run. */
@@ -105,13 +105,13 @@ function buildCorpus(htmlPath) {
     pieces.push({ name: s.name, code: stripComments(s.code), decl: stripJsText(s.code),
                   page: true, product: true });
   }
-  /* A script the page adds itself when it is first wanted, which is not
+  /* A script the page adds itself when it is first needed, which is not
      among its <script src> tags: js/delv-es.js, the Spanish table, half a
      megabyte most visitors never load, which spanishTable in
      js/page-mechanics.js adds on the Patches section's button (29 September
      2026). Its table names translateSpanishGlyphs, and nothing else does, so
      without it here the face the translation draws its accents with reads as
-     dead. A file counts when the page's own code names its path. */
+     dead. A file counts when the page's code contains its path. */
   const have = new Set(collected.sources.map(s => s.name));
   const base = dirname(resolve(htmlPath));
   for (const s of collected.sources) {
@@ -121,7 +121,7 @@ function buildCorpus(htmlPath) {
       have.add(m[1]);
       try {
         const code = readFileSync(join(base, m[1]), 'utf8');
-        pieces.push({ name: m[1] + ' (loaded when wanted)', code: stripComments(code), decl: stripJsText(code), page: true, product: true });
+        pieces.push({ name: m[1] + ' (loaded when needed)', code: stripComments(code), decl: stripJsText(code), page: true, product: true });
       } catch { /* a path the page names and the tree lacks is verify_viewer's business */ }
     }
   }
@@ -144,7 +144,7 @@ function buildCorpus(htmlPath) {
 
      So its references count as a real consumer's, not a test's. Found the way
      delvmod and wolflizard are found -- $PLAYER, then a sibling checkout --
-     and when it is absent the run SAYS so, because the verdict for those
+     and when it is absent the run STATES it, because the verdict for those
      functions quietly changes without it. */
   const playerDirs = [];
   for (const cand of [process.env.PLAYER,
@@ -187,7 +187,7 @@ function buildCorpus(htmlPath) {
   return { collected, pieces };
 }
 
-// Where a function's own text begins and ends, so its name inside itself does
+// Where a function's text begins and ends, so its name inside itself does
 // not count as somebody reaching it. Brace matching on already-stripped source,
 // so a brace in a comment or a string cannot throw the count off.
 function ownSpan(code, name) {
@@ -205,7 +205,7 @@ function ownSpan(code, name) {
 }
 
 function analyse(pieces) {
-  // Declared: top-level function declarations in the page's own scripts.
+  // Declared: top-level function declarations in the page's scripts.
   const declared = new Map();          // name -> piece it is declared in
   for (const p of pieces) {
     if (!p.page) continue;
@@ -221,14 +221,14 @@ function analyse(pieces) {
       hits += n;
       if (p.product) product += n;
     }
-    /* Its own text does not count as somebody reaching it, so the declaration
+    /* Its text does not count as somebody reaching it, so the declaration
        and the body are measured separately and taken off. The brace matching
        runs on the stripped view, where a `{` inside a string or a comment
        cannot end the body early; the count it yields is subtracted from the
-       total taken over the view that keeps strings. A self-reference written
-       inside a string in its own body would be over-subtracted, which would
+       total taken over the view that retains strings. A self-reference written
+       inside a string in its body would be over-subtracted, which would
        report a live function as dead -- nothing in this tree does that, and a
-       false alarm is the failure direction that gets noticed. */
+       false alarm is the failure direction that is noticed. */
     const declSrc = home.decl || home.code;
     const span = ownSpan(declSrc, name);
     if (span) {
@@ -245,9 +245,9 @@ function analyse(pieces) {
        visitor does.
 
        It is reported rather than failed, because the class is not uniformly
-       wrong: `nfntSpec` and `writeNFNT` are writers whose caller is their own
+       wrong: `nfntSpec` and `writeNFNT` are writers whose caller is their
        check by design, and that is the arrangement, not a defect. Telling the
-       two apart needs a person, so the check says which functions are in the
+       two apart needs a person, so the check shows which functions are in the
        class and leaves the judgement. */
     else if (product <= 0) harnessOnly.push({ name, where: home.name });
   }

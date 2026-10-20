@@ -13,10 +13,10 @@
  * Chrome by hand after a split; this is that, in the suite. The stub also
  * cannot see a stylesheet, a real canvas, or an exception a browser raises
  * that the stub does not, which is why the holistic review's findings were
- * all in what is drawn or said.
+ * all in what is drawn or written.
  *
  * What it does: serves the repository over HTTP on a loopback port (a
- * file:// page cannot fetch its own archive; served, it can), opens each
+ * file:// page cannot fetch its archive; served, it can), opens each
  * page in headless Chrome, listens to its console and its exceptions, waits
  * for the thing the page is meant to do, and requires:
  *
@@ -24,7 +24,7 @@
  *     the brand line drawn by the last script to run, which is what a
  *     load-order fault stops;
  *   - the archive, when the game is in reference/, opened through the page's
- *     own ?src= path over HTTP: the title line says so, the world is up, and
+ *     ?src= path over HTTP: the title line shows it, the world is up, and
  *     the quiet failures that arrived on the way are counted -- each is a
  *     `quietly:` console warning, since the page is loaded with ?loud=1
  *     (quiet() in js/mac-bytes.js);
@@ -41,8 +41,8 @@
  * browser is closed from here and killed if it will not go.
  *
  * Chrome is found through $CHROME, then the PATH, then the Mac's
- * Applications folder; without one the check skips and says so, which
- * check_all.mjs also arranges by listing the binary under `want`. */
+ * Applications folder; without one the check skips and states it, which
+ * check_all.mjs also arranges by naming the binary under `want`. */
 
 import {spawn, execFileSync} from 'node:child_process';
 import {createServer} from 'node:http';
@@ -130,7 +130,7 @@ class Browser {
 
 /* Open a page, wait until `until` (an expression evaluated in the page) is
    true or the deadline passes, and return the DOM and what the console and
-   the exception stream said. Each page is a fresh browser, so nothing is
+   the exception stream recorded. Each page is a fresh browser, so nothing is
    remembered between loads or from a previous run. */
 async function load(url, until, deadlineMs, opts = {}) {
   const b = new Browser();
@@ -188,7 +188,7 @@ const watchdog = setTimeout(() => { console.log('\nFAIL — the browser check di
 let failures = 0;
 const fail = (what, why) => { failures++; console.log(`  FAIL ${what} — ${why}`); };
 const text = html => html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-// The browser asks for a favicon the site does not ship, and its 404 is
+// The browser requests a favicon the site does not ship, and its 404 is
 // the one error every load logs; it is not the page's doing and is left out.
 const errors = c => c.filter(l => (l.level === 'error' || l.level === 'exception') && !/favicon\.ico/.test(l.text));
 const describe = l => (l.where ? l.where + ' ' : '') + l.text.split('\n')[0].slice(0, 160);
@@ -207,24 +207,24 @@ const quietOnes = c => c.filter(l => l.level === 'warning' && /^quietly:/.test(l
   const title = text((/id="output"[^>]*>([\s\S]*?)<\/pre>/.exec(r.dom) || ['', ''])[1]).trim();
   const gate = /id="landingGate" style="display: flex;/.test(r.dom);
   if (errs.length) fail('index.html', 'console errors on load: ' + errs.map(describe).join(' | '));
-  else if (!r.met) fail('index.html', 'neither the gate nor a file came up in 90 s: output says "' + title.slice(0, 100) + '"');
+  else if (!r.met) fail('index.html', 'neither the gate nor a file came up in 90 s: output reads "' + title.slice(0, 100) + '"');
   else if (!gate && !/^Title: /.test(title)) fail('index.html', 'the load ended without the gate and without a file: ' + title.slice(0, 120));
   else console.log(`  index.html: loads clean in a browser in ${r.ms} ms, the brand line is drawn and ${gate ? 'the gate stands' : 'the installer beside the page opened (' + title.slice(0, 50) + ')'}; ${quietOnes(r.console).length} quiet failures`);
 }
 
 // ---- 2. the archive opens over HTTP --------------------------------------
 /* With the archive open, the Seldane rasteriser against a face whose answer
-   is known: each strike written as a TrueType by the panel's own export
+   is known: each strike written as a TrueType by the panel's export
    (nfntToTrueType, one pixel to 64 units), loaded as a FontFace, and drawn
    back into the strike by rebuildStrike. A faithful rasteriser gives the
    strike back: the same metrics, location table, offset/width table and
    every bit inside the glyph columns. Not the same bytes: both shipped
-   strikes carry some sixty lit bits in the row padding past their last
+   strikes have some sixty lit bits in the row padding past their last
    glyph, which nothing reads and a rewrite writes as zero. This is the only
    harness with real fonts, which is why it is here. Added 26 September 2026,
    when it was the control that showed the rasteriser drew every letter two
    thirds of its height and a column to the left; the control below, the
-   sizing it replaced, must fail, or the check could not tell. */
+   sizing it replaced, must fail, or the check could not see the difference. */
 const SELDANE_ROUND_TRIP = `(async () => { try {
   const fork = window.CYTHERA_RSRC; const strikes = seldaneStrikes() || [];
   const bits = (s, y, x) => (s.strike[y * s.rowWords * 2 + (x >> 3)] >> (7 - (x & 7))) & 1;
@@ -253,7 +253,7 @@ const SELDANE_ROUND_TRIP = `(async () => { try {
   return { strikes: out };
 } catch (e) { return { error: e.message }; } })()`;
 /* The Spanish table is not among the page's scripts: the Patches section
-   adds it as a script element when it is first wanted (spanishTable in
+   adds it as a script element when it is first needed (spanishTable in
    js/page-mechanics.js), which only a browser does. So here it is loaded
    that way and the file is written from the archive the page opened, both
    forks, and the pieces counted. */
@@ -272,15 +272,15 @@ if (archive && existsSync(resolve(ROOT, archive))) {
   const title = text((/id="output"[^>]*>([\s\S]*?)<\/pre>/.exec(r.dom) || ['', ''])[1]).trim();
   const status = text((/id="sourceStatus"[^>]*>([\s\S]*?)<\/(?:pre|div|span)>/.exec(r.dom) || ['', ''])[1]).trim();
   if (errs.length) fail('archive over http', 'console errors: ' + errs.map(describe).join(' | '));
-  else if (!/^Title: /.test(title)) fail('archive over http', 'the page did not open the archive' + (r.met ? '' : ' in 90 s') + ': output says "' + title.slice(0, 100) + '"; status: ' + status.slice(0, 160));
+  else if (!/^Title: /.test(title)) fail('archive over http', 'the page did not open the archive' + (r.met ? '' : ' in 90 s') + ': output reads "' + title.slice(0, 100) + '"; status: ' + status.slice(0, 160));
   else if (!/id="atlasPanel" style="display: (block|flex|grid)/.test(r.dom))
     fail('archive over http', 'the world did not come up after the archive opened: ' + (r.dom.match(/id="atlasPanel"[^>]*/) || ['no atlas panel'])[0]);
   else if (!r.more || r.more.error) fail('seldane round trip', 'it did not run: ' + (r.more ? r.more.error : 'no result'));
   else if (!r.more.strikes.length) fail('seldane round trip', 'the fork has no NFNT to rewrite');
-  else if (r.more.strikes.some(t => !t.same)) fail('seldane round trip', 'a strike rewritten from its own TrueType is not the strike: ' + r.more.strikes.map(t => t.id + ' ' + t.why).join('; '));
-  else if (r.more.strikes.some(t => t.control)) fail('seldane round trip', 'the control, the sizing this replaced, gave a strike back too, so the check cannot tell');
+  else if (r.more.strikes.some(t => !t.same)) fail('seldane round trip', 'a strike rewritten from its TrueType is not the strike: ' + r.more.strikes.map(t => t.id + ' ' + t.why).join('; '));
+  else if (r.more.strikes.some(t => t.control)) fail('seldane round trip', 'the control, the sizing this replaced, gave a strike back too, so the check cannot see the difference');
   else {
-    seldane = 'both Seldane strikes rewritten from their own TrueType come back whole (' + r.more.strikes.map(t => t.letters + ' letters').join(', ') + ') and the old sizing does not';
+    seldane = 'both Seldane strikes rewritten from their TrueType come back whole (' + r.more.strikes.map(t => t.letters + ' letters').join(', ') + ') and the old sizing does not';
     console.log('  ' + seldane);
     const es = r.more.spanish;
     if (!es || es.error) fail('spanish', 'the Spanish file was not written in the browser: ' + (es ? es.error : 'no result'));
@@ -321,8 +321,8 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     // Data > Saved Game with the scenario open: Make a Save, under the records.
     ['saveMaker', "showCategory('SAVEGAME'); document.getElementById('saveMaker').scrollIntoView()"],
     // Data > Patches, at Make a Scenario: the form's six rows and three
-    // buttons. The tab is drawn a moment after it is asked for, so it is
-    // asked for in a view of its own and the section opened in the next.
+    // buttons. The tab is drawn a moment after it is requested, so it is
+    // requested in a separate view and the section opened in the next.
     ['patches', "showCategory('PATCHES')"],
     ['scenarioMaker', "const d = document.getElementById('scenarioMaker').closest('details'); if (d) d.open = true; document.getElementById('scenarioMaker').scrollIntoView()"],
     ['dataFork', "showCategory('DATAFORK')"],
@@ -335,7 +335,7 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     // The same zone with the toggles opened over the map from its Layers
     // button (7 October 2026), the map at the top of the screen.
     ['zoneLayers', "jumpToResource(0x8003); toggleMapLayersSheet(true); document.getElementById('mapStage').scrollIntoView()"],
-    // The dialogue tab, whose cards carry wide tables.
+    // The dialogue tab, whose cards have wide tables.
     ['dialogue', "showCategory('23'); document.querySelector('#sheetGrid details').open = true; document.querySelector('#sheetGrid details').scrollIntoView()"],
     // Data > Patches, at the program's fixes: a list of long titles with
     // their words folded under each (28 September 2026).
@@ -381,7 +381,7 @@ if (archive && existsSync(resolve(ROOT, archive))) {
       const views = [];
       for (const [name, drive] of VIEWS) {
         // A drive that throws leaves the page where it was, and the shot is
-        // then of the wrong place with nothing said; so it is said.
+        // then of the wrong place with nothing shown; so it is shown.
         if (drive) { const went = await page.evaluate(`(() => { try { ${drive}; } catch (e) { return String(e); } return 'ok'; })()`); if (went !== 'ok') console.log(`  view ${name}: its drive did not run: ${went}`); }
         await page.evaluate('new Promise(r => setTimeout(r, 400))');
         const m = await page.evaluate(MEASURE);

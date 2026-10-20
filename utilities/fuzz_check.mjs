@@ -12,16 +12,16 @@
  * the BinHex, the MacBinary installer, the StuffIt bundle, the zip add-on --
  * is damaged a fixed number of ways from a fixed seed (bytes flipped, a
  * length field maxed, a range zeroed, the file cut short) and handed to the
- * page's own entry point for it: extractDelverArchive, the route a dropped
- * file takes, then the decoders behind it. A decoder may return or throw;
+ * page's entry point for it: extractDelverArchive, the route a dropped
+ * file follows, then the decoders behind it. A decoder may return or throw;
  * what it may not do is fail to stop, or take the process down. A hang on a
  * phone is the failure that would follow, and it is the one the other
  * checks cannot see, since a harness that hangs reports nothing.
  *
  * So each case runs in a worker thread under a deadline. A case that
  * overruns is a hang: the worker is killed, the case named with its seed so
- * `--case kind:seed` reproduces it, and a fresh worker takes the rest. A
- * worker that dies (an allocation the mutated length asked for, past the
+ * `--case kind:seed` reproduces it, and a fresh worker handles the rest. A
+ * worker that dies (an allocation the mutated length requested, past the
  * heap limit set on it) is a crash, named the same way. The negative control
  * is a case that loops on purpose: the check fails if it is not reported as
  * a hang, which is the harness proving it can fail. Seeds are fixed, so a
@@ -62,13 +62,13 @@ const DRIVES = {
       const raw = g.getResourceBytes(arc, resid); if (!raw) continue; n++;
       const d = g.smartDecrypt(raw, resid).data;
       const subn = (resid >> 8) - 1;
-      try { if (subn === 141 || subn === 135) g.decodeResource(arc, raw, subn, resid); } catch (e) { /* refused */ }
-      try { if (resid === 0x8001) g.parseDelverMap(d); } catch (e) { /* refused */ }
-      try { if (resid === 0x8101) g.parseDelverPropList(d); } catch (e) { /* refused */ }
-      try { if (subn === 0x17 || subn === 0x0F) g.dvmRender(arc, d, resid); } catch (e) { /* refused */ }
-      try { if (resid === 0xF009) g.parseDelverCharacterRecords(d); } catch (e) { /* refused */ }
+      try { if (subn === 141 || subn === 135) g.decodeResource(arc, raw, subn, resid); } catch (e) { /* rejected */ }
+      try { if (resid === 0x8001) g.parseDelverMap(d); } catch (e) { /* rejected */ }
+      try { if (resid === 0x8101) g.parseDelverPropList(d); } catch (e) { /* rejected */ }
+      try { if (subn === 0x17 || subn === 0x0F) g.dvmRender(arc, d, resid); } catch (e) { /* rejected */ }
+      try { if (resid === 0xF009) g.parseDelverCharacterRecords(d); } catch (e) { /* rejected */ }
     }
-    try { g.delverArchiveSpec(arc.bytes); } catch (e) { /* refused */ }
+    try { g.delverArchiveSpec(arc.bytes); } catch (e) { /* rejected */ }
     return n + ' resources';
   },
   rsrc(g, b) {
@@ -86,14 +86,14 @@ const DRIVES = {
         else if (r.type === 'ICN#' || r.type === 'ics#') g.decode1bitIcon(r.data, r.type === 'ICN#' ? 32 : 16);
         else if (/^ic[ls][48]$/.test(r.type)) g.drawIndexedIcon(r.data, r.type[2] === 'l' ? 32 : 16, +r.type[3], +r.type[3] === 4 ? g.MAC_4BIT_PAL : g.MAC_8BIT_PAL);
         n++;
-      } catch (e) { /* refused */ }
+      } catch (e) { /* rejected */ }
     }
     return n + ' of ' + (f.resources || []).length + ' resources';
   },
   hqx(g, b) { const r = g.extractDelverArchive(b, {}); return r ? 'opened' : 'refused'; },
   bin(g, b) { const r = g.extractDelverArchive(b, {}); return r ? 'opened' : 'refused'; },
-  sit(g, b) { const a = g.parseStuffItArchive(b); let n = 0; for (const e of (a.entries || []).slice(0, 12)) { try { g.stuffItFork(b, e, 'data'); n++; } catch (e2) { /* refused */ } } return n + ' forks'; },
-  zip(g, b) { const a = g.parseZipArchive(b); let n = 0; for (const e of (a.entries || []).slice(0, 12)) { try { g.zipFork(b, e, 'data'); n++; } catch (e2) { /* refused */ } } return n + ' entries'; },
+  sit(g, b) { const a = g.parseStuffItArchive(b); let n = 0; for (const e of (a.entries || []).slice(0, 12)) { try { g.stuffItFork(b, e, 'data'); n++; } catch (e2) { /* rejected */ } } return n + ' forks'; },
+  zip(g, b) { const a = g.parseZipArchive(b); let n = 0; for (const e of (a.entries || []).slice(0, 12)) { try { g.zipFork(b, e, 'data'); n++; } catch (e2) { /* rejected */ } } return n + ' entries'; },
 };
 
 // ---- the worker: the page once, then cases as they come --------------------
@@ -180,6 +180,6 @@ if (!isMainThread) {
   if (!controlThrowSeen) fail('the negative control that throws on purpose was not seen to throw');
   const n = cases.length - 2;
   console.log(`  ${n} cases over ${kinds.length} inputs (${kinds.join(', ')}): ${returned} returned, ${threw} threw, ${hangs} hung, ${crashes} crashed; the control hang was ${controlHangSeen ? 'caught' : 'MISSED'}`);
-  console.log(failures ? `\nFAIL — ${failures} problem(s)` : `\nfuzz: ${n} corrupted inputs, every decoder stopped; ${threw} refused, ${returned} returned`);
+  console.log(failures ? `\nFAIL — ${failures} problem(s)` : `\nfuzz: ${n} corrupted inputs, every decoder stopped; ${threw} rejected, ${returned} returned`);
   process.exit(failures ? 1 : 0);
 }

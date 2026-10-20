@@ -17,7 +17,7 @@
 // delvmod's real Disassembler over every script resource and flattens each
 // function into [offset, opcode] / ["t", offset] events; this harness runs
 // the page's real dvmExtents + dvmDisassemble over the same decrypted bytes
-// and produces the same shape. Two walks that consume the same bytes agree
+// and produces the same shape. Two walks that consume the same bytes match
 // event for event; a walk that desyncs by one operand byte diverges
 // immediately. See the header of delv_dasm_ref.py for the event grammar and
 // the ddasm bookkeeping it normalises.
@@ -29,7 +29,7 @@
 // object class, and the character classes for Tros, Palaestra and Pheres,
 // whose lecture dialogue is implemented unusually; forum compendium,
 // "DELVER SCRIPTING - NESTED SUBROUTINES"). Those plus the structural
-// classes listed at KNOWN below are expected to disagree; everything else
+// classes listed at KNOWN below are expected to differ; everything else
 // must match exactly, and the check fails when a pinned divergence starts
 // PASSING too, so the list cannot rot.
 import { readFileSync } from 'node:fs';
@@ -91,15 +91,15 @@ const jsEvents = resid =>
 // listed here must actually diverge; one that stops diverging fails the check
 // so an entry cannot outlive its reason.
 //
-// This list used to be four classes and 154 resources: the harness's first
+// This list was once four classes and 154 resources: the harness's first
 // run also caught three real viewer bugs -- the text-entry rule (delvmod's
 // direct mode reads ANY byte < 0x80 as output text on an empty expectation
 // stack, where dvmDisassemble demanded a printable run of 3+), the
 // prose-head misfire (dvmIsProse counted opcode bytes >= 0x80 as prose, so
 // every `return "text"` skill description rendered as a garbled string), and
-// the switch case list (a switch's closing 0x40 carries a count and a label
+// the switch case list (a switch's closing 0x40 has a count and a label
 // array, not an if's single target; 0x0E95 and 0x0E96 are the archive's only
-// two switches and both walked into their own label arrays). All three are
+// two switches and both walked into their label arrays). All three are
 // fixed in js/delv-script.js and 121 resources left this list. What remains:
 //
 //   recovery -- ddasm sweeps regions no reference points at and recovers
@@ -107,33 +107,33 @@ const jsEvents = resid =>
 //     drefs, so an unreferenced function (0x1828 has one at offset 2) is
 //     invisible to it. A viewer feature gap, not a desync. Eleven of the
 //     thirteen left this list on 24 September 2026: their "unreferenced"
-//     functions are reached by `call_subroutine` from the resource's own code,
-//     which dvmDiscover now follows (Berossus's 0x003A, which holds the Naxos
+//     functions are reached by `call_subroutine` from the resource's code,
+//     which dvmDiscover now follows (Berossus's 0x003A, which has the Naxos
 //     trial's end and the archive's one `SetQV 3, 3`, among them). The two
 //     left, the CD player (0x1174) and the strange device (0x1175), hand
 //     their windows pointers to functions (`word here:0x001C`), and since
 //     the same night the viewer follows those too -- which turned both
-//     around: each callback is a function of its own, ending in `return`
+//     around: each callback is a separate function, ending in `return`
 //     and `end` before the next header, and ddasm's sweep, which reads the
 //     run as one function, is the side that merges. They are pinned under
 //     `split` for that reason.
 //   decrypt -- delvmod's known_encrypted/known_clear say nothing about these
 //     and its fallback leaves them as ciphertext it then fails to parse, while
-//     the page's decides correctly. Here the ORACLE is the short side, and it
+//     the page's settles it correctly. Here the ORACLE is the short side, and it
 //     was eighteen resources until 22 September 2026.
 //
 //     Fourteen of the eighteen left this list that day, and they left it
-//     because the ORACLE was fixed rather than the page. Their resource ids
+//     because the fix went to the ORACLE rather than the page. Their resource ids
 //     have a constant keystream -- the cipher's PRNG starts on a fixed point,
 //     so the encryption is a XOR with one byte -- which makes the two
 //     candidates one byte histogram relabelled, and delvmod's entropy measure
 //     returns the identical number for both. Its `>` test was therefore always
-//     False and it always answered "not encrypted". ratlizard/delvmod decides
-//     those by zero-byte count now; `delv_crosscheck.mjs` still holds the
+//     False and it always answered "not encrypted". ratlizard/delvmod settles
+//     those by zero-byte count now; `delv_crosscheck.mjs` still checks the
 //     three tables to delvmod's source, and this is a change beneath them.
 //
 //     The four that remain are the honest residue: their keystreams are not
-//     constant, delvmod's measure simply loses, and the page wins them on
+//     constant, delvmod's measure simply fails, and the page has them right on
 //     payload shape rather than on any statistic. Fixing those upstream would
 //     mean giving delvmod a shape bank, which is a larger thing than this.
 const KNOWN_CLASSES = [
@@ -155,7 +155,7 @@ for (const [ridHex, pyRec] of Object.entries(ref)) {
   const resid = parseInt(ridHex, 16);
   const js = jsEvents(resid);
   if (!pyRec.ok) {
-    // delvmod refused it (empty or truncated); the viewer must not have
+    // delvmod rejected it (empty or truncated); the viewer must not have
     // conjured functions out of it either.
     if (js.functions && Object.keys(js.functions).length)
       divergent.push([ridHex, `delvmod errored (${pyRec.error}) but the viewer decoded functions`]);

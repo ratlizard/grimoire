@@ -6,7 +6,7 @@
 //        ["$TMPDIR/Cythera Data.data"]
 //
 // writeDelverArchive in js/delv-archive.js is a port of delvmod's
-// Archive.to_file(). Like every port in this repository it gets an oracle
+// Archive.to_file(). Like every port in this repository it has an oracle
 // from day one: utilities/delv_write_ref.py builds synthetic archives with
 // delvmod and hands back both the logical content and delvmod's bytes, and
 // this harness fails if the viewer's writer differs on any byte. Three
@@ -75,9 +75,9 @@ window.__propListIdentityFor = (archiveB64, resid) => {
            detail: same ? '' : (res.data.length + 'B in, ' + back.length + 'B out') };
 };
 /* The map editor's terrain writer. It claims to be a PATCH: the resource
-   comes back byte for byte except the squares asked for, which read back as
-   asked. Both halves matter -- a writer that reshaped the resource would take
-   the roof block and the twelve bytes of padding nothing here understands
+   comes back byte for byte except the squares requested, which read back as
+   requested. Both halves matter -- a writer that reshaped the resource would take
+   the roof block and the twelve bytes of padding this project has not decoded
    with it, and one that wrote the wrong offset would corrupt a square it was
    never pointed at. */
 window.__charRecordIdentity = (archiveB64) => {
@@ -135,7 +135,7 @@ window.__mapTilePatch = (archiveB64, resid) => {
   });
   const sourceIntact = res.data.length === source.length && res.data.every((b, i) => b === source[i]);
   return { ok: moved === 0 && readBack && sourceIntact, size: m.width + 'x' + m.height,
-           detail: moved ? moved + ' byte(s) changed outside the squares asked for'
+           detail: moved ? moved + ' byte(s) changed outside the squares requested'
                          : !readBack ? 'a square did not read back'
                          : !sourceIntact ? 'the writer patched its source in place' : '' };
 };
@@ -171,7 +171,7 @@ window.__roundTrip = (b64) => {
   };
 };`, {filename: htmlPath}).runInContext(ctx);
 
-// Buffer inside the vm is the host's own (node shares it), but keep all
+// Buffer inside the vm is the host's (node shares it), but keep all
 // comparisons on base64 strings anyway so nothing depends on realm identity.
 let failures = 0;
 const fail = (msg) => { failures++; console.error('FAIL  ' + msg); };
@@ -189,7 +189,7 @@ for (const c of REF.cases) {
   } else ok(`${c.name}: spec -> writeDelverArchive matches delvmod (${Buffer.from(want, 'base64').length}B)`);
 
   const rt = ctx.__roundTrip(want);
-  if (!rt) { fail(`${c.name}: delverArchiveSpec refused delvmod's own output`); continue; }
+  if (!rt) { fail(`${c.name}: delverArchiveSpec rejected delvmod's output`); continue; }
 
   // The parse must see what was put in: same resource ids, same verdicts.
   // Zero-length resources are dropped by delvmod's writer, so they are
@@ -198,7 +198,7 @@ for (const c of REF.cases) {
     .map(r => ({resid: r.resid, len: r.data.length / 2, encrypted: r.encrypted}));
   const gotRes = JSON.stringify(rt.resources);
   const wantRes = JSON.stringify(expect);
-  if (gotRes !== wantRes) fail(`${c.name}: parsed spec disagrees\n  js:   ${gotRes}\n  want: ${wantRes}`);
+  if (gotRes !== wantRes) fail(`${c.name}: parsed spec differs\n  js:   ${gotRes}\n  want: ${wantRes}`);
   else ok(`${c.name}: parse recovers ${expect.length} resources with matching verdicts`);
 
   if (rt.out !== want) fail(`${c.name}: round trip is not the identity`);
@@ -243,10 +243,10 @@ if (REF.real && REF.real.bytes) {
 // evidence the prop list's has: the table it came from, written back byte for
 // byte. And, because the record is only two thirds identified, that an edit
 // moves ONLY the bytes it names -- the eleven unexplained ones ride through
-// on the record's own copy of its 32 bytes.
+// on the record's copy of its 32 bytes.
 {
   // The saved game is read straight off disk rather than through the Python
-  // reference: this check is the writer against its own parser over a real
+  // reference: this check is the writer against its parser over a real
   // table, and delvmod has nothing to say about it that the round trip does
   // not. Without one the shipped table alone still runs.
   const saveB64 = (savePath && existsSync(savePath)) ? readFileSync(savePath).toString('base64') : null;
@@ -295,7 +295,7 @@ if (REF.real) {
 
 if (REF.real) {
   const rt = ctx.__roundTrip(REF.real.bytes);
-  if (!rt) fail('real archive: delverArchiveSpec refused it');
+  if (!rt) fail('real archive: delverArchiveSpec rejected it');
   else if (rt.out !== REF.real.bytes) {
     const a = Buffer.from(rt.out, 'base64'), b = Buffer.from(REF.real.bytes, 'base64');
     let i = 0; while (i < Math.min(a.length, b.length) && a[i] === b[i]) i++;

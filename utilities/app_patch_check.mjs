@@ -9,13 +9,13 @@
 //
 // 1. THE ASSEMBLER against the decoder, over the code section. Every word
 //    js/mac-ppc.js reads is printed as it prints it and handed to
-//    ppcAssemble at its own address, and must come back as the same word.
+//    ppcAssemble at its address, and must come back as the same word.
 //    The decoder is itself held to LLVM word for word (ppc_check.mjs), so a
 //    word that survives the round trip is written as LLVM would read it.
 //    Inside a routine's body (entry to traceback table, by pefTracebacks)
-//    the only words allowed to be refused are floating point, which no fix
+//    the only words allowed to be rejected are floating point, which no fix
 //    needs; outside the bodies are the traceback tables and the jump
-//    tables' data, which decode by accident and may be refused, never
+//    tables' data, which decode by accident and may be rejected, never
 //    miswritten.
 //
 // 2. EVERY LINE OF EVERY FIX against LLVM's assembler, when llvm-mc is
@@ -25,7 +25,7 @@
 //    LLVM leaves to a fixup. The displacement is then held separately: the
 //    decoder's reading of the word written must reach the address the line
 //    names. So a fix line is checked by a second assembler, not only by
-//    this one's own inverse.
+//    this one's inverse.
 //
 // 3. THE PROGRAM PATCHED, every fix at once and each fix alone: the PEF
 //    container still parses; the code section is the old one grown, word
@@ -33,19 +33,19 @@
 //    unpacks to the old one but for the letters the text fixes change; the
 //    loader and its relocations are untouched; every routine the traceback
 //    walk found is found again where it was; the second fragment (the
-//    Control Strip library) sits where cfrg 0 now says, unchanged, and
+//    Control Strip library) sits where cfrg 0 now points, unchanged, and
 //    parses; the resource fork differs in the resources the fixes name and
 //    cfrg 0, and nowhere else.
 //
-// 4. THE REFUSALS. A program patched already, a site whose word is not the
+// 4. THE REJECTIONS. A program patched already, a site whose word is not the
 //    one a fix expects, and two fixes that change one word must each
-//    refuse, naming the fix; so must a 68K program patched already and a
+//    stop, naming the fix; so must a 68K program patched already and a
 //    68K site whose byte is not the one expected. Each is a negative control too: a check of
 //    `was` that could not fail would pass a patch of the wrong program.
 //
 // 5. THE 68K HALF (js/delv-app68k.js) against the workbench's build68k.py:
 //    for every fix alone and for all, CODE 0 to 8 and DATA 0 of the program
-//    patched must hash as js/delv-appfixes68k.js says the workbench's does.
+//    patched must hash as js/delv-appfixes68k.js records the workbench's does.
 //    Its negative control, run on 15 October 2026: one byte of walk-to's
 //    cave changed in the data file failed walk-to alone and every fix, and
 //    nothing else.
@@ -104,7 +104,7 @@ function roundTrip(shift, mutate) {
 const rt = roundTrip(0, null);
 if (rt.differ) fail(rt.differ + ' words written differently from how they read, first ' + rt.firstDiffer);
 const notFloat = [...rt.bodyRefused].filter(([mn]) => !isFloat(mn));
-if (notFloat.length) fail('refused inside a routine: ' + notFloat.map(([m, n]) => m + ' ' + n).join(', '));
+if (notFloat.length) fail('rejected inside a routine: ' + notFloat.map(([m, n]) => m + ' ' + n).join(', '));
 const floats = [...rt.bodyRefused].reduce((s, [, n]) => s + n, 0);
 // The controls.
 const moved = roundTrip(4, null);
@@ -214,7 +214,7 @@ const hash68 = rf => {
 const names68 = Object.keys(T68.built).filter(k => k);
 let held68 = 0;
 for (const n of names68) {
-  if (!FIXES.some(f => f.id === n)) { fail('the 68K part ' + n + ' names no fix of js/delv-appfixes.js'); continue; }
+  if (!FIXES.some(f => f.id === n)) { fail('the 68K part ' + n + ' matches no fix of js/delv-appfixes.js'); continue; }
   const r = alone.get(n);
   if (r && hash68(r.rsrc) !== T68.built[n]) fail(n + ': the 68K program is not the one the workbench builds'); else if (r) held68++;
 }
@@ -273,7 +273,7 @@ if (all && llvmMc && existsSync(llvmMc)) {
     if (((l.word & mask) >>> 0) !== value) fail(l.fix + ': "' + l.text + '" at ' + hex(l.at) + ' is ' + hex(l.word) + ', llvm-mc writes ' + enc[i].join(','));
     llvmLines++;
   });
-  // The control: each word against the next line's encoding must disagree
+  // The control: each word against the next line's encoding must differ
   // wherever the two words differ outside a branch's displacement, or the
   // comparison could not see a wrong one.
   let eligible = 0, caught = 0;
@@ -284,16 +284,16 @@ if (all && llvmMc && existsSync(llvmMc)) {
     if (((lines[i].word & mask) >>> 0) !== value) caught++;
   }
   if (caught !== eligible) fail('compared a line out of step, llvm-mc disagreed ' + caught + ' times in ' + eligible);
-  llvmNote = llvmLines + ' fix lines agree with llvm-mc (out of step, ' + caught + ' of ' + eligible + ' disagree)';
+  llvmNote = llvmLines + ' fix lines match llvm-mc (out of step, ' + caught + ' of ' + eligible + ' differ)';
 }
 
-// ---- 4. the refusals ----------------------------------------------------------------
+// ---- 4. the rejections --------------------------------------------------------------
 const refuses = (label, fn, want) => {
-  try { fn(); fail(label + ' was not refused'); }
-  catch (e) { if (want && !want.test(e.message)) fail(label + ' was refused for another reason: ' + e.message); }
+  try { fn(); fail(label + ' was not rejected'); }
+  catch (e) { if (want && !want.test(e.message)) fail(label + ' was rejected for another reason: ' + e.message); }
 };
 if (all) refuses('a program patched already', () => ctx.applyAppFixes({ data: all.data, rsrc: all.rsrc }, FIXES), /code section/);
-// The 68K half refuses on its own: its program patched already, and a byte
+// The 68K half rejects by itself: its program patched already, and a byte
 // of a site that is not the one a fix expects, each naming the fix.
 const spec68 = rf => ctx.resourceForkSpec(ctx.openResourceFork(rf));
 if (all) refuses('a 68K program patched already', () => ctx.applyApp68kFixes(spec68(all.rsrc), names68), /not what the fix expects|gives an A5 world/);
@@ -312,5 +312,5 @@ const hooks = FIXES.filter(f => f.kind === 'hook').map(f => f.method);
 console.log(`${rt.written.toLocaleString()} of ${rt.read.toLocaleString()} code words written back the same (${floats} floating-point words inside routines, and ${rt.outsideRefused} outside, not written); ` +
   `${FIXES.length} fixes applied together and alone${all ? ', the code grown by ' + all.grownBy + ' bytes' : ''}; ${llvmNote}; hooks on methods ${hooks.join(', ')}; ` +
   `68K: ${held68} programs the workbench's byte for byte; ` +
-  `controls: ${moved.differ} branches moved, ${lwzShift.differ} lwz changed, six refusals`);
+  `controls: ${moved.differ} branches moved, ${lwzShift.differ} lwz changed, six rejections`);
 if (failed) { console.log(failed + ' failure(s)'); process.exit(1); }

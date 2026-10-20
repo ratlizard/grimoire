@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Opens the Cythera installer with js/mac-vise.js and checks every file in
 // it: the catalog reads whole, each fork inflates to the length the catalog
-// declares, the CRC the catalog carries for each file verifies, and the two
-// files the rest of the suite already knows -- Cythera Data and Cythera --
+// declares, the CRC the catalog has for each file verifies, and the two
+// files the rest of the suite already has -- Cythera Data and Cythera --
 // come out identical to their BinHex copies. Then the StuffIt archives
 // beside it (js/mac-stuffit.js): the mirrors must give back the same
 // installer, and the method-13 ones must decompress to the same installer
@@ -14,7 +14,7 @@
 //
 // The forks are optional; without them the CRC is the only oracle, which is
 // most of the check. The resource forks are compared outside bytes 16..255,
-// the Resource Manager's own scratch area at the head of every fork: the
+// the Resource Manager's scratch area at the head of every fork: the
 // installer's copy and the BinHex copy differ only there (in what look like
 // leftover file names), and the resource map and every resource are the
 // same bytes.
@@ -50,7 +50,7 @@ if (!found) process.exit(1);
 const { container, archive } = found;
 // Cythera.bin is MacBinary wrapped around the installer; the .sit archives
 // hold the same application as a StuffIt entry, and that is what
-// fetch_game.mjs leaves behind on a checkout with no game of its own. Both
+// fetch_game.mjs leaves behind on a checkout with no game. Both
 // are containers index.html opens, so which one is asserted follows what
 // the caller passed rather than being fixed.
 const isSit = !!container && /StuffIt/i.test(container.kind);
@@ -93,7 +93,7 @@ check('every CRC verifies', crcBad === 0, `${crcBad} mismatches`);
 check('the grouped files (the Combat AI folder) came from one shared stream', grouped === 9, `${grouped} grouped`);
 console.log(`  (${archive.entries.length} files, ${(bytesOut / 1048576).toFixed(1)} MB out, in ${ms} ms)`);
 
-// The five streams standard DEFLATE refuses: a STORED block on a word boundary.
+// The five streams standard DEFLATE rejects: a STORED block on a word boundary.
 const lk = byPath.get('Cythera 1.0.4 ƒ/Screenshots ƒ/Land King Hall screenshot.pict');
 check('a word-aligned STORED stream inflates', !!lk && lk.data.length === 164900 && lk.crcOk);
 const ns = byPath.get('Cythera 1.0.4 ƒ/Web Site urls ƒ/Cythera Web Site (NS)');
@@ -123,17 +123,17 @@ if (refAppRsrc) check('Cythera: resource fork identical outside the reserved hea
 // UNTIL 15 SEPTEMBER 2026 THIS ASSERTED THE OPPOSITE FOR TWO OF THEM. The
 // standalone 1.0.1 and 1.0.2 archives compress the installer's data fork with
 // method 13, which the page could not decompress, so the check required them
-// to be REFUSED by method name -- a check pinning a limitation, which is the
+// to be REJECTED by method name -- a check pinning a limitation, which is the
 // right thing to write while the limitation is real and the first thing to
 // fail when it stops being. They open now, and what is asserted instead is
 // stronger and is in the combined-archive block below: the same installer
 // must come out of the compressed standalone copy and the uncompressed copy
-// in the four-in-one, which holds the method-13 path to a stored one with no
+// in the four-in-one, which has the method-13 path to a stored one with no
 // external tool involved.
 {
   const dir = dirname(binPath);
   const binData = container ? container.data : bin;
-  // version -> hash of the installer taken out of that version's own .sit,
+  // version -> hash of the installer taken out of that version's .sit,
   // filled by the loop and spent by the combined-archive block below.
   const standalone = new Map();
   const sits = ['Cythera_1.0.1_Installer.sit', 'Cythera_1.0.2_Installer.sit', 'Cythera_1.0.3_Installer.sit',
@@ -154,7 +154,7 @@ if (refAppRsrc) check('Cythera: resource fork identical outside the reserved hea
       check(name + ' is the ' + ver + ' installer', r.archive.dirs.some(d => d.path.indexOf(ver) >= 0), r.archive.dirs.map(d => d.path).join(', '));
       standalone.set(ver, h(r.container.data));
     } else {
-      check(name + ' holds the same installer as Cythera.bin', h(r.container.data) === h(binData), h(r.container.data));
+      check(name + ' has the same installer as Cythera.bin', h(r.container.data) === h(binData), h(r.container.data));
     }
   }
   console.log(`  (${opened} StuffIt archives opened)`);
@@ -206,11 +206,11 @@ if (refAppRsrc) check('Cythera: resource fork identical outside the reserved hea
    first folder it met and never came back up. Nothing noticed for a year.
    An installed-folder archive is the case that shows it -- a real Cythera
    folder with nine folders and forty-two files in it -- and it is worth a
-   check of its own because the fix is a stack whose absence looks exactly
+   separate check because the fix is a stack whose absence looks exactly
    like a small archive.
 
    It also pins two facts the preferences file in index.html is built on,
-   which is the whole reason the walk was fixed: the real Cythera Preferences
+   which is the whole reason the walk changed: the real Cythera Preferences
    has an EMPTY data fork and the Finder type `pref`. Its resource fork is
    method 13 and this page cannot open it, so what is inside stays the
    executable's word rather than the file's. */
@@ -235,28 +235,28 @@ if (folderSit) {
           !!prefs && prefs.dataLen === 0 && prefs.type === 'pref',
           prefs ? `type ${prefs.type}, data ${prefs.dataLen}, rsrc ${prefs.rsrcLen} (method ${prefs.rsrcMethod})` : 'not found');
     // And the thing that still cannot be done, stated as a check so that the
-    // day a decompressor lands, this says so rather than staying quiet.
+    // day a decompressor lands, this reports it rather than staying quiet.
     check('its resource fork is still compressed beyond this page',
           !!prefs && prefs.rsrcMethod === 13,
           prefs ? 'method ' + prefs.rsrcMethod : '');
   }
 }
 
-// Refusals.
+// Rejections.
 function refuses(bytes) { try { ctx.sniffViseInstaller(bytes); return false; } catch (e) { return true; } }
 check('junk is not an installer', ctx.sniffViseInstaller(new TextEncoder().encode('hello world, not SVCT')) === null);
 check('a bare Cythera Data is not an installer', !refData || ctx.sniffViseInstaller(refData) === null);
 // How a cut-short file is reported depends on the container it came in, so
 // these follow the input too. A MacBinary cut short is not a container at all
 // (its fork lengths overrun), so it is "not an installer"; a bare SVCT fork
-// cut short says why. A StuffIt catalog cut short still parses far enough to
-// name the entry it cannot reach, so it is refused with a message rather than
+// cut short reports why. A StuffIt catalog cut short still parses far enough to
+// name the entry it cannot reach, so it is rejected with a message rather than
 // going unrecognised.
 if (isSit) {
-  check('a truncated StuffIt archive is refused with a message', refuses(bin.subarray(0, 4096)));
+  check('a truncated StuffIt archive is rejected with a message', refuses(bin.subarray(0, 4096)));
 } else {
   check('a truncated MacBinary is simply not recognised', ctx.sniffViseInstaller(bin.subarray(0, 4096)) === null);
-  check('a truncated SVCT fork is refused with a message', refuses(bin.subarray(128, 128 + 4096)));
+  check('a truncated SVCT fork is rejected with a message', refuses(bin.subarray(128, 128 + 4096)));
 }
 
 console.log(failures ? `\nFAIL — ${failures} check(s) failed` : `\nAll installer checks passed: ${archive.entries.length} files, ${extracted} extracted, ${crcBad} CRC mismatches`);

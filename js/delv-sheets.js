@@ -11,8 +11,8 @@
    sheet is arranged: no archive reading, and only the shallow bit of DOM a
    section needs to exist.
 
-   THE TIER. js/mac-*.js know nothing of Cythera; js/delv-*.js know the
-   formats but not the page. This file knows the page's furniture, so it sits
+   THE TIER. js/mac-*.js have nothing of Cythera; js/delv-*.js cover the
+   formats but not the page. This file covers the page's furniture, so it sits
    last in the load order, after delv-mechanics.js. It is still a classic
    script -- no module, no import -- because these pages have to work from a
    file:// origin, and it may call functions the inline script declares:
@@ -28,7 +28,7 @@
    These were closures inside renderMechanicsSheet, which meant a section
    could only ever appear on the Mechanics sheet. Five of them belong
    elsewhere -- the balloons with the Barks, the writing with the Writings,
-   the spells and the skills with their own tabs, and who answers as whom
+   the spells and the skills with their tabs, and who answers as whom
    with the Dialogue -- and a real move needs the builder reachable from
    those renderers.
 
@@ -65,8 +65,8 @@ const MECH_NO_APP = 'Open the game from its installer, under Settings, to read t
    Each of these was a block inside renderMechanicsSheet, which meant it could
    only ever appear on the Mechanics sheet. Each is now a builder any renderer
    can call, because what it describes belongs beside the thing itself: what a
-   skill is asked about with the skills, the spells with the spells, the talk
-   balloons with the barks, the game's own writing with the Writings, and who
+   skill is tested for with the skills, the spells with the spells, the talk
+   balloons with the barks, the game's writing with the Writings, and who
    answers as whom with the Dialogue.
 
    They keep their `mech-<id>` ids, so mechGo and the mechLink call sites
@@ -81,7 +81,7 @@ function spellsMechSection() {
   const fbFx = fireball && fxMap.get(fireball.resid);
   return mechSectionEl('spells', 'About Spells', null, mechSrc('the casting', 0xEA1) + mechSrc('a hit', 0xEB8),
     // The count and the failure roll were the card's opening line until
-    // 2 October 2026; the maintainer had it cut. The sheet's own intro
+    // 2 October 2026; the maintainer had it cut. The sheet's intro
     // counts the spells. The roll was then stated under the chart of how
     // often a cast fails; the charts and the table of every spell went on
     // 3 October 2026, at his word, the spell cards below holding the same
@@ -240,12 +240,12 @@ function ruleLink(id) {
 /* What a skill or a spell is made of.
 
    Both are a class in subindex 25 -- the script that is the thing itself,
-   already named on the card's own summary as "the script" -- plus the 32x16
+   already named on the card's summary as "the script" -- plus the 32x16
    icon it wears, which is subindex 137, icon n belonging to class 0x1A00|n.
    The icon is the part that had no way in: until 13 September 2026 no tab
    claimed 137 at all, so nothing could chip at it.
 
-   The strip says what is NOT already on the summary, which is why the script
+   The strip shows what is NOT already on the summary, which is why the script
    is absent from it. */
 function classIconResid(resid) { return 0x8A00 | (resid & 0xFF); }
 
@@ -271,7 +271,7 @@ function mechCardAboveGallery(grid, build) {
 
 /* What the Mechanics sheet is divided into, in the order it is shown.
    The maintainer's grouping, 13 September 2026. Each entry is a title, a
-   line saying what the group is, and the section ids in it; a section not
+   line describing the group, and the section ids in it; a section not
    named here still appears, under Other.
 
    Hackery is the group for the parts of the scenario that are machinery
@@ -305,7 +305,7 @@ const MECH_GROUPS = [
    and applied, a sprite made into one, and one file compared with another.
    They were the tail of Hackery until 22 September 2026, when the maintainer
    moved them to the Tools tab, and every one of them reads or makes a patch,
-   so on 27 September 2026 they became Data › Patches, a tab of their own
+   so on 27 September 2026 they became Data › Patches, a separate tab
    among the files (the maintainer). They are still built by
    renderMechanicsSheet, which is where the reading they share lives, and
    drawn only by that tab, so the group is kept apart from MECH_GROUPS: a
@@ -313,8 +313,8 @@ const MECH_GROUPS = [
    it. */
 /* Build a Patch until 19 October 2026, when the maintainer named it
    Patch Generator on Tools and the section that had that name, what was
-   edited this session, went: Your Patch carries the edits, and its View
-   Comparison lists them. */
+   edited this session, went: Your Patch has the edits, and its View
+   Comparison shows them. */
 const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Patch Generator',
   note: 'Cythera\u2019s official add-on system is the PowerPC application Magpie. It was released by Glenn Andreas alongside a sample patch \u201cPumpkin Patch\u201d, but specifications to create new patches were never released. The format has been reverse-engineered to make new patches possible, though Magpie is limited to editing the data fork of the Cythera Data file.',
   /* Three parts by use (the maintainer, 16 October 2026): the game's
@@ -332,7 +332,7 @@ for (const g of MECH_GROUPS) MECH_GROUP_BY_VALUE[g.value] = g;
 /* Which tab a section is on now.
 
    This is the whole of what lets a link keep working across the split: a
-   section id never changes, so mechLink asks this which tab to open rather
+   section id never changes, so mechLink reads which tab to open from this rather
    than naming one. A section in no group answers null and its link falls back
    to the first tab, which is wrong but visible; the smoke requires every
    built section to be in a group so that never ships. */

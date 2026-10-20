@@ -1,4 +1,4 @@
-/* The zone view's own furniture: what the map draws over itself, and the
+/* The zone view's furniture: what the map draws over itself, and the
    controls that choose it.
 
    WHY THIS FILE EXISTS. index.html had grown to some 24,000 lines with every
@@ -9,9 +9,9 @@
    checkable against delvmod, not to keep the page one file. A mark that
    arranges what a reader has already read is not a decoder.
 
-   THE TIER. js/mac-*.js know nothing of Cythera; js/delv-archive|graphics|
-   script|mechanics.js know the formats but not the page; js/delv-sheets.js
-   knows the sheets. This knows the map view. It is a classic script -- no
+   THE TIER. js/mac-*.js have nothing of Cythera; js/delv-archive|graphics|
+   script|mechanics.js cover the formats but not the page; js/delv-sheets.js
+   covers the sheets. This covers the map view. It is a classic script -- no
    module, no import -- because these pages have to work from a file://
    origin, and it may call functions the inline script declares: classic
    scripts share one global scope and nothing here runs at load time.
@@ -61,7 +61,7 @@ function refreshPathPicker() {
    export -- and answers with what it drew, for the legend.
 
    A schedule is posts, not a route: an hour and a square, and nothing in
-   between. What fills the gap is the engine's own mover -- walkingPosition
+   between. What fills the gap is the engine's mover -- walkingPosition
    spends the first stretch of each interval walking the A* route to the next
    post -- so the honest drawing is those routes end to end, which is findPath
    over consecutive posts, with a dot and the hour at each post.
@@ -85,16 +85,16 @@ function drawSchedulePath(ctx, TS, cm, colour) {
   const hourAmPm = h => h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
   const m = cm.m;
   // findPath reads the blockers of whichever map was built last, and its
-  // cache is keyed on that, so this has to run before any route is asked
+  // cache is keyed on that, so this has to run before any route is requested
   // for -- exactly as walkingPosition does it.
   if (m) { try { buildPropBlockers(cm.resid, m); } catch (e) { quiet(e); } }
 
-  /* A leg is walked at an hour, and its colour says which.
+  /* A leg is walked at an hour, and its colour shows which.
 
      One colour for the whole day could not be read: a day doubles back on
      itself -- out to the shop and home again is the same corridor twice --
      and two identical strokes on the same squares are one stroke to look at,
-     so the line said where she goes and never when (reported 13 September
+     so the line showed where she goes and never when (reported 13 September
      2026, "her path is unclear ... maybe we could make it hue-based").
 
      The hue runs once round the wheel over 24 hours, so the colour IS the
@@ -103,7 +103,7 @@ function drawSchedulePath(ctx, TS, cm, colour) {
      reader sees on the dot it starts from.
 
      Where two legs share squares the later one would still hide the earlier,
-     so each leg is drawn on its own rail: a fixed perpendicular offset by
+     so each leg is drawn on a separate rail: a fixed perpendicular offset by
      leg number, a fraction of a square, which turns a corridor walked twice
      into two parallel strands instead of one. */
   const legs = [];
@@ -161,12 +161,12 @@ function drawSchedulePath(ctx, TS, cm, colour) {
   ctx.save();
   ctx.font = canvasFace(Math.max(9, Math.min(13, Math.round(TS / 2.4))));
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  /* A post wears the colour of the line that ARRIVES at it, not the one that
+  /* A post wears the colour of the line that ENDS at it, not the one that
      leaves. A leg is coloured by the hour it sets out, so the line reaching
-     post j is leg j-1: colouring the dot by its own hour would put a dot of
+     post j is leg j-1: colouring the dot by its hour would put a dot of
      one colour at the end of a line of another, which is the confusion this
      was meant to clear up (the maintainer, 13 September 2026). A day with a
-     single post has no arriving leg and keeps the mark's own colour. */
+     single post has no incoming leg and retains the mark's colour. */
   const ingress = j => (here.length > 1
     ? 'hsl(' + Math.round((here[(j - 1 + here.length) % here.length].hour % 24) * 15) + ' 85% 62%)'
     : colour);

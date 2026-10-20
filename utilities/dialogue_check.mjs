@@ -26,13 +26,13 @@
 //     C prompts.%" -- those affiliations must match the call_resource chain
 //     our extractor reads out of the character's "*" entry;
 //   * for a sample of every character's extracted responses, the collection
-//     must contain the same text (normalized: the oracle carries markup --
+//     must contain the same text (normalized: the oracle has markup --
 //     <typo,fix> pairs where the game's original is the first variant,
 //     @keyword marks, #action# fences -- and we strip everything down to
 //     lowercase alphanumerics before comparing).
 //
 // The oracle directory is gitignored (it is not ours to publish), so a
-// checkout without it runs the structural half and says so -- that is a
+// checkout without it runs the structural half and states it -- that is a
 // pass, not a skip, because the structural half alone still proves the
 // extractor against the archive.
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
@@ -86,7 +86,7 @@ const chars = ev(`(() => {
   return out;
 })()`);
 /* The community's names for the dialogue groups, which is what its
-   collection files the groups under. They were the page's own labels until
+   collection files the groups under. They were the page's labels until
    23 September 2026, when the maintainer had the typed names give way to the
    game's (the files name no group); the check still needs them to find each
    group's file, so they live here, where nothing shows them. */
@@ -114,7 +114,7 @@ const tails = withTopics.map(c => c.groups[c.groups.length - 1]).filter(g => g !
 if (tails.filter(t => t === 0x801).length < 80)
   fail('inheritance', 'fewer than 80 chains end at the Human archetype');
 if (tails.filter(t => t === 0x80F).length < 3)
-  fail('inheritance', 'the Seldane chains no longer end at their own root');
+  fail('inheritance', 'the Seldane chains no longer end at their root');
 
 // ---- against the collection ------------------------------------------------
 let oracleNote = 'oracle not present, structural checks only';
@@ -128,9 +128,9 @@ if (existsSync(oracleDir)) {
     }
   })(oracleDir);
 
-  // The oracle's original-game text: <typo,fix> keeps the game's typo as the
+  // The oracle's original-game text: <typo,fix> has the game's typo as the
   // first variant; @ marks a keyword; the rest of the markup is punctuation
-  // the normalizer removes anyway. The typo pattern is bounded and refuses
+  // the normalizer removes anyway. The typo pattern is bounded and rejects
   // newlines: the collection contains at least one unpaired '<', and an
   // unbounded match swallowed everything to the next '>' -- kilobytes of
   // corpus, several files away -- which surfaced as responses "missing" from
@@ -179,7 +179,7 @@ if (existsSync(oracleDir)) {
       .map(s => short[s] || s).sort();
     // The oracle's "responds to generic X prompts" covers every generic set
     // the character can reach, catch-all or topic, so compare against
-    // groupsAll. Two groups the oracle cannot list are ignored: House
+    // groupsAll. Two groups the oracle does not cover are ignored: House
     // Atussa, which has no prompts to observe in play, and the tavern-rumor
     // pool, which the oracle folds into the Bartender prompts.
     const got = (c.groupsAll || c.groups).map(g => groupNames[g] || ('0x' + g.toString(16)))
@@ -194,15 +194,15 @@ if (existsSync(oracleDir)) {
   // 357 bytes, three objects, all three resolved, with no desync and no
   // reference to 0x810 anywhere in it. The oracle's header lists Protesilaus
   // as answering Student prompts because the game presents him as a student
-  // -- his own JOB topic says so, and the Student group carries a topic
+  // -- his own JOB topic says so, and the Student group has a topic
   // reading "Protesilaus is another student" -- but his chain is Pnyx, Mage,
-  // Human, while all nine of his classmates carry Student. So he is the one
+  // Human, while all nine of his classmates have Student. So he is the one
   // student who cannot answer a student prompt, and the missing link is the
   // scenario's, not the decoder's. 83/84 is the expected score.
   if (compared < 60) fail('affiliations', `only ${compared} characters could be compared`);
   if (agree / Math.max(compared, 1) < 0.85)
-    fail('affiliations', `${agree}/${compared} chains agree; first differences: ` + diffs.join(' | '));
-  oracleNote = `text ${hit}/${tried} found in the collection, affiliations ${agree}/${compared} agree`;
+    fail('affiliations', `${agree}/${compared} chains match; first differences: ` + diffs.join(' | '));
+  oracleNote = `text ${hit}/${tried} found in the collection, affiliations ${agree}/${compared} match`;
 }
 
 // ---- AGAINST DELVMOD: a second implementation, not a second source --------
@@ -218,7 +218,7 @@ if (existsSync(oracleDir)) {
 // the characters need ClassContainer rather than Script.
 //
 // Compared as a keyword multiset per character, sorted: the two sides nest
-// and order their entries differently on purpose, so what must agree is which
+// and order their entries differently on purpose, so what must match is which
 // prompts each character has, not the shape of the tree they hang in.
 let delvmodNote = 'delvmod not run';
 const delvPath = process.env.DELVMOD ||
@@ -254,8 +254,8 @@ if (delvPath && dataPath) {
     // reason for either to see a keyword the other does not. A single
     // character diverging means one of them has desynced.
     if (same !== both)
-      fail('delvmod', `${same}/${both} characters agree; ` + diffs.join(' | '));
-    delvmodNote = `delvmod agrees on ${same}/${both} characters`;
+      fail('delvmod', `${same}/${both} characters match; ` + diffs.join(' | '));
+    delvmodNote = `delvmod matches on ${same}/${both} characters`;
   }
 }
 

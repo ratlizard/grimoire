@@ -5,7 +5,7 @@
 //
 // WHY. Methods 13 (LZ77 + Huffman) and 15 (Arsenic) are the two compressions
 // this page implements, and both are ports rather than originals:
-// `Sit13Decoder` and `SitArsenicDecoder` in stuffit-rs 0.1.8, which carry The
+// `Sit13Decoder` and `SitArsenicDecoder` in stuffit-rs 0.1.8, which have The
 // Unarchiver's tables. A port is exactly the kind of code that looks right
 // and is wrong in one branch nothing common exercises -- a bit order, an
 // off-by-one in a run length, a table transcribed short -- and the failure
@@ -14,7 +14,7 @@
 //
 // Was sit13_check.mjs until Arsenic landed on 16 September 2026.
 //
-// THE ORACLE IS `unar`, which is The Unarchiver's own command line tool and
+// THE ORACLE IS `unar`, which is The Unarchiver's command line tool and
 // therefore the implementation ours descends from. Every method-13 and
 // method-15 fork in the reference corpus is decompressed both ways and
 // compared byte for byte. Without `unar` the oracle half skips and the
@@ -24,11 +24,11 @@
 // the corpus twice: Arsenic-compressed inside archive.org's four-in-one
 // bundle, and stored in the MacBinary copy of the installer that came from
 // somewhere else entirely. Those two have no implementation in common, so
-// agreeing is evidence of a different kind from agreeing with the code this
+// matching is evidence of a different kind from matching the code this
 // one was ported from.
 //
 // THE SNAPSHOT is what survives a machine with no unar and no game: the
-// Pumpkin Patch's own compressed fork is small enough to carry here as a
+// Pumpkin Patch's compressed fork is small enough to keep here as a
 // literal, so the check always has at least one stream to decompress and one
 // answer to hold it to.
 //
@@ -126,7 +126,7 @@ else if (matched) ok('every compressed fork is byte identical to unar', `${match
 
 // ---- the negative control --------------------------------------------------
 // A stream the page can always reach: the Pumpkin Patch's, when the corpus is
-// there. Without it there is nothing to bend, and the control says so rather
+// there. Without it there is nothing to bend, and the control states it rather
 // than passing quietly.
 const patchFile = join(refDir, 'community', 'addons', '614_MagpiePumpkinPatch.sit.hqx');
 if (!existsSync(patchFile)) console.log('  skip  the negative control needs the Magpie Pumpkin Patch');
@@ -156,7 +156,7 @@ else {
   if (neg.allZero) fail('negative control', 'the decompressed fork is all zeroes');
   else if (neg.echoesInput) fail('negative control', 'the output is the length of the input, so nothing was decompressed');
   else if (!neg.bentDiffers) fail('negative control', 'flipping a byte of the compressed stream changed nothing');
-  else ok('the check can fail', 'a flipped byte ' + (neg.bentThrew ? 'is refused' : 'changes the output') + ', and the output is neither zeroes nor the input');
+  else ok('the check can fail', 'a flipped byte ' + (neg.bentThrew ? 'is rejected' : 'changes the output') + ', and the output is neither zeroes nor the input');
   // The snapshot. Deliberate changes to the decompressor move it; accidents
   // move it too, which is the point.
   const SNAPSHOT = '9e0a8844';
@@ -194,14 +194,14 @@ else {
   else if (neg.allZero) fail('Arsenic control', 'the decompressed fork is all zeroes');
   else if (!neg.differs) fail('Arsenic control', 'flipping a byte of an Arsenic stream changed nothing');
   else ok('an Arsenic stream cannot be bent unnoticed',
-          `${neg.name}, ${neg.len.toLocaleString()} bytes; a flipped byte ` + (neg.threw ? 'is refused' : 'changes the output'));
+          `${neg.name}, ${neg.len.toLocaleString()} bytes; a flipped byte ` + (neg.threw ? 'is rejected' : 'changes the output'));
 }
 
 /* ---- the oracle that is not unar ------------------------------------------
    The 1.0.4 installer's resource fork is in the corpus twice and the two
    copies share no code: Arsenic inside archive.org's bundle, and stored
    inside a MacBinary that came from elsewhere. If the Arsenic decoder were
-   wrong in a way The Unarchiver is also wrong in, unar would agree with it
+   wrong in a way The Unarchiver is also wrong in, unar would match it
    and this would not. */
 const BUNDLE = join(refDir, 'game', 'installers', 'Cythera installers (archive.org).sit');
 const MACBIN = join(refDir, 'game', 'installers', 'Cythera.bin');
@@ -216,7 +216,7 @@ else {
     if (!e) return {why: 'the bundle has no 1.0.4 entry with a resource fork'};
     const mine = stuffItFork(__bundle, e, 'rsrc');
     const mb = sniffMacContainer(__macbin);
-    if (!mb || !mb.rsrc || !mb.rsrc.length) return {why: 'the MacBinary copy carries no resource fork'};
+    if (!mb || !mb.rsrc || !mb.rsrc.length) return {why: 'the MacBinary copy has no resource fork'};
     let at = -1;
     const n = Math.max(mine.length, mb.rsrc.length);
     for (let i = 0; i < n; i++) if (mine[i] !== mb.rsrc[i]) { at = i; break; }
@@ -231,13 +231,13 @@ else {
 }
 
 // ---- the StuffIt 5 walk ----------------------------------------------------
-// StuffIt 5 offsets are plain whatever bit 0x10 of the archive's flags says:
+// StuffIt 5 offsets are plain whatever bit 0x10 of the archive's flags is:
 // all 178 StuffIt 5 archives in archive.org's EV Nova plug-in collection
 // store them plain, 30 of them without the bit, and stuffit-rs (0.1.8 and
 // 0.3.1), which this reader came from, XORs them when the bit is clear and so
 // finds nothing in those 30 (13 October 2026). So the bundle, its flag bit
-// turned over, must list the same entries at the same offsets. The walk also
-// follows each file's own next-entry pointer, as stuffit-rs does not; the
+// turned over, must have the same entries at the same offsets. The walk also
+// follows each file's next-entry pointer, as stuffit-rs does not; the
 // lsar comparison over that collection is StarGrimoire's
 // (utilities/unpack_check.mjs), since the collection is EV Nova's.
 if (existsSync(BUNDLE)) {

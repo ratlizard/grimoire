@@ -2,7 +2,7 @@
 /* The bitmap-font writer, against the two fonts Ambrosia shipped.
 
    `writeResourceFork` got its evidence from the strongest thing available --
-   the forks Apple's own Resource Manager wrote in 1999, handed back byte for
+   the forks Apple's Resource Manager wrote in 1999, handed back byte for
    byte. A font inside one of those forks is the same kind of claim one level
    down: `nfntSpec` reads every field of an NFNT, `writeNFNT` puts it back, and
    the shipped bytes must return exactly. Nothing else here can say the format
@@ -16,14 +16,14 @@
    exists to keep fixed.
 
    The negative control is the point, not a flourish. Flip one bit of the bit
-   image and the output must move; without that, a writer that returned its own
+   image and the output must move; without that, a writer that returned its
    input would pass every assertion above.
 
      node utilities/nfnt_write_check.mjs index.html "$TMPDIR/Cythera Data.rsrc"
 
    The fonts are Cythera's, so with no fork to read this skips rather than
    failing -- there is no synthetic half, because a made-up font would only
-   prove the writer agrees with the reader. */
+   prove the writer matches the reader. */
 
 import { readFileSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
@@ -47,7 +47,7 @@ new vm.Script(pageSource(htmlPath), { filename: htmlPath }).runInContext(ctx);
 const fork = G.openResourceFork(new Uint8Array(readFileSync(forkPath)));
 const fonts = (fork.resourcesByType && fork.resourcesByType['NFNT']) || [];
 if (!fonts.length) {
-  console.log('the fork carries no NFNT — skipped');
+  console.log('the fork has no NFNT — skipped');
   process.exit(0);
 }
 
@@ -93,12 +93,12 @@ console.log(`${identical} of ${fonts.length} shipped fonts written back byte for
 
 /* THE OTHER DIRECTION: the strike as a TrueType font.
 
-   `nfntToTrueType` claims that the font it writes draws the strike's own
+   `nfntToTrueType` claims that the font it writes draws the strike's
    pixels. Nothing in Node rasterises a TrueType, so the claim is checked the
    only way it can be from here -- by reading the outlines back out of the
    `glyf` table this file just wrote and filling them the way a rasteriser
    would: scanline, non-zero winding, sampled at the centre of each pixel of
-   the strike's own grid. Every pixel of every glyph must come out as the bit
+   the strike's grid. Every pixel of every glyph must come out as the bit
    image has it.
 
    That fill is deliberately general rather than a rectangle reader. The
@@ -109,12 +109,12 @@ console.log(`${identical} of ${fonts.length} shipped fonts written back byte for
    thing that would catch it.
 
    The controls are the same two as above: a flipped bit in the strike has to
-   change the pixels the font draws, and the fill has to disagree when it does.
+   change the pixels the font draws, and the fill has to differ when it does.
 
    The rasteriser itself was checked once by hand, outside this file: both
-   fonts drawn by FreeType at their own cell heights matched the strike pixel
-   for pixel, 48 glyphs, no exceptions. This check keeps the outlines right;
-   it cannot keep FreeType right. */
+   fonts drawn by FreeType at their cell heights matched the strike pixel
+   for pixel, 48 glyphs, no exceptions. This check tests the outlines;
+   it cannot test FreeType. */
 
 function readGlyf(ttf) {
   const dv = new DataView(ttf.buffer, ttf.byteOffset, ttf.byteLength);
@@ -186,7 +186,7 @@ function inside(contours, x, y) {
   return wn !== 0;
 }
 
-// The strike's own pixels for one code, and the font's, side by side.
+// The strike's pixels for one code, and the font's, side by side.
 function pixelsDiffer(spec, font, code, glyphIndex) {
   const i = code - spec.firstChar;
   const rowBytes = spec.rowWords * 2;
@@ -282,5 +282,5 @@ for (const e of fonts) {
     ttfFailed++;
   }
 }
-console.log(`${ttfDone} of ${fonts.length} strikes written as TrueType and filled back to their own pixels`);
+console.log(`${ttfDone} of ${fonts.length} strikes written as TrueType and filled back to their pixels`);
 process.exit(failed || ttfFailed ? 1 : 0);

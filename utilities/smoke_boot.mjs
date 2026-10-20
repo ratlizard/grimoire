@@ -4,7 +4,7 @@
 // parts are smoke_galleries.mjs, smoke_atlas.mjs, smoke_rules.mjs,
 // smoke_edits.mjs, smoke_saves.mjs and smoke_installer.mjs, cut out of the
 // one 4,100-line file on 18 September 2026 at the points where the open file
-// changes, so each can run as its own process and the six run at once.
+// changes, so each can run as a separate process and the six run at once.
 //
 // Importing this module does the boot: it reads the arguments, builds the
 // DOM, runs the page's scripts and opens the archive, once per process. A
@@ -35,7 +35,7 @@ if (!htmlPath || !dataPath) {
 const html = readFileSync(htmlPath, 'utf8');
 const js = pageSource(htmlPath);
 const archive = new Uint8Array(readFileSync(dataPath));
-// The resource fork, if it was extracted beside the data fork. The viewer gets
+// The resource fork, if it was extracted beside the data fork. The viewer has
 // this from the container it opened; here it is passed in the same way
 // adoptArchive would, so the resource-fork gallery is exercised too.
 const rsrcPath = dataPath.replace(/\.data$/, '.rsrc');
@@ -75,9 +75,9 @@ class El {
     this.options = [];
     this.selectedIndex = -1;
     // className and classList are ONE set of classes, as they are in a
-    // browser. They used to be two: `cell.className = 'cell propCell'` left
-    // classList empty, so anything that asked classList.contains('cell') --
-    // which is how the gallery finds its own cells for sorting and filtering
+    // browser. They were once two: `cell.className = 'cell propCell'` left
+    // classList empty, so anything that tested classList.contains('cell') --
+    // which is how the gallery finds its cells for sorting and filtering
     // -- saw nothing at all and silently did nothing.
     this.classList = {
       add: (...c) => c.forEach(x => x && this._classes.add(x)),
@@ -112,7 +112,7 @@ class El {
   appendChild(c) {
     if (!c || !(c instanceof El)) throw new TypeError('appendChild called with ' + c);
     // A node that already has a parent MOVES, as in a browser. Without this
-    // applyGalleryArrangement, which re-appends the gallery's own cells to
+    // applyGalleryArrangement, which re-appends the gallery's cells to
     // put them in order, left the grid holding every cell twice per pass --
     // four copies after a category walk -- and every tile count and every
     // heading count read from the grid was inflated by it.
@@ -212,9 +212,9 @@ REGISTRY.get('categorySelect').tagName = 'SELECT';
 const body = new El('body');
 const documentStub = {
   getElementById(id) {
-    // An id nobody has created yet gets null, as a browser would give: the
-    // page's own create-if-absent branches (ensureDetailLens, the map layers,
-    // the inspector boxes) have to run for the element to carry the id, the
+    // An id nobody has created yet returns null, as a browser would give: the
+    // page's create-if-absent branches (ensureDetailLens, the map layers,
+    // the inspector boxes) have to run for the element to have the id, the
     // inline style and the tag the page gives it. This used to hand back a
     // placeholder div instead, which meant the lens under test was a bare
     // div that had never been through ensureDetailLens -- so its cssText was
@@ -310,8 +310,8 @@ try {
 const status = REGISTRY.get('sourceStatus').textContent;
 console.log(`  parseArchiveBytes: ${Date.now() - t0} ms — status "${status.slice(0, 80)}"`);
 /* The application beside the data file, as the site's default path has it:
-   the installer carries both, and adoptArchive opens the application out of
-   it. Since 24 September 2026 the names the listings print (the syscalls,
+   the installer has both, and adoptArchive opens the application out of
+   it. Since 24 September 2026 the names that the listings print (the syscalls,
    the character flags) are read out of it, so a smoke without it would be
    testing the fallback everywhere. SMOKE_NO_APP=1 leaves it out; the
    installer part checks the fallback by clearing it. */

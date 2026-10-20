@@ -6,14 +6,14 @@
 //   node utilities/addons_check.mjs index.html "$TMPDIR/Cythera Data.data" \
 //        [reference/community/addons] [unpack dir]
 //
-// WHY. js/delv-archive.js decides whether a resource is encrypted from three
+// WHY. js/delv-archive.js settles whether a resource is encrypted from three
 // tables -- DELV_ENCRYPTED_SUBN, DELV_CLEAR_SUBN, DELV_CLEAR_RESID -- and
 // falls back to a heuristic (all-zero detection, then the DELV_SHAPES bank of
 // payload-shape tests, then a comparison of byte entropy) for anything they do
 // not cover. The
 // tables cover the shipped archive completely, so in normal use the fallback
 // never runs, and nothing exercised it. The comment above smartDecrypt records
-// what guessing wrong cost the first time; none of that was under a check.
+// what a wrong inference cost the first time; none of that was under a check.
 //
 // TWO ORACLES, and the first is the real one:
 //
@@ -27,22 +27,22 @@
 //
 // 2. THIRD-PARTY ARCHIVES OPEN AND ROUND-TRIP. The add-ons are the only
 //    Cythera archives here that nobody in this project made. Each must be
-//    recognised by describeDelverArchive -- the page's own gate, which
-//    refused all seven until September 2026 because it counted subindexes
+//    recognised by describeDelverArchive -- the page's gate, which
+//    rejected all seven until September 2026 because it counted subindexes
 //    and a saved game has six -- and must survive delverArchiveSpec ->
 //    writeDelverArchive with every resource intact. The same walk is the
 //    negative corpus: every file in the add-ons that is NOT an archive (the
-//    patcher applications, a TEXT file, JPEGs, an .rtf) must be refused, or
+//    patcher applications, a TEXT file, JPEGs, an .rtf) must be rejected, or
 //    the gate has been loosened into accepting junk.
 //
 //    Note what that does NOT prove. The cipher is an XOR keystream, so it is
 //    an involution: a resource wrongly judged encrypted is decrypted on read
 //    and re-encrypted on write, and comes back byte-identical anyway. The
 //    round trip proves the container, the master index and the writer on
-//    unfamiliar input. It says nothing about the verdicts. Only oracle 1 does.
+//    unfamiliar input. It shows nothing about the verdicts. Only oracle 1 does.
 //
 // The add-ons are .sit, .sitx, .sea, .zip and .hqx, which need `unar`; without
-// it this check does oracle 1 alone and says so. That is still the half that
+// it this check does oracle 1 alone and states it. That is still the half that
 // tests the heuristic.
 
 import {readFileSync, existsSync, readdirSync, statSync, mkdirSync} from 'node:fs';
@@ -126,7 +126,7 @@ function scoreHeuristic(label, bytes) {
   }
   const pct = known ? (100 * agree / known) : 0;
   const paths = Object.keys(byWay).sort((a, b) => byWay[b].n - byWay[a].n);
-  console.log(`  ${label}: ${agree}/${known} agree (${pct.toFixed(1)}%)`);
+  console.log(`  ${label}: ${agree}/${known} match (${pct.toFixed(1)}%)`);
   console.log(`      by path: ` + paths.map(k => `${k} ${byWay[k].agree}/${byWay[k].n}`).join(', '));
   return {known, agree, pct, wrong, byWay,
           structure: paths.filter(k => k !== 'zero' && k !== 'entropy')
@@ -145,7 +145,7 @@ if (dataPath && existsSync(dataPath)) {
 }
 
 // The recorded floor. It is not a target, it is a baseline: what matters is
-// that the agreement does not get WORSE, because a change to a shape test, to
+// that the agreement does not become WORSE, because a change to a shape test, to
 // the container test or to the entropy comparison that drops this number has
 // made modded archives read worse, silently, and nothing else would say so.
 //
@@ -158,7 +158,7 @@ if (dataPath && existsSync(dataPath)) {
 // exist and everything that was not a script fell to a printable-ratio score
 // that noise beat by construction. Its replacement reached 99.9%, and then the
 // symbol-table shape and the constant-keystream rule took the last resource,
-// so there is no margin left to give: the fallback and the tables now agree
+// so there is no margin left to give: the fallback and the tables now match
 // completely, and anything less than that is a regression by definition.
 const FLOOR = 100.0;
 /* And two assertions the floor does NOT make, which is the whole reason they
@@ -170,7 +170,7 @@ const FLOOR = 100.0;
    So: every verdict the bank reaches must be RIGHT -- there is no floor on
    that one, because a shape test firing on the wrong candidate is a defect and
    not a degradation, and it was measured at nil over the whole archive and its
-   decrypted twins. And the bank must go on deciding about as much as it does
+   decrypted twins. And the bank must go on settling about as much as it does
    today, which is what catches a test that has stopped firing at all.
 
    All three were held to a deliberate break before being trusted: disabling
@@ -196,7 +196,7 @@ const FLOOR = 100.0;
 const SHAPE_FLOOR = 1470;
 if (shipped) {
   if (shipped.pct >= FLOOR)
-    ok(`the heuristic agrees with the tables on at least ${FLOOR}% of the shipped archive`,
+    ok(`the heuristic matches the tables on at least ${FLOOR}% of the shipped archive`,
        `${shipped.pct.toFixed(1)}%, ${shipped.wrong.length} disagreements`);
   else
     fail('the heuristic against the tables',
@@ -208,7 +208,7 @@ if (shipped) {
   else
     fail('the shape bank',
          `${shipped.structure.n - shipped.structure.agree} of ${shipped.structure.n} shape verdicts ` +
-         `disagree with the tables, so a test is firing on the wrong candidate`);
+         `differ from the tables, so a test is firing on the wrong candidate`);
   /* And the one invariant that guards the constant-keystream rule, which
      nothing else does: disabling that rule outright failed no assertion,
      because the symbol-table shape happens to catch the one resource it was
@@ -235,7 +235,7 @@ if (shipped) {
          `the entropy comparison, which cannot see the difference: ` +
          blind.slice(0, 8).map(r => '0x' + r.toString(16).padStart(4, '0')).join(', '));
   if (shipped.structure.n >= SHAPE_FLOOR)
-    ok(`the shape bank still decides at least ${SHAPE_FLOOR} of the shipped archive`,
+    ok(`the shape bank still settles at least ${SHAPE_FLOOR} of the shipped archive`,
        `${shipped.structure.n}`);
   else
     fail('the shape bank\'s reach',
@@ -283,7 +283,7 @@ const files = unpackAddons();
 /* A container holding several archives (24 September 2026). The Rocky the
    Flying Chicken add-on is a zip with two saves in it: the page must list
    both, open the first by default, open the second by name, fall back to
-   the first for a name it does not hold, and hand back different bytes for
+   the first for a name it does not have, and hand back different bytes for
    the two. Read straight from the zip, before anything is unpacked. */
 {
   const rocky = existsSync(addonDir) ? readdirSync(addonDir).find(f => /Rocky.*\.zip$/i.test(f)) : null;
@@ -315,8 +315,8 @@ for (const p of files) {
   const bytes = new Uint8Array(readFileSync(p));
   sandbox.__a = bytes;
   const label = p.slice(unpackDir.length + 1);
-  // The page's own gate decides. A file that has a title and a master index
-  // pair but is still refused is the case this check exists to catch: it is
+  // The page's gate settles it. A file that has a title and a master index
+  // pair but is still rejected is the case this check exists to catch: it is
   // what every saved game looked like to the old count-based rule.
   const info = ev(`(() => {
     const d = describeDelverArchive(__a);
@@ -333,8 +333,8 @@ for (const p of files) {
   // Round trip. The assertion is that every resource survives -- same ids,
   // same plaintext -- NOT that the file comes back byte-identical.
   // delv_write_check.mjs proves byte-identity for the shipped archive, and it
-  // holds there because the writer's layout happens to match Ambrosia's. It
-  // does not hold for any of these: a player file (DelP) lays its resources
+  // is valid there because the writer's layout happens to match Ambrosia's. It
+  // is not valid for any of these: a player file (DelP) lays its resources
   // out differently, so a rewrite moves bytes without losing anything. Byte
   // identity is a property of the shipped file, not of the format, and
   // asserting it here would be asserting the wrong thing.
@@ -369,8 +369,8 @@ if (files.length) {
   if (archives > 0) ok(`${archives} third-party archive(s) opened`, `${roundTripped} kept every resource through a rewrite, ${bytewise} byte-identical; ` +
      `${saves.length} saved game(s): ${saves.map(n => '“' + n + '”').join(', ')}`);
   else fail('the add-ons', `unpacked ${files.length} files and none was a Delver archive`);
-  if (refused > 0) ok(`${refused} other file(s) in the add-ons refused`);
-  else fail('the negative corpus', 'nothing in the add-ons was refused, so the gate was not tested against a non-archive');
+  if (refused > 0) ok(`${refused} other file(s) in the add-ons rejected`);
+  else fail('the negative corpus', 'nothing in the add-ons was rejected, so the gate was not tested against a non-archive');
 }
 
 console.log(failures
