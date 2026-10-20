@@ -5,22 +5,22 @@
 //   node utilities/translate_check.mjs index.html "$TMPDIR/Cythera Data.data" "$TMPDIR/Cythera Data.rsrc"
 //
 // WHY. js/delv-translate.js replaces every piece of script text and adds
-// Spanish stems to every keyword list, and the splice checks its own
+// Spanish stems to every keyword list, and the splice checks its
 // arithmetic (every jump read back where it should be). What it cannot see is
 // whether the game still answers. A highlighted word is a question the
 // player asks by clicking it: the program sends the word's letters, and the
 // character's keyword lists are tried in order, the first whose keyword
 // begins the word answering. A translated "@lazo" answers only if some list
-// carries "lazo" or a stem of it, and answers the right topic only if no
-// earlier list carries a stem the word also begins with. Neither shows in a
+// has "lazo" or a stem of it, and answers the right topic only if no
+// earlier list has a stem the word also begins with. Neither shows in a
 // build; both show in play as a character saying "I don't know about that".
 //
-// WHAT IT HOLDS.
+// WHAT IS CHECKED.
 //   1. The table covers the file: every piece of text has an entry and no
 //      entry matches nothing (a stale hash is a sentence that changed under
 //      it, or a typo in one).
 //   2. Every script resource of the translated file disassembles as its
-//      English one does, and its keyword lists are the ones the table asked
+//      English one does, and its keyword lists are the ones the table requested
 //      for, in the same order.
 //   3. Every highlighted word, clicked, reaches the same answer in Spanish
 //      as the English word at the same place does: the character's own
@@ -29,11 +29,11 @@
 //      from the pieces joined where they touch, since a word can be built of
 //      two ("@hero" + "ine").
 //   4. No highlighted Spanish word runs into an accent: the program's "@"
-//      scan takes A to Z and a to z only, so the highlight would stop there
+//      scan accepts A to Z and a to z only, so the highlight would stop there
 //      and the click would say a word cut short.
 //
 // THE MATCH is the interpreter's: a keyword is copied to the next comma and
-// compared with the start of what was said (GRIMOIRE-NOTES, "A keyword that
+// compared with the start of what was shown (GRIMOIRE-NOTES, "A keyword that
 // needs a space typed first"), both in lower case. The page's convKwMatches
 // also matches the other way round, for the four-letter stubs; that would
 // hide exactly the shadowing this looks for, so it is not used here.
@@ -41,14 +41,14 @@
 //   5. Argos's family width table gives each added letter its base letter's
 //      width, where the shipped table gives none; and the Geneva strikes
 //      (js/mac-geneva.js) measure as Geneva does at 9 and 10 points and draw
-//      the Geneva 9 font's own letters, where the font's own widths are not
+//      the Geneva 9 font's letters, where the font's widths are not
 //      Geneva 10's (the control).
 //
 // WHAT IT CANNOT SEE. Which chain is live when a word is clicked inside a
 // follow-up question: a highlight is resolved against the resource's
-// top-level chains (those no response holds) and, when it sits inside a
-// response that asks a follow-up, that follow-up's chain as well. Words the
-// player types are not checked; nothing lists them.
+// top-level chains (those in no response) and, when it sits inside a
+// response that puts a follow-up, that follow-up's chain as well. Words the
+// player types are not checked; there is no list of them.
 //
 // THE NEGATIVE CONTROL. With the Spanish stems left out of every keyword
 // list, the highlighted Spanish words must stop reaching their answers:
@@ -111,14 +111,14 @@ const got = vm.runInContext(`(() => {
     const places = translatePlaces(bEn, resid, T, rep);
     const placeAt = new Map(places.map(p => [p.at, p.bytes]));
     if (A.out.length !== B.out.length) { fails.push(hex(resid) + ': ' + A.out.length + ' keyword lists in English, ' + B.out.length + ' translated'); continue; }
-    const kwsAt = new Map();   // English offset of a list -> the words the table asked for
+    const kwsAt = new Map();   // English offset of a list -> the words the table requested
     A.out.forEach((q, i) => {
       const want = placeAt.has(q.at + 1) ? placeAt.get(q.at + 1) : q.list;
-      if (B.out[i].list !== want) fails.push(hex(resid) + ': keyword list ' + i + ' is ' + JSON.stringify(B.out[i].list) + ', the table asked for ' + JSON.stringify(want));
+      if (B.out[i].list !== want) fails.push(hex(resid) + ': keyword list ' + i + ' is ' + JSON.stringify(B.out[i].list) + ', the table requested ' + JSON.stringify(want));
       kwsAt.set(q.at, want);
     });
     // Chains: a list's "next" is the list tried after it. A head is a list no
-    // other list leads to; a top-level head is one no response holds.
+    // other list leads to; a top-level head is one in no response.
     const resp = A.out.map((q, i) => ({ at: q.at, next: q.next, en: q.list.split(','), es: kwsAt.get(q.at).split(','), ord: i }));
     const byAt = new Map(resp.map(q => [q.at, q]));
     const heads = resp.filter(q => !resp.some(p => p.next === q.at));
@@ -144,8 +144,8 @@ const got = vm.runInContext(`(() => {
 
   // The first list along a chain whose keyword begins the word.
   const matchIn = (chain, word, side) => {
-    // A one-letter keyword is the 'y' or 'n' of a question mygetch asks
-    // with its own buttons; a click never means one.
+    // A one-letter keyword is the 'y' or 'n' of a question mygetch puts
+    // with its buttons; a click never means one.
     for (const q of chain) for (const k of q[side]) if (k.length > 1 && k !== '*' && word.startsWith(lower(k))) return q.ord;
     return null;
   };
@@ -176,7 +176,7 @@ const got = vm.runInContext(`(() => {
       const key = xs => xs.map(x => x || 'nothing').sort().join(' ');
       words += a.length;
       // A highlight the English leaves unanswered (the vineyard's "viny" is
-      // not how "Vineyard" begins) and the Spanish answers is said, not
+      // not how "Vineyard" begins) and the Spanish answers is shown, not
       // failed: there is no English answer for it to differ from. So every
       // English answer must be among the Spanish ones, and what is left over
       // is where the English reached nothing.
@@ -223,8 +223,8 @@ const got = vm.runInContext(`(() => {
   // The Geneva strikes: each measures as Geneva does at its size (the
   // printable ASCII advances GENEVA_METRICS gives, an accented letter its
   // plain letter's, the frame ten above and two below with the leading),
-  // and draws Geneva 9's own letters, its pixels moved and never changed.
-  // The control is the font's own widths, which are not Geneva 10's, so a
+  // and draws Geneva 9's letters, its pixels moved and never changed.
+  // The control is the font's widths, which are not Geneva 10's, so a
   // strike that kept them would fail here.
   const S = T.strikes, outSpec = resourceForkSpec(openResourceFork(r.rsrc));
   const strikeFails = [];
@@ -247,7 +247,7 @@ const got = vm.runInContext(`(() => {
       const adv = f.ow[c - f.firstChar] & 0xFF, own = Math.round(outl.glyphs[gmap[c]].adv / unit);
       if (adv !== M.adv[c - 0x20]) strikeFails.push(size + ' pt ' + JSON.stringify(String.fromCharCode(c)) + ' is ' + adv + ' wide, Geneva ' + M.adv[c - 0x20]);
       if (own !== M.adv[c - 0x20]) strikeControl++;
-      if (key(drawn(f, c)) !== key(sfntPixels(outl.glyphs[gmap[c]], unit))) strikeFails.push(size + ' pt ' + JSON.stringify(String.fromCharCode(c)) + " is not the font's own letter");
+      if (key(drawn(f, c)) !== key(sfntPixels(outl.glyphs[gmap[c]], unit))) strikeFails.push(size + ' pt ' + JSON.stringify(String.fromCharCode(c)) + " is not the font's letter");
       strikeGlyphs++;
     }
     for (const [ch, base] of Object.entries(BASE)) for (const code of [TRANSLATE_CODES[ch], TRANSLATE_MACROMAN[ch]]) {
@@ -271,15 +271,15 @@ const got = vm.runInContext(`(() => {
 // TEXT. (7) Every load of every pooled string reaches the text it should:
 // followed through the branch a moved string's load became and the
 // addis/addi (or addic) after it, to the string there, which is the
-// Spanish, or the English where the table keeps it, or the piece of a
+// Spanish, or the English where the table retains it, or the piece of a
 // string whose tail is pointed at; the control is the English program, in
 // which no load reaches the Spanish. (8) The resources keep their shape:
 // each menu its items and their command keys, each dialog its items and
 // their kinds, each dialog's keys as many groups, each string list its
 // count, each TEXT its style runs, ending where the text does. (9) With
-// the program translated the names carry their articles: every name
+// the program translated the names have their articles: every name
 // record's singular begins with the article its tiles' class and its
-// gender call for, and no plural carries the no-break space; the control
+// gender call for, and no plural has the no-break space; the control
 // is the data file written alone, whose names have none.
 let prog = null;
 if (appDataPath && existsSync(appDataPath) && appRsrcPath && existsSync(appRsrcPath)) {
@@ -353,11 +353,11 @@ if (appDataPath && existsSync(appDataPath) && appRsrcPath && existsSync(appRsrcP
     const enFor = id => { let best = null; for (const [k, v] of enNames) if (k >= id && (best === null || k < best)) best = k; return enNames.get(best); };
     for (const r of names(art.data)) {
       const one = translateSingPlur(r.name, true), more = translateSingPlur(r.name, false);
-      if (more.includes(nb)) fails.push('the plural of tile ' + r.id + ' carries the no-break space');
+      if (more.includes(nb)) fails.push('the plural of tile ' + r.id + ' has the no-break space');
       const g = T.tileGenders[translateHash(enFor(r.id))], c = cls(r.id) === 2 ? 1 : cls(r.id);
       if (!g || !c) { if (one.includes(nb)) fails.push('tile ' + r.id + ' has an article English does not give it'); prev = r.id; continue; }
       const a2 = TRANSLATE_ARTICLES[c][g] + nb;
-      if (!one.startsWith(a2)) fails.push('tile ' + r.id + ' says ' + JSON.stringify(one) + ', not ' + JSON.stringify(a2) + '...');
+      if (!one.startsWith(a2)) fails.push('tile ' + r.id + ' reads ' + JSON.stringify(one) + ', not ' + JSON.stringify(a2) + '...');
       else withArt++;
       prev = r.id;
     }
@@ -370,7 +370,7 @@ let failures = 0;
 const fail = (what, why) => { failures++; console.error(`FAIL ${what}: ${why}`); };
 const ok = (what, detail) => console.log(`  ok   ${what}${detail ? '  — ' + detail : ''}`);
 
-if (got.missing) fail('coverage', `${got.missing} pieces have no entry (utilities/translate_build.mjs --missing lists them)`);
+if (got.missing) fail('coverage', `${got.missing} pieces have no entry (utilities/translate_build.mjs --missing prints them)`);
 else ok('coverage', `${got.done} pieces and ${got.keys} keyword lists, built in ${got.ms} ms`);
 if (got.unused.length) fail('stale entries', got.unused.join(', '));
 else ok('stale entries', 'none');
@@ -380,8 +380,8 @@ if (got.widthFails.length) fail('family widths', got.widthFails.join('; '));
 else if (got.widthControl !== 32) fail('family widths', 'the shipped FOND already has the width at ' + (32 - got.widthControl) + ' of the 32 codes, so the control proves nothing');
 else ok('family widths', 'the 16 letters at their 32 codes take their base letter\'s width; the shipped table has none of them');
 if (got.strikeFails.length) fail('Geneva strikes', got.strikeFails.slice(0, 12).join('; '));
-else if (!got.strikeControl) fail('Geneva strikes', "the font's own widths are already Geneva's, so the control proves nothing");
-else ok('Geneva strikes', `${got.strikeGlyphs} ASCII glyphs at Geneva's widths and frame, each the font's own letter, the accents at their letters' widths; the font's own widths differ at ${got.strikeControl}`);
+else if (!got.strikeControl) fail('Geneva strikes', "the font's widths are already Geneva's, so the control proves nothing");
+else ok('Geneva strikes', `${got.strikeGlyphs} ASCII glyphs at Geneva's widths and frame, each the font's letter, the accents at their letters' widths; the font's widths differ at ${got.strikeControl}`);
 for (const f of got.fails) fail('conversation', f);
 for (const n of got.notes) console.log('  note ' + n);
 if (!got.fails.length) ok('highlights', `${got.reached} of ${got.words} highlighted words reach the English word's answer`);
@@ -394,11 +394,11 @@ if (prog) {
   if (prog.missing.length) fail('program coverage', prog.missing.length + ' pieces of the program have no entry: ' + prog.missing.slice(0, 8).join(', '));
   else ok('program coverage', prog.done + ' pieces of the program decided');
   for (const f of prog.fails.slice(0, 20)) fail('program', f);
-  if (!prog.fails.length) ok('program', `${prog.loads} loads of its strings followed, ${prog.spanish} reaching the Spanish; ${prog.shapes} resources keep their shape; ${prog.withArt} names carry their article`);
+  if (!prog.fails.length) ok('program', `${prog.loads} loads of its strings followed, ${prog.spanish} reaching the Spanish; ${prog.shapes} resources keep their shape; ${prog.withArt} names have their article`);
   if (prog.control) fail('program control', prog.control + ' loads reach the Spanish in the English program');
   else if (!prog.spanish) fail('program control', 'no load reaches the Spanish, so the control proves nothing');
   else ok('program control', 'no load reaches the Spanish in the English program');
-  if (prog.bareArt) fail('articles control', prog.bareArt + ' names carry an article in the data file written alone');
+  if (prog.bareArt) fail('articles control', prog.bareArt + ' names have an article in the data file written alone');
   else ok('articles control', 'the data file written alone has no article in a name');
 }
 console.log(`\n  ${got.reached} of ${got.words} highlighted words answer as in English; ${got.missing} pieces untranslated; SPANISH ${got.hash}` + (prog ? `; the program ${prog.spanish} loads in Spanish` : ''));

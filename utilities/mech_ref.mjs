@@ -20,14 +20,14 @@
 // against itself. It can be checked against a simulation of the same rule
 // written from the rule, which is what this is: the arithmetic here is a
 // transcription of what the script does, the arithmetic there is a derivation
-// from it, and they agree only if the derivation is right.
+// from it, and they match only if the derivation is right.
 //
 // WHAT IT CANNOT SEE. It is written from the same statement of the rules as
 // the closed form, so a term both readings missed passes: the attack
 // routine's body roll did until 28 September 2026, when blows counted in the
 // fork (cythera-workbench/tools/combat-check/) printed a word neither could
-// produce. Agreement here says the closed form computes the prose; only the
-// game says the prose is the game's.
+// produce. Agreement here shows the closed form computes the prose; only the
+// game shows the prose is the game's.
 //
 // WHAT IT DELIBERATELY DOES NOT DO. No memoised distributions, no convolution,
 // no "the sum of two uniforms is a triangle so we can skip the inner loop", no
@@ -38,7 +38,7 @@
 // scripts do not state: no criticals, no armour or resistance on the way out,
 // no per-frame timing.
 //
-// It takes an RNG as a parameter and ships a seeded one, so a run is
+// It is given an RNG as a parameter and ships a seeded one, so a run is
 // reproducible and a disagreement can be re-run to the same trial. Zero
 // dependencies, stock Node, as everything in utilities/ is.
 //
@@ -48,18 +48,18 @@
 // Random(a, b) yields a .. b-1: exactly b - a values, inclusive of a and
 // exclusive of b. The archive corroborates it twice over -- 31 sites use
 // Random(0, len(array)) directly as an index into that array, which is only
-// safe if the top is exclusive, and every script that wants an INCLUSIVE top
+// safe if the top is exclusive, and every script that needs an INCLUSIVE top
 // writes the + 1 itself. Two of the rolls below are exactly that idiom.
 //
 // This file therefore has one primitive, randint(rng, a, b), and one shorthand,
-// rnd(rng, n) = randint(rng, 0, n), spelled with the script's own operand. A
+// rnd(rng, n) = randint(rng, 0, n), spelled with the script's operand. A
 // "roll of 0 to 29" is written rnd(rng, 30), because 30 is what the bytecode
-// says. There is no separate reading for computed operands: a shield's block
+// has. There is no separate reading for computed operands: a shield's block
 // and a caster's Casting figure go in exactly as a literal would, and where an
-// inclusive top is wanted the + 1 is visible in the expression because it is
+// inclusive top is needed the + 1 is visible in the expression because it is
 // visible in the script.
 //
-// An earlier version of this file read computed operands as inclusive and said
+// An earlier version of this file read computed operands as inclusive and stated
 // so as an open ambiguity. It was wrong, by a point, everywhere it applied.
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
@@ -91,7 +91,7 @@ export function randint(rng, a, b) {
 }
 
 // Random(0, n), which is the form nearly every call site uses. n is the
-// script's own operand, so rnd(rng, 30) is "a roll of 0 to 29" and
+// script's operand, so rnd(rng, 30) is "a roll of 0 to 29" and
 // rnd(rng, 1) is always 0 -- a fact rule 4 turns on.
 export function rnd(rng, n) {
   return randint(rng, 0, n);
@@ -102,7 +102,7 @@ export function rnd(rng, n) {
 // ---------------------------------------------------------------------------
 //
 // Three dice, six faces each, modelled 0..5 -- the faces are never printed, only
-// compared and subtracted, so the offset does not matter and 0-based keeps the
+// compared and subtracted, so the offset does not matter and 0-based leaves the
 // arithmetic honest. a is the innkeeper's first die, b is your white die, c is
 // the innkeeper's second: yours between theirs is the shape of the game.
 //
@@ -118,7 +118,7 @@ export function rnd(rng, n) {
 // What you actually take home is one less than announced, that one being your
 // stake, and a losing throw costs you one obol. So net = payout - 1 on a paying
 // throw and -1 on a non-paying one, which makes an announced 1 a push. The
-// innkeeper's own explanation in the script describes the same game in words.
+// innkeeper's explanation in the script describes the same game in words.
 //
 // Gambling, when the player has it, gives the white die a one in six chance of
 // being SET to the innkeeper's first die -- which, since a === b then pays 2,
@@ -134,9 +134,9 @@ export function rnd(rng, n) {
 // individual trials.
 //
 // This model is the one the archaeology pass left alone, and it has an
-// independent confirmation of its own: enumerated over all 216 throws it gives
+// independent confirmation: enumerated over all 216 throws it gives
 // 96 wins, 50 pushes and 70 losses and +0.306 obols a game, +0.421 with
-// Gambling, which are the figures the page's own enumeration prints.
+// Gambling, which are the figures the page's enumeration prints.
 export function refDice({ gambling = false } = {}, trials = 200000, rng = mulberry32(1)) {
   let wins = 0, pushes = 0, losses = 0, total = 0;
   const dist = Object.create(null);
@@ -178,9 +178,9 @@ export function refDice({ gambling = false } = {}, trials = 200000, rng = mulber
 // 2. Combat: one exchange
 // ---------------------------------------------------------------------------
 //
-// The blow words, by the size of the hit. Read off the script's own thresholds:
+// The blow words, by the size of the hit. Read off the script's thresholds:
 // under 3, under 6, under 9, under 12, under 16, under 20, under 25, under 35,
-// and everything from 35 up. The word names the RAW ROLL -- the points as
+// and everything from 35 up. The word labels the RAW ROLL -- the points as
 // rolled, before any resistance is taken off -- which is why a character can be
 // "ground to dust" by a blow that a resistance then blunts.
 const BLOW_WORDS = [
@@ -221,7 +221,7 @@ export function blowWord(points) {
 // share comes entirely out of what would otherwise have been hits, and the miss
 // rate against a shielded defender is exactly the miss rate against a bare one.
 // The block is still ROLLED first, because the script rolls it first and this
-// file keeps its draw order, which also makes the RNG consumption per trial the
+// file retains its draw order, which also makes the RNG consumption per trial the
 // same whatever the outcome.
 //
 // THE SHIELD ROLL is one of the two places the script writes the + 1 itself:
@@ -242,7 +242,7 @@ export function blowWord(points) {
 // hands the figure over: a weapon's figure is its damage plus Random(0, (body
 // - 12) / 4 + 1), 0x3042 writing the + 1 itself as the resolver does, so a
 // roll of 0 to (body - 12) / 4 with the top included, the division the
-// script's own, which drops the fraction. Below a body of 16 it is always 0.
+// script's, which drops the fraction. Below a body of 16 it is always 0.
 // Left out until 27 September 2026, when 496 blows counted in the fork printed
 // "crushed very hard" one time in thirteen for a short sword (15) in the hand
 // of a body of 25, which no roll on 15 alone can print
@@ -289,7 +289,7 @@ export function refCombat(params, trials = 200000, rng = mulberry32(2)) {
   }
 
   // Every word is reported, including the ones that never came up, so a caller
-  // comparing two implementations gets the same key set from both and a zero
+  // comparing two implementations has the same key set from both and a zero
   // reads as "never happened" rather than as "not modelled".
   for (const key of Object.keys(words)) words[key] /= trials;
 
@@ -323,7 +323,7 @@ export function refCombat(params, trials = 200000, rng = mulberry32(2)) {
 // and the stone doors at 255 cost 65, which no reflex reaches -- those doors
 // want the key.
 //
-// The player's own roll is drawn first. Nothing observable depends on that.
+// The player's roll is drawn first. Nothing observable depends on that.
 export function refLock({ reflex = 0, difficulty = 0 } = {}, trials = 200000, rng = mulberry32(3)) {
   let open = 0;
   for (let i = 0; i < trials; i++) {
@@ -372,11 +372,11 @@ export function refCast({ casting = 0, level = 0 } = {}, trials = 200000, rng = 
 // ---------------------------------------------------------------------------
 //
 // No randomness at all in this one, so it is a straight simulation rather than
-// a sample and `trials` does not appear in the signature. It is here because it
-// is the same kind of thing -- a rule stated as a rate, which the closed form
-// turns into a multiplication and which this file gets by letting the clock run.
-// The archaeology pass that corrected four rules above left this one standing
-// as written.
+// a sample and `trials` does not appear in the signature. It is here because
+// it is the same kind of thing -- a rule stated as a rate, which the closed
+// form turns into a multiplication and which this file reaches by letting the
+// clock run. The archaeology pass that corrected four rules above left this
+// one standing as written.
 //
 // THE GRANULARITY, and the argument for it. The game clock counts 1/4096 of an
 // hour and a step is one unit, so the obvious thing is to tick in those units.
@@ -386,9 +386,9 @@ export function refCast({ casting = 0, level = 0 } = {}, trials = 200000, rng = 
 // that the rules do not give. Minutes divide all of them exactly -- 60, 30, 20,
 // 15, 12 for the healing periods and 6 for regeneration and poison -- so the
 // loop runs a minute at a time and every period boundary lands where the rule
-// says it does. (The engine itself does the comparison in clock units; whatever
+// puts it. (The engine itself does the comparison in clock units; whatever
 // rounding it uses there is not visible in any figure the scripts state, and
-// this file does not guess at it.)
+// this file does not assume it.)
 //
 // The rules, in the order they are applied within a minute:
 //   - Every whole game hour, nutrition falls by 1, floored at 0.
@@ -440,7 +440,7 @@ export function refHungerRun(params) {
 
   const period = healPeriodMinutes(level);
   // Fractional hours are allowed and rounded to the nearest minute, since the
-  // loop's unit is the minute; a caller wanting quarter hours gets them exactly.
+  // loop's unit is the minute; quarter hours come out exactly.
   const minutes = Math.round(hours * 60);
 
   let nutrition = nutrition0;
@@ -475,8 +475,8 @@ export function refHungerRun(params) {
 // alone. Quality 4 is therefore three times the engine's rate, not four.
 //
 // The quarter-hour phrasing describes how the sleep helper advances the clock,
-// not a coarser rule: the engine's own periodic update runs on every step the
-// clock takes, so advancing fifteen minutes in one call still passes through
+// not a coarser rule: the engine's periodic update runs on every step the
+// clock makes, so advancing fifteen minutes in one call still passes through
 // every tick inside it and the result is identical to letting the clock run.
 // That is why this simply calls the minute loop. THE ALTERNATIVE READING is
 // that the periodic checks happen only AT the quarter-hour boundaries, which
@@ -495,7 +495,7 @@ export function refHungerRun(params) {
 // AMBIGUITY: a sleeper who somehow healed a NEGATIVE amount would have that
 // multiplied too, which is the literal reading of "what they healed times
 // quality/2" and is implemented as such. It cannot arise from this signature
-// (there is no poisoned parameter, and nothing else takes health away), so the
+// (there is no poisoned parameter, and nothing else removes health), so the
 // alternative -- clamping the bonus at 0 -- is untestable and not taken.
 //
 // THE CROSS-CHECK THAT MATTERS. A player measured beds in March 2012 and got
@@ -507,7 +507,7 @@ export function refHungerRun(params) {
 //   level 6-7, fed, quality 3                    10
 //   level 6-7, fed, quality 3, regenerating      35
 //
-// They are the reason to trust the rule at all: the engine's own rate (4 an
+// They are the reason to trust the rule at all: the engine's rate (4 an
 // hour at that level, plus 10 for regeneration) multiplied by 1 + quality/2 is
 // the only shape that gives all five. IF THIS FILE STOPS REPRODUCING THEM, THIS
 // FILE IS WRONG -- they are measurements from the running game and the rule is
@@ -556,7 +556,7 @@ function main() {
 
   console.log('mech_ref -- rolling the dice, 200000 trials each\n');
 
-  // 1. The dice game. The shipped archive's own enumeration over all 216
+  // 1. The dice game. The shipped archive's enumeration over all 216
   // throws is 96 win / 50 push / 70 lose and +0.306 obols a game, +0.421 with
   // Gambling; the sample should land on those. This is a fixed seed, so the
   // comparison is deterministic and a tolerance of one part in a hundred is
@@ -587,7 +587,7 @@ function main() {
   // 2. Combat. A middling fighter with a sword (damage 30 per the gear table)
   // against a defender of the same reflex, once bare and once behind a shield.
   // With the miss test first, the two rows must show the SAME miss rate -- the
-  // shield takes its share out of the hits alone -- and that is asserted, since
+  // shield removes its share from the hits alone -- and that is asserted, since
   // it is the whole difference the correction made.
   console.log('\n2. combat, one exchange (reflex 20 v 20, sword damage 30, skill 10)');
   const combatMiss = [];
@@ -680,9 +680,9 @@ function main() {
   return failures ? 1 : 0;
 }
 
-// Run only when executed directly, so an importing harness gets the functions
+// Run only when executed directly, so an importing harness has the functions
 // and none of the output. pathToFileURL rather than a `file://` template: the
-// template gets a path with a space in it wrong, and this tree has "Cythera
+// template handles a path with a space in it wrongly, and this tree has "Cythera
 // Data" in half its paths.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   process.exit(main());

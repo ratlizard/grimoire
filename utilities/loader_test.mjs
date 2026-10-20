@@ -10,7 +10,7 @@
 //        reference/game/installers/Cythera.bin
 //
 // The last argument, the installer, is optional; with it the check also
-// drives the path the page takes by default now -- the whole game arriving
+// drives the path the page follows by default now -- the whole game coming
 // as one MacBinary of the Installer VISE application -- through
 // extractDelverArchive, ingestArchiveFile and loadDefaultArchive.
 //
@@ -81,7 +81,7 @@ console.log(`  (decoded ${(hqx.length/1048576).toFixed(1)} MB of BinHex in ${ms}
 // ---- 2. The 0x90 run-length cases, which real archives exercise rarely -----
 // Hand-built vectors: a literal 0x90, a run, and a run at the very end.
 function rleOnly(bytes) {
-  // Re-encode as BinHex so the decoder's own front end is used end to end.
+  // Re-encode as BinHex so the decoder's front end is used end to end.
   const ALPHA = peek('HQX_ALPHA');
   let bits = '', out = ':';
   for (const b of bytes) bits += b.toString(2).padStart(8, '0');
@@ -109,7 +109,7 @@ check('rsrc fork is rejected', refRsrc ? !describe(refRsrc).ok : true,
       refRsrc ? describe(refRsrc).reason : 'skipped');
 check('raw BinHex ASCII is rejected', !describe(hqx).ok, describe(hqx).reason);
 check('a short buffer is rejected', !describe(new Uint8Array(64)).ok);
-check('the scenario carries no saved-game name', d.player === '', JSON.stringify(d.player));
+check('the scenario has no saved-game name', d.player === '', JSON.stringify(d.player));
 
 // The test is structural, not a count -- see the comment above
 // describeDelverArchive. One populated subindex is enough, and one stray
@@ -140,7 +140,7 @@ check('the scenario carries no saved-game name', d.player === '', JSON.stringify
   check('a resource entry outside the file is rejected', !d3.ok && /outside the file/.test(d3.reason), d3.reason);
 }
 
-// ---- 4. extractDelverArchive: unwrapping and legible refusals --------------
+// ---- 4. extractDelverArchive: unwrapping and legible rejections ------------
 const extract = peek('extractDelverArchive');
 const viaRaw = extract(refData);
 check('raw fork passes through', viaRaw.via === 'data fork' && viaRaw.bytes.length === refData.length);
@@ -180,15 +180,15 @@ function refusal(bytes, label) {
   catch (e) { return { threw: true, msg: e.message }; }
 }
 const r1 = refusal(new TextEncoder().encode('<html>not an archive at all</html>'));
-check('plain junk is refused', r1.threw && /Not a Delver archive/.test(r1.msg), r1.msg.slice(0, 90));
+check('plain junk is rejected', r1.threw && /Not a Delver archive/.test(r1.msg), r1.msg.slice(0, 90));
 if (refRsrc) {
   const r2 = refusal(refRsrc);
-  check('a bare resource fork is refused', r2.threw, r2.msg.slice(0, 90));
+  check('a bare resource fork is rejected', r2.threw, r2.msg.slice(0, 90));
 }
 if (appHqxPath) {
   const appHqx = new Uint8Array(readFileSync(appHqxPath));
   const r3 = refusal(appHqx);
-  check('the application .hqx is refused by name', r3.threw && /APPL|application/.test(r3.msg), r3.msg.slice(0, 140));
+  check('the application .hqx is rejected by name', r3.threw && /APPL|application/.test(r3.msg), r3.msg.slice(0, 140));
 }
 
 // ---- 5. Deep links ---------------------------------------------------------
@@ -214,8 +214,8 @@ ctx.location.hash = '';
 // check passing while the page threw before it could load anything at all.
 {
   // fetch rejects in this sandbox, so every candidate URL fails and the run has
-  // to end in archiveLoadFailed. What matters is that it gets there without
-  // throwing, and says what it tried.
+  // to end in archiveLoadFailed. What matters is that it ends there without
+  // throwing, and reports what it tried.
   // Since v1.13.0 a gate stands between the local candidates and the
   // network and waits for a click; the harness answers it in advance.
   ctx.LANDING_GATE_ANSWER = 'download';
@@ -225,16 +225,16 @@ ctx.location.hash = '';
   check('loadDefaultArchive survives a total failure', !threw, threw ? threw.message : 'reported cleanly');
 
   const out = ctx.document.getElementById('output').textContent || '';
-  check('it says what it tried', /Tried, in order/.test(out) && /Cythera Data/.test(out),
+  check('it reports what it tried', /Tried, in order/.test(out) && /Cythera Data/.test(out),
         out.split('\n')[0] || '(nothing)');
   const status = ctx.document.getElementById('sourceStatus').textContent || '';
   check('the status line was written', /No file loaded/.test(status), status.slice(0, 60) || '(empty)');
 
   // ---- and the path that has to work: the default URL serves a .hqx --------
   // The page used to fetch the bare data fork. It now fetches the BinHex, so
-  // the archive arrives wrapped and has to be unwrapped by the page rather
+  // the archive comes wrapped and has to be unwrapped by the page rather
   // than by whoever committed the file -- and the resource fork, which a bare
-  // data fork cannot carry, comes with it. That is what makes the stamps and
+  // data fork cannot contain, comes with it. That is what makes the stamps and
   // brushes decode on a first visit, so it is worth a check rather than an
   // assumption.
   const served = [];
@@ -268,17 +268,17 @@ ctx.location.hash = '';
 
 // ---- 6b. the installer -----------------------------------------------------
 // The page's default input is the installer, so the whole path is driven
-// here: the unwrap picks the archive out and says where it came from; a
-// dropped installer opens the archive, keeps the installer and opens the
+// here: the unwrap picks the archive out and records where it came from; a
+// dropped installer opens the archive, retains the installer and opens the
 // application's fork out of it; the default URL serving the installer loads
-// it; and what gets remembered is the installer itself, so a return visit
-// gets every file back rather than the archive alone.
+// it; and what is stored is the installer itself, so a return visit
+// has every file back rather than the archive alone.
 if (visePath) {
   const vise = new Uint8Array(readFileSync(visePath));
   const fromInstaller = extract(vise);
   check('the installer is unwrapped to the archive',
         /Installer VISE/.test(fromInstaller.via) && h(fromInstaller.bytes) === h(refData), fromInstaller.via);
-  check('and the archive keeps its own Finder identity',
+  check('and the archive retains its Finder identity',
         fromInstaller.forks && fromInstaller.forks.name === 'Cythera Data' &&
         fromInstaller.forks.type === 'DelS' && fromInstaller.forks.creator === 'Delv',
         fromInstaller.forks ? `${fromInstaller.forks.name} ${fromInstaller.forks.type}/${fromInstaller.forks.creator}` : 'no forks');
@@ -298,7 +298,7 @@ if (visePath) {
   try { await peek('ingestArchiveFile')({ name: 'Cythera.bin', size: vise.length, arrayBuffer: async () => vise.buffer.slice(vise.byteOffset, vise.byteOffset + vise.length) }); }
   catch (e) { threwI = e; }
   check('a dropped installer opens', !threwI && peek('ARCHIVE && ARCHIVE.bytes') && h(peek('ARCHIVE && ARCHIVE.bytes')) === h(refData), threwI ? threwI.message : 'opened');
-  check('the archive is called by its own name, not the installer’s',
+  check('the archive is called by its name, not the installer’s',
         ctx.window.ARCHIVE_SOURCE_NAME === 'Cythera Data', String(ctx.window.ARCHIVE_SOURCE_NAME));
   check('the installer is kept for the Data › Installer tab',
         !!ctx.window.INSTALLER && ctx.window.INSTALLER.archive.entries.length === 48 && ctx.window.INSTALLER.sourceName === 'Cythera.bin');
@@ -307,9 +307,9 @@ if (visePath) {
         !!(appFork && appFork.typeList && appFork.typeList.length > 40),
         appFork && appFork.typeList ? `${appFork.typeList.length} types` : 'not open: ' + (ctx.window.APP_RSRC_STATE || '(no reason recorded)'));
   const status = ctx.document.getElementById('sourceStatus').textContent || '';
-  check('the status line says where it came from', /Installer VISE/.test(status) && /47 other files/.test(status), status.slice(0, 120));
+  check('the status line shows where it came from', /Installer VISE/.test(status) && /47 other files/.test(status), status.slice(0, 120));
   // A return visit: the remembered record is the installer with `rsrc: null`
-  // (it carries its own fork), handed back through adoptArchive exactly as
+  // (it has its fork), handed back through adoptArchive exactly as
   // loadDefaultArchive hands it. That null used to override the fork the
   // unwrap had just produced, so the first visit had a resource fork and
   // every later one did not.
@@ -340,7 +340,7 @@ if (visePath) {
   check('the default URL is archive.org’s CORS path', /^https:\/\/archive\.org\/cors\//.test(peek('DEFAULT_ARCHIVE_URL')), peek('DEFAULT_ARCHIVE_URL'));
   if (served !== vise) {
     const st = ctx.document.getElementById('sourceStatus').textContent || '';
-    check('and the status line names the StuffIt archive and the versions', /StuffIt 5 archive/.test(st) && /4 versions/.test(st), st.slice(0, 160));
+    check('and the status line gives the StuffIt archive and the versions', /StuffIt 5 archive/.test(st) && /4 versions/.test(st), st.slice(0, 160));
     check('the newest installer was opened', ctx.window.INSTALLER && ctx.window.INSTALLER.picked === 'Cythera 1.0.4 Installer',
           ctx.window.INSTALLER ? ctx.window.INSTALLER.picked : 'no installer');
     // Switch to 1.0.2 from the bytes in hand: a different archive, no fetch.
@@ -358,7 +358,7 @@ if (visePath) {
   }
 
   // An installer that is not Cythera's: the catalog reads, there is no
-  // 'DelS' file, and the refusal says so.
+  // 'DelS' file, and the rejection states it.
   const notOurs = new Uint8Array(vise);
   {
     // Flip the archive entry's type in the MacBinary's data fork: 'DelS' -> 'XelS'.
@@ -373,16 +373,16 @@ if (visePath) {
     }
     if (at > 0) notOurs[at] = 0x58;
     const r = refusal(notOurs);
-    check('an installer without the archive is refused by name', at > 0 && r.threw && /no Delver archive/.test(r.msg), r.msg.slice(0, 120));
+    check('an installer without the archive is rejected by name', at > 0 && r.threw && /no Delver archive/.test(r.msg), r.msg.slice(0, 120));
   }
 }
 
 // ---- 6. writeMacBinary: the one container the page can produce -------------
-// Round trip through the page's own unwrapper first, then check the header
+// Round trip through the page's unwrapper first, then check the header
 // fields at their absolute offsets against the MacBinary II layout, computed
 // here from the spec rather than by calling the writer's helpers -- so a
-// writer that put a field in the wrong place fails even though it agrees
-// with itself.
+// writer that put a field in the wrong place fails even though it matches
+// itself.
 {
   const wrapped = peek('writeMacBinary')({
     name: 'Cythera Data', type: 'DelS', creator: 'Delv',
@@ -412,7 +412,7 @@ if (visePath) {
   check('forks are 128-byte aligned',
         wrapped.length === 128 + Math.ceil(refData.length / 128) * 128 +
           Math.ceil((refRsrc ? refRsrc.length : 0) / 128) * 128);
-  // And the whole page accepts its own product as an arriving file.
+  // And the whole page accepts its product as a file to open.
   const found = peek('extractDelverArchive')(wrapped);
   check('extractDelverArchive opens the wrapped file', h(found.bytes) === h(refData),
         found.via);

@@ -13,15 +13,15 @@
    Magpie patch, which is what the Patches section hands out.
 
    This was the inside of utilities/patch_build.mjs, which ran it in the
-   page's own sandbox for the Node builders of 24 to 28 September 2026. It
+   page's sandbox for the Node builders of 24 to 28 September 2026. It
    moved here on 28 September 2026 so that the page could build a patch
    from the fixes a visitor chooses, and patch_build.mjs runs this now; the
    builders' outputs were compared byte for byte, before and after, on the
-   patched data file (the patch itself carries a fresh identity each time).
+   patched data file (the patch itself has a fresh identity each time).
 
    THE THREE KINDS OF EDIT, one stage's worth at a time (applyDataEdits):
      edits: [{ what, resid, at, to?, expect: {offset: 'listing text'},
-               code }]  -- code in the raw listing's own words; `to`
+               code }]  -- code in the raw listing's notation; `to`
              omitted means insert at `at`, otherwise replace at..to. The
              offsets are the resource's as it stands when the edit is
              applied, so edits to one resource are applied in the order
@@ -29,7 +29,7 @@
              edits the same length. `shiftAt: true` sends a jump that
              lands exactly at `at` past the new code rather than into it
              (dvmRelink's opts.shiftAt): what a `return` put after an
-             answer wants, since the jump there is the previous keyword
+             answer needs, since the jump there is the previous keyword
              test skipping to the next one, and must still reach it.
              `replaceOp: true` replaces the one instruction at `at`.
      dataEdits: [{ what, resid, fn }] -- fn (b) => string | Uint8Array,
@@ -38,18 +38,18 @@
              resource, or throws when the bytes are not what it expects.
      textEdits: [{ what, resid, find, replace, count?, mid?, at?, optional? }]
              -- every occurrence of the text `find` in the resource (count
-             says how many there must be; omitted means at least one) is
+             gives how many there must be; omitted means at least one) is
              replaced by `replace`, right to left, each through dvmRelink's
              splice with the new bytes, so the offsets past it move; and
              where the text sits inside a `data` block (the direction lists,
              the shop's lines, a rumour) the block's size word is corrected
-             by the difference, which the relinker does not know to do. Text
+             by the difference, which the relinker does not do. Text
              is bytes below 0x80 wherever it is -- an implicit string, a
              NUL-terminated string operand, an array entry, a data block --
              so this is the same edit for all of them. `resid: null` is the
              same edit over every script resource, each allowed to match
              nothing (the British spellings, which are not tied to a place),
-             less the resources `except` names. `prose: true` takes a whole
+             less the resources in `except`. `prose: true` matches a whole
              word of running text only: not a word's part, not a
              highlighted word (after an @), and nothing in a keyword list,
              which a spelling that changed a word's start would stop
@@ -61,9 +61,9 @@
 
    STAGES. The fixes were built as separate patches, and the order they were
    chained in when made one (combined_patch.mjs, 25 September 2026) is
-   DATA_FIX_STAGES; js/delv-datafixes.js says why it is that order. A stage's
+   DATA_FIX_STAGES; js/delv-datafixes.js explains why it is that order. A stage's
    plans all read the file as the stage finds it, before any of its edits,
-   and a session carries every stage's edits on to the next, which is what
+   and a session passes every stage's edits on to the next, which is what
    writing the file out and opening it again between stages did. */
 
 // The scenario's script resources by delvmod's hints: subindexes 0..14 and
@@ -90,8 +90,8 @@ function dataPatchSession(bytes) {
     splices: new Map(), relaid: new Set(),
     // The `late` edits made so far, a resource's in the order made: code a
     // fix put at the head of a routine after everything else in its stage
-    // (the door before a thing's own Use). A later stage's edit that
-    // names its place by offset was written for the file without them, so
+    // (the door before a thing's Use). A later stage's edit that
+    // gives its place by offset was written for the file without them, so
     // its place is carried past them (applyDataEdits).
     lates: new Map(),
     bytesOf(resid) { return plain.get(resid) || smartDecrypt(getResourceBytes(arc, resid), resid).data; },
@@ -100,7 +100,7 @@ function dataPatchSession(bytes) {
 
 // A place in a resource as it stands, in the file the session began on: each
 // splice undone, last first; a place inside new bytes goes to where they were
-// put, and is `touched`, since the file there says what the edit replaced (a
+// put, and is `touched`, since the file there shows what the edit replaced (a
 // hyphen put into a word a fix respelt, a "the" in a To Do line a fix wrote
 // afresh). `at` null for a resource laid out afresh.
 function dataPatchOrigin(s, resid, at) {
@@ -177,7 +177,7 @@ function dataPatchTexts(s) {
 // One stage's edits, applied to the session.
 function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
   const log = s.log;
-  // An edit a fix brought (applyDataFixes tags it) names the fix when it
+  // An edit a fix brought (applyDataFixes tags it) gives the fix's name when it
   // fails, since its `what` names only the place.
   const named = (e, err) => e.fixTitle ? new Error(e.fixTitle + '. ' + err.message) : err;
   /* A `late` edit goes after every other of its stage, its place carried
@@ -247,7 +247,7 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
       for (let k = 0; k < needle.length; k++) if (b[e.at + k] !== needle[k]) throw new Error(e.what + ': "' + e.find + '" is not at 0x' + e.at.toString(16) + ' in 0x' + e.resid.toString(16));
     }
     // 'mid': only in the middle of a sentence, a space before and a
-    // lower-case letter after, which keeps an operand byte that happens
+    // lower-case letter after, which spares an operand byte that happens
     // to equal the text (a tab is 9, and 0x813 has three of those between
     // bytes that print as '@' and a digit) out.
     const lower = v => v >= 0x61 && v <= 0x7A;
@@ -264,10 +264,10 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
     if (!hits.length && e.optional) { if (!e.quiet) log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', 0 places'); continue; }
     if (e.count !== undefined ? hits.length !== e.count : hits.length < 1) throw new Error(e.what + ': "' + e.find + '" found ' + hits.length + ' times in 0x' + e.resid.toString(16) + (e.count !== undefined ? ', not ' + e.count : ''));
     // Where each place is in the file the session began on, before this
-    // edit's own splices; the list of the text's changes links to it.
+    // edit's splices; the list of the text's changes links to it.
     const origin = hits.map(i => dataPatchOrigin(s, e.resid, i));
     /* Every place at once: dvmRelink's splice and check, with one step it
-       cannot take put between them, a data block's size word corrected
+       lacks put between them, a data block's size word corrected
        before the result is read back, since the block is read by that size
        and a stale one throws every site after it off. Until 29 September
        2026 this took the places one at a time from the right, reading every
@@ -275,7 +275,7 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
        came out the same bytes (compared); the olde spelling's three
        thousand "the"s took four seconds that way. A site past a place moves
        by the difference in length once for each place before it; a site
-       pointing into the text replaced is refused; `moved` counts a site
+       pointing into the text replaced is rejected; `moved` counts a site
        once for each place that moved it, as the one-at-a-time loop did. */
     const len = needle.length, delta = repl.length - len;
     const asc = hits.slice().sort((x, y) => x - y);
@@ -309,7 +309,7 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
     b = out;
     s.plain.set(e.resid, b);
     log.push(e.what + ': 0x' + e.resid.toString(16).toUpperCase() + ', ' + hits.length + ' place' + (hits.length === 1 ? '' : 's') + ', ' + moved + ' offsets moved');
-    // What the text now says, edit by edit, for the list of every change
+    // What the text reads after each edit, for the list of every change
     // the text makes (dataFixTextChanges).
     s.textDone.push({ stage: s.stage, opt: e.opt || null, what: e.what, resid: e.resid, find: e.find, replace: e.replace, places: hits.length, at: origin });
   } catch (err) { throw named(e, err); }
@@ -330,12 +330,12 @@ function finishDataPatch(s) {
 }
 
 /* The fixes chosen, in DATA_FIX_STAGES order. A fix is chosen by its id,
-   and of the fixes sharing a `choice` the first chosen wins. A fix with a
-   `parent` (the text's options) counts on its own since 1 October 2026,
-   when the maintainer had the text's own box dropped: its edits are in its
-   parent's stages, which run for it without the parent's own edits (the
-   text's plans ask for 'text' itself).
-   opts.stages keeps the parts of those stages only, which is how the
+   and of the fixes sharing a `choice` the first chosen is used. A fix with a
+   `parent` (the text's options) counts by itself since 1 October 2026,
+   when the maintainer had the text's box dropped: its edits are in its
+   parent's stages, which run for it without the parent's edits (the
+   text's plans require 'text' itself).
+   opts.stages limits the run to the parts of those stages, which is how the
    builders write the patches that were made separately; opts.communityTypos
    stands in for DATA_FIX_COMMUNITY_TYPOS (community_text_patch.mjs hands in
    what it read out of the collection). */
@@ -412,14 +412,14 @@ function applyDataFixes(bytes, ids, opts) {
 }
 
 /* Every change the text fix makes to a file, with the text's options
-   chosen in `ids`, as the Patches section lists them under it: the edits
+   chosen in `ids`, as the Patches section shows them under it: the edits
    applied to the file as a patch would apply them, so the community's list,
    which is found in the text as the earlier stages leave it, is what the
-   patch would do and not a guess. One row an edit, in the order applied,
+   patch would do and not an estimate. One row an edit, in the order applied,
    under the part of the fix it came from ('text', an option's id,
    'community', or the spelling's id); an edit made in several resources (a
    word misspelt in seven, a British stem over every script) is one row with
-   the resources it was made in and the places counted. Each row carries
+   the resources it was made in and the places counted. Each row has
    every place it changes, as offsets in the file given (`at`, null where a
    resource was laid out afresh; `touched` where an earlier edit wrote the
    words there), which the Patches section links to. */

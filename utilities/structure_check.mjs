@@ -42,13 +42,13 @@
 // from the recovery rather than inferred from the shape.
 //
 // AND EDGE EQUALITY IS NOT ENOUGH, which the control proved rather than
-// argued. With the recovery's own region test disabled it claimed 4,577 blocks
+// argued. With the recovery's region test disabled it claimed 4,577 blocks
 // where it should claim 4,012, and the edge sets still matched every one --
 // because a statement inside a block that jumps out of it is an edge that is
 // still there and still emitted, so the graph is preserved while the braces
 // lie. The missing property is that a block is a region with ONE way in and one
 // way out, and it is re-derived here from the tree and the flat edges rather
-// than by asking the recovery, which would make the check a mirror.
+// than by consulting the recovery, which would make the check a mirror.
 //
 // AND EVERY STATEMENT MUST STILL BE THERE, exactly once, save the absorbed
 // jumps. The edge check alone would not notice a statement dropped from a block
@@ -58,7 +58,7 @@
 // WHAT IT CANNOT SEE. Whether a recovered `while` is the loop a person would
 // have written, or whether `do { } while` would read better than `loop` with an
 // `if` in it: those are the same graph, and this check is about the graph. It
-// also says nothing about a function left full of gotos -- refusing to recover
+// also shows nothing about a function left full of gotos -- declining to recover
 // is always allowed, and the count of those is reported rather than bounded, so
 // a change that quietly stops recovering anything shows up as a number moving
 // and not as a failure. The pinned floor below is what makes that visible.
@@ -67,7 +67,7 @@
 // line and each required to fail the assertion it was written for -- not merely
 // to fail something:
 //
-//   --control (or --control=region) replaces dvmRegionClosed with one that says
+//   --control (or --control=region) replaces dvmRegionClosed with one that answers
 //     yes to every region. The recovery then claims 4,577 blocks where it should
 //     claim 4,012, and 486 of them are left for somewhere that is neither their
 //     continuation nor a break (22 September 2026; with the merged conditions of
@@ -85,7 +85,7 @@
 //     whose conversation is seven `loop`s nested one inside the next: there the
 //     inner loop's exit and its first statement are the same statement, so
 //     `break` and `continue` go to one place and either word is true.
-//   --control=for names the loop variable of every `for` one slot along; all
+//   --control=for gives the loop variable of every `for` one slot along; all
 //     152 are caught.
 //   --control=labels prints no label at all; 803 gotos name a missing one.
 //
@@ -102,7 +102,7 @@
 //     condition.
 //
 // TWO SYNTHETIC FUNCTIONS, since 24 September 2026, because two of the
-// assertions had no control on this archive and saying so was all that could
+// assertions had no control on this archive and stating it was all that could
 // be done. The entry half of the region test and the merge's guard both exist
 // for what a hand-edited archive can do and Ambrosia's compiler never did, so
 // no function in the shipped file exercises either: removing the entry half was
@@ -115,7 +115,7 @@
 // is -- the same statements, the same recovery, the same text read back. One
 // has a jump from outside into the middle of what would be an if-block; the
 // other has a pair of tests whose second test is itself a jump target. The
-// normal run asserts the recovery REFUSES both (no block built for the first,
+// normal run asserts the recovery DECLINES both (no block built for the first,
 // nothing merged in the second), and the two controls above assert that without
 // the test in question it accepts them and the assertion sees it. They count
 // towards no floor.
@@ -124,12 +124,12 @@
 // learned to print that day, and each of them a claim a reader takes on trust.
 //
 //   A MERGED CONDITION MEANS WHAT ITS PARTS DID. `if_not A -> L; if_not B -> L`
-//   is printed `if (A && B)`, and the edge check cannot tell `&&` from `||`: both
+//   is printed `if (A && B)`, and the edge check cannot distinguish `&&` from `||`: both
 //   leave the same node for the same two places. So every merged condition is
 //   run both ways for every truth assignment of its parts -- once through the
 //   flat statements, a part jumping when it is an `if` and its value is true or
 //   an `if_not` and it is false, and once by evaluating the text the listing
-//   prints with each part named c0, c1 ... -- and the two must agree on where
+//   prints with each part named c0, c1 ... -- and the two must match on where
 //   control goes, for the falling-through spelling (`if (...) {`) and the jumping
 //   one (`goto`, `} while`) alike. The parts have to be consecutive statements
 //   of the flat listing too, which is what makes "not jumping means the next
@@ -137,7 +137,7 @@
 //
 //   A `break` OR `continue` GOES WHERE THE BRACES SAY. The listing is read back
 //   as a reader reads it -- nested blocks from its braces, the offset in each
-//   gutter -- by parseStructured below, which knows nothing of the recovery.
+//   gutter -- by parseStructured below, which does not depend on the recovery.
 //   Each `break` is held to the statement that follows its innermost loop and
 //   each `continue` to where that loop goes round (a `while`'s test, a `for`'s
 //   step, a `do`'s closing test, a `loop`'s first statement), and the flat
@@ -169,13 +169,13 @@
 //
 // A JUMP TO A RETURN IS THAT RETURN, since 24 September 2026 (dvmEndJumps):
 // a `branch` the first pass left as a goto whose target is a `return` or an
-// `exit` is folded into an end statement carrying the target's text, and the
-// pass runs again with the regions it kept open now closed. The recovery says
+// `exit` is folded into an end statement with the target's text, and the
+// pass runs again with the regions it kept open now closed. The recovery records
 // which (`ended`, the jump's offset to its target's), and for each the flat
 // statement at the jump's offset must be a jump to exactly that target and the
 // flat statement there an end whose op is `return` or `exit` -- read off the
-// ops, not off anything the recovery says -- and the printed line at the
-// jump's offset must be the target's own printed text. The edge `jump>target`
+// ops, not off anything the recovery records -- and the printed line at the
+// jump's offset must be the target's printed text. The edge `jump>target`
 // is contracted out of the flat graph for the comparison, an end having no
 // successor; that is the one edge a folded statement had. --control=ended folds
 // a jump onto a statement that is not a return, and must fail this.
@@ -231,13 +231,13 @@ const CONTROLS = {
     code: `(() => { const was = dvmLoopExits;
       dvmLoopExits = function (tree, ctx) { const r = was(tree, ctx);
         for (const [k, v] of r.exits) r.exits.set(k, v === 'break' ? 'continue' : 'break'); return r; }; })();`},
-  for: {mustFail: 'for', say: 'every for loop names its variable one slot along',
+  for: {mustFail: 'for', say: 'every for loop gives its variable one slot along',
     code: `(() => { const was = dvmForEach;
       dvmForEach = function (p, w, ctx) { const f = was(p, w, ctx);
         if (f) f.variable = 'Var' + (parseInt(f.variable.slice(3), 16) + 1).toString(16).toUpperCase().padStart(2, '0');
         return f; }; })();`},
   labels: {mustFail: 'labels', say: 'no label printed', code: 'dvmRemainingLabels = function () { return new Set(); };'},
-  entry: {mustFail: 'entry', say: 'the region test no longer refuses a region something jumps into the middle of',
+  entry: {mustFail: 'entry', say: 'the region test no longer rejects a region something jumps into the middle of',
     code: `dvmRegionClosed = function (stmts, index, lo, hi, allowed) {
       if (hi <= lo) return false;
       const ok = new Set(allowed);
@@ -284,7 +284,7 @@ if (control) {
 // Measured at 376 of the 589 functions that have any jump in them on
 // 22 September 2026, and at 420 later that day once a jump out of a loop or round
 // it was printed as `break` or `continue`. Recovering less is allowed by design
-// -- refusing is always safe -- but recovering a lot less means a pattern
+// -- declining is always safe -- but recovering a lot less means a pattern
 // stopped matching, which is worth a failure rather than a number nobody reads.
 // The same goes for the two printings added that day: 152 for-each loops and
 // 152 merged conditions (from 212 pairs of tests; some conditions are three).
@@ -292,7 +292,7 @@ if (control) {
 // the archive from 431 whole functions to 490 and the gotos left from 917
 // to 455; and to 540 on 25 September, when splitting a text run at the
 // jump that lands in it (dvmSplitTextAtTargets) took it to 554 and 193;
-// and to 575 the same day, when a jump to a block's own absorbed goto was
+// and to 575 the same day, when a jump to a block's absorbed goto was
 // allowed from inside the block and an if-else could have an empty
 // then-branch, which took it to 586 and 39; and to 590 when a block could
 // leave for an enclosing loop's exits and an if could have nothing in it
@@ -302,7 +302,7 @@ const FOR_FLOOR = 150;
 const MERGE_FLOOR = 150;
 
 /* The structured listing as a reader takes it: blocks nested by their braces,
-   and the offset in each gutter. Deliberately knows nothing of the recovery --
+   and the offset in each gutter. Deliberately independent of the recovery --
    it is the text and only the text -- so that what it concludes about a
    `break` or a `for` is a reading of what is printed. Evaluated in the page's
    scope by its source, being a plain function. */
@@ -353,14 +353,14 @@ function parseStructured(text) {
 }
 ev(parseStructured.toString());
 
-/* The two synthetic functions, in the raw listing's own words with local
+/* The two synthetic functions, in the raw listing's notation with local
    labels. Each is the one shape its assertion exists for and the shipped
    archive never has. `entry`: the `branch Mid` at the end jumps into the
    middle of the range the first `if_not` would make a block of, so the block
    may not be built. `guard`: `branch Second` jumps to the second of two tests
    that go to the same place, so the two may not be merged. Assembled and
    given the three-byte function header (0x81, arguments, locals) a class
-   script's function carries, at offset 0 of a resource of its own. */
+   script's function has, at offset 0 of a separate resource. */
 const SYNTHETIC = {
   entry: `
     if_not
@@ -415,7 +415,7 @@ const report = ev(`(() => {
   const hex = v => '0x' + v.toString(16).toUpperCase();
   const bare = n => dvmBareOperand(n.arg);
   // One resource's functions, measured: the counters go to stats (the
-  // archive's, or a synthetic function's own) and the failures to out.
+  // archive's, or a synthetic function's) and the failures to out.
   const measure = (b, resid, stats, label) => {
       let objs = [];
       try { objs = dvmExtents(b, resid); } catch (err) { return; }
@@ -465,7 +465,7 @@ const report = ev(`(() => {
           const next = new Set(want);
           for (const [from, to] of rec.ended) {
             const j = flatAt.get(from), t = flatAt.get(to);
-            // The jump's own target, followed through any jumps folded
+            // The jump's target, followed through any jumps folded
             // before it (a goto to a goto to the return), must reach the
             // return the recovery names.
             let x = j && j.kind === 'jump' && j.targets.length === 1 ? j.targets[0] : null, hops = 0;
@@ -508,7 +508,7 @@ const report = ev(`(() => {
             const next = new Set();
             for (const k of want) {
               const [from, to] = k.split('>').map(Number);
-              if (rec.absorbed.has(from)) { moved = true; continue; }   // drop its own edge
+              if (rec.absorbed.has(from)) { moved = true; continue; }   // drop the jump's edge
               if (rec.absorbed.has(to)) { next.add(from + '>' + succ.get(to)); moved = true; continue; }
               next.add(k);
             }
@@ -527,8 +527,8 @@ const report = ev(`(() => {
         //     instead of 4,012 and the edge sets still matched, because a
         //     statement inside a block jumping out of it is an edge that is
         //     still present and still emitted. The braces were lying and the
-        //     graph could not tell. So the property is re-derived here from the
-        //     tree and the flat edges, and NOT by calling the recovery's own
+        //     graph could not show it. So the property is re-derived here from the
+        //     tree and the flat edges, and NOT by calling the recovery's
         //     test, which is the only way a check of it means anything.
         for (const blk of dvmBlocksOf(rec.tree, null)) {
           if (!blk.body.length) continue;
@@ -611,7 +611,7 @@ const report = ev(`(() => {
       const text = dvmStructureRender(arc, b, resid);
       const through = t => { let k = 0; while (absorbedTo.has(t) && k++ < 8) t = absorbedTo.get(t); return t; };
       const at4 = v => v === null || v === undefined ? 'the end' : hex(v);
-      // (8) a jump folded into its return prints the return's own text: the
+      // (8) a jump folded into its return prints the return's text: the
       //     line at the jump's offset reads as the line at the target's.
       if (endedTo.size) {
         const lineAt = new Map();
@@ -625,7 +625,7 @@ const report = ev(`(() => {
       for (const f of parseStructured(text)) {
         const visit = list => {
           for (const n of list) {
-            // (5) a break or continue goes where its innermost loop says
+            // (5) a break or continue goes where its innermost loop points
             if (n.type === 'stmt' && n.word && flatAt.has(n.at)) {
               stats[n.word === 'break' ? 'breaks' : 'continues']++;
               const s = flatAt.get(n.at);
@@ -649,7 +649,7 @@ const report = ev(`(() => {
               };
               const slotName = s => 'Var' + parseInt(bare(s.node), 16).toString(16).toUpperCase().padStart(2, '0');
               const a0 = call(start, 'set_local'), a1 = call(test, 'if'), a2 = call(step, 'set_local');
-              if (!a0 || !a1 || !a2) bad('the start, test or step is not ' + n.name + ' called as the listing says');
+              if (!a0 || !a1 || !a2) bad('the start, test or step is not ' + n.name + ' called as the listing shows');
               else if (!/^word /.test(a0[0]) || a0[1] !== 'byte 0x00') bad('the start is not ' + n.name + '(state, 0, ...)');
               else if (a1.join() !== [a0[0], 'byte 0x01'].join()) bad('the test is not ' + n.name + '(the same state, 1)');
               else if (a2.join() !== [a0[0], 'byte 0x02'].join()) bad('the step is not ' + n.name + '(the same state, 2)');
@@ -681,9 +681,9 @@ const report = ev(`(() => {
       measure(smartDecrypt(raw, resid).data, resid, out, hex(resid));
     }
   }
-  // The synthetic functions, each as a one-function resource of its own,
+  // The synthetic functions, each as a separate one-function resource,
   // under a resource id the archive does not use so nothing here reads as
-  // the archive's. A site the assembler writes counts from the text's own
+  // the archive's. A site the assembler writes counts from the text's
   // start; the three header bytes move each by three.
   const SYN = ${JSON.stringify(SYNTHETIC)};
   for (const [name, text] of Object.entries(SYN)) {
@@ -733,10 +733,10 @@ if (!r.truthBad.length)
   ok('every merged condition goes where its parts went, for every truth assignment',
      `${r.merged} conditions, ${r.truthRows} assignments`);
 else
-  fail('a merged condition says something its tests do not', `${r.truthBad.length}: ${cap(r.truthBad, 3)}`, 'truth');
+  fail('a merged condition states something its tests do not', `${r.truthBad.length}: ${cap(r.truthBad, 3)}`, 'truth');
 
 if (!r.exitWordBad.length)
-  ok('every break and continue goes where its innermost loop, read from the braces, says',
+  ok('every break and continue goes where its innermost loop, read from the braces, points',
      `${r.breaks} break, ${r.continues} continue`);
 else
   fail('a break or continue goes somewhere its loop does not', `${r.exitWordBad.length}: ${cap(r.exitWordBad, 3)}`, 'exits');
@@ -755,7 +755,7 @@ if (!r.labelBad.length)
   ok('every label a goto names is printed',
      r.intoText ? `${r.intoText} goto(s) aim inside text, where no statement starts, and have no line to label` : '');
 else
-  fail('a goto names a label that is not printed', `${r.labelBad.length}: ${cap(r.labelBad, 3)}`, 'labels');
+  fail('a goto points at a label that is not printed', `${r.labelBad.length}: ${cap(r.labelBad, 3)}`, 'labels');
 
 {
   const syn = r.synthetic, why = [];
@@ -764,10 +764,10 @@ else
   if (!syn.guard || syn.guard.functions !== 1) why.push('the guard function was not measured');
   else if (syn.guard.merged !== 0) why.push(`the guard function came out with ${syn.guard.merged} merged condition(s), so a jumped-to second test was merged`);
   if (!why.length)
-    ok('the two synthetic functions are refused: no block for the jump into a middle, no merge over a jumped-to test',
+    ok('the two synthetic functions are declined: no block for the jump into a middle, no merge over a jumped-to test',
        `${syn.entry.gotosLeft + syn.guard.gotosLeft} gotos left between them`);
   else
-    fail('a synthetic function the recovery must refuse was accepted', why.join('; '), 'synthetic');
+    fail('a synthetic function the recovery must decline was accepted', why.join('; '), 'synthetic');
 }
 
 if (r.whole >= WHOLE_FLOOR && r.fors >= FOR_FLOOR && r.merged >= MERGE_FLOOR)

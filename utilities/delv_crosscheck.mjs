@@ -5,15 +5,15 @@
 //   node utilities/delv_crosscheck.mjs index.html \
 //        delvmod "$TMPDIR/Cythera Data.data"
 //
-// The viewer carries copies of several tables that delvmod worked out first:
+// The viewer has copies of several tables that delvmod worked out first:
 // which subindexes are encrypted, and the symbol names that make a disassembled
-// script readable. A copy drifts silently -- nothing in a browser complains
+// script readable. A copy drifts silently -- nothing in a browser reports
 // that a syscall is labelled with the wrong name, or that a resource is being
 // shown as raw ciphertext. So this re-reads the tables out of delvmod's Python
 // and compares.
 //
-// It found the encryption tables mattered: the viewer used to guess, with a
-// printable-ratio-and-entropy heuristic, and disagreed with delvmod on 18 of
+// It found the encryption tables mattered: the viewer once inferred them, with a
+// printable-ratio-and-entropy heuristic, and differed from delvmod on 18 of
 // 1,558 resources -- always by leaving an encrypted resource undecrypted.
 // 0x1415 was the clearest, scoring 0.238 raw against 0.223 decrypted while its
 // decrypted form plainly reads "Sewers".
@@ -42,10 +42,10 @@ const fail = (what, detail) => { failures++; console.log('  FAIL ' + what + (det
 const ok = (what, detail) => console.log('  ok   ' + what + (detail ? ' — ' + detail : ''));
 
 // ---- read the reference tables out of the Python ---------------------------
-// Commented-out entries have to go before anything is parsed. delvmod keeps
+// Commented-out entries have to go before anything is parsed. delvmod has
 // several `#   0x10: "Unknown_10",` lines inside its tables -- names that were
 // tried and withdrawn -- and reading those as live entries made this harness's
-// first run report two failures that were entirely its own.
+// first run report two failures that were entirely the harness's.
 function stripPyComments(src) {
   return src.split('\n').map(line => {
     let quote = null;
@@ -93,8 +93,8 @@ function pyNameMap(src, name, {valueIsName = false} = {}) {
     const code = Number(valueIsName ? m[1] : m[2]);
     const label = valueIsName ? m[2] : m[1];
     if (label.startsWith('_')) continue;          // _size / _name metadata
-    // The first spelling wins: these tables occasionally list an alias after
-    // the canonical name, and delvmod's own dict comprehension keeps the last,
+    // The first spelling is used: these tables occasionally have an alias after
+    // the canonical name, and delvmod's dict comprehension retains the last,
     // but only the code->name direction is used here.
     if (!out.has(code)) out.set(code, label);
   }
@@ -139,7 +139,7 @@ const setsEqual = (a, b) => a && b && a.size === b.size && [...a].every(v => b.h
 {
   const vEnc = peek('DELV_ENCRYPTED_SUBN'), vClear = peek('DELV_CLEAR_SUBN'), vSingle = peek('DELV_CLEAR_RESID');
   if (!vEnc || !vClear) {
-    fail('encryption tables', 'the viewer has no DELV_ENCRYPTED_SUBN/DELV_CLEAR_SUBN — it is guessing');
+    fail('encryption tables', 'the viewer has no DELV_ENCRYPTED_SUBN/DELV_CLEAR_SUBN — it is inferring');
   } else {
     if (setsEqual(vEnc, REF_ENCRYPTED)) ok('encrypted subindexes', `${vEnc.size} match delvmod`);
     else fail('encrypted subindexes', `viewer ${[...vEnc].sort((a,b)=>a-b)} vs delvmod ${[...REF_ENCRYPTED].sort((a,b)=>a-b)}`);
@@ -195,7 +195,7 @@ const setsEqual = (a, b) => a && b && a.size === b.size && [...a].every(v => b.h
   // declares only its mnemonic and inherits expect=1 from OpIf; reading its
   // body alone gives 0 and reports the viewer as wrong about how many operand
   // expressions an `if_not` consumes. That was this check's first finding, and
-  // it was this check's own bug.
+  // it was this check's bug.
   const raw = new Map();
   for (const m of ddasm.matchAll(/class\s+(Op\w+)\((\w+)[^)]*\):([\s\S]*?)(?=\nclass |\ndef |\nOpTable)/g)) {
     const mn = /mnemonic\s*=\s*['"]([^'"]*)['"]/.exec(m[3]);
@@ -245,7 +245,7 @@ const setsEqual = (a, b) => a && b && a.size === b.size && [...a].every(v => b.h
       if (v[0] !== ref.mnemonic && allowed !== v[0])
         wrongName.push(`0x${code.toString(16).toUpperCase()} viewer "${v[0]}" delvmod "${ref.mnemonic}"`);
       if (v[2] !== ref.expect)
-        wrongExpect.push(`0x${code.toString(16).toUpperCase()} ${ref.mnemonic} takes ${ref.expect} in delvmod, ${v[2]} here`);
+        wrongExpect.push(`0x${code.toString(16).toUpperCase()} ${ref.mnemonic} has ${ref.expect} in delvmod, ${v[2]} here`);
     }
     const extra = Object.keys(vOps).map(Number).filter(c => !REF_OPS.has(c));
     if (wrongName.length) fail('opcode mnemonics', wrongName.join('; '));
@@ -290,12 +290,12 @@ if (!dataPath) {
       if (truth === null) { noOpinion++; continue; }
       if (!!v.wasDecrypted === truth) agree++;
       else disagree.push(`0x${resid.toString(16).toUpperCase()} (sub ${subn}) read as ` +
-                         `${v.wasDecrypted ? 'encrypted' : 'clear'}, delvmod says ${truth ? 'encrypted' : 'clear'}`);
+                         `${v.wasDecrypted ? 'encrypted' : 'clear'}, delvmod has ${truth ? 'encrypted' : 'clear'}`);
     }
   }
   if (disagree.length) fail(`decryption of ${agree + disagree.length} resources`,
     `${disagree.length} wrong: ` + disagree.slice(0, 8).join('; ') + (disagree.length > 8 ? ` (+${disagree.length - 8})` : ''));
-  else ok('decryption', `all ${agree} resources agree with delvmod` +
+  else ok('decryption', `all ${agree} resources match delvmod` +
     (noOpinion ? `, ${noOpinion} in subindexes delvmod does not describe` : ''));
 }
 
@@ -303,9 +303,10 @@ if (!dataPath) {
 // 0x1xxxxxxx word constants. delvmod classes the whole 0x10000000-0x2FFFFFFF
 // range as unidentified; the wiki reads the 0x1 nibble as a reference to a
 // local variable, and that is what dvmWord renders. It is the only part of the
-// word decoder without a reference implementation behind it, so it gets its
-// own evidence instead: every such reference should name a local that its own
-// function declares, and usually one that same function also reads directly.
+// word decoder without a reference implementation behind it, so it is held to
+// separate evidence instead: every such reference should refer to a local that
+// its function declares, and usually one that same function also reads
+// directly.
 if (dataPath && existsSync(dataPath) && typeof ctx.dvmExtents === 'function') {
   let refs = 0, inRange = 0, alsoReadDirectly = 0, rawZero = 0;
   const SCRIPT_SUBN = [0, 3, 7, 8, 9, 11, 12, 13, 14, 15, 16, 19, 20, 23, 24, 25, 26, 27, 29, 47];
@@ -358,7 +359,7 @@ if (dataPath && existsSync(dataPath) && typeof ctx.dvmExtents === 'function') {
 // ---- 6. the prop-visibility rule -------------------------------------------
 // renderMapVisual departs from delvmod's show_in_map() on purpose: delvmod
 // hides anything with flags & 0x58, and the viewer exempts characters from
-// that. delvmod's own comment on the function is "This is probably wrong --
+// that. delvmod's comment on the function is "This is probably wrong --
 // many details yet to be determined. FIXME", so the divergence is measured
 // rather than argued. What must hold is the *direction*: this rule may only
 // ever add people to a map, never remove one delvmod would have drawn.
@@ -375,9 +376,9 @@ if (dataPath && existsSync(dataPath) && typeof ctx.parseDelverPropList === 'func
     for (const r of recs) {
       records++;
       const deleted = r.flags === 0xFF, contained = !!(r.flags & 0x58);
-      // 0x42 EGG and 0x44 ROOF are markers, not props to draw: delvmod names
-      // them rather than reading their proptype, and the viewer now skips them
-      // on the terrain layer too (roofs have their own layer and toggle).
+      // 0x42 EGG and 0x44 ROOF are markers, not props to draw: delvmod labels
+      // them rather than reading their proptype, and the viewer skips them
+      // on the terrain layer too (roofs have a separate layer and toggle).
       const marker = r.flags === 0x42 || r.flags === 0x44;
       const delvShows = !deleted && !contained;
       const viewerShows = !deleted && !marker && (!contained || chars.has(r.proptype));
@@ -391,7 +392,7 @@ if (dataPath && existsSync(dataPath) && typeof ctx.parseDelverPropList === 'func
     fail('prop visibility', `${delvmodOnly} props delvmod draws are hidden here — the rule is ` +
                             'supposed to be a strict superset of show_in_map()');
   else
-    ok('prop visibility', `${records} records, ${agree} agree, ${viewerOnly} drawn here that ` +
+    ok('prop visibility', `${records} records, ${agree} match, ${viewerOnly} drawn here that ` +
        'delvmod hides (characters; EGG/ROOF markers excluded), none the other way');
 }
 
@@ -413,7 +414,7 @@ if (dataPath && existsSync(dataPath) && typeof ctx.parseDelverPropList === 'func
   const expectInside = /flags\s*&\s*0x08/.test(fn);
   const expectOffset = /-\s*0x100/.test(fn);
   if (!expectCarried || !expectInside || !expectOffset) {
-    fail('prop location', 'delvmod\'s textual_location no longer reads the way this viewer does');
+    fail('prop location', 'delvmod\'s textual_location no longer matches this viewer\'s reading');
   } else {
     let records = 0, floor = 0, carried = 0, contained = 0, deleted = 0, bad = 0;
     for (let n = 0; n < 256; n++) {
@@ -435,7 +436,7 @@ if (dataPath && existsSync(dataPath) && typeof ctx.parseDelverPropList === 'func
     }
     if (!records) ok('prop location', 'no prop lists in this archive');
     else if (bad)
-      fail('prop location', `${bad} containment links point outside their own prop list`);
+      fail('prop location', `${bad} containment links point outside their prop list`);
     else
       ok('prop location', `${records} records: ${floor} on the floor, ${contained} inside ` +
          `another prop, ${carried} carried, ${deleted} deleted`);
@@ -443,7 +444,7 @@ if (dataPath && existsSync(dataPath) && typeof ctx.parseDelverPropList === 'func
 }
 
 // ---- 8. roofs --------------------------------------------------------------
-// A roofed map's header declares how many 8x8 roof blocks it carries, and the
+// A roofed map's header declares how many 8x8 roof blocks it has, and the
 // flags-0x44 prop records say where each one goes. The relationship that makes
 // that reading safe is countable: every declared block placed, none invented,
 // and all of them landing on the map.
@@ -473,10 +474,10 @@ if (dataPath && existsSync(dataPath) && typeof ctx.mapRoofSections === 'function
     if (seen.size !== m.roofLayerSize) unplaced += m.roofLayerSize - seen.size;
   }
   // A block nobody places is a property of the archive, not a misreading: the
-  // Temple (0x801A) declares three full blocks and carries no 0x44 record at
+  // Temple (0x801A) declares three full blocks and has no 0x44 record at
   // all, which is a roof that was taken off the map with its tiles left behind.
-  // (Its 19 flags-0x42 records are not the placement -- those carry real prop
-  // types, 352-361, and delvmod names them EGG.) So unplaced blocks are
+  // (Its 19 flags-0x42 records are not the placement -- those have real prop
+  // types, 352-361, and delvmod labels them EGG.) So unplaced blocks are
   // reported; an index the map never declared is the actual error.
   if (!maps) ok('roofs', 'no roofed maps in this archive');
   else if (badIndex) fail('roofs', `${badIndex} sections name a block the map does not declare`);

@@ -7,26 +7,26 @@
  * Every writer here is proven byte for byte against delvmod, and delvmod
  * is not the game. This is the game: the fork of systemless runs Cythera
  * headless and deterministically, and the playthrough kit beside the
- * workspace (playthrough-2026-09-08/, in no repository) holds saved games
+ * workspace (playthrough-2026-09-08/, in no repository) has saved games
  * it reached by play. A save the site edits is seeded as the player file,
  * the game is driven to open it and save it again -- the title screen
  * clicked away, Open Game pressed, the file dialog answered by
  * SYSTEMLESS_STANDARD_GET_FILE, Cmd-S -- and the file the game wrote is
  * read back. The edit has to be there: the hero one square north of where
  * the seed left him, with more training points. The control is the same
- * run on the unedited seed, which has to read back the seed's own square,
+ * run on the unedited seed, which has to read back the seed's square,
  * so a run that never loaded the file cannot pass either way.
  *
- * The kit's own recipe used the fork's instruction-budget mode, which the
- * fork now calls a legacy diagnostic and in which the Open Game click no
+ * The kit's recipe used the fork's instruction-budget mode, which the
+ * fork now treats as a legacy diagnostic and in which the Open Game click no
  * longer lands; this drives it in tick mode (--max-ticks with
  * --tick-input-script, sixty ticks a second), which is what the fork now
- * documents. The kit's pristine store carries the unregistered licence,
+ * documents. The kit's pristine store has the unregistered licence,
  * whose notice would swallow the click, so the registered one is put in
  * the scratch copy of the store first. Everything runs in $TMPDIR; the kit
  * is read and never written. The script is timed for the 68K slice, which
  * the kit's saves and drive scripts all use; the fork's binary prefers the
- * PowerPC slice since 3 October 2026, so the run asks for the 68K one with
+ * PowerPC slice since 3 October 2026, so the run requests the 68K one with
  * SYSTEMLESS_PREFER_POWERPC=0. Skips when the kit, the binary or the licence
  * is not on the disk, which a checkout without the workspace beside it is. */
 
@@ -67,7 +67,7 @@ writeFileSync(join(PLAY, 'pristine/.systemless/saves/Cythera Installed Folder/Sy
 // zone, and the run ends at 1800 so the save has time to finish.
 writeFileSync(SCRIPT, '400 click 320 330\n800 click 320 330\n1500 keydown 55 0\n1502 press 1 115\n1504 keyup 55 0\n');
 
-// ---- the page, to edit the seed with its own writer -------------------------
+// ---- the page, to edit the seed with its writer -----------------------------
 const {sandbox} = makeSandbox();
 const ctx = vm.createContext(sandbox);
 new vm.Script(pageSource(htmlPath) + '\n;window.__peek = n => eval(n);', {filename: htmlPath}).runInContext(ctx);
@@ -82,24 +82,24 @@ const wantTraining = (before.training + 100) & 0xFF;
 // The hero stands in two places in a save: character record 1 in 0xF009,
 // and prop record 1 in 0xF306, the characters' prop list, which the game
 // places him from. Edited in the character record alone he loaded where the
-// prop record said and was saved back there, which is how this check first
+// prop record put him and was saved back there, which is how this check first
 // failed (19 September 2026); applyCharacterRecordEdit moves the prop record
 // with the square since, and this drives that one path, as the form does.
 const heroProp = () => ctx.parseDelverPropList(ctx.smartDecrypt(ctx.getResourceBytes(peek('ARCHIVE'), 0xF306), 0xF306).data)[1];
 const propBefore = heroProp();
 if (!propBefore || propBefore.x !== 29 || propBefore.y !== 27) fail(`the hero's prop record is not at (29, 27): ${JSON.stringify(propBefore && {x: propBefore.x, y: propBefore.y})}`);
-if (!ctx.applyCharacterRecordEdit(1, {y: 26, training: wantTraining})) fail('the page refused the character record edit');
+if (!ctx.applyCharacterRecordEdit(1, {y: 26, training: wantTraining})) fail('the page rejected the character record edit');
 /* The rest of the save's forms ride in the same run (25 September 2026): a
    quest value and a quest flag no script touches in this state, a room
    switch, a thing given to the hero and a To Do line. The game loads each
-   into its own globals and writes them back from there on the save, so
+   into its globals and writes them back from there on the save, so
    each has to come back; the control must come back without them. What this
    cannot prove is that a To Do line other than 0 DRAWS as its text: the
    game echoes the entry whatever it points at. */
-if (!ctx.writeQuestState({5: 3}, {77: true})) fail('the page refused the quest state edit');
-if (!ctx.writeRoomsEntered({4: true})) fail('the page refused the rooms edit');
-if (!ctx.giveToCharacter(1, {proptype: 66, aspect: 0, d3: 0x300, flags: 0x10})) fail('the page refused to give the hero a thing');
-if (!ctx.addTodoLine(10, 114, 0x021A)) fail('the page refused the To Do line');
+if (!ctx.writeQuestState({5: 3}, {77: true})) fail('the page rejected the quest state edit');
+if (!ctx.writeRoomsEntered({4: true})) fail('the page rejected the rooms edit');
+if (!ctx.giveToCharacter(1, {proptype: 66, aspect: 0, d3: 0x300, flags: 0x10})) fail('the page did not give the hero a thing');
+if (!ctx.addTodoLine(10, 114, 0x021A)) fail('the page rejected the To Do line');
 const edited = peek('ARCHIVE.bytes');
 const after = hero(), propAfter = heroProp();
 if (after.y !== 26 || after.training !== wantTraining || propAfter.y !== 26) fail('the edits did not reach the rebuilt file: ' + JSON.stringify({after, propAfter}));
@@ -157,9 +157,9 @@ if (!failures) console.log('  and it kept quest value 5 at 3, flag 77, room 4 en
 if (!failures) console.log(`  the game loaded the edited save and saved it back: hero at (${trial.read.x}, ${trial.read.y}) with ${trial.read.training} training points, from (${before.x}, ${before.y}) and ${before.training}; the unedited seed came back as itself`);
 /* A save the page MADE, from the scenario alone (7 October 2026;
    buildNewGameSave, js/delv-archive.js). The edited run above starts from
-   a file the game wrote, so it cannot say whether the game takes a file it
+   a file the game wrote, so it cannot show whether the game accepts a file it
    never wrote a byte of. This one is built with no save open, with stats
-   no new game has, and has to come back from the game's own save with the
+   no new game has, and has to come back from the game's save with the
    hero where the scenario stands him and those stats intact. The control
    is the edited run's: the same store and script, which came back with a
    different hero, so a run that loaded some other file cannot pass. Skips
@@ -171,7 +171,7 @@ if (scenarioArg && existsSync(scenarioArg)) {
      can join standing with him, the first named state that sets anything,
      two in the afternoon on day 3. The resource fork is opened beside the
      data, since the named states are in it. What must come back from the
-     game's own save: the place; the companion still in the party, in the
+     game's save: the place; the companion still in the party, in the
      zone, following; the state's quest value; the day. */
   const rsrcPath = scenarioArg.replace(/\.data$/, '.rsrc');
   ctx.parseArchiveBytes(new Uint8Array(readFileSync(scenarioArg)), 'Cythera Data', existsSync(rsrcPath) ? {via: 'data fork', rsrc: new Uint8Array(readFileSync(rsrcPath))} : {via: 'data fork'});
@@ -182,10 +182,10 @@ if (scenarioArg && existsSync(scenarioArg)) {
   const arch = md.archetypes ? md.archetypes.list[md.archetypes.list.length - 1] : null;
   const made = ctx.newGameSaveBytes({name: 'Bellerophon', sprite: 0, body: 21, reflex: 14, mind: 9, level: 3, archetype: arch ? arch.index : '',
     zone: elsewhere.zone, party: friend ? [friend.index] : [], story: story ? story.name : '', hour: 14, day: 3, welcomed: true});
-  /* The king's welcome against the game's own (the same day). The kit has a
+  /* The king's welcome against the game's (the same day). The kit has a
      save taken at a new game and one taken after the king's first
      conversation, a Fighter's. A save made here as a Fighter with the king
-     having spoken must agree with the second wherever the first differs
+     having spoken must match the second wherever the first differs
      from it by his doing: the quest flags, the To Do list's first slot,
      his own flags, and the hero's skills and the amulet at the end of the
      hall's list. No run: two files compared. */
@@ -200,13 +200,13 @@ if (scenarioArg && existsSync(scenarioArg)) {
     else if (hex(seg(real, 0x0401).subarray(0, 8)) !== hex(seg(mine, 0x0401).subarray(0, 8))) fail('welcome: To Do slot 0 is ' + hex(seg(mine, 0x0401).subarray(0, 8)) + ', the kit’s ' + hex(seg(real, 0x0401).subarray(0, 8)));
     else if ((qa.chars[md.welcome.who].state & 0x80) !== (qb.chars[md.welcome.who].state & 0x80) || !(qb.chars[md.welcome.who].state & 0x80)) fail('welcome: the king’s own flag is not set as in the kit’s save');
     else if (held(real) !== held(mine) || !held(mine)) fail('welcome: the hero holds ' + held(mine) + ', and in the kit’s save ' + held(real));
-    else console.log('  a Fighter made with the king having spoken agrees with the kit’s save after his welcome: the flags, To Do slot 0, his flag, and ' + held(mine).split(' ').length + ' things held');
+    else console.log('  a Fighter made with the king having spoken matches the kit’s save after his welcome: the flags, To Do slot 0, his flag, and ' + held(mine).split(' ').length + ' things held');
   } else console.log('  the king’s welcome was not compared: the kit’s save after it, or the reading, is missing');
   /* The characters' prop list against a real new game's (the same day): the
-     kit's save taken at a new game, its list against the rule run on its own
+     kit's save taken at a new game, its list against the rule run on its
      character table (a made save's table is the scenario's, which the game
      has not yet placed, so the two tables are not to be compared). Two may differ, and only by having no square in the real
-     one: the two characters the hour's schedule keeps off the map, which
+     one: the two characters the hour's schedule leaves off the map, which
      the game works out again on load. Any other difference is the rule's. */
   const cp0Path = join(KIT, 'saves/cp0-newgame/data.fork');
   if (existsSync(cp0Path)) {
@@ -215,7 +215,7 @@ if (scenarioArg && existsSync(scenarioArg)) {
     const odd = [];
     for (let i = 0; i < 256; i++) { const a = real.subarray(i * 16, i * 16 + 16), b = mine.subarray(i * 16, i * 16 + 16); if (a.some((v, k) => v !== b[k])) odd.push({i, bare: a[0] === b[0] && a.subarray(1).every(v => !v)}); }
     if (real.length !== mine.length || odd.length > 2 || odd.some(o => !o.bare)) fail('list: the characters’ prop list differs from a real new game’s other than in a scheduled character’s square: ' + JSON.stringify(odd.slice(0, 8)));
-    else console.log('  the rule for the characters’ prop list gives a real new game’s from its own table, but for the square of characters ' + odd.map(o => o.i).join(' and ') + ', whom the hour keeps off the map');
+    else console.log('  the rule for the characters’ prop list gives a real new game’s from its table, but for the square of characters ' + odd.map(o => o.i).join(' and ') + ', whom the hour leaves off the map');
   }
   if (!made) fail('made: the page could not make a save from the scenario');
   else {
@@ -231,7 +231,7 @@ if (scenarioArg && existsSync(scenarioArg)) {
       if (got.zone !== elsewhere.zone) fail(`made: the hero is in zone ${got.zone}, not ${elsewhere.zone}`);
       else if (friend && (!pal || !(pal.state & 0x40) || pal.zone !== got.zone || pal.raw[22] !== 1)) fail('made: the companion is not in the party, in the zone and following: ' + JSON.stringify(pal && {state: pal.state, zone: pal.zone, behaviour: pal.raw[22]}));
       else if (story && q.values[+sn] !== sv) fail(`made: quest value ${sn} is ${q.values[+sn]}, not the ${sv} of ${story.name}`);
-      else if (md.welcome && !q.flags[md.welcome.flag.v]) fail('made: the game did not keep the quest flag of the king’s welcome');
+      else if (md.welcome && !q.flags[md.welcome.flag.v]) fail('made: the game did not retain the quest flag of the king’s welcome');
       else if (((ch[84] << 8) | ch[85]) !== 3) fail('made: the day is not 3: ' + ((ch[84] << 8) | ch[85]));
       else if (arch && (() => { const list = ctx.parseDelverPropList(back.resources.find(x => x.resid === 0x8100 + got.zone).data);
         return !arch.skills.every(k => list.some(p => p.flags === md.archetypes.flags.v && p.x === 0 && p.y === 1 && p.proptype === k.type && p.aspect === (k.level | md.archetypes.bit.v))); })())
@@ -244,9 +244,9 @@ if (scenarioArg && existsSync(scenarioArg)) {
 /* A scenario the page MADE (8 October 2026; newScenarioBytes, Data ›
    Patches, Make a Scenario): the open scenario with its world emptied to
    one zone. Nothing above starts a new game, and a new game is the only
-   thing a scenario is for, so this one does: the game arrives as a zip of
+   thing a scenario is for, so this one does: the game comes as a zip of
    two MacBinary files, the application and the made Cythera Data (the fork
-   takes both forks of each from one; a store entry named Cythera Data was
+   reads both forks of each from one; a store entry named Cythera Data was
    tried first and the PowerPC slice read the archive's file regardless),
    New Game is pressed, the player named and the archetype accepted, the
    hero walked east twice and south once, and the game saved.
@@ -255,7 +255,7 @@ if (scenarioArg && existsSync(scenarioArg)) {
    timed (tools/drive-scripts/powerpc/newgame.ticks.txt), and stops that
    script after the archetype dialog: the made scenario has no opening to
    page through. The zone is made 24 by 20 with the hero at (10, 12), which
-   no zone of the shipped file is, so the save says which scenario the game
+   no zone of the shipped file is, so the save shows which scenario the game
    read: the hero three steps from (10, 12), and the zone's map memory, a
    bit a square, 3 bytes by 20. The control is run by hand, since it costs
    another forty seconds: GAME_CHECK_SHIPPED_SCENARIO=1 puts the shipped
@@ -319,7 +319,7 @@ if (scenarioArg && existsSync(scenarioArg) && appDataArg && existsSync(appDataAr
       const sspec = ctx.delverArchiveSpec(new Uint8Array(readFileSync(saved)));
       const seg = rid => (sspec.resources.find(r => r.resid === rid) || {}).data;
       const h = seg(0xF009) ? ctx.parseDelverCharacterRecords(seg(0xF009))[1] : null, seen = seg(0x8200 + zone);
-      if (!seg(0xF009)) fail(`scenario: the save the game wrote holds no game, so no new game was reached (${slog})`);
+      if (!seg(0xF009)) fail(`scenario: the save the game wrote has no game, so no new game was reached (${slog})`);
       else if (!h || h.zone !== zone || h.x !== X + 2 || h.y !== Y + 1) fail(`scenario: the hero is not three steps from (${X}, ${Y}) in zone ${zone}: ` + JSON.stringify(h && {zone: h.zone, x: h.x, y: h.y}));
       else if (!seen || seen.length !== Math.ceil(W / 8) * H) fail(`scenario: the zone's map memory is ${seen && seen.length} bytes, not the ${Math.ceil(W / 8) * H} of a ${W} by ${H} zone`);
       else if (!h.health || h.level !== 1) fail('scenario: the creation script did not set the hero up: ' + JSON.stringify({health: h.health, level: h.level}));

@@ -5,36 +5,36 @@
 //
 // dvmReadRender (js/delv-fold.js) reads every function of a script as
 // sentences, walking the tree the structure recovery made. A sentence is a
-// reading, not a rendering, so this holds each one to the function's own
+// reading, not a rendering, so this checks each one against the function's
 // code, from the outside, over every function in the archive:
 //
-//   calls       every syscall and method the function's ops call is said, by
-//               its name taken apart the way the sayer takes it apart
+//   calls       every syscall and method the function's ops call is written, by
+//               its name taken apart the way the Read view splits it
 //               (dvmSayName) -- a call left out of a sentence is a thing the
-//               function does that the reader is not told;
+//               function does that the reader is not shown;
 //   conditions  every test in the recovered tree -- each if, if-else, while,
 //               for, do-while and each conditional jump left over -- is a
-//               clause of its own that begins with "if", "while", "for each"
+//               separate clause that begins with "if", "while", "for each"
 //               or "repeat, and go round again while";
-//   strings     every string the function holds is in its sentences, which is
+//   strings     every string in the function is in its sentences, which is
 //               what catches a print lost in the merging of prints;
 //   words       nothing reads "undefined", "null" or the fold's "/*under*/";
 //   prompts     in a conversation, every `answer "kw" -> target` guard is a
-//               "when asked about" clause of its own, the follow-ups nested
-//               in the answer whose stretch holds them;
-//   helpers     a call to a helper said by what it returns or sets
-//               (dvmInlineHelper) still names the helper, so no call is
+//               separate "when asked about" clause, the follow-ups nested
+//               in the answer whose stretch contains them;
+//   helpers     a call to a helper written as what it returns or sets
+//               (dvmInlineHelper) still gives the helper's name, so no call is
 //               hidden by being read through;
 //   self        in a method -- a function its class's table reaches, which the
 //               engine calls with the object it belongs to first -- that first
-//               argument is said "it" throughout, and "Arg00" appears nowhere.
+//               argument is written "it" throughout, and "Arg00" appears nowhere.
 //
 // What it cannot see: whether the words chosen are the right words. A name
-// taken apart says what the name says; if delvmod's name for a syscall is
-// wrong, the sentence is wrong the same way, and no check here can tell.
+// taken apart means what the name means; if delvmod's name for a syscall is
+// wrong, the sentence is wrong the same way, and no check here can see it.
 //
 // Controls, each of which must fail the assertion it is named for:
-//   --control=calls       every syscall said as nothing
+//   --control=calls       every syscall written as nothing
 //   --control=conditions  every block's heading dropped, its body kept
 //   --control=strings     every print clause dropped
 //   --control=self        no function taken to be a method
@@ -63,7 +63,7 @@ sandbox.__a = new Uint8Array(readFileSync(dataPath));
 ev('parseArchiveBytes(__a, {name: "Cythera Data"})');
 
 const CONTROLS = {
-  calls: {say: 'every syscall said as nothing',
+  calls: {say: 'every syscall written as nothing',
     code: `(() => { const was = dvmSayCall; dvmSayCall = function (n, c) { return /^sys /.test(n.mn) ? '' : was(n, c); }; })();`},
   conditions: {say: 'every block’s heading dropped, its body kept',
     code: `(() => { const was = dvmSayTree; dvmSayTree = function (t, c, l) { return was(t, c, l).flatMap(x => x.kids ? x.kids : [x]); }; })();`},
@@ -132,7 +132,7 @@ const stats = ev(`(() => {
           out.conditions += want;
           if (want !== have) out.fails.conditions.push(where + ': ' + want + ' tests, ' + have + ' clauses');
         }
-        if (f.self) { out.methods++; if (/\\bArg00\\b/.test(text)) out.fails.self.push(where + ' says Arg00'); }
+        if (f.self) { out.methods++; if (/\\bArg00\\b/.test(text)) out.fails.self.push(where + ' reads Arg00'); }
         const bad = /\\bundefined\\b|\\bnull\\b|\\/\\*under\\*\\//.exec(text);
         if (bad) out.fails.words.push(where + ': "' + bad[0] + '"');
       }
@@ -148,7 +148,7 @@ for (const [what, list] of Object.entries(stats.fails)) {
   failures++;
   console.error(`FAIL ${what}: ${list.length} -- ${list.slice(0, 6).join('; ')}${list.length > 6 ? '; ...' : ''}`);
 }
-const line = `read ${stats.functions} functions: ${stats.calls} calls, ${stats.conditions} tests and ${stats.strings} strings said, ${stats.methods} methods said of "it", ${stats.inlined} helper calls read through and named; ` +
+const line = `read ${stats.functions} functions: ${stats.calls} calls, ${stats.conditions} tests and ${stats.strings} strings written, ${stats.methods} methods written of "it", ${stats.inlined} helper calls read through and named; ` +
   `${stats.answers} of them conversations, every prompt a clause`;
 if (failures) { console.error(line); process.exit(1); }
 console.log(line);

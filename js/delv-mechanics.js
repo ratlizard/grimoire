@@ -5,34 +5,34 @@
    own scripts and states them in prose: the dice game pays this, a blow lands
    when that, a lock opens when the other. Prose is where a rule can be read;
    it is not where a rule can be *seen*. "Reflex plus a roll of 0 to 29, less
-   the defender's reflex plus a roll of 0 to 29" tells a reader nothing about
+   the defender's reflex plus a roll of 0 to 29" gives a reader no sense of
    how often a blow lands against an even opponent, and the answer -- a shade
    under half, with a long tail either way -- is the interesting part. Every
    function here turns one of those sentences into numbers a picture can be
    drawn from.
 
-   WHY IT IS A FILE OF ITS OWN, AND WHY IT HOLDS NO MARKUP. The rule in
+   WHY IT IS A SEPARATE FILE, AND WHY IT HAS NO MARKUP. The rule in
    CLAUDE.md is that the line is the DOM: bytes to bytes goes in js/, bytes to
    something on screen stays in the page. These are numbers to numbers, so they
    are here; the figures that draw them are in index.html beside the sheet that
    shows them, because a chart is presentation and its class names are the
    page's. Nothing in this file touches the document, reads the open archive,
-   or knows what a resource is. It is handed plain numbers -- usually numbers
+   or depends on what a resource is. It is handed plain numbers -- usually numbers
    the page has just read out of a script -- and hands back plain numbers.
 
    That is also what makes it checkable, which is the whole point. A closed
    form is exactly the kind of code that is wrong quietly: it produces a
-   plausible curve whatever it computes, and no snapshot will ever complain.
+   plausible curve whatever it computes, and no snapshot will ever fail.
    So `utilities/mech_ref.mjs` implements the same rules the obvious slow way
    -- roll the dice a few hundred thousand times and count -- written from the
    prose rather than from this file, and `utilities/mech_check.mjs` requires
-   the two to agree. That is the same arrangement delvmod gives the archive
+   the two to match. That is the same arrangement delvmod gives the archive
    decoders and the port gives the classic-Mac ones: two implementations, one
    set of rules, neither derived from the other.
 
    It is weaker than theirs in one respect, which cost a term. delvmod was
    written by other people from the bytes; mech_ref.mjs was written here from
-   the page's own prose. So a rule both readings leave out passes: the body
+   the page's prose. So a rule both readings leave out passes: the body
    roll of the attack routine (0x3042) did from 6 to 28 September 2026. The
    check against the game itself is the workbench's tools/combat-check/,
    which counts blows in the fork, and it covers combat only.
@@ -41,13 +41,13 @@
    a .. b-1 -- `b - a` equally likely values, the top one short of b. That is
    not inferred from the scripts: `cbrnd` in the PowerPC binary is
    `a + (rand mod (b - a))`, returning a unchanged when a >= b. Four things in
-   the archive agree with it, the plainest being the 31 places a script writes
+   the archive match it, the plainest being the 31 places a script writes
    `Random(0, len(array))` and uses the result as an index into that array.
    So the combat routines' operand of 30 is a roll of 0 to 29, the lock
-   helper's 19 is a roll of 0 to 18, and a script that wanted an inclusive top
+   helper's 19 is a roll of 0 to 18, and a script that needed an inclusive top
    wrote the `+ 1` itself -- as the resolver does for the shield's block and
    for the damage. Every roll below follows that reading, and where a script
-   adds its own 1 this file adds it in the same place.
+   adds its 1 this file adds it in the same place.
 
    Distributions are `Map`s from an integer outcome to its probability. They
    are small -- a few dozen entries -- so nothing here is clever about them,
@@ -55,10 +55,10 @@
    identity that would need proving. */
 
 /* ---- distributions ------------------------------------------------------
-   Enough of a kit to add two rolls together and ask what came out. A Map
+   Enough of a kit to add two rolls together and find what came out. A Map
    rather than an array because the outcomes are signed and sparse: a combat
-   margin runs from about -60 to +60 and none of the code below wants to
-   think about where zero sits in an array. */
+   margin runs from about -60 to +60 and none of the code below should have to
+   account for where zero sits in an array. */
 
 // The uniform roll `lo` to `hi`, both ends included.
 function mechUniformDist(lo, hi) {
@@ -82,13 +82,13 @@ function mechDistWeight(d, pred) { let s = 0; for (const [v, p] of d) if (pred(v
    Three dice: the innkeeper's first (a), yours (b), the innkeeper's second
    (c), each one to six -- 0 to 5 here, since only the differences matter.
    The payout is the announced figure; the script pays one less than it
-   announces, that one being the stake it already took, and takes one more on
+   announces, that one being the stake it already collected, and collects one more on
    a loss, so the net is `payout - 1` and a payout of nothing is -1. A payout
    of 1 is therefore a push: you get your stake back and the game goes again.
 
    This is the same arithmetic `diceGame()` in the page enumerates for the
    headline figures; it is restated here because the simulator plays single
-   games and the exact enumeration below has to agree with it throw for
+   games and the exact enumeration below has to match it throw for
    throw, and because the page's version returns only the totals. */
 /* The numbers are the script's and nothing here stands in for them: six
    faces on each die, a match paying 2 and the skill's roll of 0..5 are each
@@ -138,7 +138,7 @@ function mechDicePlay(roll, opts) {
 
    `cells` is the whole game as one picture: for each of the 36 (a, c) pairs,
    the net obols for each of your six faces. 216 numbers, which is the entire
-   game -- there is nothing else to know about it -- and it fits on a phone. */
+   game -- there is nothing else to it -- and it fits on a phone. */
 function mechDiceExact(opts) {
   const o = mechDiceOpts(opts);
   const dist = new Map();
@@ -215,7 +215,7 @@ function mechDiceRun(roll, games, opts) {
 
    `words` is that list, `[{below, word}, ...]` from `combatRules()`, with
    `last` the name for a blow above the largest threshold. Passing them in
-   rather than writing them down keeps the picture a reading of the open
+   rather than writing them down makes the picture a reading of the open
    archive, like everything else on the sheet -- and there is no list here
    to fall back on: the shipped eight and "shredded" were kept in this file
    as a default until 11 September 2026, a copy of the resolver's strings
@@ -290,7 +290,7 @@ function mechCombatExact(p, words, last) {
    is five per twenty **rounded up** rather than down: a lock of difficulty 1
    already costs the full five, and only a difficulty of 0 costs nothing. That
    is what makes the curve a staircase, and it is worth drawing because it
-   says something no reading of the sentence does -- the chest's parameter of
+   shows something no reading of the sentence does -- the chest's parameter of
    15 and a parameter of 20 are the same lock, and a hundred lock-picking
    difficulties in the archive collapse to a dozen distinct locks.
 
@@ -352,7 +352,7 @@ function mechLevelThreshold(level, base) { return base * Math.pow(2, Math.max(1,
    falling below 1.
 
    These rates are why the 2012 bed measurements come out: they are the only
-   arithmetic in the sleep rule that is not the script's own.
+   arithmetic in the sleep rule that is not in the script.
 
    THE NUMBERS ARE THE PROGRAM'S, HANDED IN. `clock` is what the page reads
    out of TGameViewer::DoTicks (exeClockRules): `unitsPerHour` from the shift
@@ -361,7 +361,7 @@ function mechLevelThreshold(level, base) { return base * Math.pow(2, Math.max(1,
    period by level, `hungerIndex` and `poisonIndex` the periods the fall of
    nutrition and the six-minute loop count, `fall` the one taken off,
    `deathAt` the health at or below which a poisoned character dies, and
-   `poisonStep` and `regenStep` what each pass takes off or gives. Until
+   `poisonStep` and `regenStep` what each pass removes or gives. Until
    11 September 2026 every one of those was a literal in this section, 4096
    and the table 60/30/20/15/12 and ten an hour among them. */
 // A period of the table, in minutes. Stated as a period rather than a rate
@@ -379,16 +379,16 @@ function mechHealRate(level, clock) { return 60 / mechHealPeriodMinutes(level, c
 function mechRegenRate(clock) { return clock.regenStep * 60 / mechPeriodMinutes(clock, clock.poisonIndex); }
 
 /* A stretch of time, minute by minute, returning the hourly series a chart
-   wants. A minute is the step because the four things that happen have
+   needs. A minute is the step because the four things that happen have
    periods of 60, 12 to 60, 6 and 6 minutes and no coarser step divides them
-   all; an hourly step gets the totals right and the death wrong, which
+   all; an hourly step has the totals right and the death wrong, which
    matters because the only interesting thing about poison is when it kills.
 
    The order within a minute is nutrition, then the level's healing, then
    regeneration, then poison. It is visible in exactly two places: the hour
    that empties the belly heals or does not, and a character on 1 health who
    is both poisoned and regenerating lives. Both readings are stated in
-   utilities/mech_ref.mjs, which takes the same one. */
+   utilities/mech_ref.mjs, which uses the same one. */
 function mechHungerRun(p) {
   const c = p.clock;
   const hours = Math.max(0, p.hours || 0);
