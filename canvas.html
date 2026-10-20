@@ -1,7 +1,7 @@
 <script>
 // Without this a phone lays the page out at ~980px and scales the result
 // down, which is why every control came out unreadably small. The artifact
-// host builds its own <head>, so it is added here rather than authored.
+// host writes the <head> itself, so this tag is added here rather than authored.
 (function () {
   if (document.querySelector('meta[name="viewport"]')) return;
   var m = document.createElement('meta');
@@ -17,8 +17,8 @@
 <style>
 /* One knob for every size of type, as in index.html: every font-size on this
    page is in rem, so this percentage is the only place a text size is
-   decided. A percentage rather than a px keeps a reader's own larger default
-   -- 112% is about 18px against the usual 16. */
+   decided. With a percentage rather than a px, a reader's larger default
+   still applies -- 112% is about 18px against the usual 16. */
 html{font-size:112%}
 :root{
   --ground:#eef1f0; --surface:#fbfcfb; --raise:#ffffff; --line:#c6d0ce; --line-soft:#dde4e2;
@@ -119,7 +119,7 @@ code{font-family:"DM Mono",monospace; font-size:.92em; color:var(--ink-2)}
 .menu{position:absolute; top:calc(100% + 5px); right:0; z-index:40; min-width:190px; padding:4px;
   background:var(--surface); border:1px solid var(--line); border-radius:4px; box-shadow:var(--shadow)}
 .menu[hidden]{display:none}
-/* The rule below gives a menu's buttons a display of their own, which outranks
+/* The rule below sets a display on a menu's buttons, which outranks
    the hidden attribute: Send back to Grimoire showed with nothing to send. */
 .menu button[hidden]{display:none}
 .menu button{display:flex; justify-content:space-between; gap:12px; width:100%; text-align:left; padding:6px 9px;
@@ -145,8 +145,8 @@ code{font-family:"DM Mono",monospace; font-size:.92em; color:var(--ink-2)}
 .tb:hover{border-color:var(--muted); color:var(--ink)}
 .tb[aria-pressed="true"]{background:var(--aqua); border-color:var(--aqua); color:var(--aqua-ink)}
 .tb svg{width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round}
-/* the creatures: the game's own sprites. Off, an outline in the muted ink;
-   on, the sprite in its own colours, moving. */
+/* the creatures: the game's sprites. Off, an outline in the muted ink;
+   on, the sprite in the game's colours, moving. */
 .fxBox{display:grid; grid-template-columns:repeat(2,36px); gap:4px; padding-top:8px; border-top:1px solid var(--line-soft)}
 .fx{display:flex; align-items:center; justify-content:center; width:36px; height:36px; padding:0; cursor:pointer;
   background:var(--raise); border:1px solid var(--line); border-radius:3px}
@@ -255,7 +255,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
 @media (prefers-reduced-motion:reduce){ *{transition:none !important} }
 
 /* ---------- narrow screens ----------------------------------------------
- * The picture keeps the whole of what is left: a dock along the bottom holds
+ * All of what is left goes to the picture: in a dock along the bottom are
  * the ink, the tools and the creatures, always the same height, and the
  * tool's options open as a sheet *over* the picture rather than under it. */
 .mobOnly{display:none}
@@ -289,12 +289,12 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   .tools{order:3; flex-direction:row; align-items:center; gap:8px; padding:5px 8px 7px; border-right:0;
     border-top:1px solid var(--line); flex-wrap:wrap; row-gap:5px}
   /* Seven tools and four creatures do not fit one row of a phone at a size a
-     thumb can hit, so the creatures take a row of their own when they must. */
+     thumb can hit, so the creatures move to a second row when they must. */
   .tb-grid{display:flex; gap:3px}
   .tb,.fx{width:40px; height:40px}
   .fxBox{display:flex; gap:3px; padding:0; border-top:0}
   .mobOnly{display:inline-flex; margin-left:auto; justify-content:center}
-  /* Only the options scroll, and only when asked for. */
+  /* Only the options scroll, and only when opened. */
   .opts{display:none}
   body.sheet .opts{display:block; position:absolute; left:0; right:0; bottom:100%; z-index:32;
     max-height:min(46dvh,360px); overflow-y:auto; padding:8px 10px 12px; background:var(--surface);
@@ -373,7 +373,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   #0f0720; background-attachment:fixed}
 [data-theme="slop"] .bar,[data-theme="slop"] .side,[data-theme="slop"] .tools,[data-theme="slop"] dialog,
 [data-theme="slop"] .menu{backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px)}
-/* A backdrop filter makes the bar a stacking context of its own, and the
+/* A backdrop filter makes the bar a separate stacking context, and the
    canvas below then painted over the Setup menu, so nobody who chose this
    look could get back to the menu that chose it (9 September 2026). */
 [data-theme="slop"] .bar{position:relative; z-index:60}
@@ -420,7 +420,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   <span class="menuWrap">
     <button type="button" class="btn" id="bFile" aria-haspopup="true" aria-expanded="false">File</button>
     <div class="menu" id="fileMenu" hidden role="menu">
-      <button type="button" data-file="open" role="menuitem" title="A picture at its own size, or one of our GIFs with the whole project inside">Open&hellip;</button>
+      <button type="button" data-file="open" role="menuitem" title="A picture, unscaled, or one of our GIFs with the whole project inside">Open&hellip;</button>
       <button type="button" data-file="place" role="menuitem" title="A picture into the canvas you already have">Place&hellip;</button>
       <button type="button" data-file="paste" role="menuitem" title="The clipboard, placed the same way">Paste</button>
       <hr>
@@ -596,7 +596,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
 <dialog id="dReg" aria-label="Registers"><div class="dh"><span class="eyebrow">Registers &amp; ramps</span>
   <button type="button" class="btn pri" data-close>Done</button></div>
   <div class="db">
-    <p class="rh">Cythera's own five come first; the rest cycle here, but the game would draw them without moving.
+    <p class="rh">Cythera's five come first; the rest cycle here, but the game would draw them without moving.
       Switching one on turns its colors from flat paint into cycling ones.</p>
     <div id="regList"></div>
     <h4>Build a ramp</h4>
@@ -643,18 +643,18 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       nowhere else. Drag from inside a selection to move what is in it.</p>
     <h4>The creatures</h4>
     <p><strong>Giant Slug</strong> chains every turning register into one long body, so color
-      leaving the end of Fire arrives at the start of Water. Switch it off and every pixel keeps the
-      color it is showing at that moment: the links the slug made are broken where they are, and
+      leaving the end of Fire feeds into the start of Water. Switch it off and every pixel stays
+      the color it is showing at that moment: the links the slug made are broken where they are, and
       the registers go back to turning separately from there.</p>
     <p><strong>Hydra Polyp</strong> takes a tool at random once a second and uses it somewhere at
       random. Leave it running and it will paint over everything you own.</p>
     <p><strong>Harpy</strong> flies the canvas and leaves a wake: turning color under it is pushed
       along its ramp, more in the middle of its track than at the edges. Flat paint is left alone.</p>
-    <p><strong>Undead</strong> gives every register a pace of its own, stopped, slow, even or fast,
+    <p><strong>Undead</strong> gives every register a separate pace, stopped, slow, even or fast,
       and keeps drawing each a new one. Switch it off and each color stays where it had got to.
       A saved GIF or video turns evenly; the changing pace is not saved.</p>
     <h4>The knobs</h4>
-    <p><strong>Turns</strong> sets which end of the ramp leads, or holds it still; the stroke sets
+    <p><strong>Turns</strong> sets which end of the ramp leads, or stops it turning; the stroke sets
       the direction the wave travels. <strong>Band spacing</strong> is how many pixels one turn of the
       ramp covers. <strong>Turbulence</strong> adds noise that follows the stroke, so it streaks along with
       the flow. <strong>Fold</strong> bends the direction the bands are measured along, giving a
@@ -669,7 +669,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       Any other cycling GIF is read from its motion: between two frames, every moving color steps
       from one slot to another, and the cycles those steps form become the registers.</p>
     <p>Cythera™ is copyright ©1993–9 Ambrosia Software, Inc. This is an unofficial fan-made tool.
-      Alaric, the scroll, the texture, the slug, the polyp, the harpy and the undead are the game's own pictures.</p>
+      Alaric, the scroll, the texture, the slug, the polyp, the harpy and the undead are pictures from the game.</p>
   </div></dialog>
 
 <script>
@@ -703,7 +703,7 @@ function fbm(x, y, s) {
 const BAYER = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5];
 const bay = (x,y) => (BAYER[(y&3)*4 + (x&3)] + 0.5) / 16;
 // A scattered threshold. The ordered one above lays a thin sprinkle out as a
-// lattice of dots, so anything sparse asks this instead.
+// lattice of dots, and this one is for anything sparse.
 const rnd = (x,y) => hash2((x|0)*3 + 7, (y|0)*5 + 11);
 const clamp = (v,a,b) => v<a?a:v>b?b:v;
 const smooth = (e0,e1,x) => { const t = clamp((x-e0)/(e1-e0),0,1); return t*t*(3-2*t); };
@@ -791,7 +791,7 @@ function spitTop(x) {
   return SURF - 2 - 8*Math.pow(1-d, 1.5) + 2*fbm(x, 900, 21);
 }
 
-// Broken rock: blocks parted by cracks, each with a tone of its own and lit
+// Broken rock: blocks parted by cracks, each a separate tone and lit
 // on the side the light is on. sx is +1 where the cave lies to the right of
 // the rock and -1 where it lies to the left; sy is -1 for light from above.
 function blocks(x, y, sx, sy) {
@@ -819,9 +819,9 @@ function buildFooterScene(bare) {
   };
 
   // ---- the light field ----------------------------------------------------
-  // Five sources, three colours. Every surface in the scene asks this what the
-  // light is doing where it stands, which is what keeps the rock, the water and
-  // the gate reading as one place rather than three drawings side by side.
+  // Five sources, three colours. Every surface in the scene reads the light at
+  // its place from this, and that is why the rock, the water and
+  // the gate read as one place rather than three drawings side by side.
   const LIGHTS = [
     {a:[FALL_X+2,FALL_TOP+16], b:[FALL_X+12,SURF], r:44, k:0},
     {a:[4,SURF+1],  b:[162,SURF+1], r:50, k:0},
@@ -859,8 +859,8 @@ function buildFooterScene(bare) {
     const t = clamp(tone*0.56 + 0.34*lead, 0, 0.95);
     let v;
     // The lit ramp is dithered in over the cool one as the light rises, so a
-    // source's colour fades into the rock and has no edge of its own.
-    // Where two sources meet, each takes its share of the pixels.
+    // source's colour fades into the rock with no edge.
+    // Where two sources meet, the pixels are shared between them.
     const k = 0.5*bay(x+1, y+2) + 0.5*rnd(x+41, y+3), q = rnd(x+13, y+29)*(w+c+m);
     if (bare) v = pick(ROCK_COOL, t*0.66, x, y);
     else if (q < w && k < smooth(0.12, 0.50, w)) v = pick(ROCK_WARM, t, x, y);
@@ -884,7 +884,7 @@ function buildFooterScene(bare) {
     const depth = 0.13 + 0.07*smooth(120, 10, y) + 0.09*fbm(x, y*1.7, 58);
     const haze = depth + 0.20*lead*(0.72 + 0.5*fbm(x*0.7, y*0.7, 30));
     let v;
-    // Air only takes a colour where a source is genuinely near it. Tinting on
+    // Air is coloured only where a source is genuinely near it. Tinting on
     // the mere sign of w-versus-c turned half the cave maroon.
     const k = bay(x+3, y+1);
     if (bare || k >= smooth(0.26, 0.70, lead)) v = pick(ROCK_COOL, haze*0.86, x, y);
@@ -980,8 +980,8 @@ function buildFooterScene(bare) {
     const dep = y - surf;
     const u = Math.pow(dep, 1.5)*0.85;                    // ripples widen towards us
     const lat = 2.2*Math.sin(x*0.09 + dep*0.22) + 3.4*fbm(x*0.6, dep*2, 22);
-    // Rings: phase falls with distance from where a fall lands, so the cycle
-    // carries them outwards. The pool lies flat, so depth counts for more.
+    // Rings: phase falls with distance from where a fall lands, so as the cycle
+    // turns they spread outwards. The pool lies flat, so depth counts for more.
     // The ordered dither breaks each band's edge into the next.
     const lava = x < 194, hx = lava ? LAVA_HIT : CASC_HIT;
     const rd = Math.hypot(x-hx, (dep-HIT_DEP)*2.6) + 3*fbm(x*1.1, dep*3, 9);
@@ -1011,7 +1011,7 @@ function buildFooterScene(bare) {
       if (rnd(x+11, y+3) < 0.5*lap*lap) put(x, y, fire(8*rnd(x+4, y+17)));
     } else if (x > 206) {
       // All of it cycles, and every step of the ramp covers as much water as
-      // any other, so the pool keeps one brightness as it turns. Still paint
+      // any other, so the pool's brightness is constant as it turns. Still paint
       // in the troughs took two steps out and made it pulse.
       put(x, y, water(ph));
       if (rnd(x+11, y+3) < 0.6*lap*lap)
@@ -1027,7 +1027,7 @@ function buildFooterScene(bare) {
     for (let x=Math.floor(cx-hw); x<=cx+hw; x++) {
       const t = Math.abs(x-cx)/hw;
       if (t > 1) continue;
-      // Phase falls with y, so the ramp rotation carries downwards: it pours.
+      // Phase falls with y, so as the ramp turns the colour runs downwards: it pours.
       // The per-column jitter is what stops that reading as horizontal bands --
       // every strand of the sheet starts somewhere else in the ramp.
       const ph = -y*1.0 - t*1.2 + 8*noise(x*4, 3, 6) + 5*fbm(x*1.6, y*0.10, 10);   // slow, in thick ropes
@@ -1054,7 +1054,7 @@ function buildFooterScene(bare) {
     if (hash2(y, 29) < 0.26) put(cx + (hash2(y,7)<0.5?-1:1)*(hw+1+hash2(y,11)*6), y, water(8*hash2(y,73)));
   }
   // Where a fall lands: a mound of broken water and drops thrown up from it.
-  // Every drop takes its own place in the ramp, so they flicker one by one
+  // Each drop sits at a separate place in the ramp, so they flicker one by one
   // and no wave runs through them.
   function splash(hx, hw, ramp, seed, pale) {
     const my = SURF + HIT_DEP;
@@ -1127,7 +1127,7 @@ function buildFooterScene(bare) {
     const across = inArch ? (r-GATE_R)/GATE_T : (Math.abs(dx)-GATE_R)/GATE_T;
     const tone = 0.30 + 0.34*(1-across) + 0.18*fbm(x*1.5, y*1.5, 7) - (joint?0.30:0);
     let v = pick(ROCK_COOL, clamp(tone, 0.10, 0.92), x, y);
-    if (!bare && joint && bay(x,y) < 0.45) v = earth(along*0.4);              // the mortar takes the pulse
+    if (!bare && joint && bay(x,y) < 0.45) v = earth(along*0.4);              // the pulse shows in the mortar
     // The inner face is the only part the field actually reaches.
     if (!bare && across < 0.30 && bay(x,y+1) < 0.62 - across) v = magic(along*0.45 + across*3);
     if (!bare && across < 0.22 && ((along+400)|0) % 13 < 4) v = magic(along*0.5 + 2);   // cut runes
@@ -1246,17 +1246,17 @@ function clut8(h) {
   return [s(h.substr(0, 2)), s(h.substr(2, 2)), s(h.substr(4, 2))];
 }
 var PAL = PALETTE.map(clut8);
-var CLUT = PAL.slice();                           // Cythera's own, kept for reference
+var CLUT = PAL.slice();                           // a copy of Cythera's, for reference
 var CLUT_N = PAL.length;                          // where the base palette ends
-// The scene builder has one of these inside its own closure; the studio needs
-// its own, and both are the same three lines.
+// The scene builder has one of these inside its closure; the studio needs
+// a second, and both are the same three lines.
 function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
 function css(i) { var c = PAL[i] || [0, 0, 0]; return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; }
 function hex2rgb(h) { return [parseInt(h.substr(1, 2), 16), parseInt(h.substr(3, 2), 16), parseInt(h.substr(5, 2), 16)]; }
 function rgb2hex(c) { return '#' + c.map(function (v) { return ('0' + v.toString(16)).slice(-2); }).join(''); }
 
 /* ---- colour depth -------------------------------------------------------
- * `depth` is the grid every colour snaps to. 'cythera' is the game's own
+ * `depth` is the grid every colour snaps to. 'cythera' is the game's
  * 6-bit Mac CLUT; 1..16 is that many bits spread across the channels, the
  * way a real indexed mode would. Mixing, importing and ramp building all
  * quantise to it, so the whole picture stays inside the mode you chose.
@@ -1285,7 +1285,7 @@ function quant(rgb) {
   });
 }
 function basePalette(d) {
-  if (d === 'direct') return [[0, 0, 0]];         // only transparent; the rest is whatever arrives
+  if (d === 'direct') return [[0, 0, 0]];         // only transparent; every other colour comes from the picture
   if (d === 'cythera') return CLUT.slice();
   var out = [[0, 0, 0]], seen = { '0,0,0': 1 }, s = bitSplit(d), i;
   function add(c) { var k = c.join(','); if (!seen[k]) { seen[k] = 1; out.push(c); } }
@@ -1322,7 +1322,7 @@ function addColour(rgb) {
 
 /* ================= ramps ================================================
  * dir is which way the register turns. Direction of travel comes from the
- * stroke; direction of rotation decides which end of the ramp leads the wave.
+ * stroke; the end of the ramp that leads the wave follows from the direction of rotation.
  * They are separate knobs and you need both to get all four combinations.
  */
 var ENGINE = [
@@ -1342,7 +1342,7 @@ var PRESET = [
   { id: 'steel16', name: 'Steel', base: 0xD0, len: 16, dir: 1, eng: 0, on: 0, hint: 'white into blue-black' }
 ];
 var CUSTOM = [];
-// Cythera's own five are registers like any other -- switch them off and
+// Cythera's five are registers like any other -- switch them off and
 // those indices stop turning and become ordinary still paint.
 function allRegs() { return ENGINE.concat(PRESET).concat(CUSTOM); }
 function ramps() { return allRegs().filter(function (r) { return r.on; }); }
@@ -1356,7 +1356,7 @@ function relut() {
 }
 function rlut(i) { return (i >= 0 && i < RLUT.length) ? RLUT[i] : -1; }
 function rampOf(i) { var k = rlut(i); return k < 0 ? null : ramps()[k]; }
-// Append a run of colours and register it as a ramp of its own.
+// Append a run of colours and register it as a separate ramp.
 function makeRamp(cols, name, hint) {
   var base = PAL.length;
   cols.forEach(function (c) { PAL.push(quant(c)); });
@@ -1370,7 +1370,7 @@ function makeRamp(cols, name, hint) {
  * working. Giant Slug and Undead reach into the cycling itself, which is why
  * they live up here next to the loop; Hydra Polyp and Harpy are alive and act
  * on the clock.
- * Six more creatures used to live here -- a gnawing ratlizard, a pecking
+ * Until October 2026 six more creatures lived here -- a gnawing ratlizard, a pecking
  * chicken, a sideways crab, a mirroring crystal ball, a ghost that showed
  * through, a skeleton that rattled -- and each one put a branch in the paint
  * path or the frame map for a joke nobody switched on twice. They are gone,
@@ -1378,7 +1378,7 @@ function makeRamp(cols, name, hint) {
  */
 var FX = { slug: 0, hydra: 0, harpy: 0, undead: 0 };
 // Undead: how far each register has run ahead of the frame count or fallen
-// behind it (acc), the pace it keeps now (s), and how many frames until that
+// behind it (acc), its pace now (s), and how many frames until that
 // pace is drawn again (left). Keyed by the register's id.
 var TEMPO = {};
 function undeadStep() {
@@ -1420,7 +1420,7 @@ function frameMap(f) {
   var m = new Int32Array(PAL.length), i;
   for (i = 0; i < PAL.length; i++) m[i] = i;
   if (FX.slug) {
-    // One body: colour leaving the end of Fire arrives at the start of Water.
+    // One body: Fire's last colour feeds into the start of Water.
     var ch = chainList(), T = ch.length;
     if (T > 1) {
       var o = ((f % T) + T) % T;
@@ -1470,7 +1470,7 @@ function bakeCycling(change) {
 
 /* Switching depth rebuilds the base palette and re-snaps the picture through
  * it. A ramp is a run of colours, not a set of CLUT offsets, so every ramp
- * that was turning is rebuilt in the new grid. Cythera's own five only exist
+ * that was turning is rebuilt in the new grid. Cythera's five only exist
  * in Cythera's palette and stand down anywhere else.
  */
 function setDepth(d) {
@@ -1545,8 +1545,8 @@ function bay(x, y) { return (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16; }
  *     select  Select   / Select   marquee for cut, copy, paste and confining
  *     pick    Melt     / Pick     take ink off the picture: a ramp, or a colour
  *
- * Melt is Pick's ramp half. Picking a single colour is what you want when the
- * ink is one colour; a ramp needs more than one pixel to be worth anything,
+ * Melt is Pick's ramp half. For ink of one colour, picking a single colour is
+ * enough; a ramp needs more than one pixel to be worth anything,
  * so its half of the tool collects a run of them.
  */
 var W = 192, H = 120;
@@ -1566,7 +1566,7 @@ var fillStyle = 'contour', fillGlobal = false;
 var divertMode = 'push';   // push | gather | part
 var flowRadial = false;    // waves ring out from where you touched
 var frame = 0, playing = true, rateMs = 140;
-// The one polysemous slider remembers a value per tool, because Fold at 0 and
+// The one polysemous slider has a separate value for each tool, because Fold at 0 and
 // Force at 0 mean very different things.
 var SPIN_BY = { flow: 0, burst: 0, pool: 0, divert: 2.6, spray: 0, select: 0, pick: 0 };
 function amt() { return Math.abs(spin); }
@@ -1620,8 +1620,8 @@ function resize(nw, nh, keep) {
 
 /* ---- fitting, zoom and pan --------------------------------------------
  * fitZ is the scale at which the whole picture just fits; userZ multiplies
- * it. Panning is in screen pixels. The canvas element carries the transform,
- * so pointer mapping off its bounding box keeps working unchanged.
+ * it. Panning is in screen pixels. The transform is on the canvas element,
+ * so pointer mapping off its bounding box works unchanged.
  */
 var fitZ = 1, userZ = 1, panX = 0, panY = 0;
 function fitCanvas() {
@@ -1733,7 +1733,7 @@ function burst(cx, cy, rad) {
       lay(x, y, phase(k, ramp));
     }
 }
-/* Divert: takes what is already on the canvas and pushes it about.
+/* Divert: what is already on the canvas, pushed about.
  *   push    displaces along the drag -- an ordinary smudge
  *   gather  draws the surroundings inward, so bands crowd together
  *   part    pushes them outward, and the gap that opens at the centre is
@@ -1781,11 +1781,11 @@ function meltSample(x, y) {
   var v = idx[y * W + x];
   if (!v) return;
   // Every still slot the cursor crosses is noted, whether or not it earns a
-  // stop of its own -- those are the exact colours that will be handed over to
+  // separate stop -- those are the exact colours that will be handed over to
   // the ramp afterwards, so nothing the drag never touched is ever disturbed.
   if (rlut(v) < 0 && meltTook.indexOf(v) < 0 && meltTook.length < MELT_TOOK_MAX) meltTook.push(v);
-  // what the pixel is *showing* this frame, not what its slot holds: melting
-  // is done by eye, and a pixel inside a turning register is not its own index
+  // what the pixel is *showing* this frame, not the colour in its slot: melting
+  // is done by eye, and a pixel inside a turning register does not show its index's colour
   var c = PAL[frameMap(frame % LOOP)[v]]; if (!c) return;
   if (meltStops.length >= MELT_MAX) return;
   // A dithered picture flips colour every other pixel, so a colour has to be
@@ -1863,7 +1863,7 @@ function rampFromStops(stops, n) {
 function region(sx, sy, tol) {
   var seed = idx[sy * W + sx], sc = PAL[seed] || [0, 0, 0];
   // A body of water is many indices of one register, not one flat colour, so
-  // seeding on a flow takes in every step of that same flow.
+  // seeding on a flow includes every step of that same flow.
   var sreg = rlut(seed);
   var mask = new Uint8Array(W * H), dist = new Int32Array(W * H);
   function alike(v) {
@@ -1891,7 +1891,7 @@ function region(sx, sy, tol) {
   }
   return { mask: mask, dist: dist };
 }
-// How far each pixel sits from the region's own shoreline. A chamfer pass, so
+// How far each pixel sits from the region's shoreline. A chamfer pass, so
 // the contours come out round rather than as the diamond a 4-way flood gives.
 function shoreDist(mask) {
   var D = new Float32Array(W * H), INF = 1e9, i, x, y;
@@ -2013,8 +2013,8 @@ function selRect(ax, ay, bx, by) {
 function selAll() { sel = new Uint8Array(W * H).fill(1); drawSel(); refreshTool(); say('everything selected'); }
 /* The lasso. The path is closed back to where it started and filled by the
  * even-odd rule, scanline by scanline; the outline itself is added afterwards
- * so a scribble too thin to enclose anything still takes the pixels it
- * actually crossed rather than nothing at all.
+ * so a scribble too thin to enclose anything still ends with the pixels it
+ * actually crossed selected, rather than nothing at all.
  */
 var lasso = null;
 function polyMask(pts) {
@@ -2051,7 +2051,7 @@ function polyMask(pts) {
   return m;
 }
 // Cut and copy keep the mask, not just the box, so a region lifted out of a
-// picture pastes back with its own outline rather than a rectangle of it.
+// picture pastes back in its outline rather than as a rectangle.
 function selCopy(quietly) {
   var b = selBounds();
   if (!b) { say('nothing selected'); return false; }
@@ -2079,7 +2079,7 @@ function selPaste() {
   var b = sel ? selBounds() : null;
   var ox = b ? b.x0 : Math.max(0, (W - clip.w) >> 1), oy = b ? b.y0 : Math.max(0, (H - clip.h) >> 1);
   var m = new Uint8Array(W * H);
-  sel = null;                                     // the paste writes its own area, not the old one
+  sel = null;                                     // the paste writes the new area, not the old one
   for (var y = 0; y < clip.h; y++) for (var x = 0; x < clip.w; x++) {
     if (!clip.mask[y * clip.w + x]) continue;
     var X = x + ox, Y = y + oy;
@@ -2090,7 +2090,7 @@ function selPaste() {
   setTool('select'); drawSel(); draw();
   say('pasted ' + clip.w + '×' + clip.h + ', drag it to place it');
 }
-// Dragging inside a selection carries its contents with it.
+// Dragging inside a selection moves what is in it.
 var selDrag = null;
 function selMoveTo(dx, dy) {
   var src = selDrag.px, mask = selDrag.mask, i, x, y;
@@ -2106,7 +2106,7 @@ function selMoveTo(dx, dy) {
   }
   sel = ns;
 }
-/* The ants live on their own canvas above the picture, so the selection is
+/* The ants are drawn on a separate canvas above the picture, so the selection is
  * never paint and never turns up in a GIF. */
 var ants = 0;
 function drawSel() {
@@ -2141,7 +2141,7 @@ function begin(x, y) {
     }
     var v = idx[y * W + x];
     if (v && rampOf(v)) {
-      // That index belongs to a turning register, so it cannot hold flat paint.
+      // That index belongs to a turning register, so flat paint has no place in it.
       // Take the colour it is showing this frame and give it a still slot.
       still = addColour((PAL[frameMap(frame % LOOP)[v]] || [0, 0, 0]).slice());
       say('that color is turning, copied it flat as ' + still);
@@ -2156,7 +2156,7 @@ function begin(x, y) {
       stroking = false; drawSel(); refreshTool();
       say('selected the region under the cursor'); return;
     }
-    if (sel && sel[y * W + x]) {                  // inside: carry it about
+    if (sel && sel[y * W + x]) {                  // a press inside it starts a move
       snapshot();
       selDrag = { move: 1, x0: x, y0: y, px: idx.slice(), mask: sel.slice() };
     } else {
@@ -2257,8 +2257,8 @@ function syncStill() {
 }
 
 /* ================= pointer, pinch and pan ===============================
- * One finger paints. Two fingers zoom and pan, and never scroll the page --
- * the canvas takes the gesture itself. A stroke already under way is undone
+ * One finger paints. Two fingers zoom and pan, and never scroll the page;
+ * the gesture stays on the canvas. A stroke already under way is undone
  * the moment a second finger lands, so a pinch never leaves a stray mark.
  */
 function pos(e) {
@@ -2307,7 +2307,7 @@ art.addEventListener('pointermove', function (e) {
     if (!pts.size) end();
   });
 });
-// Trackpad and wheel: pinch arrives as ctrl+wheel, plain wheel zooms too.
+// Trackpad and wheel: a pinch is reported as ctrl+wheel, plain wheel zooms too.
 art.addEventListener('wheel', function (e) {
   e.preventDefault();
   zoomAbout(Math.pow(0.9987, e.deltaY * (e.ctrlKey ? 2.4 : 1)), e.clientX, e.clientY);
@@ -2325,7 +2325,7 @@ document.querySelector('.paperWrap').addEventListener('touchmove', function (e) 
 (function () {
   var wrap = document.querySelector('.paperWrap'), pan = null;
   wrap.addEventListener('pointerdown', function (e) {
-    if (e.target === art) return;                 // the picture takes its own strokes
+    if (e.target === art) return;                 // strokes on the picture are handled there
     e.preventDefault();
     wrap.setPointerCapture(e.pointerId);
     pan = { id: e.pointerId, x: e.clientX, y: e.clientY, px: panX, py: panY };
@@ -2386,8 +2386,8 @@ document.querySelector('.paperWrap').addEventListener('touchmove', function (e) 
   }, { passive: false });
 })();
 
-/* And if the browser is asked to leave anyway -- a gesture we did not catch,
- * a stray reload -- it says so first, once there is anything to lose. */
+/* And if the browser is about to leave anyway -- a gesture we did not catch,
+ * a stray reload -- it shows a warning first, once there is anything to lose. */
 var dirty = false;
 addEventListener('beforeunload', function (e) {
   if (!dirty) return;
@@ -2441,7 +2441,7 @@ var I = {
   select: '<path stroke-dasharray="3 2.33" stroke-dashoffset="1.5" d="M4 4h16v16H4z"/>'
 };
 /* ---- the creatures ------------------------------------------------------
- * The game's own sprites, out of Cythera Data: the giant slug is prop type
+ * The game's sprites, out of Cythera Data: the giant slug is prop type
  * 208 on sheet 0x8E58, eight frames as four facings of two, the polyp
  * with the little arms is prop type 277 at tile 0x7D4 on sheet 0x8E7D, four
  * frames of them waving, the harpy is prop type 291 on sheet 0x8E5B, its
@@ -2512,7 +2512,7 @@ var EFFECTS = [
   { id: 'harpy', name: 'Harpy',
     help: 'Flies the canvas and leaves a wake: turning color under it is pushed along its ramp. Flat paint is left alone.' },
   { id: 'undead', name: 'Undead',
-    help: 'Every register turns at a pace of its own, and the pace keeps changing. Off again, each color stays where it had got to.' }
+    help: 'Every register turns at a separate pace, and the pace changes as you watch. Off again, each color stays where it had got to.' }
 ];
 /* Each slot is one behaviour wearing two names, and belongs to one of the two
    families the picker is split by. */
@@ -2530,7 +2530,7 @@ var TOOLS = [
     ramp:  { name: 'Divert', icon: 'divert', help: 'Pushes a flow that is already there.' },
     still: { name: 'Smudge', icon: 'smudge', help: 'Drags the pixels that are already there.' } },
   { id: 'pool', cat: 'create',
-    ramp:  { name: 'Pool', icon: 'pool', help: 'Floods the region you click with a flow that takes its shape.' },
+    ramp:  { name: 'Pool', icon: 'pool', help: 'Floods the region you click with a flow in its shape.' },
     still: { name: 'Fill', icon: 'puddle', help: 'Floods the region you click with the one color.' } },
   { id: 'select', cat: 'modify',
     ramp:  { name: 'Select', icon: 'select', help: 'Everything works inside the selection and nowhere else. Drag inside it to move it.' },
@@ -2889,8 +2889,8 @@ function paintRegs() {
     b.addEventListener('click', toggle);
     var row = document.createElement('div'); row.className = 'regRow';
     row.appendChild(b);
-    // The On/Off chip is a switch in its own right -- tapping it off is the
-    // obvious gesture and it used to do nothing at all.
+    // The On/Off chip is a switch too -- tapping it off is the
+    // obvious gesture, and until October 2026 it did nothing at all.
     var st = document.createElement('button');
     st.type = 'button'; st.className = 'btn' + (r.on ? ' pri' : '');
     st.textContent = r.on ? 'On' : 'Off';
@@ -2920,7 +2920,7 @@ function paintStops() {
   var host = document.getElementById('stops'); host.innerHTML = '';
   if (stopTarget > STOPS.length) stopTarget = STOPS.length;
   // When the mark has run off the end, the Add button is where the next
-  // colour lands, so that is what gets the ring.
+  // colour lands, so the ring goes on it.
   document.getElementById('stopAdd').classList.toggle('target', stopTarget >= STOPS.length);
   STOPS.forEach(function (v, i) {
     var box = document.createElement('span');
@@ -2955,7 +2955,7 @@ document.getElementById('stopClear').addEventListener('click', function () {
 });
 // Every colour actually on the canvas, commonest first. Click one and it
 // lands in whichever stop is the target -- so a ramp can be built out of the
-// picture rather than guessed at in a colour wheel.
+// picture rather than approximated in a colour wheel.
 function paintCanvasColours() {
   var host = document.getElementById('fromArt'); if (!host) return;
   host.innerHTML = '';
@@ -3042,7 +3042,7 @@ function paintPal() {
   if (d) d.value = String(depth);
   var n = document.getElementById('depthNote');
   if (n) n.textContent = depth === 'cythera'
-    ? "Cythera's own CLUT: a 6-bit Mac palette of 256, with 28 of them turning."
+    ? "Cythera's CLUT: a 6-bit Mac palette of 256, with 28 of them turning."
     : depth === 'direct'
     ? 'No grid: every color is kept exactly as it arrived. This is what a picture read in from a file lands in, so nothing it brought with it is lost.'
     : (1 << depth) + ' colors at ' + depth + '-bit' +
@@ -3129,7 +3129,7 @@ document.getElementById('clear').addEventListener('click', function () {
 });
 addEventListener('keydown', function (e) {
   if (e.target.matches && e.target.matches('input,textarea,select')) return;
-  // Escape and Delete want no modifier; everything else is the usual chord.
+  // Escape and Delete are bare keys; everything else is the usual chord.
   if (!(e.metaKey || e.ctrlKey)) {
     if (e.key === 'Escape' && sheetOpen()) { e.preventDefault(); setSheet(false); }
     else if (e.key === 'Escape' && sel) { e.preventDefault(); selEmpty(); say('selection cleared'); }
@@ -3174,7 +3174,7 @@ function loop(t) {
   // No creature that paints interrupts a stroke of your own.
   if (!stroking && FX.hydra && t - hydraT > 1000) { hydraT = t; hydraAct(); draw(); }
   if (!stroking && FX.harpy && t - harpy.t > 70) { harpy.t = t; harpyAct(); draw(); }
-  // the creatures that are on move on their own beat, whatever the frame rate
+  // the creatures that are on move on a separate beat, whatever the frame rate
   if ((FX.slug || FX.hydra || FX.harpy || FX.undead) && t - creatureT > 200) { creatureT = t; creatureStep++; paintCreatures(); }
   if (sayT && Date.now() - sayT > 3600) { sayEl.textContent = ''; sayT = 0; }
   requestAnimationFrame(loop);
@@ -3236,7 +3236,7 @@ var THEMES = [['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark'],
 
 /* ================= modals + advanced ====================================
  * Everything that is not painting lives behind Setup, and the long form of
- * how it all works behind "?". The page itself carries no paragraphs.
+ * how it all works behind "?". There are no paragraphs on the page itself.
  */
 [].forEach.call(document.querySelectorAll('dialog [data-close]'), function (b) {
   b.addEventListener('click', function () { b.closest('dialog').close(); });
@@ -3297,10 +3297,10 @@ function setAdvanced(on) {
 })();
 
 /* ================= the phone sheet ======================================
- * Below the breakpoint the dock along the bottom holds the ink, the tools
- * and the creatures -- always the same height. The tool's options open as a
- * panel *over* the picture rather than under it, so the canvas keeps the size
- * it had: nothing is refitted, nothing is squeezed, and the first touch on the
+ * Below the breakpoint the ink, the tools and the creatures are in a dock along
+ * the bottom -- always the same height. The tool's options open as a
+ * panel *over* the picture rather than under it, so the canvas stays the size
+ * it was: nothing is refitted, nothing is squeezed, and the first touch on the
  * picture puts the panel away instead of painting under it.
  */
 function setSheet(on) {
@@ -3339,8 +3339,8 @@ function snapStill(rgb, useRegs) {
 }
 /* ---- getting pictures in ------------------------------------------------
  * Three ways in, and the only difference is what happens to the canvas:
- *   Open    replaces it. One of our own GIFs brings the whole project back;
- *           any other picture arrives at its own size.
+ *   Open    replaces it. One of our GIFs brings the whole project back;
+ *           any other picture opens unscaled.
  *   Place   drops a picture into the canvas you already have.
  *   Paste   the same, from the clipboard.
  */
@@ -3354,8 +3354,8 @@ async function takeFile(f, how) {
     var bytes = null;
     try { bytes = new Uint8Array(await f.arrayBuffer()); } catch (err) { /* unreadable */ }
     if (bytes) {
-      // One of ours still says so, and its note carries names and depth that
-      // no amount of watching the colours could tell us.
+      // One of ours is marked as such, and its note has names and depth that
+      // no amount of watching the colours could reveal.
       try {
         var cfg = gifFindConfig(bytes);
         if (cfg) { snapshot(); await decodeCanvas(cfg); say('opened, palette, registers and all'); return; }
@@ -3436,17 +3436,17 @@ async function copyCanvas() {
 }
 
 /* ================= reading the motion ===================================
- * A colour-cycling GIF is a strange animation: every frame holds the same
- * pixels and a different colour table. That is the whole trick, and it means
- * the cycling is not something you have to be *told* about -- it is sitting
+ * A colour-cycling GIF is a strange animation: the pixels are the same in
+ * every frame and only the colour table differs. That is the whole trick, and it means
+ * the cycling needs no note to describe it -- it is sitting
  * there in the file, in what moved. So rather than trusting a note we left
- * ourselves inside our own exports, this reads any GIF, watches which palette
+ * ourselves inside our exports, this reads any GIF, watches which palette
  * entries change from frame to frame, and works out the registers from the
  * shape of the movement: a run of slots whose colours are the same list,
  * rotated by one more step each frame, IS a cycling register.
  *
- * It gets DPaint files, Living Worlds mosaics, Mark Ferrari's scenes and our
- * own exports alike, none of which agreed on a way to write it down.
+ * It reads DPaint files, Living Worlds mosaics, Mark Ferrari's scenes and our
+ * exports alike, none of which agreed on a way to write it down.
  */
 function lzwUnpack(data, minCode, total) {
   var out = new Uint8Array(total), oi = 0;
@@ -3551,17 +3551,17 @@ function gifParse(b) {
 /* The detector -------------------------------------------------------------
  * Naively you would look for a run of neighbouring slots that shift along by
  * one each frame, and for a picture straight out of Deluxe Paint that works.
- * It falls over the moment anything has renumbered the palette -- our own
+ * It falls over the moment anything has renumbered the palette -- our
  * exports do, because they pack the canvas down to the colours it actually
  * uses -- and then a register is five slots scattered across the table in no
  * order at all.
  *
  * So look at it as movement instead of as layout. Between frame 0 and frame 1
  * every moving colour goes from one slot to another, and that is a
- * permutation. Its cycles ARE the registers: not a guess about them, the thing
+ * permutation. Its cycles ARE the registers: not an estimate of them, the thing
  * itself. Follow each ring round and it hands you the ramp in order, however
- * the file happened to number it. Then every remaining frame has to agree --
- * frame f must show each slot the colour f places back round its own ring --
+ * the file happened to number it. Then every remaining frame has to match --
+ * frame f must show each slot the colour f places back round that slot's ring --
  * or it is an ordinary animation that merely repaints its palette, and we say
  * so rather than inventing registers for it.
  */
@@ -3610,8 +3610,8 @@ function detectCycles(frames) {
     return true;
   });
 }
-/* Bringing one in. The file's own colours become the palette exactly as they
- * are -- no snapping, or a scene built for a 6-bit CLUT would arrive with its
+/* Bringing one in. The file's colours become the palette exactly as they
+ * are -- no snapping, or a scene built for a 6-bit CLUT would come in with its
  * ramps flattened into each other -- and each ring is laid out in the order it
  * turns, which is what makes it a register here rather than a note about one.
  * The pixels are renumbered into that layout on the way through.
@@ -3708,7 +3708,7 @@ async function encodeCanvas() {
   function u8(v) { out.push(v & 255); }
   function u16(v) { out.push(v & 255, (v >> 8) & 255); }
   u8(6); u16(W); u16(H);
-  // 0 is Cythera's own CLUT, 31 is 'direct'; 1..16 are bit depths.
+  // 0 is Cythera's CLUT, 31 is 'direct'; 1..16 are bit depths.
   u8(depth === 'cythera' ? 0 : depth === 'direct' ? 31 : depth);
   // A direct palette cannot be regenerated from its name, so every colour in
   // it travels as an extra rather than being assumed.
@@ -3758,8 +3758,8 @@ async function decodeBytes(b) {
     PAL.length = baseN;
     CLUT_N = baseN;
   } else {
-    // Before version 6 every file was painted over Cythera's CLUT and said
-    // nothing about it, so it is read back over that palette rather than
+    // Before version 6 every file was painted over Cythera's CLUT and had no
+    // record of it, so it is read back over that palette rather than
     // whichever one the session happens to be in.
     depth = 'cythera'; PAL = basePalette('cythera'); CLUT_N = PAL.length;
   }
@@ -3804,16 +3804,16 @@ async function decodeBytes(b) {
 /* ================= export =============================================== */
 // Both writers need at most 256 slots, so the artwork is compacted down to
 // the indices it actually uses. Nothing stops a palette of thousands; it is
-// how many DISTINCT indices are on the canvas that decides.
+// how many DISTINCT indices are on the canvas that matters.
 function compact() {
   var slot = new Map([[0, 0]]), list = [0], i;
   for (i = 0; i < idx.length; i++) if (!slot.has(idx[i])) { slot.set(idx[i], list.length); list.push(idx[i]); }
   /* A register that is only partly used would go into the file as a ring with
    * a gap in it, and a gapped ring cannot be read back off the motion -- the
    * colours turning through the missing steps have nowhere to have come from.
-   * So carry the whole of any register the picture touches, while there is
+   * So the whole of any register the picture touches goes in, while there is
    * room. That is what lets one of these GIFs explain itself to anything that
-   * watches it move, instead of only to us reading our own note inside it.
+   * watches it move, instead of only to us reading our note inside it.
    */
   ramps().forEach(function (r) {
     var touched = false, k;
@@ -3868,7 +3868,7 @@ function chunk(type, data) {
 async function pngOut() {
   var c = compact(), raw, ihdr = new Uint8Array(13), dv = new DataView(ihdr.buffer), extra = [];
   dv.setUint32(0, W); dv.setUint32(4, H);
-  // Only Cythera's own 256 go out as raw indices under the whole CLUT. Any
+  // Only Cythera's 256 go out as raw indices under the whole CLUT. Any
   // other base palette is shorter or longer than 256, and writing it this way
   // threw past its end or truncated the indices (16 September 2026).
   var pure = (depth === 'cythera' && PAL.length === 256);
@@ -4237,9 +4237,9 @@ async function loadScene(s) {
 
 /* ================= to and from Grimoire ==================================
  * Grimoire (index.html) hands a picture over through localStorage under
- * 'grimoire.handoff' and opens this page; the picture is opened at its own
- * size, and Send back to Grimoire puts this frame under 'grimoire.return',
- * which that page's storage listener takes into its ditherizer, aimed at
+ * 'grimoire.handoff' and opens this page; the picture is opened unscaled,
+ * and Send back to Grimoire puts this frame under 'grimoire.return',
+ * which that page's storage listener passes to its ditherizer, aimed at
  * the resource the picture came from. Same origin, no server. */
 var fromGrimoire = null;
 async function takeGrimoireHandoff() {
