@@ -1843,8 +1843,8 @@ const DATA_FIXES = [
   // THE CHANGE: flag 7 set on the four, so the name table speaks: "???" for
   // the ghost, the vision and the switch, which the maintainer chose to keep
   // (19 October 2026), and "Fountain". Omen (126) shows "Nothing" until his
-  // name is learnt for the same reason, and is left alone: the flag would
-  // name him before he is introduced. A saved game has a separate character
+  // name is learnt for the same reason, and is not given the flag, which
+  // would name him before he is introduced; blank-name, next, covers him. A saved game has a separate character
   // table, so this reaches new games only.
   { id: 'nobody-speakers', group: 'talk', stage: 'apart', title: 'The Abydos ghost, the vision, the wishing fountain and the riddle switch are no longer called \u201cNothing\u201d when they speak',
     dataEdits: [
@@ -1855,6 +1855,28 @@ const DATA_FIXES = [
           }
           for (const n of [187, 188, 189, 191]) b[n * 32 + 8] |= 0x80;
           return 'records 187, 188, 189 and 191, byte 8: flag 7 set';
+      } },
+    ] },
+  // Omen (126), the same way: his conversation (0x1801) sets his flag 7 at
+  // 0x0639, after his first speech, which ends "I am Omen", so that one box
+  // is headed by his prop type's tile name, and his type is 0. The name is the first
+  // entry of 0xF004, tile 0 "Nothing", which is given "???" here, the name
+  // table's word for the other unnamed speakers. The tile names are read
+  // from Cythera Data and not the save, so this reaches saved games too,
+  // where the four speakers of the fix before this one are headed "???" as
+  // well. Nothing else is shown with tile 0's name once the corner body is
+  // gone (the program's fix corner-body): it was the one thing of type 0 a
+  // player could Look at. The table is four bytes shorter; this comes after
+  // hydra-name, whose place it finds by offset, in the stage order.
+  { id: 'blank-name', group: 'talk', stage: 'apart', title: 'Omen is called “???” before he gives his name, instead of “Nothing”',
+    dataEdits: [
+      { what: 'tile 0 named “???”', resid: 0xF004, fn: (b) => {
+          const want = [0, 0, 0x4E, 0x6F, 0x74, 0x68, 0x69, 0x6E, 0x67, 0];
+          if (want.some((v, i) => b[i] !== v)) throw new Error('the first entry is not tile 0 "Nothing"');
+          const name = [0, 0, 0x3F, 0x3F, 0x3F, 0];
+          const out = new Uint8Array(b.length - want.length + name.length);
+          out.set(name); out.set(b.subarray(want.length), name.length);
+          return out;
       } },
     ] },
   // The manuscript on Semius the Golem Hunter (0x021D) has him buying a

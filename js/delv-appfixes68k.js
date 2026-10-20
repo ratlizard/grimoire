@@ -55,6 +55,8 @@ const APP_FIXES_68K = {
     { fix: 'speech-clear', seg: 5, at: 0xFCE2, was: '256efff80858256efffc085c357c0050085c', now: '257c000c00730858257c005001f4085c4e71' },  // move.l #$c0073, $858(a2); move.l #$5001f4, $85c(a2); nop
     { fix: 'menu-items', seg: 3, at: 0xA0B2, was: '48780014', now: '48780040' },  // pea.l $40.w
     { fix: 'menu-items', seg: 3, at: 0xA132, was: '0c430014', now: '0c430040' },  // cmpi.w #$40, d3
+    { fix: 'corner-body', seg: 1, at: 0x4E02, was: '7400', now: '7401' },  // moveq #$1, d2
+    { fix: 'corner-body', seg: 1, at: 0x4E1C, was: '670000b6', now: '670000a4' },  // beq.w $4ec2
   ],
   caves: [
     { fixes: ['walk-to'], seg: 5, site: 0x663A, was: '4aaeff486700008e', bodies: {
@@ -549,10 +551,11 @@ const APP_FIXES_68K = {
     { fix: 'text-compatible', at: 0x98EE, was: '74686973', now: '77697468' },
     { fix: 'text-compatible', at: 0x9A11, was: '74686973', now: '77697468' },
   ],
-  played: ['containers-weight', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'option-p', 'option-x', 'roster-pose', 'sleeper-unit', 'spell-glow', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
+  played: ['containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'option-p', 'option-x', 'roster-pose', 'sleeper-unit', 'spell-glow', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
   built: {
     'books-window': '207b3c02cdf3210a790655b10b292f6af82a2758492771c8b8e1a0d9abc58840',
     'containers-weight': '75a358199feb783bfbc9dc5bfc27a3a330321f6bd0bacb341f4e03f13790c5db',
+    'corner-body': '4e6ea0577d046781bffd182dcdfa86ceaa54b5fb1864f7e08eced6cd2b9ec632',
     'corpse-light': 'eabb1d64b7d89e012b003bcf6905312d674f8c067367ffc68a71382ef6be204a',
     'drag-northwest': '240a4b91522a1322be41d61876e36cedfd74373fc29e436b55cf066a2bccee0d',
     'empty-zone-save': '5bb5c4a4b682cff534b3b09d333a20b3ae05b3ec32349dadd83de576bc5b65de',
@@ -589,6 +592,6 @@ const APP_FIXES_68K = {
     'walk-to': 'e9dc95c294c067c41f836ef643962132e0d58e15fa366234b273f7189b25db2c',
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
-    '': '60d758232ba9a35711b32def60346a0496324c74d97f4c56bc2f95d1947f32db',   // every fix
+    '': 'bc9a43aac84babcd9e8f18562882ff3844dfccdaa7152182021aa0b311e0612d',   // every fix
   },
 };

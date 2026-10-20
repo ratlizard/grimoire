@@ -234,6 +234,26 @@ const APP_FIXES = [
     sites: [{ at: 0x65F8, was: [0x281C0000, 0x41820018, 0x7F83E378, 0x819C0048, 0x818C0014, 0x480BEADD, 0x80410014, 0x380000FF, 0x981E0000],
       asm: ['li 0, 255', 'clrlwi. 3, 24, 24     ; the post on the party’s level?', 'beq @0x6608', 'li 0, 66', 'stb 0, 0(30)', 'b @0x661C', 'nop', 'nop', 'nop'] }] },
 
+  // In CueCharacters, which a new game and every change of zone run: of the
+  // 256 characters, a living one in the zone has its map record drawn (0x42,
+  // with its square, look and type) and a living one elsewhere hidden
+  // (0xFF). A dead one is passed over and its record left as it was. A
+  // character killed in play had it hidden by TActiveMonster::Die (the 0xFF
+  // at 0x46CE8). For one never alive, Peirithous (96) and the empty records
+  // from 130 up, it is the blank record a new game starts with, flags 0 at
+  // (0,0) with type 0: a body in the north-west corner of every zone, named
+  // "Nothing" by the blank tile. The dead are hidden now as the living
+  // elsewhere are. Record 0 is dead and so was always passed over, and the
+  // loop starts at 1 so that it still is (its first byte is a 0x1C another
+  // routine writes). No script clears the alive bit. A save has the records
+  // it was written with until the party next changes zone.
+  { id: 'corner-body', kind: 'fix', title: 'The dead body named “Nothing” is no longer in the north-west corner of every town',
+    played: 'fork, PowerPC and 68K, 19 October 2026, alone and with every fix: the world seed, the hero at (200,59) and the right arrow into Odemia, saved; all 127 dead characters’ map records hidden (0xFF), against blank (0) at (0,0) unpatched, and no other record different. From each save, the hero put at (1,1) and a Look at (0,0) (PowerPC): “Look - you see grass.”, against “Look - you see Nothing.” and a character window “Nothing”, Status Dead, Peirithous’s portrait, unpatched',
+    bug: '“Nothing”, a dead body in the north-west corner of every town',
+    sites: [
+      { at: 0x805C, was: [0x3BE00000], asm: ['li 31, 1              ; from character 1'] },
+      { at: 0x8088, was: [0x418200C8], asm: ['beq @0x813C           ; dead: hidden'] }] },
+
   { id: 'gamepad-keys', kind: 'fix', title: 'A gamepad’s Use, Attack, Look and Talk buttons each send a separate key',
     sites: [
       { at: 0xACB70, was: [0x3800004C], asm: ['li 0, 85              ; Use: U'] },
