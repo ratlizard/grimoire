@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Build a Magpie patch that re-indexes every tile in the game onto the
-// engine's own cycling ramps, so the whole world animates.
+// engine's cycling ramps, so the whole world animates.
 //
 //   node utilities/ramp_patch.mjs index.html "$TMPDIR/Cythera Data.data" \
 //        "out/Ramp Patch" [--preview out/preview.png]
@@ -10,7 +10,7 @@
 // pushes every pixel of the finished frame through the table for the current
 // phase, rotating indices 0xE0-0xFB within five ramps and leaving every other
 // index alone. The ranges are compiled into the executable, so a patch cannot
-// move them -- but a patch CAN decide what lands in them, because the art is
+// move them -- but a patch CAN set what lands in them, because the art is
 // data. Re-index a tile onto a ramp and it animates; that is the whole trick,
 // and it is the one palette effect the add-on format can reach.
 //
@@ -28,7 +28,7 @@
 //
 // FOREGROUND AND BACKGROUND ARE DECIDED BY USE, NOT BY THE ART. The obvious
 // test -- a cut-out tile is a sprite, an opaque one is ground -- does not
-// survive contact with the archive: 2,210 of the 2,544 tiles carry the
+// survive contact with the archive: 2,210 of the 2,544 tiles have the
 // transparent index, because composed terrain is assembled from transparent
 // 8x8 pieces just as sprites are. So the background set is built from what the
 // maps are actually paved with: every tile id in every map's terrain layer,
@@ -41,15 +41,15 @@
 // THE ENCODER IS LITERAL-ONLY, which is grimoire's standing trade (see
 // encodeDCGLiterals): every re-encoded sheet is bigger than the one it
 // replaces. That is why the patch is megabytes rather than the Pumpkin
-// Patch's 57 KB. Nothing in the game minds; a smaller file would want
+// Patch's 57 KB. Nothing in the game minds; a smaller file would need
 // delvmod's compressor, which writes the run opcodes this one does not.
 //
 // WHAT IS CHECKED HERE. Every sheet is decoded again from the bytes that go
 // into the patch and compared pixel for pixel with the remap that produced
 // them -- an encoder that dropped a row would otherwise ship as a patch. The
-// finished patch is then merged into the base archive with the page's own
+// finished patch is then merged into the base archive with the page's
 // mergeDelverPatch, and the merge must replace exactly the resources named
-// and read back as what the patch holds. Neither check is a substitute for
+// and read back as what is in the patch. Neither check is a substitute for
 // looking at it: --preview writes a contact sheet at four phases for that.
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -108,7 +108,7 @@ const masterIndex = [];
 for (let i = 0; i < 256; i++) masterIndex.push([readU32(0x88 + i * 8), readU32(0x88 + i * 8 + 4)]);
 const arc = g.__bind(archive);
 
-// Plaintext for every resource, which is also what the patch writer wants: the
+// Plaintext for every resource, which is also what the patch writer needs: the
 // cipher is keyed by resource id, so an edit made here re-encrypts wherever
 // the resource lands in the merged file.
 const spec = g.delverArchiveSpec(archive);
@@ -262,7 +262,7 @@ const written = g.writeDelverPatch(spec, changed, {
 const patch = written.bytes;
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, Buffer.from(patch));
-// Two shapes of the same patch, as the page's own export offers: the bare data
+// Two shapes of the same patch, as the page's export offers: the bare data
 // fork for the browser player and for a shared folder, and a MacBinary typed
 // DelP with Magpie's creator, which is what makes a real Mac see a patch
 // rather than somebody's saved game.
@@ -273,7 +273,7 @@ console.log(`wrote ${outPath}  ${patch.length.toLocaleString()} bytes, uuid ${wr
             (written.checkValueValid ? `check value ${written.checkValue} verifies` : 'CHECK VALUE DOES NOT VERIFY'));
 console.log(`wrote ${outPath}.bin  ${macbin.length.toLocaleString()} bytes, MacBinary typed DelP/${g.DELV_PATCH_CREATOR}`);
 
-// ---- does it apply, and only where it says? --------------------------------
+// ---- does it apply, and only where it should? -----------------------------
 g.__patch = patch; g.__base = archive;
 const merged = vm.runInContext(`(() => {
   const m = mergeDelverPatch(__base, __patch);
@@ -281,8 +281,8 @@ const merged = vm.runInContext(`(() => {
   return { replaced: m.replaced.length, skipped: m.skipped.length, disagreed: m.disagreed.length };
 })()`, ctx);
 if (merged.replaced !== changed.length || merged.disagreed)
-  console.error(`FAIL merge: ${merged.replaced} replaced, ${merged.disagreed} refused, expected ${changed.length} and 0`);
-else console.log(`merge: ${merged.replaced} resources replaced, ${merged.skipped} skipped, 0 refused`);
+  console.error(`FAIL merge: ${merged.replaced} replaced, ${merged.disagreed} rejected, expected ${changed.length} and 0`);
+else console.log(`merge: ${merged.replaced} resources replaced, ${merged.skipped} skipped, 0 rejected`);
 
 const mergedSpec = vm.runInContext('delverArchiveSpec(__merged)', ctx);
 const mergedById = new Map(mergedSpec.resources.map(r => [r.resid, r.data]));
@@ -292,7 +292,7 @@ for (const r of g.delverArchiveSpec(archive).resources) {
   const isOurs = changed.includes(r.resid);
   const same = after && after.length === r.data.length && r.data.every((v, i) => after[i] === v);
   if (isOurs) { if (same) wrong++; }            // a patched sheet that did not move
-  else if (!same) wrong++;                      // a sheet nobody asked for that did
+  else if (!same) wrong++;                      // a sheet the patch does not touch that did
   else untouched++;
 }
 if (wrong) console.error(`FAIL merge scope: ${wrong} resource(s) on the wrong side of the change`);

@@ -12,13 +12,13 @@
 // a fresh clone reported four of thirteen checks as "skip", including both
 // snapshot checks. A skip reads like a clean result, which means a cloud or
 // web session could not see a decoder regression at all. Everything needed to
-// avoid that was already here: index.html has fetched its own input from
+// avoid that was already here: index.html has fetched its input from
 // archive.org since the installer session, and js/mac-vise.js and
 // js/mac-stuffit.js open it. This runs the same chain under Node.
 //
 // WHERE IT FETCHES FROM. archive.org's `cythera-installers` item, through the
 // `/cors/` path -- 28 MB, one StuffIt 5 archive holding the 1.0.1, 1.0.2,
-// 1.0.3 and 1.0.4 installers with every data fork stored. It is the page's own
+// 1.0.3 and 1.0.4 installers with every data fork stored. It is the page's
 // first default, and `/cors/` is the path that sends the CORS header (checked
 // with curl on 2 September 2026: `/download/`, www.bryce.pw and old.mac.gdn all
 // send none). Node does not enforce CORS, but using a different URL here than
@@ -30,7 +30,7 @@
 //
 // This is a convenience, not an oracle. It gives no independent evidence about
 // the decoders -- the bytes are the same game -- and vise_check.mjs is what
-// actually proves the installer path, against the CRCs the catalog carries.
+// actually proves the installer path, against the CRCs in the catalog.
 
 import {readFileSync, writeFileSync, existsSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
@@ -75,7 +75,7 @@ export async function fetchGame(outDir, say = () => {}) {
 
   // The same two tiers index.html uses, in the same order: StuffIt to find
   // the installer, VISE to read it. sniffViseInstaller does both and picks the
-  // newest release when the archive holds several, which this one does.
+  // newest release when the archive has several, which this one does.
   const ctx = vm.createContext({TextDecoder, TextEncoder, console});
   for (const f of ['js/mac-bytes.js', 'js/mac-containers.js', 'js/mac-stuffit.js', 'js/mac-vise.js'])
     new vm.Script(readFileSync(join(ROOT, f), 'utf8'), {filename: f}).runInContext(ctx);
@@ -92,7 +92,7 @@ export async function fetchGame(outDir, say = () => {}) {
     let r;
     try { r = ctx.viseExtract(found.archive, entry); }
     catch (e) { say(`  ! could not extract ${inArchive}: ${e.message}`); return false; }
-    // The catalog's own CRC-32 covers data fork then resource fork. A file
+    // The catalog's CRC-32 covers data fork then resource fork. A file
     // that fails it is corrupt, and writing it would turn a bad download into
     // what looks like a decoder regression two checks later.
     if (!r.crcOk) { say(`  ! ${inArchive} failed the catalog's CRC`); return false; }

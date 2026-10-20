@@ -34,9 +34,9 @@ inserts at conversation-response chain targets (nothing is decoded there);
 OpCases, whose recorded offset is two bytes past the 0x40 that opened it
 because the case count is read before the object is constructed; and nested
 subroutine DFunctions, which are flattened inline as an [offset, 0x81] event
-plus their own events, matching a linear walk over the same bytes.
+plus their events, matching a linear walk over the same bytes.
 
-Scope mirrors delv/hints.py, which is delvmod's own statement of what is a
+Scope mirrors delv/hints.py, which is delvmod's statement of what is a
 script: subindex (resid>>8)-1 in 0..14 or 47 is dscript.Direct, 15..125 is
 dscript.Class, minus the subindexes hints.py maps to graphics, maps, props
 and sound. Subindex 3 (0x04xx, the AI combat scripts) is excluded from both
@@ -59,7 +59,7 @@ from delv_compat import install_shims  # noqa: E402
 # (128), graphics (131, 135, 137, 141, 142), sound (144). Everything else in
 # 0..14, 15..125 and 47 is a script. Kept as a literal rather than imported
 # so the scope is visible here; delv.hints is still imported below and the
-# two are asserted to agree, so this copy cannot drift silently.
+# two are asserted to match, so this copy cannot drift silently.
 NON_SCRIPT_SI = {127, 128, 131, 135, 137, 141, 142, 144}
 
 
@@ -100,7 +100,7 @@ def canonical_events(code, ddasm, out):
 
 def collect_functions(obj, ddasm, funcs, others, seen):
     """Walk the loaded object model, recording every DFunction's events and
-       the offsets of everything else that carries one."""
+       the offsets of everything else that has one."""
     if id(obj) in seen:
         return
     seen.add(id(obj))
@@ -123,7 +123,7 @@ def collect_functions(obj, ddasm, funcs, others, seen):
         others.setdefault(obj.offset, 'data')
     elif isinstance(obj, ddasm.DDirect):
         others.setdefault(obj.offset, 'raw')
-    # plain strings and ints carry no offset; nothing to record
+    # plain strings and ints have no offset; nothing to record
 
 
 def main():
@@ -144,7 +144,7 @@ def main():
     # recorded -- so `.offset` cannot be trusted as "where this instruction
     # is". Observe the true position from outside instead of editing the
     # checkout: wrap __init__ to note tell()-1 before parse() runs. This
-    # changes nothing about how ddasm decodes; it only remembers a number the
+    # changes nothing about how ddasm decodes; it only records a number the
     # original computes and then loses.
     _orig_op_init = ddasm.Opcode.__init__
 
@@ -154,13 +154,13 @@ def main():
     ddasm.Opcode.__init__ = _noting_init
 
     # The scope table above is a copy of what hints.py expresses in code;
-    # prove they agree before trusting it.
+    # prove they match before trusting it.
     for si in list(NON_SCRIPT_SI) + [0, 7, 14, 15, 47, 60, 125, 126]:
         cls = delv.hints._OBJECT_SI_HINTS.get(si)
         is_script = cls in (delv.dscript.Direct, delv.dscript.Class)
         claims = script_mode((si + 1) << 8) is not None or si == 3
         if is_script != claims:
-            print('scope table disagrees with delv.hints at subindex %d' % si,
+            print('scope table differs from delv.hints at subindex %d' % si,
                   file=sys.stderr)
             return 1
 

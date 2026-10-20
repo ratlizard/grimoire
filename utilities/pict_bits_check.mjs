@@ -11,7 +11,7 @@
 //
 // This check is synthetic on purpose. Not one of the twenty-one PICTs in
 // Cythera and Cythera Data uses these opcodes -- they are all 0x0098, 0x0099
-// or 0x009B -- so no snapshot over the game's own resources can prove the
+// or 0x009B -- so no snapshot over the game's resources can prove the
 // path works or notice if it breaks. The viewer opens any Mac resource fork
 // dropped on it, not only Cythera's, which is why the opcodes are worth
 // supporting at all.

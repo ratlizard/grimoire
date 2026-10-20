@@ -3,7 +3,7 @@
 QTMA (QuickTime Music Architecture) -> Standard MIDI File converter.
  
 Bit-field layout taken verbatim from Apple's QuickTimeMusic.h (Universal
-Interfaces 3.3.1), not guessed:
+Interfaces 3.3.1), not inferred:
  
   kEventLengthFieldPos        = 30, width 2   (0/1 => 1 long, 2 => 2 longs, 3 => variable)
   kEventTypeFieldPos          = 29, width 3   (short type)
@@ -296,7 +296,7 @@ def convert(musi_resource_bytes, out_path, label=''):
         seq = seq[:len(seq) - (len(seq) % 4)]
     words = list(struct.unpack('>%dI' % (len(seq) // 4), seq))
  
-    # The tune header (inside the 'musi' atom) holds the NoteRequest general
+    # The tune header (inside the 'musi' atom) has the NoteRequest general
     # events describing each part's instrument.
     hdr = d[8:musi_len]
     if len(hdr) % 4:

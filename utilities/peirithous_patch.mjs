@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* A builder, not a check: Peirithous, Judge Sacas's majordomo, alive, as one
-   Magpie patch of its own, "Cythera Peirithous Fix". (28 September 2026, at
+   separate Magpie patch, "Cythera Peirithous Fix". (28 September 2026, at
    the maintainer's word: a separate patch, since it puts a person into the
    game that no release has shown.) The fix is `peirithous` in
    js/delv-datafixes.js, where its reasoning is. It touches 0xF009 alone,

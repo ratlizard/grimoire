@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Collects the JavaScript a page actually runs, in document order.
 //
-// The three pages here used to be one HTML file each with one inline <script>,
+// The three pages here were once one HTML file each with one inline <script>,
 // and every harness found that script with the same regular expression. Now
 // that the code shared between them lives in js/*.js, "the script" is several
 // files, and a harness that only reads the inline block silently tests a page
@@ -141,7 +141,7 @@ export function stripJsText(src) {
 
    The other half of the pair, and the distinction matters more than it looks.
    `stripJsText` answers "what does this code DO", so it throws strings away.
-   Asking instead "what does this file MENTION" needs them: this page builds
+   The other question, "what does this file MENTION", needs them: this page builds
    most of its markup in JS, so `onclick="undoStrikeSwap()"` lives inside a
    string literal and nowhere else, and a harness that reaches a page function
    by name does it as `peek('mergeDelverPatch')`. Strip strings and both look

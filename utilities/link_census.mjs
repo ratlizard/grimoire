@@ -4,7 +4,7 @@
 //   (--list goes last; smoke_boot reads the third argument as a category)
 //
 // The maintainer's rule of 20 September 2026 is that a figure on a Scenario
-// page lands on the component that holds it -- its record under Components
+// page lands on the component it belongs to -- its record under Components
 // > Records, its script under Components > Functions -- and the component
 // page steps on down to the bytes under Data (jumpToTableAt's comment in
 // js/page-rules.js). On 16 October 2026 he asked for it of every scenario
@@ -18,7 +18,7 @@
 // A link is followed by running its onclick in the page, then reading the
 // category the page is showing, which is what the tab strip itself is drawn
 // from; the onclick's name alone would not say, since jumpToTableAt goes to
-// Components or to Data by whether it knows the table. Only handlers that
+// Components or to Data by whether it has the table. Only handlers that
 // navigate are run (an allow-list below), so nothing is edited or saved.
 import {ctx, peek, REGISTRY, finish, drainRaf, fail as tallyFail} from './smoke_boot.mjs';
 
@@ -26,7 +26,7 @@ const LIST = process.argv.includes('--list');
 const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
 const grid = () => all(REGISTRY.get('sheetGrid')) + all(REGISTRY.get('textContent') || {children: []});
 
-// The top tab and leaf a category value belongs to, from the page's own tree.
+// The top tab and leaf a category value belongs to, from the page's tree.
 const tree = peek('TAB_TREE');
 const topOf = new Map();
 (function walk(nodes, top, path) {
@@ -44,7 +44,7 @@ const where = () => {
 };
 
 // Handlers that only navigate. Anything else (an edit, a save, a toggle of
-// the page's own state) is counted by name and not run.
+// the page's state) is counted by name and not run.
 const NAV = /^(jumpTo\w+|show\w*Detail|showCategory|openPefRoutine|searchFor|mechLink|showCharacterOnMap|jumpToResource|showZone\w*|openZone\w*|askCharacterChip|showRecordDetail|jumpToForkBytes|openRecord\w*)$/;
 
 const SCEN = (tree.find(n => n.id === 'entities').children || []).flatMap(n => n.values || []);
@@ -79,11 +79,11 @@ function follow(js) {
   if (!fn || !NAV.test(fn)) { unrun.set(fn || js.slice(0, 30), (unrun.get(fn || js.slice(0, 30)) || 0) + 1); return null; }
   // An onclick is a function body ("jumpToResource(n);return false").
   try { peek('(function () {' + js + '\n})()'); } catch (e) { return {top: 'error', path: String(e.message).slice(0, 60), value: ''}; }
-  try { drainRaf(); } catch (e) { /* a frame callback's own failure is not this link's */ }
+  try { drainRaf(); } catch (e) { /* a frame callback's failure is not this link's */ }
   return where();
 }
 
-/* Following a link costs a page render, and the Scenario tab holds tens of
+/* Following a link costs a page render, and the Scenario tab has tens of
    thousands of them, most repeating: every link to a line of one script
    lands where any other line of it does. So a destination is cached by the
    handler and its first argument, and a page's links are all read before
@@ -146,9 +146,9 @@ for (const [k, n] of rows) {
   if (LIST) console.log('        e.g. ' + examples.get(k).slice(0, 200));
 }
 /* The finding, as a verdict: a link from a Scenario page that lands on the
-   data file's bytes has skipped the component that holds them. The
+   data file's bytes has skipped the component they belong to. The
    program's routines (Data > Cythera (App)) are not counted: a figure the
-   application decides has no component in the scenario to land on. */
+   application sets has no component in the scenario to land on. */
 let skipped = 0, links = 0;
 for (const [k, n] of tally) { links += n; if (k.split('\t')[2].startsWith('Data › Cythera Data')) skipped += n; }
 const broken = [...tally].filter(([k]) => k.split('\t')[1] === 'error').reduce((a, [, n]) => a + n, 0);

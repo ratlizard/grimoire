@@ -5,11 +5,11 @@
    changes what a visitor sees. Nothing read it -- no utility in this directory
    so much as mentioned the name -- so a missed bump failed nothing, and one
    was missed: the five section moves of 13 September 2026 shipped while the
-   page still said 1.66.0. Every other figure in this project that lived only
+   page still read 1.66.0. Every other figure in this project that lived only
    in prose went stale the same way, and the answer each time was to have a
    check print it rather than to correct the prose again.
 
-   What a check CAN know, without knowing what the author intended: whether
+   What a check CAN establish, without knowing what the author intended: whether
    this tree would deploy a page different from the one on origin/main while
    claiming the same version number. That is the whole rule, and it is
    decidable -- if any file a visitor receives differs from the deployed copy,
@@ -18,13 +18,13 @@
    Three things it deliberately does not do:
 
    - It does not judge a feature against a fix. Middle number or last is the
-     author's call and no rule here could tell them apart.
+     author's call and no rule here could distinguish them.
    - It does not read the commit message, and it does not care how many
      commits are on the branch. A front lands as one batch; the unit that
      matters is this tree against the deployed one.
    - It does not fail outside a git checkout, or without a baseline ref to
      compare against. A session handed these files without their history has
-     nothing to measure and says so; a skip reads honestly where a pass
+     nothing to measure and states it; a skip reads honestly where a pass
      invented from no evidence does not.
 
    Only four paths count as visitor-facing: index.html, canvas.html, js/ and
@@ -81,7 +81,7 @@ function decide(changed, here, base) {
 
 /* ---- the negative control ------------------------------------------------
    Every verdict, on input this file makes up, so the decision cannot quietly
-   stop deciding. The case that matters is the third: it is the exact shape of
+   stop settling it. The case that matters is the third: it is the exact shape of
    the bug this check was written for. */
 {
   const control = [
@@ -99,7 +99,7 @@ function decide(changed, here, base) {
   }
 }
 
-/* ---- what this tree says ------------------------------------------------- */
+/* ---- what this tree has -------------------------------------------------- */
 
 const html = readFileSync(htmlPath, 'utf8');
 const decls = [...html.matchAll(/const\s+GRIMOIRE_VERSION\s*=\s*'([^']*)'/g)];
@@ -172,7 +172,7 @@ try {
 }
 
 if (!base) {
-  console.log('version ' + here + ', ' + ref + ' carries no version to compare — skipped');
+  console.log('version ' + here + ', ' + ref + ' has no version to compare — skipped');
   process.exit(0);
 }
 

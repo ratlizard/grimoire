@@ -10,7 +10,7 @@
 
    buildPatch({ htmlPath, dataPath, outDir, name, description, edits,
                 dataEdits, textEdits })
-     For a builder with edits of its own (the casts, the Strine opening,
+     For a builder with separate edits (the casts, the Strine opening,
      Sour Grapes): js/delv-datapatch.js's three kinds of edit, as one stage.
      A data edit's fn is sent into the sandbox as its source and run there,
      so it sees the page's readers (parseDelverMap, decompressDCG) as globals.
@@ -31,7 +31,7 @@ import vm from 'node:vm';
 import {makeSandbox} from './dom_stub.mjs';
 import {pageSource} from './page_scripts.mjs';
 
-// The page's scripts in a sandbox of their own, with the data file in hand.
+// The page's scripts in a separate sandbox, with the data file in hand.
 export function pageContext(htmlPath = 'index.html', dataPath) {
   const {sandbox} = makeSandbox();
   sandbox.Buffer = Buffer;
@@ -45,10 +45,10 @@ export function pageContext(htmlPath = 'index.html', dataPath) {
 // writeDelverPatch cuts a longer one without a word. Three builders did
 // exactly that until 27 September 2026 ("Community Fixes" lost its last
 // sixty characters), and only the further and combined builders checked
-// for themselves; here every builder is checked. Mac Roman keeps a curly
+// for themselves; here every builder is checked. Mac Roman has a curly
 // quote in one byte, so the length in characters is the length.
 function checkDescription(name, description) {
-  if (String(description).length > 255) throw new Error(name + ': the description is ' + String(description).length + ' characters, and a patch holds 255');
+  if (String(description).length > 255) throw new Error(name + ': the description is ' + String(description).length + ' characters, and a patch has room for 255');
 }
 
 // The session's result written out: the patch, its MacBinary, the patched file.

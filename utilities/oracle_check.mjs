@@ -7,7 +7,7 @@
 // and it is a fork we push fixes to. A fix to the oracle is worth nothing if
 // the copy the suite compares against is older than it.
 //
-// THAT HAPPENED. On 14 September 2026 the fork's colormap was fixed -- the
+// THAT HAPPENED. On 14 September 2026 the fork's colormap changed -- the
 // palette cycle was written as an addition where the engine subtracts, so a
 // ramp ran upwards and water and lava ran backwards. grimoire's submodule
 // pointer was not moved with it. `check_all.mjs` prefers the submodule over a
@@ -21,10 +21,10 @@
 // WHAT IT COMPARES. The checked-out commit against `origin/master` AS LAST
 // FETCHED -- this runs no network. So it catches a pointer left behind, which
 // is the failure that happened, and cannot catch a fork that has moved since
-// the last fetch. It says which it did.
+// the last fetch. It reports which it did.
 //
 // A DELIBERATE PIN IS POSSIBLE and this would nag about it. If one is ever
-// wanted, the honest thing is to record why here rather than to delete the
+// needed, the honest thing is to record why here rather than to delete the
 // check, because the next person to see a stale oracle will assume an
 // accident, as happened the first time.
 
@@ -60,5 +60,5 @@ try { missed = git('log', '--oneline', `${head}..${ref}`).split('\n').filter(Boo
 const n = missed ? missed.split(';').length : '?';
 console.error(`FAIL the oracle is behind ${refName}: ${dir} is at ${head.slice(0, 7)} and ${refName} is ` +
   `${ref.slice(0, 7)}, ${n} commit(s) ahead — ${missed}. The checks are comparing against an older oracle ` +
-  `than the fork carries; move the pointer, or record here why it is pinned.`);
+  `than the fork has; move the pointer, or record here why it is pinned.`);
 process.exit(1);

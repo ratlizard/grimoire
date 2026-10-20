@@ -8,8 +8,8 @@
 // decoder that misreads a field puts a wrong number on the page with a link
 // that seems to vouch for it. The decoder was written from the architecture's
 // field layouts; LLVM's (`llvm-mc --disassemble --triple=powerpc`) was
-// written from LLVM's own instruction tables, by other people, for other
-// reasons. Two readings that agree on every word are evidence; one reading
+// written from LLVM's instruction tables, by other people, for other
+// reasons. Two readings that match on every word are evidence; one reading
 // checked against itself is not.
 //
 // WHAT IS COMPARED. Three sets of words, each handed to both:
@@ -25,10 +25,10 @@
 //     the reserved bits are reached.
 //
 // THE RULE, and it is three-sided on purpose. A word both read must read the
-// same, mnemonic and operands (whitespace aside). A word LLVM refuses must be
-// refused here. A word LLVM reads and this does not is allowed and counted
+// same, mnemonic and operands (whitespace aside). A word LLVM rejects must be
+// rejected here. A word LLVM reads and this does not is allowed and counted
 // by mnemonic: the decoder reads the 32-bit instructions a classic Mac
-// application's compiler emits, and LLVM knows every PowerPC there has been
+// application's compiler emits, and LLVM covers every PowerPC there has been
 // (64-bit, vector, VSX, decimal floating point, the embedded cores), so the
 // count is the size of what is deliberately unread. Then, over the code
 // section, every word of every routine's body -- from its entry to its
@@ -152,7 +152,7 @@ for (const set of sets) {
   compared += r.same;
   for (const [m, n] of r.theirsOnly) llvmAlone.set(m, (llvmAlone.get(m) || 0) + n);
   if (r.differ.length) fail(`${set.name}: ${r.differ.length} word(s) read differently, e.g. ` + r.differ.slice(0, 4).map(([w, L, J]) => `${w8(w)} LLVM "${L}" here "${J}"`).join('; '));
-  if (r.ours.length) fail(`${set.name}: ${r.ours.length} word(s) LLVM refuses read here, e.g. ` + r.ours.slice(0, 4).map(w => w8(w) + ' "' + ctx.ppcDecode(w).text + '"').join('; '));
+  if (r.ours.length) fail(`${set.name}: ${r.ours.length} word(s) LLVM rejects read here, e.g. ` + r.ours.slice(0, 4).map(w => w8(w) + ' "' + ctx.ppcDecode(w).text + '"').join('; '));
   if (set.name === 'code section') {
     // Every word of every routine's body is an instruction, and is read.
     let unread = [];

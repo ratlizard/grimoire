@@ -15,7 +15,7 @@ Nothing in the delvmod checkout is modified. The two compatibility shims the
 library needs on a modern Python -- an inspect.getargspec stand-in and a stub
 for the uninstalled parsley -- are installed from outside, by
 utilities/delv_compat.py. They lived here as a second copy until the port arrived
-carrying the first; see the note in that file for what each one is for.
+holding the first; see the note in that file for what each one is for.
 """
 import hashlib
 import json
@@ -45,7 +45,7 @@ def main():
 
     arc = delv.archive.Archive(open(archive_path, 'rb'))
     out = []
-    # The same five subindexes the viewer draws, and delvmod's own mapping from
+    # The same five subindexes the viewer draws, and delvmod's mapping from
     # subindex to image class (_CLASS_HINTS in delv/graphics.py).
     for subindex in (135, 137, 141, 131, 142):
         for res in arc.resources(subindex):

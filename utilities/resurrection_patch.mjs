@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /* A builder, not a check: the Resurrection spell brings the person back
    where the corpse lay, with their sacks still packed, and a companion back
-   into the party, as one Magpie patch of its own, "Cythera Resurrection
+   into the party, as a separate Magpie patch, "Cythera Resurrection
    Fix". (27 September 2026, at the maintainer's word: a separate patch,
    since where a raised person should stand is a design call the files do
    not make.) The fix is `resurrection` in js/delv-datafixes.js, where its
-   reasoning is, since 28 September 2026. It carries `nobody-corpse` too (30
+   reasoning is, since 28 September 2026. It includes `nobody-corpse` too (30
    September 2026, the maintainer's word: the guard in both), so a corpse
    that names nobody is left alone here as in "Cythera All Fixes". All
    Fixes changes the spell and the amulet now as well, and a Magpie patch
-   carries whole resources, so as two patches the later installed wins
-   both: this one after All Fixes keeps the resurrection and loses what All
+   contains whole resources, so as two patches the later installed overrides
+   both: this one after All Fixes retains the resurrection and loses what All
    Fixes' text stages changed in those two scripts, and All Fixes after
-   this one takes the resurrection away. Chosen together in the Patches
+   this one removes the resurrection. Chosen together in the Patches
    section they apply to one file, since the resurrection fix finds its
    place after the guard. Not played.
 

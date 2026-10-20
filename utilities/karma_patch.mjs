@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* A builder, not a check: killing a townsperson costs karma, as one Magpie
-   patch of its own, "Cythera Karma Fix". (27 September 2026, at the
+   separate patch, "Cythera Karma Fix". (27 September 2026, at the
    maintainer's word: a separate patch rather than a stage of the combined
    build, since what a kill should be worth is a design call and not a slip
    anyone can point to.) The fix is `karma` in js/delv-datafixes.js, where

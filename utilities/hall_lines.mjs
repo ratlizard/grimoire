@@ -2,10 +2,10 @@
    what a cast of voices replaces. Each is one string of the game, matched
    whole, keyed by a short name a cast file uses to give its replacement
    (voices_patch.mjs, rickmorty_patch.mjs). A line's `count` is how many
-   times the game holds it; a comment on a line says why it stops where it
+   times the game has it; a comment on a line explains why it stops where it
    does (a click mark or closing quote after it is a jump target, and the
    cast's rename reaches a name in the tail). The order matters in two
-   places, which the list keeps: "rick_thanks_to_you" comes after
+   places, which the list retains: "rick_thanks_to_you" comes after
    "rick_one_again", and "piemag_not_to_tell_three_times" after
    "piemag_glances_at_rick", so that a fragment is the only match left.
    Split out of voices_patch.mjs on 24 September 2026 for a second cast. */
@@ -220,11 +220,11 @@ export const LINES = [
 
 /* A cast: display names, where "Omen" means the creature, the keywords the
    new names add, and the lines by id. castEdits turns it into the edits:
-   the text fixes, the name table laid out afresh (its pointers carry the
+   the text fixes, the name table laid out afresh (its pointers have the
    tag 0x9165, which the relinker does not follow), every line of the
    cast, the renames everywhere, and the keywords. The name table's function
    is built as source, with the names written into it, because a data edit
-   is serialised into the sandbox and keeps no closure. */
+   is serialised into the sandbox and has no closure. */
 const NUL = '\u0000';
 export function castEdits({ names, omenResids, keywords, lines }) {
   const byId = new Map(LINES.map(l => [l.id, l]));

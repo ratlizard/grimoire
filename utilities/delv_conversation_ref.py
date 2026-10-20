@@ -16,13 +16,13 @@ one entry per `conversation_response` in each character script
 
 This is the same idea as delv_dasm_ref.py: what is compared is not rendered
 text -- the two sides format conversations quite differently -- but the decode
-events, so that two walks which consume the same bytes the same way agree
+events, so that two walks which consume the same bytes the same way match
 whatever they print.
 
 `dvmConversation` in js/delv-script.js reads these out of the disassembled
 `conversation_response` opcode, splitting its argument at the last ` -> 0x`.
 delvmod reads them in `DCConversationPrompt`, which splits the prompt on
-commas into `promptstr` and keeps the jump in `nextfield`. Joining that list
+commas into `promptstr` and stores the jump in `nextfield`. Joining that list
 back with commas is what makes the two comparable.
 
 Characters are class scripts and need `delv.script.ClassContainer`; plain
@@ -95,7 +95,7 @@ def main():
             script.load_from_library(library)
         except Exception:
             # A script delvmod cannot read is reported as absent rather than
-            # as an empty conversation, so the check can tell the two apart.
+            # as an empty conversation, so the check can distinguish the two.
             continue
         found = []
         prompts_in(script, set(), found)

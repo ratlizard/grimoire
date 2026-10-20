@@ -9,7 +9,7 @@
 // header, InstallShield 3's data.z, and PKWARE DCL's implode
 // (js/mac-installshield.js) -- and on the instrument reader and synth in
 // js/mac-qtmusic.js. The first three fail quietly in the way decompressors
-// do: data.z has no checksum of its own, so an explode that is wrong by a
+// do: data.z has no separate checksum, so an explode that is wrong by a
 // bit gives a file of the right length.
 //
 // THE ORACLE for the unpacking is a different implementation: every one of
@@ -23,13 +23,13 @@
 // THE SYNTH has no oracle here: what it should sound like is a recording of
 // the game, and the comparison with the soundtrack's "(Classic)" tracks
 // (the same entry in the notes) needs numpy, which the suite does not
-// install. So this holds what it can: every instrument reads, every sample
-// any key range names is found, every part of every tune gets an
+// install. So this checks what it can: every instrument reads, every sample
+// any key range names is found, every part of every tune has an
 // instrument, and the theme's render is pinned by hash in check_all.mjs, so
 // a change to the synthesis moves a number someone has to record.
 //
 // NEGATIVE CONTROLS. A DCL stream cut short must throw, and so must one
-// that asks for coded literals, which this reader refuses by name; a
+// that requests coded literals, which this reader rejects by name; a
 // byte changed inside the instruments' packed stream must change ALL_FILES,
 // which shows the hash is over what the explode produced and not over the
 // table of sizes.

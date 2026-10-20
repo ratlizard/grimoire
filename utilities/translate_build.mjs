@@ -9,12 +9,12 @@
    creator Delv), the two forks as "Cythera Data.data" and "Cythera
    Data.rsrc", and "Cythera Data/" as a file of this Mac with its resource
    fork and Finder type set, which is what the workbench's
-   tools/infinite-mac-disk/rebuild.sh --add takes to put it on a disk image.
+   tools/infinite-mac-disk/rebuild.sh --add accepts to put it on a disk image.
    It prints a line per resource changed and what the table did not reach,
    by resource; --missing prints every piece left in English by its hash,
    which is the list a translator works down. --program also writes the
    program in Spanish (translateProgram) from its two forks, as "Cythera" beside
-   the data file in the same three forms, and gives the data file's names their
+   the data file in the same three forms, and gives the names in the data file their
    articles, which the translated program leaves to them; --fixes id,id
    applies those program fixes (js/delv-appfixes.js) in the same pass. What it writes is the
    game's data changed and belongs in no repository. (29 September 2026.) */

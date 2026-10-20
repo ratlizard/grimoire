@@ -5,7 +5,7 @@
  *
  * Make a Scenario can take every picture from a zip of 32 by 32 PNGs the
  * visitor supplies, matched to the game's names. Three things can be wrong
- * with nothing on the page saying so: a PNG decoded to the wrong pixels, a
+ * with nothing on the page showing it: a PNG decoded to the wrong pixels, a
  * name sent to the wrong file, and a tile left as the drawing the pack was
  * meant to replace.
  *
@@ -16,7 +16,7 @@
  * hash pinned below. That hash was reached on 8 October 2026 with all
  * 6,029 pictures compared one by one with Pillow's decode of the same
  * files, none differing; it proves the decoder unchanged, and the day's
- * comparison is what says it was right. Before interlace was read, 73 of
+ * comparison is what shows it was right. Before interlace was read, 73 of
  * the pack's pictures (the doors among them) would not decode and their
  * tiles were quietly left as blobs, which is the fault this file is for.
  *
@@ -26,7 +26,7 @@
  *
  * THE BUILD: a scenario made with the pack must give every tile sheet
  * back at its size, the hero a picture that is neither the old one nor the
- * stick man, and no tile the pack was asked for left to the drawing.
+ * stick man, and no tile requested from the pack left to the drawing.
  *
  * Skips when the pack or the scenario is not on the disk. */
 import {readFileSync, existsSync} from 'node:fs';
@@ -39,7 +39,7 @@ import {makeSandbox} from './dom_stub.mjs';
 const [htmlPath, packPath, dataPath] = process.argv.slice(2);
 for (const [what, p] of [['the art pack', packPath], ['the scenario', dataPath]])
   if (!p || !existsSync(p)) { console.log(`  skip: ${what} is not at ${p}`); process.exit(0); }
-const PACK_PIXELS = '1dc09d1bb1956dcc';   // the header says how it was reached
+const PACK_PIXELS = '1dc09d1bb1956dcc';   // the header explains how it was reached
 let failures = 0;
 const fail = m => { failures++; console.log('  FAIL ' + m); };
 const {sandbox} = makeSandbox();
@@ -75,7 +75,7 @@ for (const [name, [bytes, pixels]] of Object.entries(made)) {
   catch (e) { fail(`a ${name} PNG made here did not decode: ${e.message}`); }
 }
 // The control: a byte in the middle of the compressed stream changed must
-// not come back the same (the last four are zlib's own checksum, which the
+// not come back the same (the last four are zlib's checksum, which the
 // decoder does not read, and changing one of those proved nothing).
 { const b = made.RGBA[0].slice(); b[49] ^= 0x55; let ok = false; try { ok = same(Array.from(ctx.pngDecode(b).rgba), Array.from(want)); } catch (e) { ok = false; } if (ok) fail('a damaged PNG decoded to the right pixels, so the comparison cannot fail'); }
 
@@ -98,7 +98,7 @@ for (const [kind, name, re] of [['person', 'ruffian', /^monster\/orc/], ['beast'
   if (!c || !c.matched || !re.test(c.path)) fail(`"${name}" was sent to ${c && c.path}`);
 }
 const lost = pick('thing', 'zzyzx'), again = pick('thing', 'zzyzx');
-if (!lost || lost.matched || !/^item\//.test(lost.path) || lost.path !== again.path) fail('a name the pack cannot answer did not take one stand-in from the items and keep it: ' + JSON.stringify([lost, again]));
+if (!lost || lost.matched || !/^item\//.test(lost.path) || lost.path !== again.path) fail('a name the pack cannot answer did not receive one stand-in from the items and keep it: ' + JSON.stringify([lost, again]));
 
 // ---- the build ------------------------------------------------------------
 ctx.parseArchiveBytes(new Uint8Array(readFileSync(dataPath)), 'Cythera Data', {via: 'data fork'});

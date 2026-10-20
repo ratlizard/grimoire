@@ -7,11 +7,11 @@
 // only other implementation there is is `unar`, the same code. So holding
 // the port to `unar` shows it faithful, not the format understood: a bug
 // the two share would pass. What does not come from that code is the
-// archive's own word -- every data element carries the CRC-32 of what it
-// holds, which the reader checks as it decompresses -- and the dictionary's,
+// archive's word -- every data element has the CRC-32 of what it
+// contains, which the reader checks as it decompresses -- and the dictionary's,
 // whose CRC-32 and word count XADMaster states. So this checks three things:
 //
-// 1. Every fork of every archive given, by the page's own extractor, byte
+// 1. Every fork of every archive given, by the page's extractor, byte
 //    for byte against what `unar` extracts (resource forks through
 //    ..namedfork/rsrc), and each stream against its stored CRC-32 (the
 //    reader throws when one differs). The three add-ons that are StuffIt X,
@@ -27,11 +27,11 @@
 //    count of distance codes in six bits, not five (XADMaster's
 //    XADStuffItXDeflateVariant). A stream Node's zlib writes, its count
 //    widened by a bit, must inflate to what zlib was given with six bits
-//    and must not with five. StarGrimoire holds a real one to `unar`.
+//    and must not with five. StarGrimoire checks a real one against `unar`.
 //
 // THE NEGATIVE CONTROLS. A byte changed in a compressed stream must be
-// refused (the CRC-32, or the decoder itself), not handed back; a
-// dictionary a word short must be refused; and an archive whose
+// rejected (the CRC-32, or the decoder itself), not handed back; a
+// dictionary a word short must be rejected; and an archive whose
 // compression this page does not read must say which.
 
 import {readFileSync, existsSync, mkdtempSync, rmSync, readdirSync, statSync} from 'node:fs';
@@ -74,7 +74,7 @@ const crcOf = bytes => { sandbox.__b = bytes; return ev('crc32(__b)'); };
   sandbox.STUFFITX_ENGLISH_WORDS = words.split('\n').slice(1).join('\n');
   const msg = ev(`(() => { try { sitxEnglishTable(); return 'taken'; } catch (e) { return e.message; } })()`);
   if (!/not the one StuffIt uses/.test(msg)) fail('a dictionary a word short', msg);
-  else ok('a dictionary a word short', 'refused');
+  else ok('a dictionary a word short', 'rejected');
   ev(`SITX_ENGLISH_TABLE = null;`);
   new vm.Script(english).runInContext(ctx);
 }
@@ -134,8 +134,8 @@ else {
   sandbox.__z = broken;
   const msg = ev(`(() => { try { const a = parseStuffItXArchive(__z); stuffItXFork(__z, a.entries.find(x => x.dataLen > 100000), 'data'); return 'handed back'; } catch (e) { return e.message; } })()`);
   if (msg === 'handed back') fail('a byte changed in a compressed stream', 'the fork was handed back');
-  else ok('a byte changed in a compressed stream', 'refused: ' + msg);
-  // a method this page does not read, named: the Teleporter's stream said to be Darkhorse
+  else ok('a byte changed in a compressed stream', 'rejected: ' + msg);
+  // a method this page does not read, named: the Teleporter's stream marked as Darkhorse
   sandbox.__z = bytes;
   const named = ev(`(() => { const a = parseStuffItXArchive(__z); const e = a.entries.find(x => x.dataLen > 100000); const el = e.sitx.elements.get(e.sitx.forks.data.stream); el.alglist[0] = 2; el.decoded = null; try { stuffItXFork(__z, e, 'data'); return 'handed back'; } catch (er) { return er.message; } })()`);
   if (!/Darkhorse/.test(named)) fail('a method not read', named);

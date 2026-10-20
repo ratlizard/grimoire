@@ -6,7 +6,7 @@
 
    1. The round trip. Every instruction of every function, as its listing
       text (the mnemonic and the operand exactly as dvmDisassemble prints
-      them, a note and all), assembled on its own, must give back the bytes
+      them, a note and all), assembled by itself, must give back the bytes
       it was read from. A data block's bytes are not in the listing, so its
       line is written with them as hex. This is the oracle for the encoder:
       the archive is the whole corpus Ambrosia's compiler produced.
@@ -21,13 +21,13 @@
       afresh: it must have the same objects four bytes on, the same
       instructions in each, and every target a jump, a case, a subroutine
       call, a response or a near word prints, and every `here:` pointer,
-      four more than before. This compares the disassembler's own text,
+      four more than before. This compares the disassembler's text,
       not the relinker's list of sites, so a kind of site the relinker does
-      not know about shows up here as a target that did not move.
+      not handle shows up here as a target that did not move.
 
    The control (--control, and run every time as well): the relinker's site
-   finder is made to forget one kind of site, `then`, and measurement 3 must
-   then fail. dvmRelink checks its own work by finding the sites again, and
+   finder is made to drop one kind of site, `then`, and measurement 3 must
+   then fail. dvmRelink checks its work by finding the sites again, and
    with the same blind spot on both sides that self-check passes -- which is
    exactly why measurement 3 does not use it.
 
@@ -174,6 +174,6 @@ if (r.relinkBad.length) fail('relink', r.relinkBad.slice(0, 8).join('\n    '));
 if (!r.moved) fail('relink', 'nothing moved, so the shift measured nothing');
 // The control: forgetting `then` must be seen from outside.
 const c = run('then');
-if (!c.relinkBad.length) fail('control', 'the relinker was made to forget every `then` and measurement 3 still passed');
+if (!c.relinkBad.length) fail('control', 'the relinker was made to drop every `then` and measurement 3 still passed');
 if (!failures) console.log(`script writing: ${r.ops} instructions in ${r.functions} functions of ${r.resources} resources assemble back to their bytes; all ${r.relinked} with a header relink four bytes on, ${r.moved} offsets moved and read back (${r.headless} are one function from offset 0); the control is caught (${c.relinkBad.length} resources)`);
 process.exit(failures ? 1 : 0);

@@ -4,14 +4,14 @@
    Schroeder's six, the two map fixes of 26 September, and the further fixes
    of 27 September. (25 September 2026; Bryce's six joined the same day at the
    maintainer's word, "all in one".) The karma, resurrection and Peirithous
-   fixes are kept out at his word, each a patch of its own.
+   fixes are kept out at his word, each a separate patch.
 
    Usage: node utilities/combined_patch.mjs index.html "<Cythera Data.data>" <collection dir> <out dir>
 
-   A Magpie patch carries whole resources, so two patches that touch one
+   A Magpie patch contains whole resources, so two patches that touch one
    script cannot both apply: the second replaces the first's copy of it.
    The fixes are applied as stages instead, each on the file the one before
-   left, in DATA_FIX_STAGES's order; js/delv-datafixes.js says why the order
+   left, in DATA_FIX_STAGES's order; js/delv-datafixes.js explains why the order
    is the point. Until 28 September 2026 this ran each builder as a process
    and wrote the file out between stages; it applies the stages in one
    session now (applyDataFixes), and the file it writes was compared byte
@@ -49,7 +49,7 @@ const NAME = 'Cythera All Fixes';
 // A patch's description is a Pascal string of 255 bytes at most, which
 // writeDelverPatch cuts without a word, so a longer one stops the build.
 const DESCRIPTION = 'Every fix in one: Cythera Found Fixes, Cythera Community Fixes, Bryce Schroeder’s unofficial bugfixes, Cythera Further Fixes, Cythera Text Fixes, Cythera Community Text Fixes and Cythera Map Fixes, built in that order and checked against each alone.';
-if (DESCRIPTION.length > 255) throw new Error('the description is ' + DESCRIPTION.length + ' characters, and a patch holds 255');
+if (DESCRIPTION.length > 255) throw new Error('the description is ' + DESCRIPTION.length + ' characters, and a patch has room for 255');
 
 const {ctx} = pageContext(htmlPath, dataPath);
 const ids = everyFix(htmlPath, 'us').filter(id => !['karma', 'resurrection', 'peirithous'].includes(id));

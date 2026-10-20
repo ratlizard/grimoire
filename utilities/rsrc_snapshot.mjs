@@ -2,7 +2,7 @@
 // Behavioural snapshot for the classic-Mac resource decoders in
 // js/mac-rsrc-types.js.
 //
-// There is no build step and no unit tests, so the only way to know a decoder
+// There is no build step and no unit tests, so the only way to establish a decoder
 // edit did not change what these render is to run the real decoders over a
 // real resource fork and hash the result -- text and pixels alike.
 //
@@ -113,7 +113,7 @@ function describe(type, entry, data) {
     case 'NFNT': case 'FONT': { const f = G.decodeNFNT(data);
       return `font:${f.info}:${canvasSig(f.canvas)}:glyphs${f.glyphs.length}:${hash(f.glyphs.map(g => g.code + 'x' + g.width).join(','))}`; }
     case 'cfrg': return G.decodeCfrg ? text(() => G.decodeCfrg(data)) : 'n/a';
-    // The engine's own types, and Cythera's. Lite arrived with the light cones
+    // The engine's types, and Cythera's. Lite arrived with the light cones
     // and was never added here, so twenty-five resources were being drawn by a
     // decoder nothing guarded; the rest landed together on 7 September 2026.
     case 'Lite': { const l = G.decodeLite(data); return l ? `lite:${l.side}:${l.max}:${l.centre}:${canvasSig(l.canvas)}:${hash(l.text)}` : null; }
@@ -129,7 +129,7 @@ function describe(type, entry, data) {
     /* LINF and the rest of DATA arrived on 14 September 2026, and the way they
        arrived is the warning. Both were given decoders in exportArtifacts
        first, the suite was run, and this hash did not move -- which read as
-       "the change is safe" and actually meant "this file has its own switch
+       "the change is safe" and actually meant "this file has a separate switch
        and neither type is in it". Nine DATA resources and all three LINF were
        being decoded by nothing that guarded them, exactly as Lite was before
        7 September. If a decoder is added to the page, add it here in the same
@@ -176,7 +176,7 @@ for (const forkPath of forkPaths) {
     lines.push(...per);
   }
   // The cursor gallery collapses acur sets into animations; it is the one
-  // view built from several resources at once, so it gets its own line.
+  // view built from several resources at once, so it has a separate line.
   try {
     const items = G.cursorGalleryItems(fork);
     const desc = items.map(i => i.anim ? `anim#${i.id}[${i.ids.join('/')}]=${i.frames.length}frames`

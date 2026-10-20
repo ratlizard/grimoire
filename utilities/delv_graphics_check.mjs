@@ -14,12 +14,12 @@
 // proves it is *unchanged*, which is a different thing and would happily
 // preserve a bug forever. delvmod's DelvImage is an independent implementation
 // of the same format by the people who worked the format out, so where the two
-// agree the artwork is almost certainly being drawn correctly, and where they
-// disagree one of them is wrong and it is worth knowing which.
+// match the artwork is almost certainly being drawn correctly, and where they
+// differ one of them is wrong and it is worth knowing which.
 //
 // The two do differ deliberately in four places, all in opcodes delvmod treats
 // as fatal or unknown; those are listed at the bottom of the output rather than
-// hidden, because the whole point is to know where the readings part company.
+// hidden, because the whole point is to find where the readings part company.
 
 import {readFileSync, existsSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
@@ -78,7 +78,7 @@ for (const ref of REF) {
   if (!ref.ok) { refFailed++; continue; }
 
   // 0x8EFF is a sized picture wearing a tile sheet's subindex, and the viewer
-  // now reads it as one. delvmod's _CLASS_HINTS maps the whole of subindex 141
+  // reads it as one now. delvmod's _CLASS_HINTS maps the whole of subindex 141
   // to TileSheet, so this is a deliberate divergence and is reported as one
   // below rather than counted as a failure.
   const sizedSheet = subindex === 141 && ctx.tileSheetIsSized &&
@@ -128,7 +128,7 @@ if (divergedByDesign.length) {
   console.log(`  read differently on purpose: ${divergedByDesign.length} ` +
     `(${divergedByDesign.map(r => '0x' + r.toString(16).toUpperCase()).join(', ')})`);
   console.log('    subindex-141 resources whose first four bytes are a {width,height} header and');
-  console.log('    whose sixteen tile ids carry no attributes in 0xF002 -- a sized picture filed');
+  console.log('    whose sixteen tile ids have no attributes in 0xF002 -- a sized picture filed');
   console.log('    with the tile sheets. delvmod reads them as 32x512 strips, which shears them.');
 }
 
@@ -164,7 +164,7 @@ if (warned.size) {
     // there is one, so the walk starts on a real opcode.
     if (ref.subindex === 137) continue;
     const d = ref.subindex === 142 ? raw.subarray(4) : raw;
-    // Step exactly as decompressDCG does, using its own bit helpers. A walker
+    // Step exactly as decompressDCG does, using its bit helpers. A walker
     // that computes the operand widths independently desyncs and starts
     // counting pixel data as instructions -- the first version of this
     // reported all 256 byte values as opcodes, which is the giveaway.
@@ -178,7 +178,7 @@ if (warned.size) {
       else if (op < 0xE0) { p += 1 + (op & 0x03); }
       else if (op < 0xF0) { p += 2; }
       else if (op < 0xF8) { p += 3; }
-      else break;                       // terminator, or an opcode nobody knows
+      else break;                       // terminator, or an opcode nobody has decoded
       if (p > d.length) { ranOff++; break; }
     }
     walked++;
@@ -212,5 +212,5 @@ if (warned.size) {
 }
 
 const failed = sized + differed + viewerFailed;
-console.log(failed ? `\nFAIL — ${failed} image(s) disagree` : '\ngraphics cross-check: clean');
+console.log(failed ? `\nFAIL — ${failed} image(s) differ` : '\ngraphics cross-check: clean');
 process.exit(failed ? 1 : 0);

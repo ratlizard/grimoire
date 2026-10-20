@@ -3,11 +3,11 @@
    WRITTEN BY A SCRIPT: the workbench's tools/app68k/export_js.py, from the
    tables its fix68k.py checks and build68k.py builds. Change the fixes there
    and write this file again; an edit here alone would make the page's program
-   and the workbench's differ, which utilities/app_patch_check.mjs refuses.
+   and the workbench's differ, which utilities/app_patch_check.mjs rejects.
 
    The 68K program is the resource fork's CODE resources. A fix is any of:
    - inPlace: bytes at an offset of a CODE resource (the offset counts the
-     resource's own header, as the workbench's listings do), `was` checked
+     resource's header, as the workbench's listings do), `was` checked
      before `now` is written;
    - caves: new code. The site's bytes (`was`) become a bra.l to the cave and
      nops; the cave goes at CODE 1's end, rounded up to four, or for any other
@@ -16,14 +16,14 @@
      here. A cave is parts: 'hex' bytes, ':name' a label, 'bXX name' a short
      branch whose opcode byte is XX, 'bra.l 0x..' and 'bsr.l 0x..' a long one
      to an offset in the segment, 'pcrel 0x.. k' a long holding that offset
-     less its own place plus k. `bodies` has one per choice of the fixes that
+     less its place plus k. `bodies` has one per choice of the fixes that
      share the site, keyed by their names joined with '+' in this order;
    - values: a relocated long given another value (seg 0 is CODE 0's header,
-     the size of the A5 world above A5, which takes the largest any chosen fix
-     asks);
+     the size of the A5 world above A5, which is the largest any chosen fix
+     needs);
    - data0: bytes of DATA 0, the compressed A5 world, at an offset.
    The comment after a bytes part is capstone's reading of it (its branches
-   shown from the part's own start). The fixes' reasons are js/delv-appfixes.js's
+   shown from the part's start). The fixes' reasons are js/delv-appfixes.js's
    for the PowerPC half and the workbench's fix68k.py for this one. */
 
 const APP_FIXES_68K = {

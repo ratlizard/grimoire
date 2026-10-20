@@ -1,6 +1,6 @@
 // js/mac-*.js are copies of ratlizard/mac-files and must stay byte for byte what
 // it has: a change goes to mac-files first and is copied here (its README,
-// *Changing a file*). This finds mac-files where MAC_FILES says, else beside
+// *Changing a file*). This finds mac-files where MAC_FILES points, else beside
 // this checkout (in a front, its worktree), else at ~/e-z-g-cythera/mac-files,
 // and fails without it: a check that skips passes unseen.
 import fs from 'node:fs';

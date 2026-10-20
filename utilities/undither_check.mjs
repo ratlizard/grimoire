@@ -8,8 +8,8 @@
  * could measure that, because the continuous-tone original is not in the
  * archive and never was.
  *
- * But this repository carries the forward process. ditherToCytheraPalette is
- * the deliberate inverse of the undither, and it takes any image into the
+ * But this repository has the forward process. ditherToCytheraPalette is
+ * the deliberate inverse of the undither, and it maps any image into the
  * Cythera palette as a (pi,pi) checkerboard between two ramps. So a source
  * image put through it has a KNOWN original, and the undither can be scored
  * against the thing it is trying to recover rather than against a proxy.
@@ -163,7 +163,7 @@ else console.log(`  measured is ${((1 - meas.all / orig.all) * 100).toFixed(1)}%
                  `${((meas.edge / orig.edge - 1) * 100).toFixed(1)}% at edges`);
 
 // Both must actually remove dither: a filter that returned its input would
-// score well on edges and tell us nothing.
+// score well on edges and show nothing.
 for (const [name, p] of Object.entries(PRE)) {
   let before = 0, after = 0;
   for (const [, src] of sources) {
@@ -174,16 +174,16 @@ for (const [name, p] of Object.entries(PRE)) {
     fail(`${name} removed little of the dither (${before.toFixed(1)} -> ${after.toFixed(1)})`);
 }
 
-/* checkerNotch takes a `guide` and never reads it, so every pass after the
+/* checkerNotch accepts a `guide` and never reads it, so every pass after the
    first recomputes an identical result. That is why the measured preset uses
    one. If the smoother ever starts using its guide this stops being true, and
-   this check is what says so. */
+   this check is what shows it. */
 {
   const one = evaluate(Object.assign({}, PRE.original, { passes: 1 }));
   const three = evaluate(Object.assign({}, PRE.original, { passes: 3 }));
   if (Math.abs(one.all - three.all) > 1e-9)
     fail('passes now changes the result — the measured preset should stop using 1');
-  else console.log('  passes is inert for the notch smoother (1 and 3 agree exactly)');
+  else console.log('  passes is inert for the notch smoother (1 and 3 match exactly)');
 }
 
 console.log(failures ? `\nFAIL — ${failures} problem(s)` : '\nundither: clean');

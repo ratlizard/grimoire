@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /* A builder, not a check, and not a fix: Tlepolemus's old panpipes sold at
-   last, as one Magpie patch of its own, "Cythera Pipes of the Deep". (3
+   last, as a separate Magpie patch, "Cythera Pipes of the Deep". (3
    October 2026, the maintainer: two versions for Tlepolemus, the offer cut
    as a fix, and the sale as "some outlandish version like the sour grapes
    scenario".) In the shipped game he offers the set ("are you interested
-   in buying an old set?"), a yes gets "Stop by some evening and I'll see if
+   in buying an old set?"), a yes draws "Stop by some evening and I'll see if
    I can find them.", and nothing ever sells them: his "I hope you enjoyed
    them - I wasn't getting any use out of them." waits on his character flag
    0, which nothing sets (bugs.md, *Tlepolemus never sells his old
@@ -19,20 +19,20 @@
    notes of every set but Philinus's, and his flag 0 is set, so his own
    "I hope you enjoyed them" answers after. Play them (Use) in Odemia, his
    town and his harbour, and four tentacles come up through the ground
-   around the party and fight; play them anywhere else and a line says
+   around the party and fight; play them anywhere else and a line reads
    something in Odemia's harbour heard. Killing the last tentacle closes it
    with a line. Played again with none left, they come again.
 
-   HOW, ALL OF IT THE ENGINE'S OWN ROUTES, as Sour Grapes:
+   HOW, ALL OF IT THE ENGINE'S ROUTES, as Sour Grapes:
    - Tlepolemus (0x1837): the yes answer's line is replaced by a test of the
-     hour and the purse, the sale (0xD05 takes the money, `Create` the set,
+     hour and the purse, the sale (0xD05 collects the money, `Create` the set,
      SetCharacterFlag his flag 0), and the old line when it is not evening.
    - The panpipes (0x1099): Use, after its test for an open window, tests
      Data1 2 first; in zone 2 it hatches the tentacles and returns without
      opening the instrument, elsewhere it prints and plays on.
    - The tentacles are characters 146 to 149, free records in 0xF009 (Sour
-     Grapes takes 140 to 145), the tentacle's body (prop type 205, a unit of
-     the game's own, hatched from eggs on the world map), feral (byte 25,
+     Grapes uses 140 to 145), the tentacle's body (prop type 205, a unit of
+     the game's, hatched from eggs on the world map), feral (byte 25,
      3), zone 2, not alive. Setting a record's square and then status_flags
      with the alive bit hatches a creature there (SetField, field 20, calls
      TActiveMonster::HatchEgg), which is how Sour Grapes raises its grapes.
@@ -44,12 +44,12 @@
      prints the closing line; then it hands on to the default OnDeath
      (0x301D). Each has a portrait (0x8891 to 0x8894), the tentacle's first
      frame on white, as the grapes have theirs.
-   A save carries its own character table, so a game begun before the patch
+   A save has a separate character table, so a game begun before the patch
    has no tentacles; then the pipes play and nothing comes.
 
    Changed: Tlepolemus 0x1837, the panpipes 0x1099 and the character table
-   0xF009, which Sour Grapes also changes (its own six records): built on a
-   Cythera Data that has Sour Grapes merged in, this keeps them. The words
+   0xF009, which Sour Grapes also changes (six records of the table): built on a
+   Cythera Data that has Sour Grapes merged in, this preserves them. The words
    are ours, not the game's, and seven-bit like every script's. */
 import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
 import vm from 'node:vm';

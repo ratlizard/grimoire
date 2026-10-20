@@ -10,7 +10,7 @@
 // image, is every allocated block marked in the bitmap and no other, does the
 // catalog's node count match its length, does every leaf record's key sort
 // after the one before it, does the leaf chain reach every leaf, does every
-// index record point at a node that exists and carry that node's first key.
+// index record point at a node that exists and have that node's first key.
 //
 // SECOND, BY ROUND TRIP, WHEN A systemless CHECKOUT IS THERE. `cargo run
 // --example hfs_dump` in benletchford/systemless reads a disk image with an
@@ -19,7 +19,7 @@
 // against what went in.
 //
 // The round trip is not an oracle in the sense delvmod is, and the header of
-// js/mac-hfs.js says why: the writer was written FROM systemless's reader, so
+// js/mac-hfs.js explains why: the writer was written FROM systemless's reader, so
 // they share whatever that got wrong, and CLAUDE.md's rule is that a decoder
 // ported from a project cannot cross-check it. What it does catch is the class
 // of mistake that is actually likely here -- an offset written one field along,
@@ -52,7 +52,7 @@ const check = (cond, what, detail) => cond ? ok() : fail(what, detail);
 
 // ---- the writer, as the page loads it --------------------------------------
 // Only the two files the writer needs, not the whole page: this has no DOM to
-// run in and wants none. That the page actually loads them is verify_viewer's
+// run in and needs none. That the page actually loads them is verify_viewer's
 // job -- its check 4b fails on a name the JS calls and nothing declares, and
 // downloadEditedDiskImage calls writeHfsImage.
 const {sources} = collectPageScripts(pagePath);
@@ -211,7 +211,7 @@ function audit(label, image, expected) {
   for (let n = 1; n < nodeCount; n++) {
     const node = nodeRecords(catalog, n);
     // A spare node is all zeroes, and zero is also ndIndexNode -- so an index
-    // node is one that is kind 0 AND says it holds records above the leaves.
+    // node is one that is kind 0 AND marks itself as holding records above the leaves.
     if (!node || node.kind !== 0 || node.recs.length === 0 || node.height < 2) continue;
     indexNodes++;
     for (const rec of node.recs) {
@@ -220,7 +220,7 @@ function audit(label, image, expected) {
       const child = u32(rec, key.dataAt);
       // Apple's form: the key padded to the tree's key length, with the length
       // byte to match. Mac OS 7.6 mounts the variable form but cannot insert
-      // under it (js/mac-hfs.js says how that was found).
+      // under it (js/mac-hfs.js explains how that was found).
       if (key.keyLen !== 37) {
         indexOk = false;
         fail(`${label}: index key length ${key.keyLen}, expected 37`);
@@ -247,7 +247,7 @@ function audit(label, image, expected) {
   if (indexOk) ok();
   say(depth === (indexNodes ? 2 : 1) || depth >= 1, 'bthDepth is set', String(depth));
   say(root >= 1 && root < nodeCount, 'bthRoot is a node in the file', String(root));
-  say(freeNodes > 0, 'the catalog keeps spare nodes', freeNodes + ' free');
+  say(freeNodes > 0, 'the catalog has spare nodes', freeNodes + ' free');
 
   say([...files.values()].every(f => f.startBlocks === 0),
       'filStBlk and filRStBlk are 0 in every file record');
@@ -263,7 +263,7 @@ function audit(label, image, expected) {
     const set = (bitmap[i >> 3] & (0x80 >> (i & 7))) !== 0;
     if (set !== used.has(i)) {
       bitmapOk = false;
-      fail(`${label}: bitmap disagrees at block ${i}`, set ? 'marked but unclaimed' : 'claimed but unmarked');
+      fail(`${label}: bitmap differs at block ${i}`, set ? 'marked but unclaimed' : 'claimed but unmarked');
       break;
     }
   }

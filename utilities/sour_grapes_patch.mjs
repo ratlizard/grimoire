@@ -22,12 +22,12 @@
    day, and a level and a point of reflex every two days, a point of body
    and four of health every day, to 12, 24, 18 and 120. Elsewhere, at
    two, five, nine and fourteen days, entering a zone prints a line that
-   says so. Killing the last one opens the conversation again, Glaucus signs
+   states it. Killing the last one opens the conversation again, Glaucus signs
    for nine hundred and forty barrels of sour must, the To Do line is struck
    (CompleteQuest(17)), Apis's flag 5 is cleared and her flag 2 set, the one
    her own "Hungry for that meal I promised?" waits on.
 
-   HOW, ALL OF IT THE ENGINE'S OWN ROUTES:
+   HOW, ALL OF IT THE ENGINE'S ROUTES:
    - Gremlin 17 (0x1F11) is the trigger and the clock. Its Enter runs on
      every zone change, anywhere, after the zone's things are loaded when
      the change is in play (TGameViewer::GoToLocation loads the level, then
@@ -54,17 +54,17 @@
      of each, the dying one's own not yet cleared, CharEntry::DeathRites
      clears it after) and, when none is, plays the ending; then it hands on
      to the default OnDeath (0x301D), so a grape dies as any creature does.
-   - The grapes are the game's own: tile 0x249, named "grapes" in the
+   - The grapes are the game's: tile 0x249, named "grapes" in the
      tile-name table, aspect 3 of the food type the page shows as
      flatbread (the maintainer, who saw them on Glaucus's table). The
      bird's four frames take them where the food tile has them, every other
      frame a pixel higher; each grape's portrait (0x888B to 0x8890) is them
-     at their own size on white, with no frame. (Portrait 206, taken first,
+     at their native size on white, with no frame. (Portrait 206, taken first,
      is a flowering bush; the cluster in the vintner's portrait frame came
      next, before the food was found.)
-   A save carries its own character table, so a game begun before the patch
+   A save has a separate character table, so a game begun before the patch
    has no grapes; then Glaucus signs without a fight. A save made before it
-   also keeps gremlin 17 off until the save sheet switches it on.
+   also leaves gremlin 17 off until the save sheet switches it on.
 
    Everything is added but four: the character table 0xF009, the unit
    table 0xF008, the tile names 0xF004 and the bird's sheet, which no other
@@ -104,7 +104,7 @@ const ending = ['sys OpenConversation', 'end', ...speaker(GLAUCUS, 0),
 
 // The days since the contract was taken: quest values 30 and 31 of the
 // hero, which no script of the game reads or writes (it uses 0 to 16). 30
-// holds the day the wait began, as GameDay mod 120 plus one so that 0 can
+// stores the day the wait began, as GameDay mod 120 plus one so that 0 can
 // mean not yet, and 31 the last warning printed. The count is taken mod 120
 // too, and held at 40 by moving the start along, so a wait longer than the
 // wrap cannot come round to none; every figure below has stopped by 26.
@@ -153,7 +153,7 @@ const gremlin = ['subroutine 0x0205',
   'set_local 0x03', 'byte 7', 'local Var00', 'byte 2', 'div', 'add', 'end', ...cap(3, 18),
   'set_local 0x04', 'byte 18', 'local Var00', 'byte 4', 'mul', 'add', 'end', ...cap(4, 120),
   // Each grape: its prop slot (the working list's record of the same number,
-  // where HatchEgg takes the creature's type from) made a placed prop of the
+  // where HatchEgg reads the creature's type from) made a placed prop of the
   // bird's type, flags 4 as a character standing in the zone has; its square
   // on both the slot and the record; its figures; then the alive bit, which
   // hatches it.

@@ -25,12 +25,12 @@
 
    artPackChoose(pack, kind, name, n)
      The file for one of the game's names. The game's words are looked for
-     among a file's words, a file's own name counting three times its
-     folders; ART_PACK_WORDS says which of the pack's words a Cythera word
+     among a file's words, a file's name counting three times its
+     folders; ART_PACK_WORDS gives which of the pack's words a Cythera word
      may also be read as, and it is the one judgement in here, made by
      looking at what the plain match chose (the same standing as
-     HERO_SPRITES in delv-graphics.js). A name nothing answers takes a file
-     from its kind's own drawer by a hash of the name, so the same thing is
+     HERO_SPRITES in delv-graphics.js). A name nothing answers is given a file
+     from its kind's drawer by a hash of the name, so the same thing is
      always the same wrong picture: a person from the pack's player bodies,
      a beast from its animals, a thing from its items, ground from its
      floors, and ground a walker cannot cross from its walls.
@@ -157,7 +157,7 @@ const ART_PACK_DRAWERS = {
 };
 const ART_PACK_SPARE = { hero: /^player\/base/, person: /^player\/base/, beast: /^monster\/animals/, thing: /^item/, floor: /^dungeon\/floor/, wall: /^dungeon\/wall/ };
 /* The file for a name: `kind` one of ART_PACK_DRAWERS' keys, `n` a number
-   that picks among files that match equally (a tile's own, so that ground
+   that picks among files that match equally (a tile's, so that ground
    of one name is not one picture repeated). { file, matched }. */
 function artPackChoose(pack, kind, name, n) {
   const key = kind + '\n' + name;
@@ -183,7 +183,7 @@ function artPackChoose(pack, kind, name, n) {
     pack.chosen.set(key, hit);
   }
   if (!hit.files.length) return null;
-  // A name the pack answers takes its files in turn; one it does not takes
+  // A name the pack answers uses its files in turn; one it does not uses
   // one file by the name alone, so the stand-in is at least always the same.
   const i = hit.matched ? (n >>> 0) % hit.files.length : badArtHash([...String(name)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7)) % hit.files.length;
   return { file: hit.files[i], matched: hit.matched };

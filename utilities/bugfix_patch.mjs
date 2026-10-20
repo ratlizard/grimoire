@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* A builder, not a check: the six fixes of Bryce Schroeder's unofficial
-   bugfix patch, rebuilt with the page's own code writer, as one Magpie patch,
+   bugfix patch, rebuilt with the page's code writer, as one Magpie patch,
    "Cythera Bugfix Patch". (24 September 2026, at the maintainer's word.) The
    fixes are the stage "bugfix" of js/delv-datafixes.js, where each one's
    reasoning is, since 28 September 2026: Fetch, fishing, Aethon's lock

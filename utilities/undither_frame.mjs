@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs index.html's own undither() over a captured screen frame.
+// Runs index.html's undither() over a captured screen frame.
 //
 //   node utilities/undither_frame.mjs <in.rgba> <W> <H> <out.rgba> [key=value ...]
 //
@@ -12,7 +12,7 @@
 // map's diagonal linework, which nobody had thought about.
 //
 // Raw RGBA in and raw RGBA out, because there is no PNG decoder here and this
-// tree does not take dependencies; PIL does the conversion on either side:
+// tree has no dependencies; PIL does the conversion on either side:
 //
 //   python3 -c "from PIL import Image; im=Image.open('f.png').convert('RGBA'); \
 //               open('f.rgba','wb').write(im.tobytes()); print(im.size)"
@@ -67,7 +67,7 @@ if (raw.length !== W * H * 4) {
   process.exit(2);
 }
 // Buffers made out here are not the vm's ArrayBuffer, and the filter builds and
-// indexes typed arrays of its own, so hand it one constructed inside the context.
+// indexes typed arrays from its context, so hand it one constructed inside the context.
 const rgba = vm.runInContext(`new Uint8ClampedArray(${W * H * 4})`, ctx);
 rgba.set(raw);
 const locked = vm.runInContext(`new Uint8Array(${W * H})`, ctx);

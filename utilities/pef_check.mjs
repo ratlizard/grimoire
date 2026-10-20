@@ -4,7 +4,7 @@
 //
 //   node utilities/pef_check.mjs js/mac-pef.js "$TMPDIR/Cythera.data" [cythera_symbols.txt]
 //
-// Structural on its own: the container parses, the loader's counts agree
+// Structural by itself: the container parses, the loader's counts match
 // with the tables it names, every imported symbol has a name from the
 // string table, the routines come out in address order without overlap,
 // and a handful of routines the sheets cite by name are found. With the
@@ -22,7 +22,7 @@
 // TOC as the loader lays them out). There is no independent second
 // implementation to hold it to -- the workbench's relocation simulator read
 // one instruction's fields the other way round until this loader showed it,
-// and was fixed to agree, so its agreement is not evidence for that field --
+// and was made to match, so its agreement is not evidence for that field --
 // so it is held to what a correct loader must produce in this particular
 // program:
 //
@@ -31,7 +31,7 @@
 //     their end with nothing left unexplained;
 //   - the TOC, the second word of main's transition vector, is inside the
 //     data section;
-//   - every cross-TOC glue stub (lwz r12,d(r2) ... bctr) names an import
+//   - every cross-TOC glue stub (lwz r12,d(r2) ... bctr) points at an import
 //     through its TOC slot, which is only true if the imports were counted
 //     into the right slots;
 //   - every transition vector -- a relocated code pointer followed by the
@@ -81,7 +81,7 @@ const lx = vm.createContext({});
 new vm.Script(readFileSync(jsPath, 'utf8')).runInContext(lx);
 const img = lx.pefLoad(bytes);
 let loaderNote = '';
-if (!img) fail('pefLoad refused the container');
+if (!img) fail('pefLoad rejected the container');
 else {
   const u32 = (b, o) => ((b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3]) >>> 0;
   const ci = img.pef.sections.findIndex(x => x.kind === 0), di = img.pef.sections.findIndex(x => x.kind === 2);

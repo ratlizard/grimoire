@@ -5,14 +5,14 @@
 //
 // WHY. js/delv-fold.js renders a Delver VM script as something closer to
 // source: the expression tree folded into calls and infix operators. Doing that
-// needs one fact the raw listing never has to know -- how many values each
+// needs one fact the raw listing never has to have -- how many values each
 // postfix op consumes -- and that fact is written down nowhere. delvmod's ddasm
 // emits postfix, so it never needs arity; its rdasm is a flat assembler and
-// carries none; the wiki's RDASM Opcodes page gives the semantics in prose
+// has none; the wiki's RDASM Opcodes page gives the semantics in prose
 // ("The usual arithmetic operation", "length of object on top of stack") and
 // never a number. DVM_POPS is therefore read off those descriptions, and a
 // misreading would not look like an error -- it would look like a plausible
-// line of source saying the wrong thing, which is the worst failure available
+// line of source stating the wrong thing, which is the worst failure available
 // here. So it is measured rather than trusted.
 //
 // THREE ASSERTIONS, and they fail differently:
@@ -21,7 +21,7 @@
 //    it means DVM_POPS is too greedy for that op. Every such place is marked
 //    in the folded text and counted here; the count must be nil.
 //
-// 2. A SINGLE-VALUE FRAME HOLDS EXACTLY ONE VALUE. `return`, `print`, `if`,
+// 2. A SINGLE-VALUE FRAME HAS EXACTLY ONE VALUE. `return`, `print`, `if`,
 //    an assignment's right-hand side -- each opens a frame that is one
 //    expression by definition, so a frame of that kind left holding two values
 //    means DVM_POPS is too timid somewhere inside it. An argument list is
@@ -29,7 +29,7 @@
 //    how it came out.
 //
 // 3. RE-EXPANDING GIVES BACK THE SAME OPS. The tree is walked back out to a
-//    flat op sequence and compared with dvmDisassemble's own, op for op,
+//    flat op sequence and compared with dvmDisassemble's, op for op,
 //    including the closing 0x40s and their branch targets. Equal means the tree
 //    lost nothing and invented nothing. This is the half that (1) and (2)
 //    cannot see: an arity table can be perfectly balanced and still have
@@ -71,7 +71,7 @@ const ev = code => vm.runInContext(code, ctx);
 sandbox.__a = new Uint8Array(readFileSync(dataPath));
 
 if (control) {
-  // get_field consumes the one value before it. Told to consume two, every
+  // get_field consumes the one value before it. Set to consume two, every
   // frame holding a field access either underflows or comes out short.
   ev('DVM_POPS[0x62] = 2;');
   console.log('  (control: get_field made to consume two values)');
@@ -79,11 +79,11 @@ if (control) {
 
 /* Which frames are one expression rather than an argument list, per op and per
    group. The four call forms open one frame holding as many values as the
-   callee takes, so they are excluded; everything below opens one frame per
+   callee accepts, so they are excluded; everything below opens one frame per
    value it needs.
 
    `call_index` is the one that is both, and the check found it rather than
-   being told: it was listed here as single and failed on 0xC43 and 0x3021 with
+   being set: it was listed here as single and failed on 0xC43 and 0x3021 with
    three and four values left. The wiki's opcode table is unambiguous --
    `9C rr rr (i...) 40 (p...) 40`, "Calls a resource r+i with parameters p" --
    so its first frame is one index expression and its second is the parameters.
@@ -189,7 +189,7 @@ else
        `${r.under.length} place(s), so DVM_POPS is too greedy for one of them: ${cap(r.under, 5)}`);
 
 if (!r.unbalanced.length)
-  ok('every single-expression frame holds exactly one value', `${r.single} such frames`);
+  ok('every single-expression frame has exactly one value', `${r.single} such frames`);
 else
   fail('a single-expression frame did not reduce to one value',
        `${r.unbalanced.length} place(s), so DVM_POPS is too timid for something inside them: ${cap(r.unbalanced, 5)}`);

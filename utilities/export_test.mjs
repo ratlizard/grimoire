@@ -29,7 +29,7 @@ const archive = new Uint8Array(readFileSync(dataPath));
 
 // ---- minimal DOM so the top-level script body can be evaluated -------------
 // The stub lives in dom_stub.mjs; see the header there for why it has a canvas.
-// objectUrls: this check catches saves instead of performing them, so it wants
+// objectUrls: this check catches saves instead of performing them, so it needs
 // a stubbed URL.createObjectURL rather than Node's real one.
 const {sandbox} = makeSandbox({objectUrls: true});
 const ctx = vm.createContext(sandbox);

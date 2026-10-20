@@ -6,9 +6,9 @@
 
    Each fix is applied, the corrected file is written as the section's
    download writes it (MacBinary, both forks) and read back through the
-   page's own container reader, and then: every string a fix names says
-   what the fix says it now says; every other resource is byte for byte
-   the shipped one; and the fix applied a second time is refused, which is
+   page's container reader, and then: every string a fix names reads
+   what the fix states it should read; every other resource is byte for byte
+   the shipped one; and the fix applied a second time is rejected, which is
    the negative control -- an applier that matched nothing, or matched
    loosely, would either change nothing or let the second run through.
    Cythera's fork, so with none this skips. */
@@ -49,7 +49,7 @@ for (const f of fixes) {
   if (same) fail(f.id + ': ' + same);
   let refused = false;
   try { run(`applyDataRsrcFixes(__fixed, [${JSON.stringify(f.id)}])`); } catch (e) { refused = true; }
-  if (!refused) fail(f.id + ': applied a second time and not refused');
+  if (!refused) fail(f.id + ': applied a second time and not rejected');
 }
 console.log(failures ? `\nFAIL — ${failures} problem(s)` : `${fixes.length} fix, ${edits} strings, written and read back; everything else unchanged; a second run refused`);
 process.exit(failures ? 1 : 0);

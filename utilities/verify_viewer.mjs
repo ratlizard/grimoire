@@ -39,7 +39,7 @@ const KNOWN_GLOBALS = new Set([
   'OffscreenCanvas', 'createImageBitmap', 'structuredClone', 'queueMicrotask',
   'ResizeObserver', 'IntersectionObserver', 'MutationObserver', 'crypto',
   'CustomEvent', 'Event', 'AbortController', 'globalThis', 'ImageData', 'FontFace',
-  // Built-ins. Listed because check 4b asks "does anything declare this?", and
+  // Built-ins. Listed because check 4b tests "does anything declare this?", and
   // the answer for Uint8Array is "the language does".
   'Object', 'Array', 'String', 'Number', 'Boolean', 'Symbol', 'BigInt', 'Function',
   'Math', 'JSON', 'Date', 'RegExp', 'Error', 'TypeError', 'RangeError', 'SyntaxError',
@@ -63,7 +63,7 @@ function analyze(path) {
   // Both the inline block and every <script src> the page pulls in, in
   // document order. A page whose shared modules failed to load would otherwise
   // pass this check while being completely broken in a browser -- and
-  // collectPageScripts is also what refuses a `type="module"`, which would not
+  // collectPageScripts is also what rejects a `type="module"`, which would not
   // load at all from file://.
   let collected;
   try {
@@ -80,11 +80,11 @@ function analyze(path) {
     .map(s => s.name).join(' ');
   const js = scripts.join('\n;\n');
   r.stats.jsBytes = js.length;
-  // A script the page adds itself when it is first wanted, named by its path
+  // A script the page adds itself when it is first needed, named by its path
   // in the page's code and not among its <script> tags (js/delv-es.js, the
   // Spanish table, and js/mac-geneva.js, the Geneva its strikes are made
   // from, which js/page-mechanics.js adds on the Patches section's button):
-  // what it declares counts as declared for 4b, since the page's own code
+  // what it declares counts as declared for 4b, since the page's code
   // calls into it once it is loaded. reach_check.mjs follows the same paths.
   let wantedJs = '';
   {
@@ -122,7 +122,7 @@ function analyze(path) {
     const m = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.exec(scripts[i]);
     if (m) {
       const line = scripts[i].slice(0, m.index).split('\n').length;
-      r.errors.push(`${scriptNames[i] || 'script #' + i} carries a raw control character (0x${m[0].charCodeAt(0).toString(16).padStart(2, '0')}) at line ${line}: write it as an escape, or grep reads the file as binary and skips it`);
+      r.errors.push(`${scriptNames[i] || 'script #' + i} has a raw control character (0x${m[0].charCodeAt(0).toString(16).padStart(2, '0')}) at line ${line}: write it as an escape, or grep reads the file as binary and skips it`);
     }
   }
 
@@ -153,7 +153,7 @@ function analyze(path) {
   let hm;
   while ((hm = handlerAttr.exec(html))) {
     const body = hm[2] !== undefined ? hm[2] : hm[3];
-    // A leading (?<![.\w$]) keeps us off method calls like
+    // A leading (?<![.\w$]) stops it matching method calls like
     // document.getElementById('x').click() -- only bare calls are ours to check.
     for (const call of body.matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(/g)) {
       const name = call[1];
@@ -200,7 +200,7 @@ function analyze(path) {
       for (const part of m[1].split(',')) add(part.trim().replace(/^\.\.\./, '').split('=')[0].trim().replace(/[[{].*/, ''));
     for (const m of src.matchAll(/([A-Za-z_$][\w$]*)\s*=>/g)) add(m[1]);
     // Object-literal properties, and method shorthand. The second pattern
-    // insists on a `{` body: written as `name\s*\(` it matched every call site
+    // requires a `{` body: written as `name\s*\(` it matched every call site
     // in the file, so every called name counted as bound and this whole check
     // silently passed on the very bug it was written for.
     for (const m of src.matchAll(/([A-Za-z_$][\w$]*)\s*:/g)) add(m[1]);
@@ -223,7 +223,7 @@ function analyze(path) {
   // ---- 4c. a function declared in two scripts ----------------------------
   // The other side of 4b. Classic scripts share one global scope, and a
   // function declaration is a global binding, so two files declaring the
-  // same name do not collide loudly: the later file wins and the earlier
+  // same name do not collide loudly: the later file is used and the earlier
   // function is dead, whatever its callers expected. When the resource
   // browser's decoders came into js/ two names collided that way
   // (samplesToWav, hexDump) and were renamed by hand; encodeGIF collided the
@@ -243,7 +243,7 @@ function analyze(path) {
     let twice = 0;
     for (const [name, files] of where) if (files.length > 1) {
       twice++;
-      r.errors.push(`function "${name}" is declared ${files.length}x (${files.join(', ')}); the last one wins and the others are dead`);
+      r.errors.push(`function "${name}" is declared ${files.length}x (${files.join(', ')}); the last one is used and the others are dead`);
     }
     r.stats.topLevelFunctions = where.size;
     r.stats.declaredTwice = twice;

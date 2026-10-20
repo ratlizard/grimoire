@@ -10,7 +10,7 @@ oracle and an oracle you have patched is not one.
     Assembler.__init__, and delv/__init__.py pulls rdasm in -- so importing
     anything at all fails without it. Reading and disassembling archives never
     builds an assembler, so a stub that defers the failure to the point of use
-    keeps the rest of delv working. **This one is still required.**
+    leaves the rest of delv working. **This one is still required.**
   * **inspect.getargspec**, removed in 3.11, which rdasm.py used at import time
     to derive assembler operand rules. The checkout this repository points at
     -- ratlizard/delvmod, the maintainer's fork -- fixes this internally at rdasm.py:65, so
@@ -41,7 +41,7 @@ import os
 import sys
 import types
 
-# getargspec's four fields, under its own names -- delvmod reads .args off the
+# getargspec's four fields, under its names -- delvmod reads .args off the
 # result in places, so a plain tuple is not a faithful enough stand-in.
 _ArgSpec = collections.namedtuple('ArgSpec', 'args varargs keywords defaults')
 

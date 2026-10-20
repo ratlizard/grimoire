@@ -72,7 +72,7 @@ def build_archive(delv, header, resources):
     for resid, data, enc in resources:
         res = arc.get(resid, True)
         # bytearray(bytes) rather than set_data(text): works on every
-        # delvmod vintage and keeps the oracle bytes-only.
+        # delvmod vintage and leaves the oracle bytes-only.
         res.data = bytearray(data)
         res.loaded = True
         res.dirty = True

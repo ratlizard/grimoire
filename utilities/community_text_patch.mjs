@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* A builder, not a check: the typos the community marked in its own
+/* A builder, not a check: the typos the community marked in its
    dialogue collection, as one Magpie patch, "Cythera Community Text Fixes".
    (24 September 2026, at the maintainer's word.)
 
@@ -10,10 +10,10 @@
    BreadWorldMercy453 and reformatted by Wizard; in the reference under
    community/guides-site/dialogue/Dialogue) marks each typo as
    <original,fix>. This reads every pair out of every file, with the two
-   words before it and the two after in the game's own wording (every other
-   pair on the line put back to its original, the collection's own notation
+   words before it and the two after in the game's wording (every other
+   pair on the line put back to its original, the collection's notation
    taken out), and hands them to dataFixCommunityTypoEdits in
-   js/delv-datafixes.js, which finds each in the game's text and says why
+   js/delv-datafixes.js, which finds each in the game's text and explains why
    some are left; that is the stage "community-text", and its reasoning is
    there since 28 September 2026.
 
@@ -43,7 +43,7 @@ export function readCollection(collDir) {
       PAIR.lastIndex = 0;
       while ((m = PAIR.exec(rawLine))) { line += rawLine.slice(last, m.index); pairs.push({ at: line.length, orig: m[1], fix: m[2] }); line += m[1]; last = m.index + m[0].length; }
       line += rawLine.slice(last);
-      // Strip the collection's own notation: triggers, notes, actions, the
+      // Strip the collection's notation: triggers, notes, actions, the
       // speaker label, so only words the game also has remain.
       const clean = s => s.replace(/\{[^}]*\}/g, ' ').replace(/%[^%]*%/g, ' ').replace(/#/g, ' ').replace(/[\[\]]/g, ' ');
       for (const p of pairs) {
@@ -77,7 +77,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const [htmlPath = 'index.html', dataPath, collDir, outDir] = process.argv.slice(2);
   if (!dataPath || !collDir || !outDir) { console.error('usage: community_text_patch.mjs index.html <Cythera Data.data> <collection dir> <out dir>'); process.exit(2); }
   const typos = readCollection(collDir);
-  // What the search makes of them on this file, said before the build.
+  // What the search makes of them on this file, printed before the build.
   const {ctx} = pageContext(htmlPath, dataPath);
   const r = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     const s = dataPatchSession(__a);

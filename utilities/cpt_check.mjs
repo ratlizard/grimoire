@@ -6,17 +6,17 @@
 // WHY. js/mac-compactpro.js is a port of The Unarchiver's XADMaster, and
 // `unar` is the same code, so holding the port to `unar` shows it faithful,
 // not the format understood. What does not come from that code is the
-// archive's own word: the catalog's CRC-32, which looksLikeCompactPro holds
-// it to, and the CRC-32 of a file with one fork, which cptFork holds it to.
+// archive's word: the catalog's CRC-32, which looksLikeCompactPro checks
+// it against, and the CRC-32 of a file with one fork, which cptFork checks.
 //
 // 1. Every fork of the Cythera Makeover kit (608_Cythera_Makeover.sea, the
 //    one add-on that is Compact Pro: a self-extractor, its archive in the
 //    data fork of a MacBinary copy) byte for byte against what `unar`
 //    extracts, resource forks from the AppleDouble `unar -k visible` writes.
-// 2. extractDelverArchive reads it, and says it holds no Cythera Data or
+// 2. extractDelverArchive reads it, and reports that it has no Cythera Data or
 //    saved game.
 //
-// THE NEGATIVE CONTROLS. A byte changed in a compressed fork must be refused
+// THE NEGATIVE CONTROLS. A byte changed in a compressed fork must be rejected
 // (its CRC-32), not handed back; a byte changed in the catalog must leave
 // the archive unrecognised.
 
@@ -85,7 +85,7 @@ else {
   // ---- 2. through extractDelverArchive -------------------------------------
   const msg = ev(`(() => { try { extractDelverArchive(__z); return 'opened'; } catch (e) { return e.message; } })()`);
   if (!/a Compact Pro self-extracting archive with no Cythera Data or saved game in it/.test(msg)) fail('extractDelverArchive', msg);
-  else ok('extractDelverArchive', 'reads the kit and says it holds no Cythera Data or saved game');
+  else ok('extractDelverArchive', 'reads the kit and reports that it has no Cythera Data or saved game');
   // ---- the negative controls -----------------------------------------------
   const where = ev(`(() => { const e = parseCompactProArchive(__c).entries.find(x => !x.isFolder && x.rsrcLen > 10000 && !x.dataLen); return e ? [e.path, e.offset] : null; })()`);
   if (!where) fail('a byte changed in a fork', 'the kit has no large file with only a resource fork to change');
@@ -94,7 +94,7 @@ else {
     ev(`__b = __c.slice(); __b[${where[1] + 500}] ^= 0x10`);
     const changed = ev(`(() => { try { parseCompactProArchive(__b).entries.find(x => x.path === __p).read('rsrc'); return 'handed back'; } catch (e) { return e.message; } })()`);
     if (changed === 'handed back') fail('a byte changed in a fork', 'the fork was handed back');
-    else ok('a byte changed in a fork', 'refused: ' + changed);
+    else ok('a byte changed in a fork', 'rejected: ' + changed);
   }
   const catalog = ev(`(() => { const b = __c.slice(); const at = u32be(b, 4); b[at + 9] ^= 0x01; return looksLikeCompactPro(b); })()`);
   if (catalog) fail('a byte changed in the catalog', 'still recognised');

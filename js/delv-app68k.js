@@ -15,35 +15,35 @@
    values compressed in DATA 0. A Mac with a 68K processor, the fork's default
    route and the browser player run the second, so a fix reaches them only
    through it. The fixes were read again in the 68K code, one by one, and are
-   played in the fork; the workbench's tools/app68k/ holds them, and
+   played in the fork; the workbench's tools/app68k/ has them, and
    js/delv-appfixes68k.js is written from its tables.
 
    WHAT IT DOES, in the order the workbench's build68k.py does it, so that
    the bytes come out the same:
    1. The in-place edits: each site's bytes checked, then written. Two fixes
-      that change one byte are refused together.
+      that change one byte are rejected together.
    2. The relocated values: a long the loader relocates, given another value
       (it is checked to hold the old one). CODE 0's long at 0, the size of the
-      A5 world above A5, is grown instead to the largest any chosen fix asks:
+      A5 world above A5, is grown instead to the largest any chosen fix needs:
       hood-size and menu-items each move something to the world's end, at
       places that do not overlap, so either may be chosen alone.
    3. DATA 0's bytes, checked and written.
-   4. The caves, in the order js/delv-appfixes68k.js lists them. A cave goes
+   4. The caves, in the order of js/delv-appfixes68k.js. A cave goes
       at CODE 1's end rounded up to four (CODE 1's relocations are kept in
       DATA 0, so nothing follows its code), or, in any other segment, where
       its relocation table begins: the table moves up by the cave's length
-      and the segment's header (the long at 8) says where it now is. The
+      and the segment's header (the long at 8) records where it now is. The
       table's entries count from the segment's start and all lie below the
       table, so none of them moves. The site becomes `bra.l` to the cave,
-      then `nop`s. A cave never holds a long the loader relocates: it reaches
+      then `nop`s. A cave never has a long the loader relocates: it reaches
       the jump table as `jsr d16(a5)` and CODE 1 through a relocated long of
-      its own segment read PC-relative (the `pcrel` part), so moving a
+      its segment read PC-relative (the `pcrel` part), so moving a
       segment's table needs no new entry in it.
 
    The parts of a cave: 'hex' bytes; ':name' a label; 'bXX name' a short
    branch, XX its opcode byte (60 bra, 66 bne, 67 beq, 6c bge, 6d blt...), to
    a label; 'bra.l 0x..' and 'bsr.l 0x..' a 32-bit branch to an offset in the
-   segment; 'pcrel 0x.. k' a long holding that offset less its own place plus
+   segment; 'pcrel 0x.. k' a long holding that offset less its place plus
    k (the operand of a `move.l #d,d0` that a `move.l (0,pc,d0.l)` six bytes
    on reads from). These are the forms the caves use and no more; the 68K
    instructions themselves are bytes, with capstone's reading beside them in

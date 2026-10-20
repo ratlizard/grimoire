@@ -16,12 +16,12 @@
    the maintainer's word); otherwise the British forms go American as the
    Hintbook has them.
 
-   What is deliberately NOT here: the community's own dialogue typos (a patch
-   of their own, community_text_patch.mjs), and "Beserk" and "celstial" and
+   What is deliberately NOT here: the community's dialogue typos (a separate
+   patch, community_text_patch.mjs), and "Beserk" and "celstial" and
    the rest of the application's strings (a Magpie patch cannot reach them).
 
    textFixEdits() is the list itself, for the builders that write the text
-   fixes with something of their own after them (hall_lines.mjs's casts, the
+   fixes with something else after them (hall_lines.mjs's casts, the
    Strine opening). */
 import vm from 'node:vm';
 import {fileURLToPath} from 'node:url';

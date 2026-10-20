@@ -1,14 +1,14 @@
 // The minimal DOM that the non-UI harnesses evaluate a page's script body in.
 //
 // Three harnesses -- decoder_snapshot.mjs, loader_test.mjs and export_test.mjs
-// -- each carried their own copy of this stub, near-identical but drifted in
+// -- each had a separate copy of this stub, near-identical but drifted in
 // small ways (one memoised getElementById, two did not; one stubbed
 // URL.createObjectURL, two took the real URL). All three shared one flaw:
 // getContext() returned null.
 //
 // That was harmless for years, because none of these three checks look at
 // pixels. Then index.html gained the animated colour-cycling
-// footer scene, which asks for a 2D context while the script body is still
+// footer scene, which requests a 2D context while the script body is still
 // being evaluated -- so all three began failing at load with
 //
 //   FATAL: script body threw while loading:
@@ -18,17 +18,17 @@
 // context. Three copies meant one fix had to be made three times, so instead
 // there is now one canvas here and the copies are gone.
 //
-// The context is deliberately thin. It remembers the last putImageData and
+// The context is deliberately thin. It records the last putImageData and
 // hands it back from getImageData, which is the whole of what the decoders
 // need: they write pixels in and read them out again. Everything that would
 // actually rasterise -- drawImage, fillText, the gradients -- is a no-op,
 // because nothing in these harnesses inspects what a browser would have drawn.
-// If a check ever needs that, it wants viewer_smoke.mjs's stub, not this one.
+// If a check ever needs that, it needs viewer_smoke.mjs's stub, not this one.
 
 const noop = () => {};
 
 // A page that loads successfully starts its animation loops, and a repeating
-// timer keeps Node's event loop alive forever -- so a harness that had finished
+// timer leaves Node's event loop open forever -- so a harness that had finished
 // all its assertions and printed its result would still never exit. (This only
 // began to bite once the stub gained a canvas: before that the viewer's footer
 // scene threw during load and no timer was ever registered.) Unref'ing the
@@ -44,7 +44,7 @@ function keepaliveFreeInterval(fn, ms, ...rest) {
 }
 
 // A 2D context good enough to decode into. viewer_smoke.mjs imports this too,
-// so there is one canvas implementation rather than two that can disagree.
+// so there is one canvas implementation rather than two that can differ.
 const LITTLE_ENDIAN = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
 export function makeCanvasContext(cv) {
   const im = (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(Math.max(0, w * h * 4)) });
@@ -58,7 +58,7 @@ export function makeCanvasContext(cv) {
     // mctb, pltt) draw their swatch grids with fillRect and nothing else, so
     // against a no-op they all hashed to the same empty buffer and two
     // different palettes looked identical. utilities/rsrc_sandbox.mjs used to
-    // carry a second canvas that did this, and the two disagreeing was the
+    // have a second canvas that did this, and the two differing was the
     // whole reason there is one implementation here.
     putImageData(d) { cv._px = d; cv.width = cv.width || d.width; cv.height = cv.height || d.height; },
     getImageData(x, y, w, h) { return cv._px || im(w, h); },
@@ -90,7 +90,7 @@ export function makeCanvasContext(cv) {
   };
 }
 
-// One element type stands in for every tag. It answers whatever the page asks
+// One element type stands in for every tag. It answers whatever the page requests
 // of it without recording anything, except the 2D context, which is made once
 // and kept so that a decode-then-read round trip on the same element works.
 export function makeElement() {

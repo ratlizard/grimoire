@@ -10,17 +10,17 @@
    Hecky, an infant who worships his daddy; Hadrian is RAMBO; Emesa is
    Emetic, who loathes being asked for flatbread and bakes it foul on
    purpose; the hall's guard is LKH Bro, from the gym; and the scrolls of
-   the Test, which the game's own text gives to the mage Tavara (Omen names
+   the Test, which the game's text gives to the mage Tavara (Omen names
    him, and the Test's notes speak of Omen as their author's creature), are
    villainy without restraint.
 
-   How it holds together: each spoken line is replaced whole, matched as the
+   How it fits together: each spoken line is replaced whole, matched as the
    text fixes leave it, keeping its click marks, line breaks, the fragments
    the script joins mid-sentence and every highlighted @word, since a
    highlighted word must still begin with a keyword the script answers. The
    names change in the name table (what is drawn over a head), in every
    mention across every script, and in the keyword lists, which gain the new
-   name beside the old so that either can be typed: "alar" keeps working and
+   name beside the old so that either can be typed: "alar" still works and
    "rick" joins it. "Al" is not a keyword, since typed words match by their
    first letters and "al" would catch "alchemy". Omen has no keyword; the
    guard's is "guar" and stays. */
@@ -31,7 +31,7 @@ export const CAST = {
   name: 'Cythera Voices of the Hall',
   description: 'The text fixes, and Land King Hall\u2019s people with new names and voices: Rick the surfer, Piemag as Yoda, Ollum as Gollum, Hecky who worships his daddy, RAMBO, Emetic who loathes flatbread, LKH Bro from the gym, and the Test\u2019s scrolls as villainy.',
   names: { Alaric: 'Rick', Magpie: 'Piemag', Hadrian: 'RAMBO', Emesa: 'Emetic', Hector: 'Hecky', 'LKH Guard': 'LKH Bro', Omen: 'Ollum' },
-  // Omen only where it is the creature: Prusa's prophecy (0x021D) counts its Omens Five, a common noun, and keeps them.
+  // Omen only where it is the creature: Prusa's prophecy (0x021D) counts its Omens Five, a common noun, and leaves them.
   omenResids: [0x0242, 0x10EA, 0x1428, 0x1801, 0x1CC3],
   keywords: [['alar', 'rick'], ['magp', 'piem'], ['hadr', 'ramb'], ['emes', 'emet'], ['hect', 'heck']],
   lines: {

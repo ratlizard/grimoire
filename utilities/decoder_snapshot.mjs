@@ -105,7 +105,7 @@ for (const subn of IMG_SUBN) {
   for (const [idx, off, len] of es) {
     const bytes = archive.slice(off, off + len);
     // The resid matters: one 0x8Exx resource is a sized picture rather than a
-    // tile strip, and decodeResource can only tell which from its id.
+    // tile strip, and decodeResource can only distinguish them by id.
     const resid = ((subn + 1) << 8) | idx;
     const r = tryCall('decodeResource', () => g.decodeResource(arc, bytes, subn, resid));
     if (!r.ok) { fail++; continue; }
@@ -155,7 +155,7 @@ for (const subn of IMG_SUBN) {
 // resource starts being read as ciphertext when it was plaintext, or the other
 // way round -- the thing the sampled lines below do not cover, and the thing
 // that was silently wrong for 18 resources until delvmod's tables replaced the
-// guessing heuristic. utilities/delv_crosscheck.mjs says *which* ones.
+// inferring heuristic. utilities/delv_crosscheck.mjs records *which* ones.
 {
   let clear = 0, decrypted = 0, bytes = 0;
   const d = createHash('sha256');
