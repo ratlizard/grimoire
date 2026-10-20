@@ -2372,6 +2372,11 @@ const DATA_FIX_TEXT_AMERICAN = [
   dataFixT('"Terrorisation"', 0x1A0E, 'Terrorisation', 'Terrorization', 1),
   dataFixT('"Mass Terrorisation"', 0x1A26, 'Terrorisation', 'Terrorization', 1),
   dataFixT('"grey slime"', 0x021D, 'grey slime', 'gray slime', 1),
+  // As Alaric's cook has "specialty" and the Lost Cult of Scylla "worshiped" (the maintainer, 20 October 2026).
+  dataFixT('"speciality"', 0x184A, 'speciality', 'specialty', 1),
+  dataFixT('"worshipping"', 0x187F, 'worshipping', 'worshiping', 1),
+  dataFixT('"worshippers"', 0x1C62, 'worshippers', 'worshipers', 1),
+  dataFixT('"worshipped"', 0x1C67, 'worshipped', 'worshiped', 1),
 ];
 const DATA_FIX_TEXT_BRITISH = (() => {
   // Both cases of a stem; a form that may not occur is allowed to match nothing.
@@ -2382,7 +2387,7 @@ const DATA_FIX_TEXT_BRITISH = (() => {
     ['gray', 'grey'], ['defense', 'defence'], ['offense', 'offence'], ['center', 'centre'], ['odor', 'odour'],
     ['artifact', 'artefact'], ['mommy', 'mummy'], ['recogniz', 'recognis'], ['organiz', 'organis'], ['specializ', 'specialis'],
     ['neutraliz', 'neutralis'], ['harmoniz', 'harmonis'], ['realiz', 'realis'], ['paralyz', 'paralys'], ['fiber', 'fibre'],
-    ['plow', 'plough'], ['mold', 'mould'], ['sulfur', 'sulphur'], ['armor', 'armour']];
+    ['plow', 'plough'], ['mold', 'mould'], ['sulfur', 'sulphur'], ['armor', 'armour'], ['specialty', 'speciality'], ['worshiped', 'worshipped']];
   const out = [];
   for (const [st, to] of STEMS) out.push(...both('UK "' + st + '"', null, st, to));
   // Niobe's keywords answer "mom" and "momm"; with her "@mommy" now "@mummy" they follow it.
