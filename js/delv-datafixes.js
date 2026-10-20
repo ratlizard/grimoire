@@ -1421,13 +1421,18 @@ const DATA_FIXES = [
   // The Directed Nexus scroll (0x104B): the scroll's Use deleted the spell it
   // cast and itself by number after the spell had moved the party to Land
   // King Hall, where those numbers name two of the hall's things. It notes
-  // the zone and the spell first; if the zone or the spell's record is
-  // not what it was, it deletes nothing by number and removes one scroll of
-  // that spell from whoever carries it (RemoveItem, as Selinus takes a
-  // book). Directed Nexus is the one spell that changes zone. The scroll's
+  // the zone and the spell first; if the zone, the spell's record or the
+  // scroll's own record is not what it was, it deletes nothing by number
+  // and removes one scroll of that spell from whoever carries it
+  // (RemoveItem, as Selinus takes a book). The scroll's record is asked too
+  // because read inside the hall the zone is the same: the party's things
+  // leave and come back after the end, so the scroll's old number holds
+  // another of them (the copy, played 20 October 2026, or a companion's
+  // thing), while the copy's old slot, freed, still reads the spell's
+  // type. Directed Nexus is the one spell that changes zone. The scroll's
   // Use, from the cast to its return, and two more locals.
   { id: 'nexus-scroll', group: 'rules', stage: 'further', title: 'A Directed Nexus scroll now leaves Land King Hall\u2019s things alone, instead of destroying two of them',
-    played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a Directed Nexus scroll used in Omen’s Test moves the hero to Land King Hall and is used up, the hall’s things untouched, against the scroll kept and a table and a passthrough of the hall deleted unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the hero moved to Land King Hall and the scroll gone from the pack, against the scroll kept unpatched',
+    played: 'fork, 68K, 20 October 2026, alone and on “All Fixes”: read after the party came from Omen’s Test, the hall untouched and the scroll used up, against a table and a passthrough deleted and the scroll kept unpatched; read inside Land King Hall, the hero alone and again with the party’s things there, the scroll used up and nothing else lost, against the scroll kept and, with the party, the hero’s Land King Amulet deleted unpatched. The Mac OS 8.5 pass of 10 October 2026 was of the version before the scroll’s own record was asked after',
     plan: (s) => {
       const what = 'the scroll deletes nothing it has left behind', p = dataPatchPlace(s, what, 0x104B,
         ['set_local 0x01', 'method Use (0x9)', 'local Var00', 'end', 'end', 'sys Delete', 'local Var00', 'end',
@@ -1437,7 +1442,8 @@ const DATA_FIXES = [
         'set_local 0x02', 'global CurrentZone (0x10)', 'end',
         'set_local 0x03', 'arg Arg00', 'get_field data1 (0x6)', 'end',
         'set_local 0x01', 'method Use (0x9)', 'local Var00', 'end', 'end',
-        'if_not', 'global CurrentZone (0x10)', 'local Var02', 'eq', 'local Var00', 'get_field obj_type (0x4)', 'local Var03', 'eq', 'and', 'then -> moved',
+        'if_not', 'global CurrentZone (0x10)', 'local Var02', 'eq', 'local Var00', 'get_field obj_type (0x4)', 'local Var03', 'eq', 'and',
+        'arg Arg00', 'get_field obj_type (0x4)', 'short 0x004B', 'eq', 'and', 'arg Arg00', 'get_field data1 (0x6)', 'local Var03', 'eq', 'and', 'then -> moved',
         'sys Delete', 'local Var00', 'end',
         'if_not', 'local Var01', 'word None', 'eq', 'local Var01', 'byte 0x00', 'eq', 'or', 'then -> done',
         'sys Delete', 'arg Arg00', 'end',
