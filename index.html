@@ -2122,15 +2122,15 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
       the World map, one name per place from the editor’s list where the game calls several maps the
       same thing (“Headwater Ruins” rather than the game’s “Ruins”).
       Off, every gallery shows only names the file itself contains (0xF004 tile names, zone-entry
-      text, resource symbols); where there is none, the cell shows that there is none.</span></span></label>
+      text, resource symbols), and marks the cells that have none.</span></span></label>
   <div id="faceWrap">The font this page uses
     <label><input type="radio" name="faceChoice" value="game" onchange="setFaceChoice(this.value)"> the game’s, from the open file</label>
     <label><input type="radio" name="faceChoice" value="chicago" onchange="setFaceChoice(this.value)"> Chicago</label>
     <label><input type="radio" name="faceChoice" value="system" onchange="setFaceChoice(this.value)"> this device’s</label>
     <span class="amNote">Cythera uses the font Argos A Nouveau, which is in the game’s resource fork. The page reads it from
     whatever file you open and uses it unless you choose otherwise here. With no file open there is nothing to read it from, so the
-    page uses Chicago, Susan Kare’s 1984 font for the Macintosh, recreated by Duane King. This page includes none of the game’s files
-    to stand in for it.</span></div>
+    page uses Chicago, Susan Kare’s 1984 font for the Macintosh, recreated by Duane King. The page does not include a copy
+    of the game’s font.</span></div>
   <div id="unditherWrap">Undither
     <label><input type="radio" name="unditherScope" value="off" onchange="setUnditherScope(this.value)"> off</label>
     <label><input type="radio" name="unditherScope" value="portraits" onchange="setUnditherScope(this.value)"> portraits</label>
@@ -2163,7 +2163,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   </ul>
   <p>Everyone named here is credited for work Grimoire draws on. None of them was involved in making it or has endorsed it, and its mistakes are its maintainer's.</p>
   <p>Grimoire was written with the assistance of Claude, Gemini and Perplexity.</p>
-  <p>Source is available at GitHub at <a href="https://github.com/ratlizard/grimoire" target="_blank" rel="noopener">github.com/ratlizard/grimoire</a>.</p>
+  <p>The source is on GitHub at <a href="https://github.com/ratlizard/grimoire" target="_blank" rel="noopener">github.com/ratlizard/grimoire</a>.</p>
   <p class="amNote">Cythera™ is copyright ©1993–9 Ambrosia Software, Inc. (R.I.P.) This is an unofficial fan-made tool.</p>
 </div>
 <div id="searchWrap" role="dialog" aria-label="Search" style="display:none">
@@ -2665,7 +2665,7 @@ from the delvmod wiki; it is not in the file. Turn these names on or off under
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.316.9';
+const GRIMOIRE_VERSION = '1.316.10';
 /* The name at the top, and the tab's icon. The grimoire's own tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

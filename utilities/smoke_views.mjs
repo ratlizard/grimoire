@@ -81,7 +81,7 @@ try {
         let html = walk(REGISTRY.get('sheetGrid'));
         const spearAt2 = /propWordOpen\(100,2\)/.test(html) && /at 2, 0x0864/.test(html);
         if (!/0x205E/.test(html) || !/8 × 1,024 \+ 94/.test(html) || !/shows tile 0x0208, <b[^>]*>flail<\/b>/.test(html) || !/damage 15, reach 1, Mace, 18 grains/.test(html))
-          fail('items', 'the mace at aspect 8 does not read out as 0x205E, the flail, with the mace’s own numbers');
+          fail('items', 'the mace at aspect 8 does not read out as 0x205E, the flail, with the mace’s numbers');
         else if (!spearAt2) fail('items', 'the spear is not listed as reaching the flail tile at aspect 2 (0x0864)');
         else if (!(pw.ench && pw.ench.guarded && pw.ench.added && pw.ench.magic)) fail('items', 'the enchantment was not read off the outcome routine: ' + JSON.stringify(pw.ench));
         else if (pw.examines.length !== 3 || !pw.examines.every(e => e.above2 === 'It has an extremely sharp edge.' && e.above0 === 'It is very sharp.') || !pw.examines.some(e => e.pt === 95))
@@ -99,7 +99,7 @@ try {
             ctx.showItemDetail(95); ctx.propWordData(1, '3');
             html = walk(REGISTRY.get('sheetGrid'));
             if (!/Examine shows “It has an extremely sharp edge\.”/.test(html)) fail('items', 'the dagger at Data1 3 does not quote its Examine line');
-            else if (!/never reads its aspect<\/b>: at any aspect it is the same dagger in every figure/.test(html)) fail('items', 'the dagger’s page does not say its class never reads the aspect');
+            else if (!/never reads its aspect<\/b>, so at any aspect it is the same dagger in every figure/.test(html)) fail('items', 'the dagger’s page does not say its class never reads the aspect');
             else if ((function () { ctx.renderItemSheet(); const h = walk(REGISTRY.get('sheetGrid')); return !/Weapons &amp; Armor<\/span><span class="groupNote">Anything used in a fight/.test(h) || !/Containers<\/span><span class="groupNote">Anything that contains other things/.test(h) || !/Carried Goods<\/span><span class="groupNote">Everything else you can pick up/.test(h); })()) fail('items', 'the Items dividers do not say what puts an item under each');
             else if ((function () { ctx.showItemDetail(213); ctx.propWordSet(1); const h = walk(REGISTRY.get('sheetGrid')); return !/reads its aspect<\/b> \(2 places\)/.test(h) || !/Eaten, it feeds <b[^>]*>\+8<\/b> and the eater says “Yetch!”/.test(h); })()) fail('items', 'the mushroom steak at aspect 1 does not show its class reads the aspect, what the dried jellyfish feeds and what the eater says');
             else if ((function () { ctx.showItemDetail(0x1F); ctx.propWordSet(4); const h = walk(REGISTRY.get('sheetGrid')); return !/Drunk, it is the <b[^>]*>Antidote Potion<\/b>: clears Poisoned/.test(h); })()) fail('items', 'the potion at aspect 4 does not show the Antidote');

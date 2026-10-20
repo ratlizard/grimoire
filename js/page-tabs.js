@@ -81,7 +81,7 @@ function buildXrefIndex() {
 // where it does not. An invented purpose would be worse than admitting none.
 const SUBINDEX_PURPOSE = {
   0:   ['Symbol table', 'One resource, 0x0101, holding names for numbered things. They are the developers’ names and do not always match the game as released, so they are a hint rather than the truth.'],
-  1:   ['Data lists and the game’s writing', 'Lists of things: character names, and the global values the symbol table in subindex 0 names. It is also where Cythera’s in-game writing is: the bookshelf histories and bestiaries, the prophecies, the scrolls and letters, the signs, the gravestones and the ring inscriptions. Each passage is one entry in a list, and a thing in the world picks its entry with the number in its Data1. The Mechanics page covers them under The game’s own writing.'],
+  1:   ['Data lists and the game’s writing', 'Lists of things: character names, and the global values the symbol table in subindex 0 names. It is also where Cythera’s in-game writing is: the bookshelf histories and bestiaries, the prophecies, the scrolls and letters, the signs, the gravestones and the ring inscriptions. Each passage is one entry in a list, and a thing in the world picks its entry with the number in its Data1. The Mechanics page covers them under The Game’s Writing.'],
   2:   ['Global store', '0x301 has four values that any script can read and write: the quality of each inn. 0x33F is four bytes that nothing uses.'],
   3:   ['AI combat scripts', 'Named behaviors: Attack Nearest, Defend, Beserk, Healer. The file stores each unencrypted, as a name followed by a body that is not script code like the rest of the file.'],
   4:   ['Archetypes', '0x501 is the nine characters a game can start as, with their names in 0x203 (Explorer, Fighter, Swordsman, Beserker [sic], Mage, Wizard, Mystic, Storyteller, Rogue) and their descriptions in 0x204, in that order. Each has body, reflex and mind, then the skills it starts with: the skill’s number plus 1,024 for each level of it, where a level of 0 means an aptitude for the skill rather than the skill itself. The dialog that creates a character reads it. 0x500 and 0x540 contain only zeros.'],
@@ -1118,8 +1118,8 @@ const TAB_TREE = [
 
 // What the faded tabs with nothing behind them say when opened.
 const PLACEHOLDER_TABS = {
-  APPPEF: 'The program’s data fork is the PowerPC executable, a PEF container: its sections, ' +
-    'this shows the shared libraries it uses and the routines it names once the program is open. ' +
+  APPPEF: 'The program’s data fork is the PowerPC executable, a PEF container. Once the program is open, ' +
+    'this shows its sections, the shared libraries it uses and the routines it names. ' +
     'The 68K CODE resources are in its resource fork, listed under Resource Fork.',
   AISCRIPTS: 'The Combat AI scripts come with the game as separate .ai text files, not inside ' +
     'the file. The game runs the compiled ' +

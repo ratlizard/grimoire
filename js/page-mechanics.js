@@ -200,10 +200,10 @@ function mechDiceBytes(dice) {
   const fix = dice.bytes.find(b => /roll matched/.test(b.what));
   const rows = dice.bytes.map(b => '<tr><td>' + svEsc(b.what) + '</td>' + srcCell(b.val, hex4(b.at)) + '<td class="num">' + svEsc(String(b.now)) + '</td></tr>').join('');
   const tries = [];
-  if (pay) tries.push('Write <b>00</b> at ' + srcNum(pay.val, hex4(pay.at)) + ' and a match pays nothing: <b>' + mean({ matchPay: 0 }) + '</b> an obol a game without the skill, <b>' + mean({ matchPay: 0, gambling: true }) + '</b> with it.');
-  if (pay) tries.push('Write <b>7F</b> there and a match pays 127: <b>' + mean({ matchPay: 127 }) + '</b> a game.');
+  if (pay) tries.push('Write <b>00</b> at ' + srcNum(pay.val, hex4(pay.at)) + ' and a match pays nothing; you average <b>' + mean({ matchPay: 0 }) + '</b> obols a game without the skill and <b>' + mean({ matchPay: 0, gambling: true }) + '</b> with it.');
+  if (pay) tries.push('Write <b>7F</b> there and a match pays 127; you average <b>' + mean({ matchPay: 127 }) + '</b> obols a game.');
   if (fix && fix.next !== null && gate && gate.next !== null && !dice.skillAlways)
-    tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + srcNum(fix.val, hex4(fix.at)) + ' and the Gambling skill moves your die whatever the roll, so every game you play with the skill is a match: <b>' + mean({ skillAlways: true, gambling: true }) + '</b> a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + srcNum(gate.val, hex4(gate.at)) + ' as well, and you do not need the skill either.');
+    tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + srcNum(fix.val, hex4(fix.at)) + ' and the Gambling skill moves your die whatever the roll, so every game you play with the skill is a match, and you average <b>' + mean({ skillAlways: true, gambling: true }) + '</b> obols a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + srcNum(gate.val, hex4(gate.at)) + ' as well, and you do not need the skill either.');
   return '<div class="mechSub">What to edit</div>' +
     '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>byte</th><th class="num">at, in 0x812</th><th class="num">now</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     (tries.length ? '<ul class="ruleList">' + tries.map(t => '<li>' + t + '</li>').join('') + '</ul>' : '');
@@ -402,7 +402,7 @@ function mechExperienceFigure(rule) {
       { points: [[1, cap], [12, cap]], colour: MECH_INK.warm, dash: '3 3', name: 'the cap, ' + n(cap) }
     ],
     marks: stuck <= 12 ? [{ x: stuck, y: mechLevelThreshold(stuck, base), dot: true, colour: MECH_INK.warm }] : []
-  }), 'Each level costs as much as every level before it put together. The ' + ord(stuck) + ' is the last; it comes past ' + n(mechLevelThreshold(stuck - 1, base)) + ' and the next needs <b>' + n(mechLevelThreshold(stuck, base)) + '</b>, which experience cannot reach.');
+  }), 'Each level costs as much as every level before it put together. The ' + ord(stuck) + ' level is the last; it comes once experience passes ' + n(mechLevelThreshold(stuck - 1, base)) + ', and the next would need <b>' + n(mechLevelThreshold(stuck, base)) + '</b>, which experience cannot reach.');
 }
 
 // Karma is a line from nothing to a hundred with the player put on it at 55,
@@ -1712,7 +1712,7 @@ function renderGremlinMaker() {
       whichName = m ? m[1].replace(/\\n/g, ' ').slice(0, 60) : 'no room script of that number';
     }
   }
-  cell(choice('gremlinWhen', [['room', 'the party enters a room (untested)'], ['zone', 'a zone is entered, or a save loads'], ['signal', 'a script sends a signal (untested)']], st.when, 'when'),
+  cell(choice('gremlinWhen', [['room', 'the party enters a room (untested)'], ['zone', 'the party enters a zone, or a save loads'], ['signal', 'a script sends a signal (untested)']], st.when, 'when'),
        text('gremlinWhich', st.which, 'gremlinNum', st.when === 'signal' ? 'number' : 'any', 'which'),
        el('span', 'mechSub', ' ' + (whichName ? svEsc(whichName)
          : st.when === 'room' ? 'the number on the room’s egg, or empty for any room'
@@ -1748,7 +1748,7 @@ function renderGremlinMaker() {
   const status = el('div', 'mechSub'); status.id = 'gremlinCheck';
   host.appendChild(status);
   if (st.listing !== null) {
-    const back = el('div', 'mechSub', 'The listing you wrote is used. ' + svLink('Back to the form', 'gremlinSet(\'listing\', null)'));
+    const back = el('div', 'mechSub', 'This uses the listing you wrote. ' + svLink('Back to the form', 'gremlinSet(\'listing\', null)'));
     host.appendChild(back);
   }
   const bar = el('div', 'mechStats');
@@ -3853,7 +3853,7 @@ function renderMechanicsSheet(value) {
       cb.skillOffLoop ? '<b>A weapon’s skill adds nothing</b>, because of a bug; the script ' +
         srcNum(cb.skillOffLoop[0], 'reads it from the wrong place') + ' and so always finds 0, so Sword, Axe and Mace make no difference to an armed blow.' : '',
       'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. Then, <b>in this order</b>: a margin of nothing or less <b>misses</b>; ' +
-        (cb.parry ? 'otherwise the shields get a chance; each blocking item the defender wears gives <b>a random number from 0 to its block figure plus the Shield skill</b>, the game adds these up, and the shields <b>parry</b> a margin below the total' : 'what is left lands') +
+        (cb.parry ? 'otherwise each blocking item the defender wears gives <b>a random number from 0 to its block figure plus the Shield skill</b>, and the shields <b>parry</b> a margin below the sum of these' : 'what is left lands') +
         '.',
       cb.dmgAdd ? 'A hit does <b>' + srcNum(cb.dmgAdd) + ' plus a random number below the damage figure, plus the enchantment</b>' + (cb.skillOffLoop ? '' : ', with the skill added to the figure first') + '. The defender’s resistance comes off afterward, so the game’s word for a blow can overstate it.' : '',
       ar && ar.bodyRoll && ar.scale ? 'The damage figure of a blow is the weapon’s plus ' + rollFrom('body') + (ar.reflexRoll ? '; a throw’s is its throw entry’s plus ' + rollFrom('reflex') : '') + '.' : '',
@@ -4001,7 +4001,7 @@ function renderMechanicsSheet(value) {
           ', by ' + srcNum(d.bits, 'two bits of their record') + '; one ' + srcNum(m.call, 'without Mana') + ' counts it ' + srcNum(m.bits, 'the same way') + '. Most of the people who join have neither skill, so this is how they grow. Full health is kept in one byte, so a total above 255 starts again from 0.';
       })() : '',
       xp.rule.gapAdd ? 'A blow earns its damage in experience, at most the victim’s lead in levels plus ' + srcNum(xp.rule.gapAdd) + (xp.rule.pastGap ? '; against a lower-level victim, ' + srcNum(xp.rule.pastGap) : '') + '.' : '',
-      'The party’s members split an award to the party.'
+      'The game divides an award to the party among its members.'
     ].filter(Boolean) : [],
     (xp.rule ? mechExperienceFigure(xp.rule) : '') +
     (xp.awards.length ? '<div class="mechSub">Fixed awards: ' + xp.awards.length + '</div>' + table(['#points', 'message', 'where'], xp.awards.map(a => '<tr>' + srcCell(a.val, a.amount) + '<td>' + (a.note ? svEsc(a.note) : '<span class="inspDim">no message</span>') + '</td><td>' + svChip(a.resid) + '</td></tr>')) : ''), '');
@@ -4969,8 +4969,8 @@ function renderMechanicsSheet(value) {
         'Every other zone is gone, and every character, schedule and conversation.',
         'The download for Manborough\u2019s editor includes the ground and the hero\u2019s square, and a map that came from his editor goes back with everything it had. A battle and the art are left out.',
         'A map from Manborough\u2019s editor brings its ground, the things and people placed on it and where the hero starts. The contents of a thing, and whether a door is locked or a lamp lit, are not brought over.',
-        'A battle is two kinds of creature that the game counts as enemies, set beside the hero and left to it.',
-        'The pictures changed are the ones in Cythera Data. The program\u2019s own windows and title screen stay as they are.',
+        'A battle puts two kinds of creature that the game counts as enemies beside the hero, and leaves them to fight.',
+        'The pictures changed are the ones in Cythera Data. The program\u2019s windows and title screen stay as they are.',
         'An art pack is a zip of 32 by 32 PNG pictures in named folders, matched to the game\u2019s things by name. It is written for the Dungeon Crawl Stone Soup tiles, which are free to use.',
         'The scripts that are kept still name the places and people that are gone.'
       ], '');

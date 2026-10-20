@@ -876,7 +876,7 @@ function renderRsrcSheet() {
     box.style.cssText = 'grid-column:1/-1';
     box.innerHTML = '<div class="partsTitle">Displacement filters</div>' +
       '<p class="mechSub">The game reads these when it starts (' + pefChip('LoadDisplacementFilters') + ') and runs one over every tile the table 0xF016 names for it (' + pefChip('DisplacementFilterTile') +
-      '): the game replaces a pixel whose color is in the filter’s set with the pixel of the tile at the offset the current frame gives for it, and the frame moves on every tick (' + pefChip('AdvanceDisplacementFilters') +
+      '). The game replaces each pixel whose color is in the filter’s set with the tile’s pixel at the offset the current frame gives for it, and the frame moves on every tick (' + pefChip('AdvanceDisplacementFilters') +
       '), or every other tick when the period is 1. This is how water, shore and seaweed ripple, lava and the void churn, fire shimmers, and trees and crops sway.</p>';
     for (const f of filters) {
       const card = document.createElement('div');
@@ -1671,7 +1671,7 @@ function heroPortraitCard() {
   else {
     const repeated = [...faces.values()].filter(n => n > 1).reduce((a, b) => a + b, 0);
     text += choices + ': ' + slots.length + ' here, ' + hex(slots[0]) + ' to ' + hex(slots[slots.length - 1]) +
-      (repeated ? ', ' + repeated + ' of them one face' : '') + '.';
+      (repeated ? ', ' + repeated + ' of them sharing a face with another' : '') + '.';
   }
   card.innerHTML = text;
   card.appendChild(strip);

@@ -317,7 +317,7 @@ function expectFiles(label, zipBytes, want) {
     execFileSync('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', folder, out]);
     const want = base.map(w => w.path === 'Folder ƒ/Café save' ? {...w, rsrc, type: 'DelP', creator: 'Delv'} : w);
     if (expectFiles('ditto', readFileSync(out), want))
-      ok('ditto', 'the Finder’s own container, a resource fork and a Finder type out of __MACOSX, UTF-8 names without the flag');
+      ok('ditto', 'the Finder’s container, a resource fork and a Finder type out of __MACOSX, UTF-8 names without the flag');
   }
 }
 

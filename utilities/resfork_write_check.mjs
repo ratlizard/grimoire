@@ -196,7 +196,7 @@ check('the 256-colour answer is byte 1 bits 5 and 4', hex(prefRecord({ switch256
 check('it touches nothing else',
       (function () { const a = prefRecord({ smooth: true, cheats: true }), b = prefRecord({ smooth: true, cheats: true, switch256: true });
         return a.length === 4 && b.length === 4 && a.every((v, i) => i === 1 ? (v ^ b[i]) === 0x30 : v === b[i]); })());
-check('its two bits wear the startup dialog\u2019s own labels',
+check('its two bits wear the startup dialog\u2019s labels',
       (ctx.cytheraPrefsLayout().startup || []).map(x => x.text).join('|') === "Switch to 256 Colors|Don't Ask Again",
       JSON.stringify(ctx.cytheraPrefsLayout().startup));
 check('the cheat gate is bit 0 of byte 3 and touches nothing else',
@@ -222,7 +222,7 @@ check('an ordinal is four bytes, and a negative is written whole',
       (ordBytes({ Backdrop: -2 }, 'Backdrop') || []).join() === [255, 255, 255, 254].join() &&
       (ordBytes({ Volume: -1 }, 'Volume') || []).join() === [255, 255, 255, 255].join(),
       JSON.stringify(ordBytes({ Backdrop: -2 }, 'Backdrop')));
-check('the record’s own choices land where the game’s menu items write them',
+check('the record’s choices land where the game’s menu items write them',
       (function () { const L = ctx.cytheraPrefsLayout(), m = L.choices.find(c => c.options.some(o => /Movement$/.test(o.text)));
         if (!m) return false;
         const at = t => [...ctx.cytheraPrefsRecord({ [m.opt]: t }, L)][0];

@@ -2199,7 +2199,7 @@ function charEditHTML(index) {
       try { u = charFlagUses(index, f); } catch (e) { quiet(e, 'what uses a character flag'); }
       if (u) rows.push('<div class="charWhat"><b>' + f + '</b> ' + u + '</div>');
     }
-    if (rows.length) h += '<div class="charWhat">The program has no name for these. A flag under 24 is listed where this character’s own script uses it, and a flag from 24 up wherever any script does.</div>' + rows.join('');
+    if (rows.length) h += '<div class="charWhat">The program has no name for these. A flag under 24 is listed where this character’s script uses it, and a flag from 24 up wherever any script does.</div>' + rows.join('');
   }
   h += '</div>';
   return h +
@@ -3112,7 +3112,7 @@ function questStateHTML(words) {
   const head = '<thead><tr><th class="num">no.</th><th>value</th><th>set by</th><th>tested by</th></tr></thead>';
   let h = '<h4 class="saveH4">Quest Values and Flags</h4>' +
     '<div class="saveNote">The 32 quest values and 256 quest flags in which the scripts record the story, from the start of 0x0400. ' +
-    (words ? 'These are the ones a script sets or checks, and any that this save has set; the rest are unchanged. The files do not say what each one means, so they appear as numbers.'
+    (words ? 'The list has the ones a script sets or checks, and any that this save has set; it leaves out the rest, which no script uses and this save has not changed. The files do not say what each one means, so they appear as numbers.'
            : 'No scenario was open before this save, so the page cannot find which scripts use each one, and shows every value.') + '</div>' +
     '<div class="tableScroll"><table class="forkTable">' + head + '<tbody>' + valueRows.join('') + '</tbody></table></div>' +
     '<div class="tableScroll"><table class="forkTable">' + head.replace('<th>value</th>', '<th>set</th>') + '<tbody>' + flagRows.join('') + '</tbody></table></div>' +

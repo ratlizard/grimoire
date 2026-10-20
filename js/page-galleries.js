@@ -493,7 +493,7 @@ function openDitherTool() {
       '<option value="sheet">128×128 tile sheet, sixteen tiles (cover crop)</option>' +
       '<option value="free">original size (up to 512px), a sized graphic</option></select></label>' +
     '<label>Checker <input type="range" id="dtChecker" min="0" max="100" value="60"></label>' +
-    '<label id="dtSubstWrap"><input type="checkbox" id="dtSubst"' + (window.DITHER_SUBST ? ' checked' : '') + '> Automatically substitute out color-cycling colors</label></div>' +
+    '<label id="dtSubstWrap"><input type="checkbox" id="dtSubst"' + (window.DITHER_SUBST ? ' checked' : '') + '> Avoid the colors the game animates</label></div>' +
     '<div class="dtRow" id="dtItemsRow" style="display:none">' +
     '<label>Corners <select id="dtCorner">' + ditherItemOptions('axe') + '</select></label>' +
     '<label>Edges <select id="dtEdge">' + ditherItemOptions('sword') + '</select></label></div>' +
@@ -508,8 +508,8 @@ function openDitherTool() {
     '<button class="secondary" onclick="ditherReplace()">Replace in archive</button>' +
     '</div>' +
     '<div class="inspDim">Each mode writes a real resource of its kind: a portrait, a landscape strip, an icon, a ' +
-    'sixteen-tile sheet or a sized graphic. Transparent pixels stay the cut-out slot, animated palette ramps are ' +
-    'avoided so nothing shimmers, and Replace rebuilds the file in memory; the Changes tab is where it leaves the page.</div>' +
+    'sixteen-tile sheet or a sized graphic. Transparent pixels stay transparent, the result avoids the colors ' +
+    'the game animates so nothing shimmers, and Replace rebuilds the file in this browser. To download it, go to Data › Cythera Data › Changes.</div>' +
     '</div>';
   document.body.appendChild(ov);
   ditherFillTargets();
@@ -1239,7 +1239,7 @@ function renderContactSheet() {
       const metaDiv = document.createElement('div');
       metaDiv.className = 'listMeta'; metaDiv.textContent = fmtBytes(rlen);
       cell.appendChild(metaDiv);
-      cell.title = "Click to play/preview this sound";
+      cell.title = "Click to play this sound";
       cell.onclick = () => {
         openResource(resid);
       };
@@ -1327,7 +1327,7 @@ function renderContactSheet() {
       metaDiv.className = 'listMeta'; metaDiv.textContent = fmtBytes(rlen);
       cell.appendChild(metaDiv);
 
-      cell.title = "Click to view text/data";
+      cell.title = "Click to view this resource";
       cell.onclick = () => {
         openResource(resid);
       };

@@ -453,7 +453,7 @@ try {
   else if (/jumpToResource\(61451\)/.test(dossier))
     fail('components', 'the dossier still jumps straight at 0xF00B under Data, the step the rule forbids');
   else if (!card || !card.open || ctx.CUR_SUBN !== 'SCHEDULES')
-    fail('components', 'openSchedule did not open that character’s own card on the Schedules sheet');
+    fail('components', 'openSchedule did not open that character’s card on the Schedules sheet');
   else if (!iconChips(skhtml)) fail('components', 'no skill chips at the icon it wears');
   else if (!iconChips(sphtml)) fail('components', 'no spell chips at the icon it wears');
   else console.log(`  components: the dossier shows its parts and reaches its schedule through Components; ${iconChips(skhtml)} skills and ${iconChips(sphtml)} spells chip at their icon`);

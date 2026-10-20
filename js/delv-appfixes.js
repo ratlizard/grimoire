@@ -291,7 +291,7 @@ const APP_FIXES = [
     bug: 'Containers let you carry any weight',
     sites: [{ at: 0x5423C, was: [0x40810018], asm: ['b @cave               ; was ble 0x54254'] }],
     cave: [
-      'bgt @fail              ; over the container’s own limit',
+      'bgt @fail              ; over the container’s limit',
       'lha 3, 180(1)', 'subf 0, 3, 0          ; the thing and its contents', 'sth 0, 184(1)',
       'mr 3, 28              ; the destination', 'bl @GetPropUltimateParent__Fs', 'extsh. 3, 3', 'beq @ok                ; a character, or held by nobody',
       'cmpwi 3, 256', 'bge @ok                ; held by a thing', 'sth 3, 186(1)',
@@ -466,7 +466,7 @@ const APP_FIXES = [
            'loaded:', 'cmpwi 3, 264', 'bne @lookup', 'lha 5, 144(31)         ; the template, read from the save', 'cmpwi 5, 256', 'blt @own',
            'lwz 6, 0(22)', 'slwi 5, 5, 4', 'add 5, 6, 5', 'lhz 3, 4(5)', 'clrlwi 3, 3, 22        ; the template’s type', 'b @ObjToMonst__Fs',
            'own:', 'lha 4, 8(28)           ; no template: the creature’s number', 'cmpwi 4, 256', 'bge @lookup',
-           'lwz 5, -30352(2)', 'slwi 4, 4, 5', 'add 5, 5, 4', 'lhz 3, 20(5)          ; a named character’s own type', 'clrlwi 3, 3, 22', 'b @ObjToMonst__Fs'] },
+           'lwz 5, -30352(2)', 'slwi 4, 4, 5', 'add 5, 5, 4', 'lhz 3, 20(5)          ; a named character’s type', 'clrlwi 3, 3, 22', 'b @ObjToMonst__Fs'] },
 
   // After both ObjToMonst calls a creature is built from, HatchEgg's
   // (0x44C00) and the stream constructor's (0x46090): a type with no unit
@@ -554,7 +554,7 @@ const APP_FIXES = [
   // changes under a routine holding it in a register. The viewer's
   // list of what to draw stops at 4,096 without a throw (SetStage), so a
   // square piled past that draws some of its things and not others.
-  { id: 'hood-size', kind: 'fix', title: 'The game can have as many things near the party as in all, instead of stopping at 2,048',
+  { id: 'hood-size', kind: 'fix', title: 'The list of things near the party has room for every thing in the game, instead of stopping at 2,048',
     played: 'fork, PowerPC, 30 September 2026: 4,000 half disks saved',
     bug: 'Buying about 17,000 oboloi of flax quits the game',
     sites: [
@@ -690,7 +690,7 @@ const APP_FIXES = [
     cave: [
       'lhz 5, 80(1)          ; its character entry, as Die stores it', 'stwu 1, -64(1)', 'oris 5, 5, 16448',
       'addi 3, 1, 56', 'li 4, 242', 'bl @DoInterp__7TInterpFs5VAddr', 'lwz 0, 56(1)', 'addi 1, 1, 64',
-      'lwz 3, 4(31)          ; the unit, as NewProp is handed it', 'srwi. 4, 0, 28', 'beq @number', 'b @0x46B74            ; not a number: the unit’s own',
+      'lwz 3, 4(31)          ; the unit, as NewProp is handed it', 'srwi. 4, 0, 28', 'beq @number', 'b @0x46B74            ; not a number: the unit’s default',
       'number:', 'sth 0, 130(1)', 'b @0x46B7C'] },
 
   { id: 'hook-load', kind: 'hook', method: 243, title: 'Scripts can act each time you begin, open or revert to a game',

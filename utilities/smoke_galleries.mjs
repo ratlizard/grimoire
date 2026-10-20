@@ -37,7 +37,7 @@ await new Promise(r => setTimeout(r, 200));
   else if (!b2.frame) fail('dialogue box', 'the data file alone drew no frame, though tile 0x19D is in the archive');
   else if (!/--boxBlue:rgba\(/.test(b2.css || '')) fail('dialogue box', 'no blue rule was written: ' + JSON.stringify((b2.css || '').slice(0, 60)));
   else console.log('  dialogue box: the data file alone — frame from tile 0x' + (b2.tile || 0).toString(16).toUpperCase() +
-    ', blue ' + b2.blue.join(',') + (b2.blueFromDefault ? ' (the program’s figure, as default)' : ' (from the file’s own clut)'));
+    ', blue ' + b2.blue.join(',') + (b2.blueFromDefault ? ' (the program’s figure, as default)' : ' (from the file’s clut)'));
 
 /* The default blue is written TWICE and must not drift.
 

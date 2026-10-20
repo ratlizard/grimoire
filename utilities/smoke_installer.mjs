@@ -578,7 +578,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (Object.entries(buttonsSeen).some(([n, b]) => b !== (/1\.0\.1/.test(n) ? 'null' : JSON.stringify(ctx.cytheraShippedLayout().buttons))))
         fail('preferences', 'the multi-button mouse bit is not absent on 1.0.1 and PREF_SHIPPED\u2019s on the rest: ' + JSON.stringify(buttonsSeen));
       else if (ordWrong) fail('preferences', 'an ordinal key is written when it should not be, or with the wrong bytes');
-      else if (!/Manually Place Containers/.test(tools) || !/Smoother Movement/.test(tools)) fail('preferences', 'the switches do not wear the game’s own labels');
+      else if (!/Manually Place Containers/.test(tools) || !/Smoother Movement/.test(tools)) fail('preferences', 'the switches do not wear the game’s labels');
       else if (bitsWrong) fail('preferences', 'a switch does not land on the bit the program writes for it: ' + JSON.stringify(ctx.cytheraPrefsLayout()));
       else if (/never been tried|untried/.test(tools)) fail('preferences', 'the section still calls the file untried');
       else if (!/replacing the one there/.test(tools)) fail('preferences', 'the section no longer states the file replaces the stored settings');
@@ -590,7 +590,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!/id="prefDontAsk" checked/.test(tools)) fail('preferences', 'the "don\u2019t ask again" switch is not ticked by default');
       else if (/id="prefMouseButtons" checked/.test(tools)) fail('preferences', 'the extra mouse buttons switch starts on, though the game never sets it');
       else if (/value="raw:/.test(tools)) fail('preferences', 'the frame-rate chooser offers values the game\u2019s menu does not');
-      else if (!/Switch to 256 Colors/.test(tools) || !/Don't Ask Again/.test(tools)) fail('preferences', 'the 256-colour switch does not wear the dialog\u2019s own labels');
+      else if (!/Switch to 256 Colors/.test(tools) || !/Don't Ask Again/.test(tools)) fail('preferences', 'the 256-colour switch does not wear the dialog\u2019s labels');
       else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
       else console.log(`  preferences: ${switches.length} switches and ${ctx.cytheraPrefsLayout().choices.length + ctx.cytheraPrefsLayout().ordinals.length} choosers on the Preferences tab with the game's labels, each bit where the program writes it, ${ctx.buildCytheraPreferences({ smooth: true, cheats: true }).length}-byte fork`);
     } catch (e) { fail('preferences', e); }

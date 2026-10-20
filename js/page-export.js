@@ -1004,8 +1004,8 @@ function usageChips(list, render, limit) {
 function renderArtUsage(resid) {
   const u = buildTileSheetUsage()[resid];
   if (!u || (!u.maps.length && !u.props.length && !u.composites.length))
-    return '<span class="inspDim">Nothing in the file draws from this sheet; ' +
-           'nothing may use it, or the program may use it rather than data.</span>' + forkEntryStrip(resid);
+    return '<span class="inspDim">Nothing in the file draws from this sheet. ' +
+           'Either nothing uses it, or the program draws it directly.</span>' + forkEntryStrip(resid);
   const rows = [];
   if (u.maps.length) rows.push('<dt>Maps</dt><dd>' + usageChips(u.maps,
     r => svChip(r), 24) + '</dd>');

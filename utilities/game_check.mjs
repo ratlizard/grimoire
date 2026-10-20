@@ -198,7 +198,7 @@ if (scenarioArg && existsSync(scenarioArg)) {
     const held = sp => ctx.parseDelverPropList(seg(sp, 0x8100 + md.zone)).filter(r => (r.flags === 0x1C || r.flags === 0x10) && r.x === 0 && r.y === 1 && r.proptype > 190).map(r => [r.flags, r.proptype, r.aspect, r.d3].join(':')).join(' ');
     if (qa.flags.join() !== qb.flags.join() || qa.values.join() !== qb.values.join()) fail('welcome: the quest values and flags are not those of the kit’s save after the king');
     else if (hex(seg(real, 0x0401).subarray(0, 8)) !== hex(seg(mine, 0x0401).subarray(0, 8))) fail('welcome: To Do slot 0 is ' + hex(seg(mine, 0x0401).subarray(0, 8)) + ', the kit’s ' + hex(seg(real, 0x0401).subarray(0, 8)));
-    else if ((qa.chars[md.welcome.who].state & 0x80) !== (qb.chars[md.welcome.who].state & 0x80) || !(qb.chars[md.welcome.who].state & 0x80)) fail('welcome: the king’s own flag is not set as in the kit’s save');
+    else if ((qa.chars[md.welcome.who].state & 0x80) !== (qb.chars[md.welcome.who].state & 0x80) || !(qb.chars[md.welcome.who].state & 0x80)) fail('welcome: the king’s flag is not set as in the kit’s save');
     else if (held(real) !== held(mine) || !held(mine)) fail('welcome: the hero holds ' + held(mine) + ', and in the kit’s save ' + held(real));
     else console.log('  a Fighter made with the king having spoken matches the kit’s save after his welcome: the flags, To Do slot 0, his flag, and ' + held(mine).split(' ').length + ' things held');
   } else console.log('  the king’s welcome was not compared: the kit’s save after it, or the reading, is missing');

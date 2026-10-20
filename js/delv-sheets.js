@@ -153,7 +153,7 @@ function libraryMechSection(lib) {
      6 October 2026): a passage is a link to its array, noted with the
      array and the passage's number, as the unshown ones already were. */
   const passageLink = (d, e) => { const t = String(e.str).trim().replace(/\s+/g, ' '); return svLink((t.slice(0, 48) + (t.length > 48 ? '…' : '')) || 'empty', 'jumpToResource(' + d.resid + ')', '0x' + d.resid.toString(16).toUpperCase() + ' ' + e.index); };
-  return mechSectionEl('library', 'The Game’s Own Writing', null, '',
+  return mechSectionEl('library', 'The Game’s Writing', null, '',
     lib ? 'The books, prophecies, scrolls, letters, signs and gravestones, and the things in the world that show them. A bookshelf’s Data1 is the number of the book on it.'
         : 'No class in this file shows a document.',
     lib ? [

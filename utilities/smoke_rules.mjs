@@ -550,8 +550,8 @@ try {
   else if (!unshown.length) fail('library', 'nothing is unshown, so the second and third sources are over-counting');
   else if (/Sapphire Book of Mercy|Sapphire Book of Beauty|Sapphire Book of Foundation/.test(said)) fail('library', 'a script-given Sapphire volume is listed as never shown: sys Create is not being counted');
   else if (/Wine Contract/.test(said)) fail('library', 'the Wine Contract is listed as never shown, but Apis hands it over');
-  else if (!/The Game’s Own Writing/.test(libHtml)) fail('library', 'the Writings gallery does not have the library card');
-  else if (/The Game’s Own Writing/.test(html)) fail('library', 'the library card is still on the Mechanics sheet, so the move is half done');
+  else if (!/The Game’s Writing/.test(libHtml)) fail('library', 'the Writings gallery does not have the library card');
+  else if (/The Game’s Writing/.test(html)) fail('library', 'the library card is still on the Mechanics sheet, so the move is half done');
   /* The murder thread's `GetState(3) == 3` was this list's one entry until
      24 September 2026, when dvmDiscover began following call_subroutine:
      Berossus's 0x003A, which sets it, had been read as part of an array. So
@@ -777,12 +777,12 @@ try {
   if (!stacks || !stacks.game || !stacks.chicago || !stacks.system)
     fail('face', 'the stacks are missing: ' + JSON.stringify(stacks && Object.keys(stacks)));
   else if (!/ChicagoKare/.test(stacks.chicago)) fail('face', 'Chicago is not the face before a file: ' + stacks.chicago);
-  else if (!/^'ArgosGame'/.test(stacks.game)) fail('face', 'the game stack does not lead with the file’s own face: ' + stacks.game);
+  else if (!/^'ArgosGame'/.test(stacks.game)) fail('face', 'the game stack does not lead with the file’s face: ' + stacks.game);
   else if (/\bArgos\b/.test(stacks.chicago + ' ' + stacks.system))
     fail('face', 'the bundled Argos is back in a stack that should not have it');
   else if (!all.every(s => /sans-serif$/.test(s))) fail('face', 'a stack does not end in a system sans: ' + JSON.stringify(all));
   else if (bare !== 'chicago') fail('face', 'with no file the face is ' + bare + ', not Chicago');
-  else if (withFile !== 'game') fail('face', 'with a file open the face is ' + withFile + ', not the game’s own');
+  else if (withFile !== 'game') fail('face', 'with a file open the face is ' + withFile + ', not the game’s');
   else if (!/^14px /.test(cf) || !/ChicagoKare/.test(cf))
     fail('face', 'canvasFace fell over where getComputedStyle has no getPropertyValue: ' + JSON.stringify(cf));
   else console.log(`  face: ${bare} with no file and ${withFile} with one, ${all.length} stacks each ending in a system sans, canvas ${JSON.stringify(cf.slice(0, 28))}`);
@@ -1129,11 +1129,11 @@ try {
   const lkh = ctx.mapParts(0x8003, 0x8103).join('');          // Land King Hall, the void (-1)
   if (strip < 20) fail('zone landscape', strip + ' zones name a landscape strip, where 28 were read');
   if (none) fail('zone landscape', none + ' zones have no SetLandscapeImage call at all, where none did');
-  else if (!engine) fail('zone landscape', 'no zone uses one of the engine’s own backdrops, where 14 did');
+  else if (!engine) fail('zone landscape', 'no zone uses one of the engine’s backdrops, where 14 did');
   else if (!/Landscape/.test(chips)) fail('zone landscape', 'Odemia’s parts do not chip its landscape');
   else if (!/jumpToResource\(33794\)/.test(chips)) fail('zone landscape', 'Odemia’s landscape chip does not open 0x8402');
   else if (!/Landscape/.test(lkh)) fail('zone landscape', 'Land King Hall, whose backdrop is the engine’s, shows no landscape');
-  else console.log(`  zone landscape: ${strip} zones name a strip and ${engine} one of the engine’s own, all chipped in Made of`);
+  else console.log(`  zone landscape: ${strip} zones name a strip and ${engine} one of the engine’s, all chipped in Made of`);
 } catch (e) { fail('zone landscape', e); }
 
 /* What shows through the ethereal void, 6 October 2026.
@@ -1597,7 +1597,7 @@ try {
         console.log(`  the To Do list: ${lines.length} lines offered; "${la.text}" to do and "${lb.text}" done are in their slots beside the king's, his own struck when asked, a line no script adds left out`);
         console.log(`  the king's welcome: quest flag ${kw.flag.v}, his flag ${kw.charFlag.v}, To Do line ${kw.todo.line} in slot ${kw.todo.slot} and thing ${kw.gift.type}, each with its line, in the save made with it and not the plain one; ` + (hp ? `${faces.length} faces from the program` : 'no program here, so no faces'));
         return false; })()) { /* reported */ }
-      else console.log(`  archetypes: nine read from the table, every stat and skill as the dialog’s own text has it but the ${odd[0].split(' ')[0]}’s mind (${/mind (\d+) against (\d+)/.exec(odd[0]).slice(1).join(' in the table, ')} in the text); a ${fighter.name}’s save ends with ${tail.length} skills at their levels, a plain one has none`);
+      else console.log(`  archetypes: nine read from the table, every stat and skill as the dialog’s text has it but the ${odd[0].split(' ')[0]}’s mind (${/mind (\d+) against (\d+)/.exec(odd[0]).slice(1).join(' in the table, ')} in the text); a ${fighter.name}’s save ends with ${tail.length} skills at their levels, a plain one has none`);
     }
   }
 } catch (e) { fail('make a save', e); }
