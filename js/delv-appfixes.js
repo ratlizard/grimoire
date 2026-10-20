@@ -822,7 +822,7 @@ const APP_FIX_GROUP = {
   'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'widget-renumber': 'interface',
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
-  'target-hunger': 'world', 'sleep-hidden': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
+  'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
   'corpse-light': 'rules', 'spell-glow': 'rules',
   'menu-scroll': 'talk', 'menu-items': 'talk', 'name-fit': 'talk', 'speech-clear': 'talk',
 };
