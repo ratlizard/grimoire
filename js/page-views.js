@@ -1,14 +1,14 @@
 /* The executable's sheet, Tools, parts and uses, monsters, the text and conversation views, and editing.
 
    One of the fourteen js/page-*.js files that were index.html's inline
-   script until 16 September 2026, cut at its own section banners and
+   script until 16 September 2026, cut at the section banners it had and
    nowhere else, so every function is where it was in the one file. This
-   tier knows the page's furniture: js/mac-*.js know nothing of Cythera,
-   js/delv-*.js know the formats but not the page, and these know both.
+   tier is the page's furniture: js/mac-*.js have nothing of Cythera in
+   them, js/delv-*.js cover the formats but not the page, and these cover both.
    They are classic scripts, never modules, because the page has to work
    from a file:// origin, and they share one global scope, so a name
-   declared in any of them is reachable from all. The order only decides
-   what has run when a statement runs at load time; the one such statement
+   declared in any of them is reachable from all. The order matters only to a
+   statement that runs at load time, which sees what loaded before it; the one such statement
    that needed a later file, the brand line, stayed in the page after the
    last of these. File 12 of 14. */
 
@@ -18,10 +18,10 @@
    498 of its 563 imports from InterfaceLib), its two exports, and every
    routine the code section names for itself in its traceback tables --
    1,992 in 1.0.4, grouped by class. The sheets that cite a routine
-   ("read from the program") carry a chip here (pefChip), which opens
+   ("read from the program") show a chip here (pefChip), which opens
    this sheet filtered to the name. Addresses are offsets into the code
    section, the convention the workbench's traces use, except that a trace
-   written down as 0x0437BC names the word after the entry: the entry
+   written down as 0x0437BC points at the word after the entry: the entry
    TMapWindow::KeyRoutine is 0x0437B8, four bytes earlier, which is where a
    `bl` lands. */
 window.PEF_FILTER = '';
@@ -35,8 +35,8 @@ function appPef() {
   return (window.APP_PEF = pef);
 }
 function pefFilter(v) { window.PEF_FILTER = String(v || ''); window.PEF_VIEW = null; renderAppPefSheet(); }
-// A routine cited by name opens on its own listing; a name the program
-// does not have filters the list to it, which says so.
+// A routine cited by name opens on its listing; a name that is not in the
+// program filters the list to it, and the empty list states that.
 function openPefRoutine(name) {
   const r = exeRoutineNamed(name);
   if (r) return jumpToExeAt(r.offset);
@@ -52,8 +52,8 @@ function pefChip(name) {
    The executable's figures -- the clock's hour, how often a fed character
    heals, how long a balloon stays up, the costs of the commands -- are read
    out of its PowerPC code on the spot, the way the Mechanics sheet reads the
-   archive's scripts, and each is printed as a link to the instruction that
-   holds it (srcNum with an `exe` address, jumpToExeAt). Until 11 September
+   archive's scripts, and each is printed as a link to the instruction it is
+   in (srcNum with an `exe` address, jumpToExeAt). Until 11 September
    2026 they were typed in from traces made outside the site
    (cythera-workbench's doc/game-clock.md and doc/talk-balloons.md), which is
    a copy of the program nobody could follow back and an edited program would
@@ -64,7 +64,7 @@ function pefChip(name) {
    table gives, its instructions decoded once (exeOpsOf), and a call
    resolved to what it reaches: another routine, or through a glue stub --
    `lwz 12, d(2)`, `stw 2, 20(1)`, `lwz 0, 0(12)`, `lwz 2, 4(12)`, `mtctr 0`,
-   `bctr` -- to the import whose transition vector the TOC slot holds. An
+   `bctr` -- to the import whose transition vector is in the TOC slot. An
    address is an offset into the code section, as everywhere on the site.
    Without the application open none of this answers, and the sentences
    that need it say what to open instead of stating a number. */
@@ -90,7 +90,7 @@ function exeRoutineAt(at) {
 }
 // A routine by its name, with or without its argument list. Kept with the
 // program once found: it is a walk of two thousand routines, and the unit
-// readers below were asking it a thousand times a render.
+// readers below were calling it a thousand times a render.
 function exeRoutineNamed(name) {
   const pef = appPef(); if (!pef || !pef.routines) return null;
   const memo = pef.namedMemo || (pef.namedMemo = new Map());
@@ -100,9 +100,9 @@ function exeRoutineNamed(name) {
   return r;
 }
 /* A reader's answer, kept with the program it was read from, for a reader
-   asked once a prop type. The first was exeMonsterKinds: spriteBlockSize
-   asks unitArmsFrames, which asks unitArmClass of every prop type, which
-   asked exeMonsterKinds each time, and the hero's sprite section drew
+   called once per prop type. The first was exeMonsterKinds: spriteBlockSize
+   calls unitArmsFrames, which calls unitArmClass for every prop type, which
+   called exeMonsterKinds each time, and the hero's sprite section drew
    through that for four and a half of the Tools tab's six and a half
    seconds (the maintainer, 27 September 2026: "Tools tab takes a long time
    to load now"). A new program is a new appPef object, so what is kept goes
@@ -165,7 +165,7 @@ function exeCallersOf(name) {
   }
   return (pef.callIndex.get(target.offset) || []).map(at => { const r = exeRoutineAt(at); const ops = exeOpsOf(r); return { routine: r, ops, i: ops.findIndex(o => o.at === at) }; }).filter(c => c.routine && c.i >= 0);
 }
-// A number an instruction holds, with where: { v, exe }.
+// A number in an instruction, with its address: { v, exe }.
 function exeVal(op, v) { return op ? { v, exe: op.at } : null; }
 // A word of the TOC's section at a displacement from the TOC.
 function exeTocOffset(d) { const img = appImage(); return img && img.toc ? img.toc.offset + d : null; }
@@ -195,14 +195,14 @@ function exeFindBack(ops, from, span, test) {
   return -1;
 }
 
-/* Open the application's code at an address: the routine that holds it,
+/* Open the application's code at an address: the routine it is in,
    listed, with that instruction ringed. */
 window.PEF_VIEW = null;
 /* `why` is the words of the link that was followed. A figure's link lands
    on one PowerPC instruction in a listing of hundreds, which the
-   maintainer called a line of random text (6 October 2026): the ring said
-   where and nothing said what. So the listing repeats the link's words
-   under the ringed line and says what that instruction does in plain
+   maintainer called a line of random text (6 October 2026): the ring showed
+   where and nothing explained what. So the listing repeats the link's words
+   under the ringed line and describes that instruction in plain
    words (exePlainLines). The words are the ones the click left
    in SRC_CLICKED (srcNum); a jump inside a listing leaves none. */
 function jumpToExeAt(at, why) {
@@ -219,21 +219,21 @@ function jumpToExeAt(at, why) {
 }
 function pefBackToList() { window.PEF_VIEW = null; renderAppPefSheet(); }
 // One routine, instruction by instruction: calls and branches named and
-// followable, TOC slots said as what they hold.
+// followable, TOC slots shown as their contents.
 /* A routine in plain words, a sentence an instruction (6 October 2026).
 
    A figure's link lands on one PowerPC instruction in a listing of
    hundreds, which the maintainer called a line of random text, and then
    asked whether it had to be machine code at all. So the listing opens in
    words, and the code is another view (EXE_VIEW, exeSetView). Each
-   sentence says what its own instruction does and no more: nothing here
-   follows a value from one line to the next, so a sentence says "a value"
+   sentence describes its instruction and no more: nothing here
+   follows a value from one line to the next, so a sentence reads "a value"
    where a reader of the code would know which. The one thing carried
    forward is what the last test was, so that a branch can say "if that
    switch is off" or "if they are equal" rather than name a condition bit:
    a test of bits (andi., rlwinm.), a comparison, or any other instruction
    that sets the flags from its result. An instruction with no sentence
-   keeps its code, dimmed. '' entries are those.
+   is shown as code, dimmed. '' entries are those.
 
    A mask is written as the page writes a flag, in hex; an offset and a
    count in decimal, as the code view's operands are. */
@@ -308,7 +308,7 @@ function exePlainLines(r) {
     else if (bare === 'andc') s = 'Turn off, in one value, the switches of another.';
     else if (bare === 'not') s = 'Flip every switch of a value.';
     else if (bare === 'cntlzw') s = 'Count the off switches at the top of a value.';
-    // What a branch after this one would be asking about.
+    // What a branch after this one would test.
     if (/^cmp/.test(mn)) last = 'cmp';
     else if (dot) last = /^(andis?|rlwinm|clrlwi|and|andc)$/.test(bare) ? 'switch' : 'value';
     return s;
@@ -324,28 +324,28 @@ function exeSetView(v) {
 }
 /* A routine as pseudo-code (6 October 2026), the third view of a listing.
 
-   The plain-words view says what each instruction does and cannot say to
-   what: "check the switch 0x0080 of a value". This one follows the values.
-   Each register holds an expression, built up as the instructions run, and
+   The plain-words view describes what each instruction does and cannot
+   show what it acts on: "check the switch 0x0080 of a value". This one follows the values.
+   Each register has an expression, built up as the instructions run, and
    a line is written only where something happens that outlasts a register:
    a store to memory, a call, a jump, a return, or a value put in a register
-   the routine keeps (r13 to r31). So `lbz 0, 6(30)`, `rlwinm. 0, 0, 0, 24,
+   the routine preserves (r13 to r31). So `lbz 0, 6(30)`, `rlwinm. 0, 0, 0, 24,
    24`, `bf 2, ...` is one line, `if ((byte[r30 + 6] & 0x80) != 0) goto ...`.
 
-   What keeps it honest, since a wrong expression reads as well as a right
+   What makes it trustworthy, since a wrong expression reads as well as a right
    one:
    - Expressions are followed inside a block only: a stretch with one way in
-     and one way out. At a block's start every register is its own name.
-   - A scratch register (r0, r3 to r12) still wanted after its block ends
-     is written out as `rN = ...` there. "Wanted" is ordinary liveness over
+     and one way out. At a block's start every register is shown by its name.
+   - A scratch register (r0, r3 to r12) still live after its block ends
+     is written out as `rN = ...` there. Liveness is the ordinary kind, over
      the routine's blocks; a call is taken to read r3 to r10, since nothing
-     here knows how many arguments a routine takes, so some of those lines
+     here records how many arguments a routine has, so some of those lines
      are a value nothing reads.
    - Before a line changes a register, a stack slot or memory, any pending
      expression that mentions it is written out first, so no expression is
      ever printed after what it reads has changed.
    - A call is printed with the argument registers set in its block since
-     the last call, from r3 up, which is a guess at the count and is right
+     the last call, from r3 up, which is an estimate of the count and is right
      when the arguments are set where the call is made.
 
    What it leaves as the code has it: registers keep their numbers (r3 to
@@ -409,7 +409,7 @@ function exePseudo(r) {
   for (let again = true; again;) {
     again = false;
     for (let b = B.length - 1; b >= 0; b--) {
-      let out = B[b].wild ? 0x1FF9 : 0;                       // a jump through a table: r0, r3 to r12 all wanted
+      let out = B[b].wild ? 0x1FF9 : 0;                       // a jump through a table: r0, r3 to r12 all live
       for (const q of B[b].succ) out |= inOf(B[q]);
       out >>>= 0;
       if (out !== B[b].out) { B[b].out = out; again = true; }
@@ -458,7 +458,7 @@ function exePseudo(r) {
       return !!(blk.out >>> q & 1);
     };
     // Write out whatever pending expression reads what is about to change,
-    // if it is still wanted; one that is not is dropped.
+    // if it is still live; one that is not is dropped.
     let now = blk.s;
     const before = (test, self) => { for (let q = 0; q < 32; q++) if (vol(q) && reg[q].k === undefined && reg[q].s !== name(q) && test(reg[q])) { if (wanted(q, self ? now : now + 1)) settle(q); else reg[q] = atom(name(q)); } };
     // A test whose operands have since changed is printed as it stood.
@@ -507,7 +507,7 @@ function exePseudo(r) {
         } else if (mn === 'nop' || mn === 'stmw' || mn === 'lmw' || mn === 'mflr' || mn === 'mtlr' || mn === 'mtctr') {
           if (mn === 'mflr') reg[d.rd] = atom('return address');
         } else if (m && d.ra === 1 && !m[5]) {
-          // The stack: a slot is a local, and the frame's own bookkeeping is left out.
+          // The stack: a slot is a local, and the frame's bookkeeping is left out.
           if (mn === 'stwu') { /* the frame */ }
           // Below the stack pointer the routine saves the registers it must hand back, and restores them.
           else if (d.d < 0) { if (m[1] === 'l') reg[d.rt] = atom(name(d.rt)); }
@@ -562,11 +562,11 @@ function exePseudo(r) {
         else raw();
         if (dest >= 0 && res) {
           set(dest, res);
-          // The test is of what the register now holds: its name, if the value was written out.
+          // The test is of what is now in the register: its name, if the value was written out.
           if (dot) cond = { a: reg[dest].k === undefined && reg[dest].s === name(dest) ? reg[dest] : res, b: konst(0), hexy: /&|\|/.test(res.s || '') };
         }
       }
-      // A block that runs on into the next: what is still wanted is written out.
+      // A block that runs on into the next: what is still live is written out.
       if (i === blk.e && !(d && d.branch && !d.lk)) for (let q = 0; q < 32; q++) if (vol(q) && (blk.out >>> q & 1)) settle(q);
     }
   }
@@ -621,7 +621,7 @@ function exeListingHTML(r, ringAt, why) {
       t += toc;
     }
     // In words: the place in the routine, as a jump's link names it, then
-    // the sentence, with the jump's link where the sentence says where.
+    // the sentence, with the jump's link standing in for the place.
     const said = plain[i] ? svEsc(plain[i]).replace('\u0001', where) + toc : '<span class="refnote">' + t + '</span>';
     const line = plainOn ? ('+0x' + (o.at - r.offset).toString(16).toUpperCase()).padEnd(7) + ' ' + said
       : hex(o.at) + '  ' + o.word.toString(16).toUpperCase().padStart(8, '0') + '  ' + t;
@@ -691,24 +691,24 @@ function renderAppPefSheet() {
   out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '; ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
 }
 
-/* Cythera Preferences, the file the game keeps its settings in, on a tab of
-   its own under Data beside the other files (the maintainer, 27 September
+/* Cythera Preferences, the file the game stores its settings in, on a
+   separate tab under Data beside the other files (the maintainer, 27 September
    2026; it was a section of the Tools tab). It is the only thing on the page
    that changes how the GAME behaves rather than how the page reads it: the
    smooth movement Cythera has always had and gates on a preference, the
    gate on the cheat keys, which nothing in the game ever sets, and the rest
    of the record and the file's other keys. The long comment above
-   buildCytheraPreferences in js/page-export.js says where each came from.
+   buildCytheraPreferences in js/page-export.js gives the source of each.
 
    One row per setting, in four groups (the maintainer, 1 October 2026: one
    paragraph above two rows of controls was "messy"). A row's name is the
-   game's own label, read with the layout as before, and the line under it is
+   game's label, read with the layout as before, and the line under it is
    ours, written from the manual's Preferences page and from what the code
    that reads each bit does (doc/cheats.md, doc/preferences-file.md in the
    workbench). PREF_HELP keys a line by the option, key or choice it
-   describes; a setting a patched build adds that PREF_HELP does not know
-   still gets a row, without the line, in the last group. The tag beside a
-   name says where the game itself changes it, which is the question the
+   describes; a setting a patched build adds that is not in PREF_HELP
+   still has a row, without the line, in the last group. The tag beside a
+   name shows where the game itself changes it, which is the question the
    maintainer could not answer from the labels alone. Element ids are what
    prefsOptionsFromUI and the smokes read, and are unchanged. */
 const PREF_HELP = {
@@ -771,7 +771,7 @@ function renderLicenseSheet() {
   grid.appendChild(box);
   out.textContent = LICENSE_FILE_NAME + ', the file where the game stores its registration.';
 }
-// What the tab says of a chosen file. The name is the file's, verbatim.
+// What the tab shows for a chosen file. The name is the file's, verbatim.
 function licenseSaidHTML(bytes) {
   const lic = cytheraLicenseRead(bytes);
   if (!lic) return svEsc('This is not a ' + LICENSE_FILE_NAME + ' file. One is ' + LICENSE_FILE_SIZE + ' bytes, and this is ' + bytes.length + '.');
@@ -791,10 +791,10 @@ function renderPrefsSheet() {
   if (!layout) {
     /* Nothing can be offered here without the application. Every bit position,
        every key and every choice in this section is read out of its code as
-       the page opens, which is what keeps them right for the build in hand --
+       the page opens, so they are right for the build in hand --
        so with only the data file open there is no file to write, and the one
-       thing worth saying is how to get one. Said first, and short: the
-       sentence that used to carry it put the action last and read as a
+       useful sentence is how to get one. It comes first, and is short: the
+       sentence it replaced put the action last and read as a
        description of a tool that was not there (the maintainer, 23 September
        2026). */
     const d = document.createElement('div');
@@ -836,7 +836,7 @@ function renderPrefsSheet() {
   sheet.appendChild(presets);
   const rows = new Map(PREF_GROUPS.map(([g]) => [g, []]));
   // Within a group, rows go in PREF_HELP's order, which is the order of the
-  // game's own dialog where it has them (Volume, Music, Ambient), not the
+  // game's dialog where it has them (Volume, Music, Ambient), not the
   // order the program's keys happen to be read in.
   const order = Object.keys(PREF_HELP);
   const help = k => PREF_HELP[k] || ['other', null, null];
@@ -879,15 +879,15 @@ function renderPrefsSheet() {
     /* The menu's own options only (the maintainer, 1 October 2026: "just use
        the game's own three options for FPS, but can note that technically
        others possible"). v1.228.0 offered every frame-rate value from none
-       to the menu's slowest; the record writer still takes them as `raw:n`
-       (cytheraPrefsRecord), and the row's line says they exist. */
+       to the menu's slowest; the record writer still accepts them as `raw:n`
+       (cytheraPrefsRecord), and the row's line mentions that they exist. */
     ch(key, 'pref_' + c.opt, affix(c.options.map(o => o.text)) || 'Setting', c.options.map(o => ({ v: o.text, t: o.text })), cur ? cur.text : null);
   }
   for (const c of layout.controls) sw(c.opt, idOf(c.opt), c.label, !!((layout.base >>> (24 - 8 * c.byte)) & (1 << c.bit)));
   /* The file's other keys. A flag (a range of 0 to 1) is a switch whose
      value prefsOptionsFromUI reads as 1 or 0; the volumes are choosers; the
-     backdrop's options are its own list. Each starts at what a fresh
-     install reads, which is what keeps a row left alone out of the file. */
+     backdrop's options are a separate list. Each starts at what a fresh
+     install reads, so a row left alone stays out of the file. */
   for (const o of layout.ordinals) {
     const r = PREF_ORDINAL_RANGE[o.key], id = 'prefOrd_' + o.key.replace(/\W/g, '');
     if (r && r.min === 0 && r.max === 1) { sw(o.key, id, o.key, o.dflt === 1); continue; }
@@ -898,12 +898,12 @@ function renderPrefsSheet() {
     ch(o.key, id, o.key, opts, o.dflt);
   }
   // The startup question's answer and its "don't ask" as two switches, each
-  // wearing the dialog's own text, so every pairing can be written. Both
-  // start on: the game's own recommendation, and no question in the way.
+  // labelled with the dialog's text, so every pairing can be written. Both
+  // start on: the game's recommendation, and no question in the way.
   (layout.startup || []).forEach((x, i) => { if (PREF_STARTUP_IDS[i]) sw(['switch256', 'dontAsk'][i], PREF_STARTUP_IDS[i], x.text, true); });
   sw('cheats', 'prefCheats', 'Allow the cheat keys', true,
      svEsc('Lets the cheat keys work after you type ' + layout.gate.word + '. Nothing in the game turns this on, so a copy as released cannot enter cheat mode.'));
-  // No label anywhere in the game, so the row's name is the page's own.
+  // No label anywhere in the game, so the row's name is one the page supplies.
   if (layout.buttons) sw('mouseButtons', 'prefMouseButtons', 'Extra mouse buttons', false);
   for (const [g, title] of PREF_GROUPS) {
     const list = rows.get(g);
@@ -965,11 +965,11 @@ function applyPrefsPreset(name) {
 /* Data › Patches: a patch read and applied, a sprite or a gremlin made into
    one, and one file compared with another, the sections of MECH_TOOL_GROUP,
    which the rules renderer builds because the reading they share lives
-   there. The tab wears Magpie's own icon for a patch while a patch rather
+   there. The tab shows Magpie's icon for a patch while a patch rather
    than Cythera Data is the file open (openFileIsPatch, magpieIcon). */
 function renderPatchesSheet() { renderMechanicsSheet(MECH_TOOL_GROUP.value); }
 
-/* A tool where it lives: its tab, then the element that holds it, which is
+/* A tool where it lives: its tab, then the element it sits in, which is
    drawn a moment after the tab. The Tools rows and the Patch Generator's
    Fonts and Music section both go this way. */
 function toolGoTo(cat, id) {
@@ -995,7 +995,7 @@ function renderToolsSheet() {
   const box = document.createElement('div');
   box.className = 'changesView';
   /* One row a tool, its name the link. They were three headed sections,
-     then (3 October 2026) a name over a line saying what it is with a rule
+     then (3 October 2026) a name over a line describing it, with a rule
      between each; the maintainer had the lines and the rules go on
      6 October 2026. The line stays as the button's hover title.
 
@@ -1009,7 +1009,7 @@ function renderToolsSheet() {
      choice of 11 October 2026, after a pass that made every row a verb
      phrase and was put back; it sets aside, for a tool's heading, the rule
      of 1 October that a heading naming an action reads as one. smoke_edits
-     holds the Patch Generator row to that page. The
+     checks the Patch Generator row against that page. The
      tools stay where they are: each is drawn beside the reading it shares
      with its tab, which is why Patches and Preferences left this sheet. */
   const at = (cat, id) => () => toolGoTo(cat, id);
@@ -1050,7 +1050,7 @@ function renderToolsSheet() {
     box.appendChild(d);
   }
   grid.insertBefore(box, grid.firstChild);
-  /* What fell back without saying so. Every optional decode that failed
+  /* What fell back silently. Every optional decode that failed
      since the page loaded, kept by quiet() in js/mac-bytes.js, so a
      missing picture or an empty sheet has a reason a visitor can find. At
      the foot of the sheet and folded, one grey line (the maintainer, 19
@@ -1074,7 +1074,7 @@ function renderToolsSheet() {
   out.textContent = 'Everything here that makes or changes a file, and the other pages.';
 }
 
-/* ---- A tile on a sheet opens on its own ---------------------------------------
+/* ---- A tile on a sheet opens alone -------------------------------------------
    The sheet is drawn at whatever shape the gallery tools chose, so the click
    is mapped back through that shape to a tile index, and the tile opens in
    the sprite zoom: the picture at sixteen times, what it was cut from, and
@@ -1084,7 +1084,7 @@ function renderToolsSheet() {
    A tap used to leave the sheet. Until 16 September 2026 it went to the prop
    type whose block held the tile, so the hatchet, the tile after the spear,
    opened the spear's page, which does not show it. That was narrowed to a
-   prop type's own frames, which left the same gesture doing two different
+   prop type's frames alone, which left the same gesture doing two different
    things -- a named frame navigated, anything else opened the zoom. Since
    20 September 2026 it always opens the zoom (the maintainer), and the
    chips there are the way on. */
@@ -1114,10 +1114,10 @@ function tileSheetClick(ev, resid) {
   else idx = Math.floor(py / 32) * 4 + Math.floor(px / 32);
   if (!(idx >= 0 && idx < 16)) return;
   const tileId = ((resid - 0x8E00) << 4) | idx;
-  // The tile on its own, and nowhere else. A tap used to leave the sheet
+  // The tile alone, and nowhere else. A tap used to leave the sheet
   // for the prop type that wears the tile, where a tile whose prop could
   // not be named stayed and opened the zoom -- so the same gesture did two
-  // different things depending on the tile. The zoom names the prop type
+  // different things depending on the tile. The zoom shows the prop type's name
   // and links to it (tileFactsHTML), which is the route out for anyone who
   // wants it (the maintainer, 20 September 2026).
   showSpriteZoom(tileId, terrainNameFor(tileId) || '');
@@ -1131,14 +1131,14 @@ function tileSheetClick(ev, resid) {
    resource 0x8F00 + n: TPixCacheFromCachedSegFiles::GetData adds 0x8F00 to
    the number it is given, and nothing else in the application builds that id.
 
-   Most classes go through a helper that takes the picture as an argument
+   Most classes go through a helper that is given the picture as an argument
    (0xE64, 0xE65, 0xE66 and 0xE67 in the shipped file), so a helper is read for
    which argument it passes, and the number is taken at each call. A poster and
-   a sheet of paper pass their own Data2, so the picture is whatever each
-   placed one carries.
+   a sheet of paper pass the placed prop's Data2, so the picture is whatever
+   each placed one has there.
 
    This replaced a table that matched prop names to pictures. The scripts
-   disagree with it twice: the bookshelf shows its text on the scroll (0x8F03)
+   differ from it twice: the bookshelf shows its text on the scroll (0x8F03)
    rather than the open book, and the lute class opens 0x8F12, the pipes, the
    same picture as the panpipes. Nothing opens 0x8F15, the lute. That is the
    scenario as shipped, and it is shown as the script has it. */
@@ -1183,9 +1183,9 @@ function buildScriptedWindows() {
     let list;
     try { list = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data); } catch (e) { continue; }
     // Each class tests the prop before it builds this window -- the poster
-    // wants a Data1 of 0 and a Data2, the paper a Data1 of 255 -- and opens
+    // needs a Data1 of 0 and a Data2, the paper a Data1 of 255 -- and opens
     // the helper's picture otherwise. Every placed one in the shipped file
-    // that carries a Data2 passes its class's test, so a Data2 is the test
+    // that has a Data2 passes its class's test, so a Data2 is the test
     // this reads.
     for (const r of list) if (r.flags !== 0xFF && r.d2 && fromData2.has(0x1000 + r.proptype)) add(0x1000 + r.proptype, r.d2);
   }
@@ -1198,16 +1198,16 @@ function containerWindowsFor(pt) {
 }
 
 /* ---- Parts and uses --------------------------------------------------------
-   The joins between the two halves of the tree. An entity page carries a
+   The joins between the two halves of the tree. An entity page has a
    "Made of" row: the components it is assembled from, each chip a jump to
-   that resource under Components. A component's page carries the reverse --
+   that resource under Components. A component's page has the reverse --
    "Worn by", "Spoken by", "Played by", "Referenced by" -- so that from a
    portrait you reach the person and from a sound you reach the scripts that
-   play it. Nothing here is guessed from names: each join is a resource-id
+   play it. Nothing here is inferred from names: each join is a resource-id
    rule the archive itself follows (character i's dialogue is 0x1800+i, its
    portrait 0x8800+i-1, zone n's entry script 0x1400+n), or a call read out
-   of disassembled code. Where a join does not hold -- a sound no script
-   names -- the row says so rather than staying silent. */
+   of disassembled code. Where a join is missing -- a sound that no script
+   plays -- the row states it rather than staying silent. */
 function trailForResid(resid) {
   const leaf = TAB_LEAF_FOR.get(String((resid >> 8) - 1));
   return leaf ? tabTrail(leaf) : '';
@@ -1220,13 +1220,13 @@ function partChip(label, resid) {
   return relChip({ resid, main: label, sub: lbl || '', title: trailForResid(resid) });
 }
 
-/* A thing's own row of a table, as a part of it: the record under
+/* The row of a table that belongs to a thing, as a part of it: the record under
    Components > Records, which steps on down to the bytes. A dossier's and a
    unit's chip opened the whole table in the Data Fork until 16 October
    2026, the one way off a Scenario page that skipped Components (the
    maintainer's rule of 20 September 2026: Scenario, Components, Data;
-   utilities/link_census.mjs found these two). jumpToTableAt keeps the fork's
-   hex as its fallback for a table the Records sheet does not know. */
+   utilities/link_census.mjs found these two). jumpToTableAt falls back to the
+   fork's hex for a table that is not on the Records sheet. */
 function recordChip(label, resid, index, stride) {
   const leaf = TAB_LEAF_FOR.get('RECORDS');
   return relChip({ resid, js: 'jumpToTableAt(' + resid + ',' + index * stride + ',' + stride + ')',
@@ -1243,7 +1243,7 @@ function actionChip(label, js, note) {
     (note ? ' <i>' + svEsc(note) + '</i>' : '') + '</button>';
 }
 
-/* The links a detail page carries to other resources -- what it is made of,
+/* The links on a detail page to other resources -- what it is made of,
    what it belongs to, who plays or opens or references it -- folded shut
    under one line with their count (the maintainer, 22 September 2026: the
    chips were the bulk of every page and the thing itself came below them).
@@ -1257,7 +1257,7 @@ function linksFold(html) {
   // title is its tab trail, "Components › Items" (the maintainer, 2 October
   // 2026: "Links to Components" if all components, "Links to Data" if all
   // data). A chip with no trail (an action chip, "every frame") does not
-  // decide it; two tabs among the rest, or none at all, keep plain "Links".
+  // count; two tabs among the rest, or none at all, keep plain "Links".
   const tops = new Set();
   html.replace(/<button\b[^>]*>/g, b => { const t = /\btitle="([^"›]+?)\s*(?:›|")/.exec(b); if (t) tops.add(t[1].trim()); return b; });
   const only = tops.size === 1 ? [...tops][0] : '';
@@ -1298,7 +1298,7 @@ function openCharacter(i) { openVia('CHARACTERS', () => showCharacterDetail(i));
    should be reached through the Components tab that shows it, and the table
    underneath from there. Schedules became such a tab on 13 September 2026.
 
-   The card's own id is what renderSchedulesSheet gives it. The open is
+   The card's id is what renderSchedulesSheet gives it. The open is
    deferred a tick because the sheet is built by the category switch and the
    card does not exist until it has run, the same reason mechLink waits. */
 function openSchedule(i) {
@@ -1312,11 +1312,11 @@ function openSchedule(i) {
   });
 }
 
-// A person, wearing their portrait -- the face names the person where the
-// sprite only names a class (the maintainer, 8 September 2026: a portrait is
+// A person, wearing their portrait -- the face identifies the person where the
+// sprite identifies only a class (the maintainer, 8 September 2026: a portrait is
 // the better way to identify a character wherever one is cited). The sprite
 // stands in where there is no portrait, the tab's tile where there is neither.
-// `terse` names the record and not the person, for a row whose title is
+// `terse` labels the record and not the person, for a row whose title is
 // already the person's name (the schedules list).
 function characterChip(i, terse) {
   let icon = '', face = false;
@@ -1408,9 +1408,9 @@ function mapParts(resid, propResid) {
      - ShootEffect (cbMissileFX), whose eighth operand TGameViewer::DoMissile
        hands to the TSoundTracker that follows a thrown or shot thing;
      - TViewer::SetStage, for every loose prop whose class's SoundEffects
-       begins with a number (FillIntfCache keeps that word per prop type),
+       begins with a number (FillIntfCache stores that word per prop type),
        and for every kind-3 egg, whose prop-type field is the sound.
-   PlayIFSound, the only other, plays the application's own snd resources.
+   PlayIFSound, the only other, plays the application's snd resources.
 
    So a sound is a constant in one of those calls, or it reaches one as
      - an argument of a helper, named where the helper is called or queued as
@@ -1425,7 +1425,7 @@ function mapParts(resid, propResid) {
      - the first word of a prop's SoundEffects, played where the prop stands;
      - an egg.
    Each is read from the shape of the instructions, following a local back to
-   what was stored in it; nothing here names a routine's address or a class.
+   what was stored in it; no routine's address or class is written in here.
    The scripts are read through buildScriptTextIndex, whose listings hold only
    the functions dvmDiscover found: the archive's data blocks decode into
    thousands of false PlaySound calls if bytes are walked as code. Sound n is
@@ -1537,7 +1537,7 @@ function classSounds(resid) {
 function soundUsageRows(resid, subn) {
   const u = buildSoundUsage();
   const rows = [];
-  // A bare 0x0812 says little; refDescription turns it into "object script".
+  // A bare 0x0812 means little; refDescription turns it into "object script".
   const chipsFor = counts => [...(counts || new Map())].sort((a, b) => a[0] - b[0])
     .map(([r, c]) => svChip(r, (refDescription(r) || '') + (c > 1 ? ' ×' + c : '')));
   if (subn === 144) {
@@ -1581,10 +1581,10 @@ function soundUsageRows(resid, subn) {
                           (0x1800 + i is record i of 0xF009), and the file
                           bears it out: all 29 of the shipped 0x19xx scripts
                           land on a filled record, and the only one with a
-                          line of its own, 0x191A's "Something smells bad.",
+                          separate line, 0x191A's "Something smells bad.",
                           lands on the ooze.
      0x1A00 | n           skill or spell n, and 0x8A00 | n its icon
-     0x1B00 + room        the room a kind-8 egg carries as its prop type,
+     0x1B00 + room        the room a kind-8 egg has in its prop-type field,
                           which eggKinds already checks resolves
      0x8400 + n           the landscape a zone's entry script sets with n
      0xA00 + aspect       the potion the class 0x101F calls it for
@@ -1604,7 +1604,7 @@ function openItem(pt, aspect) {
 function openUnit(idx) { openVia('MONSTERS', () => showMonsterDetail(idx)); }
 function openPropType(pt) { openVia('PROPS', () => showPropTypeDetail(pt)); }
 
-// A skill or a spell is a card on its sheet, not a page of its own, so this
+// A skill or a spell is a card on its sheet, not a separate page, so this
 // opens the sheet and then the card, deferred a tick for the reason
 // openSchedule gives. A command has no card; the sheet is where it is listed.
 function openClassCard(resid) {
@@ -1620,7 +1620,7 @@ function openClassCard(resid) {
   });
 }
 
-// A thing on a Scenario tab, wearing its own sprite where it has one.
+// A thing on a Scenario tab, shown with its sprite where it has one.
 function ownerChip(cat, js, main, sub, pt) {
   const leaf = TAB_LEAF_FOR.get(cat);
   let icon = '';
@@ -1630,8 +1630,8 @@ function ownerChip(cat, js, main, sub, pt) {
 }
 
 // The thing a class is the class of: the units wearing a living prop type,
-// else the item, else the prop type; a monster class's unit. `sub` says what
-// the chip is for where the caller knows better than "unit" or "item".
+// else the item, else the prop type; a monster class's unit. `sub` labels what
+// the chip is for where the caller has a better word than "unit" or "item".
 function classOwnerChips(resid, sub) {
   const kind = dvmClassName(resid);
   if (kind === 'Monster') {
@@ -1652,7 +1652,7 @@ function classOwnerChips(resid, sub) {
 function zoneLabel(z) { return z ? zoneDisplayName(z) : (labelFor(0x8000) || 'zone 0'); }
 
 // Squares on the maps, a chip a zone: the first square opens, and the count
-// says how many more there are.
+// shows how many more there are.
 function zoneSquareChips(spots) {
   const byZone = new Map();
   for (const s of spots) { if (!byZone.has(s.zone)) byZone.set(s.zone, []); byZone.get(s.zone).push(s); }
@@ -1687,7 +1687,7 @@ function eggsOfKind(kind) {
 }
 function roomEggIndex() { return eggsOfKind(8); }
 
-// The Combat AI section, on whichever Mechanics tab holds it.
+// The Combat AI section, on whichever Mechanics tab it is on.
 function combatAiRuleChip() {
   const g = mechGroupOf('combatai');
   return relChip({ js: "showCategory('" + (g ? g.value : 'MECH_COMBAT') + "'); setTimeout(function(){ mechGo('combatai'); }, 60)",
@@ -1697,8 +1697,8 @@ function combatAiRuleChip() {
 function ownerRows(resid, subn) {
   const rows = [];
   if (subn === 15 || subn === 16 || subn === 24) {
-    // A living prop type is a unit, and the unit's page lists the characters
-    // who wear it; anything else is an item or, failing that, a prop type.
+    // A living prop type is a unit, and the characters who wear it are
+    // listed on the unit's page; anything else is an item or, failing that, a prop type.
     const chips = classOwnerChips(resid);
     if (chips.length) rows.push(['Class of', chips, '']);
   }
@@ -1729,8 +1729,8 @@ function ownerRows(resid, subn) {
       eggs.length ? '' : 'No zone places this room.']);
   }
   if (subn === 131) {
-    // Every script that names this strip, the zone's own where it is an
-    // entry script; a negative number is the strip with no sky
+    // Every script that refers to this strip, the zone's entry script
+    // included where it is one; a negative number is the strip with no sky
     // (landscapeSetters).
     const chips = [], said = new Set();
     for (const st of landscapeZones(resid)) {
@@ -1745,7 +1745,7 @@ function ownerRows(resid, subn) {
   }
   if (subn === 1 && HERO_CLASS_TEXT.some(([, r]) => r === resid) && loadCharacterTable()[1])
     rows.push(['Offered to', [characterChip(1)], '']);
-  // The compiled combat AI and the scenario's own tests and actions are what
+  // The compiled combat AI and the scenario's tests and actions are what
   // the Combat AI section on Mechanics describes; neither belongs to one unit.
   if (subn === 3 || subn === 8) rows.push(['Rules on', [combatAiRuleChip()], '']);
   if (subn === 9 && refExists(0x101F)) {
@@ -1759,8 +1759,8 @@ function ownerRows(resid, subn) {
 function renderUsage(resid, subn) {
   const rows = [];
   // A portrait or a conversation belongs to a character by its number alone,
-  // so the number names a slot whether or not anyone is in it; an empty slot
-  // is said to be one rather than offered as a person (characterRecord).
+  // so the number points at a slot whether or not anyone is in it; an empty
+  // slot is labelled empty rather than offered as a person (characterRecord).
   const chars = loadCharacterTable();
   if (subn === 135) {
     const i = resid - 0x8800 + 1;
@@ -1796,16 +1796,16 @@ function renderUsage(resid, subn) {
 }
 
 // --- Monster stats (0xF008) ------------------------------------------------
-// 128 records of 16 bytes. The field map was the wiki's F008 page, and it holds
-// up against this archive: record 22 is prop type 0x5A, which the prop-type
-// list names "goat", and the wiki's own note says the goat is entry 0x16 = 22.
+// 128 records of 16 bytes. The field map was the wiki's F008 page, and it matches
+// this archive: record 22 is prop type 0x5A, which the prop-type
+// list names "goat", and the wiki's note gives the goat as entry 0x16 = 22.
 // Records 21/23/24 line up with bird, crab and ratlizard the same way.
 //
 // The useful part is that prop_type joins this table to everything else -- the
 // sprite, the name, and any character wearing it -- so a monster stops being a
 // row of hex and becomes a creature. corpse_type is packed the same way a prop
 // record's aspect/proptype word is (6 bits aspect, 10 bits type), which is
-// what says a dead goat is a goat at aspect 2 while an undead leaves "bones".
+// how a dead goat is a goat at aspect 2 while an undead leaves "bones".
 
 /* The 0xF008 flags word, decoded. Neither delvmod (monster.py is a stub) nor
    the wiki ever worked these out. They fell to a cross-reference: gandreas
@@ -1823,7 +1823,7 @@ function renderUsage(resid, subn) {
    humanoid, was a third until 26 September 2026: the program opens doors
    with it (exeUnitMoveRules, below).
 
-   How the engine consumes these is not a guess: the default ResistDamage
+   How the engine consumes these is read, not assumed: the default ResistDamage
    is a script in the archive, at 0x3040 -- default methods live at
    0x3000|method_id (subindex 47; the wiki's Object page pointed there).
    Its rules, in order: fire flag 0x0080 zeroes type-0x08 damage; electric
@@ -1859,7 +1859,7 @@ const MONSTER_FLAG_NAMES = [
   [0x4000, 'bleeds'],                    // 0xE8D leaves blood (prop type 77)
   [0x8000, 'immune to electricity'],     // 0x3040: type 0x20 returns 0 (Lightning)
 ];
-/* The top half of the word is a field of its own, 0x33: GetField serves it
+/* The top half of the word is a separate field, 0x33: GetField serves it
    by shifting the long at 8 right sixteen (exeMonsterFields reads which
    field that is). delvmod never named it, so the listings print `get_field
    0x33`, and the scan below for monster_flags could not see its tests;
@@ -1958,7 +1958,7 @@ function unitsWithTopFlag(bit) {
   return parseMonsterStats().filter(m => m && !m.blank && ((m.flags >>> 16) & bit));
 }
 /* What the program does with a unit's flags as the creature moves, read on
-   26 September 2026, when the maintainer's list asked what gandreas's "Can
+   26 September 2026, when the maintainer's list raised what gandreas's "Can
    Fly" does (until then nothing here was to say a creature flies).
    TActiveMonster::GetMonstAttrs hands TGameSys::CanMove the word at 8 of
    the unit the monster points to (its field at 4, set from ObjToMonst),
@@ -1979,10 +1979,10 @@ function unitsWithTopFlag(bit) {
      pool and shore) or off them (`bt`: 0x10000000, the child, the gator,
      the goat, the unicorn and the titan, off rope and fence).
 
-   A rule wanting two of the unit's bits at once (a door, for 0x0C with
-   0x08000000, which no unit carries) has a third test where the result
+   A rule that needs two of the unit's bits at once (a door, for 0x0C with
+   0x08000000, which no unit has) has a third test where the result
    would be and is left out. Two single tests read the word through the
-   monster's own pointer: TActiveMonster::HandleMove, on a square carrying
+   monster's pointer: TActiveMonster::HandleMove, on a square with
    0x800, skips the ground's method for a unit with 0x0002 (StepOn, 31,
    which no class defines, so the default 0x301F: the swamp, lava, a rune's
    UseOn), and TActiveMonster::CanMove, when its way is shut, runs a door's
@@ -2058,12 +2058,12 @@ function exeUnitMoveRules() {
       }
     }
     // The party's mark, 0x80000000, which GetMonstAttrs ORs in for a party
-    // member and the king's unit carries itself (Alaric is drawn with it).
+    // member and that is set in the king's unit itself (Alaric is drawn with it).
     // CanMove tests it twice: first beside the walk-through-walls byte
     // option-w flips with cheats on, answering 1 at once, then, on a square
     // that blocks, before letting the mover onto it when what blocks it is
-    // a character with the party bit (0x40 of its byte 8). The name says the
-    // second, which is all it does in play; it said "moves as a party
+    // a character with the party bit (0x40 of its byte 8). The name describes the
+    // second, which is all it does in play; it read "moves as a party
     // member" for an hour on 1 October 2026, which the maintainer read as
     // walking through walls, and that needs cheats.
     // The rule is the last test of the unit's word for that bit alone.
@@ -2092,9 +2092,9 @@ function mapTileCensus() {
   }
   return (DERIVED.MAP_TILE_CENSUS = n);
 }
-/* The 0xF004 names of the tiles whose attribute words carry all of `bits`:
+/* The 0xF004 names of the tiles whose attribute words have all of `bits` set:
    the ones the maps place, most-placed first, or where the maps place none,
-   the art of the things that carry them (the mousehole, rope and fence are
+   the art of the things that have them (the mousehole, rope and fence are
    things), which then take "a". */
 function tileNamesCarrying(bits) {
   const attrs = getTileAttributes(ARCHIVE);
@@ -2109,10 +2109,10 @@ function tileNamesCarrying(bits) {
   const list = names.length < 2 ? names[0] : names.slice(0, -1).join(', ') + ' or ' + names[names.length - 1];
   return onMaps ? list : 'a ' + list;
 }
-/* The names the program's movement rules give a unit's bits, each with the
+/* What the program's movement rules call a unit's bits, each with the
    instruction that tests it: [{ mask, name, site }], or none with no
-   application open. A bit the rule reads that no unit carries (0x0008) is
-   named on no page, since only a unit's own bits are looked up. */
+   application open. A bit the rule reads that no unit has (0x0008) is
+   named on no page, since only the bits a unit has are looked up. */
 function monsterMoveNames() {
   if (DERIVED.MONSTER_MOVE_NAMES !== undefined) return DERIVED.MONSTER_MOVE_NAMES;
   const rules = exeUnitMoveRules(), out = [];
@@ -2129,7 +2129,7 @@ function monsterMoveNames() {
   }
   return (DERIVED.MONSTER_MOVE_NAMES = out);
 }
-/* `each` puts every flag's own number after its name (the unit's page,
+/* `each` puts every flag's number after its name (the unit's page,
    6 October 2026: the maintainer read the word printed before the names,
    0x000009F0 on the demon, as one more flag, when it is all of them added
    together). */
@@ -2171,12 +2171,12 @@ function parseMonsterStats() {
         for (const v of r) if (v) { blank = false; break; }
         const cw = u16be(r, 14);
         // The layout is GetField's second jump table (exeMonsterFields),
-        // not a guess: field 44 reads byte 0 and so on down to field 54,
+        // read, not assumed: field 44 reads byte 0 and so on down to field 54,
         // the halfword at 14. Two corrections came out of reading it. The
         // special flags are the WORD at 8, and this parsed the halfword at
         // 10, so the top half -- set on eleven of the fifty -- was never
-        // shown. And byte 6 is delvmod's `alignment`, which used to be
-        // swallowed by an "unknown2" spanning bytes 6 to 9, a field that
+        // shown. And byte 6 is delvmod's `alignment`, which an earlier
+        // "unknown2" swallowed, spanning bytes 6 to 9, a field that
         // straddled the alignment and half the flags and meant nothing.
         out.push({
           index: i, blank, raw: r,
@@ -2235,22 +2235,22 @@ function renderMonsterSheet() {
 /* ---- byte 4 of a unit's record ------------------------------------------
    The delvmod wiki's field table calls it "unknown1, probably size" (the
    page used to say that was gandreas's list, which has no such field and
-   never prints this byte), and the guess was wrong: nothing in the
+   never prints this byte), and "probably size" was wrong: nothing in the
    application reads it. What does
    read it is a script, through GetField -- the field whose handler loads
    byte 4 (exeMonsterFields) -- and exactly one script in the shipped file
-   asks for that field. It builds a blow as the byte plus a random amount
+   reads that field. It builds a blow as the byte plus a random amount
    drawn from the attacker's Body and hands the sum to the damage helper,
    so the byte is the fixed part of what a blow does.
 
-   The figures agree with that and not with size: a bird 1, a child 2, a
+   The figures fit that and not size: a bird 1, a child 2, a
    crab 8, a gator 10, and the king 100 beside 255 health and 30 armor.
    That corroboration is in GRIMOIRE-NOTES.md and not in the sentence the
-   page prints, which says what the script does and stops.
+   page prints, which states what the script does and stops.
 
    The site is found rather than written down: the field number comes from
    the executable and the line from the script that names it. Null with no
-   application open, and then the page says only that the byte is byte 4. */
+   application open, and then the page states only that the byte is byte 4. */
 DERIVED.MONSTER_DAMAGE_SITE = undefined;
 function monsterDamageSite() {
   if (DERIVED.MONSTER_DAMAGE_SITE !== undefined) return DERIVED.MONSTER_DAMAGE_SITE;
@@ -2328,7 +2328,7 @@ function showMonsterDetail(idx) {
           srcNum({ resid: 0xF008, byte: r.index * 16 + 12, stride: 16, what: 'the prop type ObjToMonst searches on' },
                  '0x' + r.proptype.toString(16).toUpperCase()) + '</div>';
   // Every figure opens the instruction that reads its byte: the handler
-  // GetField jumps to for the field a script asks for. `stat` takes the
+  // GetField jumps to for the field a script requests. `stat` is given the
   // byte's offset in the record and finds the field whose handler loads it.
   const mf = appImage() ? exeMonsterFields() : null;
   const fieldAt = off => mf ? mf.fields.find(f => f.offset && f.offset.v === off) : null;
@@ -2342,7 +2342,7 @@ function showMonsterDetail(idx) {
   };
   // Which character stat each of the first three bytes becomes, read off the
   // constructor that copies them (exeMonsterStatCopy); each name opens the
-  // store. With no application open, the names the record has always had.
+  // store. With no application open, the record's long-standing names.
   const copy = appImage() ? exeMonsterStatCopy() : null;
   const statNames = ['Body', 'Reflex', 'Mind'].map((dflt, k) => {
     const c = copy && copy[k];
@@ -2381,7 +2381,7 @@ function showMonsterDetail(idx) {
   }
   panel.innerHTML = h;
 
-  // The unit as the program builds it, then every frame of its own.
+  // The unit as the program builds it, then every frame it has.
   const base = tiles[r.proptype];
   if (base !== undefined) {
     const whole = drawUnitSprite(r.proptype, 48);
@@ -2476,7 +2476,7 @@ function showMonsterDetail(idx) {
     panel.appendChild(u);
   }
 
-  // The record itself, a byte at a time, each one opening its own byte in
+  // The record itself, a byte at a time, each one opening that byte in
   // the table. This is the bottom of the chain: below it there is only the
   // file.
   const raw = document.createElement('div');
@@ -2553,18 +2553,18 @@ function renderTableInspector(resid) {
    everything else in this repository reads (the snapshot, the search, the
    rule matchers), since a listing on screen is a view, not a reading.
 
-   The folded listing had a button of its own between the two until the same
+   The folded listing had a separate button between the two until the same
    day, and was taken off the row when the maintainer asked whether it was
    needed: it is the structured listing without the braces, every function
    the one renders the other renders too (structure_check), and where a jump
    cannot be proven a block the structured listing already leaves the goto
    the folded one would show. dvmFoldRender stays, since the structured
    listing and the gallery's outlines are built on it, and 'folded' still
-   selects it for a caller that asks.
+   selects it for a caller that requests it.
 
    Kept on `window` because the row's buttons are inline handlers, and
-   remembered in the browser so a reader who prefers raw is not asked again
-   on every visit. */
+   remembered in the browser so a reader who prefers raw does not have to
+   choose it again on every visit. */
 window.SCRIPT_FOLD = 'structured';
 try {
   const v = localStorage.getItem('cythera.listing');
@@ -2594,13 +2594,13 @@ function scriptPaneFor(value) {
 const SCRIPT_SUBN = new Set([0,1,2,3,4,7,8,9,10,11,12,13,14,15,16,19,20,23,24,25,26,27,29,47]);
 
 // `sameResource` is a re-render of what is already open (a listing chosen),
-// which keeps the view the reader is on rather than choosing afresh.
+// which stays on the view the reader is on rather than choosing afresh.
 function renderText(sameResource) {
   const out = document.getElementById('output');
   const sel = document.getElementById('residSelect');
   const idx = parseInt(sel.value);
   const [resid, roff, rlen] = window.CUR_RESIDS[idx];
-  // An open editor holds the PREVIOUS resource's bytes; left open across
+  // An open editor has the PREVIOUS resource's bytes; left open across
   // navigation, Apply would write them into whatever is showing now.
   cancelResourceEdit();
   try {
@@ -2613,7 +2613,7 @@ function renderText(sameResource) {
     document.getElementById('backToSheet').style.display = 'block';
 
     // The identity of the resource is now the job of the script view's header,
-    // so this line carries only what that panel does not: the decision the
+    // so this line shows only what that panel does not: the decision the
     // decryptor made, and how close it was.
     const readNote =
       (wasDecrypted ? 'decrypted' : 'read as stored') +
@@ -2681,7 +2681,7 @@ function renderText(sameResource) {
     }
 
     // The strings pane is built for every category, not just the ones that
-    // fall through to it -- a prop list or a map header can still carry text.
+    // fall through to it -- a prop list or a map header can still contain text.
     stringsText = extractReadableStrings(ARCHIVE, resData, resid) || '(No readable strings in this resource.)';
     hexText = hexDump(resData);
 
@@ -2717,8 +2717,8 @@ function renderText(sameResource) {
       content = head + content;
     }
 
-    // Every non-media subindex holds Delver VM containers, so every one of
-    // them gets a real disassembly instead of a byte dump. Subindexes 1, 2, 4,
+    // Every non-media subindex is made of Delver VM containers, so every one
+    // of them is given a real disassembly instead of a byte dump. Subindexes 1, 2, 4,
     // 10 and 29 were missing from this list, which is the whole reason 27
     // resources -- 0x0301 among them -- rendered as anonymous hex. They were
     // decrypting correctly the entire time and the disassembler could already
@@ -2764,8 +2764,8 @@ function renderText(sameResource) {
     }
     const sv = document.getElementById('scriptView');
     const isScript = SCRIPT_SUBN.has(subn);
-    // The script's head carries the decryption note; the centred line above
-    // it would say it twice.
+    // The script's head shows the decryption note; the centred line above
+    // it would repeat it.
     document.getElementById('textLabel').style.display = isScript ? 'none' : '';
     if (isScript) {
       buildScriptView({ resid, subn, byteLength: rlen, readNote: readNote.replace(/\s+/g, ' '), resData });
@@ -2783,7 +2783,7 @@ function renderText(sameResource) {
     if (!sameResource) window.SCRIPT_PANE = window.SCRIPT_PANE_FOR[scriptPaneFor(document.getElementById('categorySelect').value)];
     paintDecodedPane();
     // The F0xx tables are the ones with no field map, so they get the stride
-    // explorer. Everything else keeps a plain hex pane.
+    // explorer. Everything else has a plain hex pane.
     const insp = document.getElementById('tableInspector');
     if (subn === 239) renderTableInspector(resid);
     else if (insp) { insp.style.display = 'none'; insp.innerHTML = ''; }
@@ -2841,7 +2841,7 @@ function stitchDialogue(strs) {
    This renderer turns that structure into what the community spent 2016
    collecting by hand: keywords, responses, follow-ups, and the inheritance
    chain -- with the difference that the conditions and side effects come from
-   the code, and every line still carries its in-place edit link.
+   the code, and every line still has its in-place edit link.
 
    The group names below are NOT stored in the archive: subindex 8 resources
    are anonymous functions. They were identified empirically, by matching each
@@ -2853,10 +2853,10 @@ function stitchDialogue(strs) {
    the House is defunct -- but Sardis, Ake and Milcom (all tied to Atussa)
    still call it, which is how it was identified. 0x814 is an empty stub.
 --------------------------------------------------------------------------- */
-// Empty since 23 September 2026: the files name no group, and the names the
-// community gave them (above) went with the other typed names at the
+// Empty since 23 September 2026: the files name no group, and the community's
+// names for them (above) went with the other typed names at the
 // maintainer's word. A group is shown by its id; utilities/dialogue_check.mjs
-// keeps the community's names to find each group in its collection.
+// uses the community's names to find each group in its collection.
 const DIALOGUE_GROUP_NAMES = {};
 
 function conversationFor(resid) {
@@ -2871,9 +2871,9 @@ function conversationFor(resid) {
   return conv;
 }
 
-// The engine's own rule: the first four letters of the first word typed,
+// The engine's rule: the first four letters of the first word typed,
 // prefix-matched against the stored keyword (which may itself be shorter --
-// "bye" -- or carry comma-separated alternatives -- "iron,mine").
+// "bye" -- or be several alternatives separated by commas -- "iron,mine").
 function convKwMatches(kw, word) {
   const t = String(word || '').toLowerCase();
   return String(kw || '').toLowerCase().split(',').some(k =>
@@ -2900,7 +2900,7 @@ function convJumpWord(resid, word) {
       const g = conversationFor(gid);
       const gh = g && convFindEntry(g.entries, word);
       if (gh) {
-        // The character's view carries its groups' topics too.
+        // The character's view includes its groups' topics too.
         if (document.getElementById('conv-' + gid + '-' + gh.at)) return convScrollTo(gid, gh.at);
         window.PENDING_CONV_WORD = word;
         return jumpToResource(gid);
@@ -2928,7 +2928,7 @@ function convBadgeFor(a) {
   }
   // AddQuest and CompleteQuest are delvmod's names for cbAddToDo and
   // cbDoneToDo: they write and strike off a line in the To Do window and
-  // touch no other state, so they are not said here as "a quest".
+  // touch no other state, so they are not called "a quest" here.
   const M = { JoinParty: 'can join the party', LeaveParty: 'leaves the party',
     Create: 'gives something', New: 'makes something', AddQuest: 'adds a line to the To Do list',
     CompleteQuest: 'strikes a line off the To Do list', ChangeZone: 'travel', Delete: 'removes something',
@@ -2945,7 +2945,7 @@ function convBadgeFor(a) {
 function convTextHtml(resid, e) {
   let html = '';
   // Which conditions pick each line: the Read clause at or before the
-  // string's offset, within this prompt (convReadConds). Said when it
+  // string's offset, within this prompt (convReadConds). Shown when it
   // changes from the line before, so a run under one test reads once.
   const lines = e.kw && e.kw !== '*' ? (convReadConds(resid).lines.get(e.at) || []) : [];
   let prev = '';
@@ -2967,7 +2967,7 @@ function convTextHtml(resid, e) {
 /* What the player means by a prompt (the maintainer, 23 September 2026:
    the "real" four letters and the "intended" word, both at once). The code
    stores only what it matches -- "demo", "eteo", "job" -- and the words
-   those stand for are in the game's own text: every @word in every response
+   those stand for are in the game's text: every @word in every response
    is a word the player can ask about, spelt in full. So a stored keyword's
    intended words are the @words the engine's four-letter rule would send to
    it, most used first; one no response names stays as it is stored. */
@@ -3010,16 +3010,16 @@ function convPromptHtml(e) {
   }).join(' ');
 }
 
-/* What a prompt's answer depends on, as the Read view says it: for each
+/* What a prompt's answer depends on, as the Read view words it: for each
    "when asked about" clause of the conversation's Read (dvmReadRender), the
    conditions of the ifs inside it, down to but not into a nested prompt,
-   which is a card of its own. Keyed by the prompt's offset, which the Read
+   which is a separate card. Keyed by the prompt's offset, which the Read
    clause and the conversation entry share. Until 24 September 2026 a card
-   said only which tests it called ("depends on: GetQV"), and missed a test
-   made through a helper altogether: Aethon's "demo" asks 0xF13 whether he
-   is in the party and its card said nothing. */
+   showed only which tests it called ("depends on: GetQV"), and missed a test
+   made through a helper altogether: Aethon's "demo" calls 0xF13 to test
+   whether he is in the party and its card showed nothing. */
 // "not (x)" of a condition, without doubling a not: a test the Read view
-// already said as "not (x)" or "not x" is turned back to x when x is one
+// already wrote as "not (x)" or "not x" is turned back to x when x is one
 // clause (no "and" or "or" at its top).
 function convNegate(k) {
   const top = t => { let d = 0; for (let i = 0; i < t.length; i++) { const ch = t[i]; if (ch === '(') d++; else if (ch === ')') { d--; if (d < 0) return false; } else if (d === 0 && (t.startsWith(' and ', i) || t.startsWith(' or ', i))) return false; } return d === 0; };
@@ -3033,7 +3033,7 @@ function convReadConds(resid) {
   if (DERIVED.CONV_READ_CONDS.has(resid)) return DERIVED.CONV_READ_CONDS.get(resid);
   const out = new Map();
   out.lines = new Map();
-  // A condition's note from the Read view, which says where a flag it tests
+  // A condition's note from the Read view, which gives where a flag it tests
   // is set ("Alaric's conversation, asked about CHRY sets bit 2 ..."), kept
   // so the card can say it in those words (convCondHtml).
   out.notes = new Map();
@@ -3042,7 +3042,7 @@ function convReadConds(resid) {
     const fns = raw ? dvmReadRender(ARCHIVE, smartDecrypt(raw, resid).data, resid) : [];
     const cond = t => { const m = /^(?:otherwise )?if (.*?):(?: (.*))?$/.exec(t); if (m && m[2]) out.notes.set(m[1], m[2]); return m ? m[1] : null; };
     // Every clause under a prompt, with the conditions it sits under there:
-    // an if's own, and "not (...)" of the if before an "otherwise".
+    // those of the if itself, and "not (...)" of the if before an "otherwise".
     const inside = (kids, chain, into, lines) => {
       let last = null;
       for (const c of kids || []) {
@@ -3072,12 +3072,12 @@ function convReadConds(resid) {
   DERIVED.CONV_READ_CONDS.set(resid, out);
   return out;
 }
-/* A condition as the card says it. A test of the character's own flag that
-   the Read view found set by one of their own topics is said as that topic
-   asked before, the word a link to it (the maintainer, 17 October 2026:
-   "201 if its bit flags has bit 2 ... There's no way to tell what this
-   means, no link even"). Any other note is said after the test; a test
-   with none is said as the Read view says it. */
+/* A condition as the card words it. A test of a flag of the character's
+   that the Read view found set by one of that character's topics reads as
+   that topic asked about before, the word a link to it (the maintainer,
+   17 October 2026: "201 if its bit flags has bit 2 ... There's no way to
+   tell what this means, no link even"). Any other note follows the test;
+   a test with none is written as the Read view writes it. */
 function convCondHtml(resid, c) {
   const notes = convReadConds(resid).notes;
   const neg = /^not \((.*)\)$/.exec(c), k = neg ? neg[1] : c;
@@ -3090,8 +3090,8 @@ function convCondHtml(resid, c) {
     const link = '<span class="convLink" onclick="convJumpWord(' + resid + ',\'' + w + '\')">' + svEsc(w) + '</span>';
     return 'if ' + (neg ? 'not yet asked about ' + link : 'asked about ' + link + ' before');
   }
-  // A note that is only the helper's number, "(0xF13)", says nothing the
-  // test has not said.
+  // A note that is only the helper's number, "(0xF13)", adds nothing the
+  // test has not shown.
   const said = /^\(0x[0-9A-F]+\)$/.test(note) ? '' : note;
   return 'if ' + svEsc(c) + (said ? ' <span class="inspDim">' + svEsc(said) + '</span>' : '');
 }
@@ -3102,7 +3102,7 @@ function convCardHtml(resid, e, depth) {
   const condBadges = said ? said.slice(0, 3).map(c => convCondHtml(resid, c)) : [];
   if (!said && e.conds.length) badges.push('depends on: ' + e.conds.map(dvmSyscallShown).join(', '));
   // A character helper (0xF00 up) the condition already reads through is
-  // not said a second time as a call.
+  // not repeated as a call.
   for (const a of e.actions) {
     if (said && a.call !== undefined && (a.call >> 8) === 0x0F) continue;
     const b = convBadgeFor(a); if (b) badges.push(b);
@@ -3121,7 +3121,7 @@ function convCardHtml(resid, e, depth) {
    group they fall through to in the order the catch-all calls them (the
    engine's lookup), each group's topics that nobody earlier answers. A
    group topic the character or an earlier group already answers is not
-   repeated; the group's heading says how many. The catch-all's own words
+   repeated; the group's heading shows how many. The catch-all's words
    come last, after the groups, which is when the engine reaches them. */
 function convWhoHtml(resid, conv) {
   const ci = resid - 0x1800;
@@ -3194,8 +3194,8 @@ function renderConversationPane(data, subn, resid) {
 }
 
 /* Over a conversation or a script's lines: a filter and Edit Text (the
-   maintainer, 17 October 2026). The filter keeps the lines, and the topics,
-   holding every word typed, and a topic whose follow-up matches stays with
+   maintainer, 17 October 2026). The filter shows only the lines, and the topics,
+   containing every word typed, and a topic whose follow-up matches stays with
    it; it works on the drawn pane, so typing never redraws it. The edit
    links were on every line; they show only while Edit Text is on, which is
    kept for the session. */
@@ -3221,7 +3221,7 @@ function dlgFilter() {
     const kidShown = [...(c.children || [])].some(k => k.classList && k.classList.contains('convCard') && !k.hidden);
     c.hidden = !(has(c) || kidShown);
   }
-  // Lines outside a card (a script's strings, the greeting) by their own text.
+  // Lines outside a card (a script's strings, the greeting) by their text.
   for (const l of wrap.querySelectorAll('.dlgLine')) {
     if (l.closest && l.closest('.convCard')) { l.hidden = false; continue; }
     l.hidden = words.length > 0 && !has(l);
@@ -3229,9 +3229,9 @@ function dlgFilter() {
 }
 /* A script's words, into #dlgWrap: the conversation's topic cards for a
    dialogue script, or its strings one to a line with an edit button each.
-   Whether they are what is showing is paintDecodedPane's to decide; this only
+   Whether they are what is showing is up to paintDecodedPane; this only
    fills the pane, or empties it when there are none, and an empty pane is
-   what takes the Text button off the row. */
+   what removes the Text button from the row. */
 function renderDialoguePane(data, subn, resid) {
   const wrap = document.getElementById('dlgWrap');
   if (!wrap) return;
@@ -3247,7 +3247,7 @@ function renderDialoguePane(data, subn, resid) {
   if (!DIALOGUE_SUBN.has(subn)) return;
   // Container strings are already whole -- they do not need stitching, and
   // stitching them would glue unrelated lines together. Only the fragmentary
-  // Pascal fallback gets stitched.
+  // Pascal fallback is stitched.
   let lines;
   const owned = (resid !== undefined) ? dvmStringObjects(ARCHIVE, data, resid) : [];
   if (owned.length) {
@@ -3303,8 +3303,8 @@ function downloadCurrentRawBytes() {  const bytes = window.CUR_RAW_BYTES;
 // --- Editing ----------------------------------------------------------
 // The first edit path this page has ever had, and deliberately the narrowest
 // one that is real end to end: hex-edit one resource's plaintext, rebuild the
-// ENTIRE archive through writeDelverArchive (the writer delv_write_check.mjs
-// holds byte-identical to delvmod's), and re-enter through parseArchiveBytes
+// ENTIRE archive through writeDelverArchive (the writer that delv_write_check.mjs
+// checks is byte-identical to delvmod's), and re-enter through parseArchiveBytes
 // as if the rebuilt file had just been opened. Rebuilding wholesale instead
 // of patching ARCHIVE.bytes in place costs ~none (a 5.6 MB archive re-serializes
 // in milliseconds) and buys everything: every derived cache resets, every
@@ -3339,10 +3339,10 @@ function startResourceEdit() {
 }
 
 /* ---- Changing a script's code (24 September 2026) ------------------------
-   New instructions, in the listing's own words, put in at an instruction of
+   New instructions, in the listing's notation, put in at an instruction of
    the raw listing -- the line last ringed, when there is one -- in place of
    the instructions up to "Take out up to", and the resource relinked round
-   them (dvmAssemble, dvmRelink in js/delv-asm.js), which refuses an edit
+   them (dvmAssemble, dvmRelink in js/delv-asm.js), which rejects an edit
    whose offsets do not read back. Apply goes through applyResourceEdit, the
    same rebuild Edit bytes uses, so the change is in the comparison section's
    export as a Magpie patch like any other. Offsets are the raw listing's,
@@ -3427,7 +3427,7 @@ function applyResourceEdit(resid, newData) {
   else spec.resources.splice(spec.resources.indexOf(entry), 1);
   // resetDerivedCaches clears EDITED_RESIDS along with everything else keyed
   // to the open file -- correctly, since parseArchiveBytes is also how a
-  // DIFFERENT archive arrives. Carry the dirty list across this rebuild by
+  // DIFFERENT archive is loaded. Copy the dirty list across this rebuild by
   // hand; it is user state, not a derived table.
   const dirty = new Set(window.EDITED_RESIDS);
   dirty.add(resid);
@@ -3443,10 +3443,10 @@ function applyResourceEdit(resid, newData) {
   return true;
 }
 /* The status line lives in the Settings panel, so an edit made from a page
-   said where it went to nobody. This line under the top row says it on the
+   showed where it went to nobody. This line under the top row shows it on the
    page, with Your Patch a link (the Changes tab until 17 October 2026, the
-   Patch Generator's section of that name until the 19th), and goes away on
-   its own. */
+   Patch Generator's section of that name until the 19th), and goes away by
+   itself. */
 let _editNoticeTimer = null;
 function showEditNotice(resid, what, count) {
   const el = document.getElementById('editNotice');
@@ -3525,7 +3525,7 @@ function applyPropRecordEdit(propResid, index, fields) {
    These three constants are a contract with the retired mobile shell, which types the disk
    and the script's names at the emulated Finder to select them -- so they are
    named here rather than spelled inline, and `mobile_install_check.mjs`
-   fails if the two pages stop agreeing about them.
+   fails if the two pages stop matching on them.
 
    The script itself is the answer to "how do you install a mod without
    knowing where any window is". The Finder cannot copy a file from the
@@ -3540,21 +3540,21 @@ function applyPropRecordEdit(propResid, index, fields) {
    real Mac OS 7.6 and every line of the script below was compiled by it;
    three things it taught, so they are not rediscovered:
 
-     - `try ... end try` does not compile in this AppleScript. It wants the
-       `on error` clause, and says "Expected "on" but found "end"".
+     - `try ... end try` does not compile in this AppleScript. It needs the
+       `on error` clause, and the error is "Expected "on" but found "end"".
      - `duplicate ... with replacing` does the replace with no confirmation,
        which is what makes this one step rather than an interactive one.
      - `display dialog` compiles, so the Dialogs scripting addition is there
        and the not-found case can say so.
 
    The game is *found*, not named: the folder holding an application called
-   "Cythera" is the one whose data gets replaced, so this works whatever the
+   "Cythera" is the one whose data is replaced, so this works whatever the
    disk is called and whatever version folder the game sits in. */
 const DISK_VOLUME_NAME = 'Cythera Export';
 const DISK_SCRIPT_NAME = 'Install and Play';
 const DISK_ARCHIVE_NAME = 'Cythera Data';
 /* A Delver scenario without its resource fork is not a scenario the game will
-   open, and nothing about the file says so until Cythera refuses it.
+   open, and nothing about the file shows it until Cythera fails to open it.
 
    Measured, in the emulator, against the real 1.0.4 Cythera Data: with its
    1,247,331-byte fork the game starts; with the identical data fork and no
@@ -3563,11 +3563,11 @@ const DISK_ARCHIVE_NAME = 'Cythera Data';
        Sorry - there has been a fatal error:Unable to open RT
 
    -- which names nothing a person could connect back to this page. So the
-   export says it here instead.
+   export states it here instead.
 
    The fork goes missing whenever the archive arrived without one: a bare
    `.data` file dropped or picked, a `?src=` pointing at one, or a remembered
-   copy saved from either. A `.hqx`, MacBinary or AppleSingle carries both,
+   copy saved from either. A `.hqx`, MacBinary or AppleSingle has both,
    which is why index.html fetches the `.hqx` and not the data fork. */
 function missingForkWarning(rsrc) {
   if (rsrc && rsrc.length) return null;

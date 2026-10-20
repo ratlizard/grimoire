@@ -1,25 +1,25 @@
 /* The archive's names and labels, the sound decoder and the undither switch.
 
    One of the fourteen js/page-*.js files that were index.html's inline
-   script until 16 September 2026, cut at its own section banners and
+   script until 16 September 2026, cut at the section banners it had and
    nowhere else, so every function is where it was in the one file. This
-   tier knows the page's furniture: js/mac-*.js know nothing of Cythera,
-   js/delv-*.js know the formats but not the page, and these know both.
+   tier is the page's furniture: js/mac-*.js have nothing of Cythera in
+   them, js/delv-*.js cover the formats but not the page, and these cover both.
    They are classic scripts, never modules, because the page has to work
    from a file:// origin, and they share one global scope, so a name
-   declared in any of them is reachable from all. The order only decides
-   what has run when a statement runs at load time; the one such statement
+   declared in any of them is reachable from all. The order matters only to a
+   statement that runs at load time, which sees what loaded before it; the one such statement
    that needed a later file, the brand line, stayed in the page after the
    last of these. File 1 of 14. */
 
-/* THE PAGE'S OWN TABLES LIVE ON THE ARCHIVE. Everything the page derives
+/* THE PAGE'S DERIVED TABLES LIVE ON THE ARCHIVE. Everything the page derives
    from the open file -- the schedules, the character table, the barks, the
    item index, the zone names, the map's tile canvases and paths, forty-odd
-   tables in all -- used to be `window.NAME` memos and module-level Maps,
+   tables in all -- were once `window.NAME` memos and module-level Maps,
    cleared by name in resetDerivedCaches() when another file opened. That
    list missed ten entries at once on 16 September 2026 and could miss more.
    Since 19 September they live on the archive object js/delv-archive.js
-   returns, under its `derived` map, the way the delv tier's own tables do:
+   returns, under its `derived` map, the way the delv tier's tables do:
    `DERIVED.SCHEDULES` reads and writes the open archive's entry and is
    undefined with no file open, and a Map declared as derivedMap('name') is
    the open archive's Map, so opening another file leaves nothing behind
@@ -56,14 +56,14 @@ function prettyLabel(s) { return String(s).replace(/([a-z])([A-Z])/g, '$1 $2').r
 
 // Portraits are named by 0x0201 alone. A table of delvmod's character
 // symbols stood behind the names switch until 23 September 2026, when the
-// three entries left in it (UrSylph, which 0x0201 already says, and
-// WishingFountain and DegreeHallDoor, where 0x0201 says Fountain and Door)
-// went with the other names the files do not give (the maintainer's call).
-// Landscape strips (subindex 131, 0x84nn) carry no built-in names since
+// three entries left in it (UrSylph, which is already in 0x0201, and
+// WishingFountain and DegreeHallDoor, where 0x0201 has Fountain and Door)
+// went with the other names that are not in the files (the maintainer's call).
+// Landscape strips (subindex 131, 0x84nn) have no built-in names since
 // 22 September 2026: the community's list was guesses with question marks,
-// and each strip's cell now says which zones and rooms set it
-// (landscapeSetters), which is the file's own answer.
-// Skill icon names used to be 49 hardcoded strings transcribed by hand -- and
+// and each strip's cell now shows which zones and rooms set it
+// (landscapeSetters), which is the answer from the file.
+// Skill icon names were once 49 hardcoded strings transcribed by hand -- and
 // transcribed from buggy decoder output, which is why the list contained
 // "DirectedNexus" and "Acertainment". They are read from the archive now:
 // skill icon n is skill class 0x1A00|n, and a skill class names itself in its
@@ -76,12 +76,12 @@ function skillNameForIcon(n) { return selfNameFor(0x1A00 | n); }
 // labels itself correctly instead of inheriting our hardcoded list.
 window.DERIVED_NAMES = null;
 /* The last table any archive gave us, kept ACROSS a swap and deliberately not
-   dropped by resetDerivedCaches. A saved game holds no 0x0201 at all -- it is
+   dropped by resetDerivedCaches. A saved game has no 0x0201 at all -- it is
    a thin file: the character records, one zone's props, one portrait, the
-   combat AI and the persistence store -- so a save opened on its own can only
+   combat AI and the persistence store -- so a save opened alone can only
    call its people "Character 12". A character index means the same person in
    every Cythera file, so the names from the scenario opened earlier in the
-   session are the right answer and the Saved Game sheet says where they came
+   session are the right answer and the Saved Game sheet shows where they came
    from. This is two string tables carried over, not two archives open at
    once (see **The delv-* files are not a library**): nothing here decodes
    from the scenario, it only reads back words it already had. */
@@ -99,8 +99,8 @@ function loadDerivedNames() {
   // A scenario's full stomach is kept for a saved game opened after it.
   try { if (getResourceBytes(ARCHIVE, 0x0A00)) fullStomach(); } catch (e) { /* no potion scripts */ }
 }
-// The names the open file gives, or the last file that gave any. `borrowed`
-// says which, so a sheet can admit it.
+// The open file's names, or those of the last file that had any. `borrowed`
+// records which, so a sheet can state it.
 function nameTable() { return window.DERIVED_NAMES || window.SCENARIO_NAMES || null; }
 function namesAreBorrowed() { return !window.DERIVED_NAMES && !!window.SCENARIO_NAMES; }
 function derivedCharacterName(n) {
@@ -128,7 +128,7 @@ function dialogueSpeakerFor(resid) {
 
 // Skill and spell classes name themselves: the first string object in the
 // resource is the name the game shows, and the second is its description.
-// Read out of the archive rather than guessed, but cached, since it costs a
+// Read out of the archive rather than typed in, but cached, since it costs a
 // decode and a container walk per resource.
 DERIVED.SELF_NAMES = null;
 function selfNameFor(resid) {
@@ -173,14 +173,14 @@ function labelForResource(subn, n, resid) {
 
 /* The resource forks, read by kind rather than by type code.
 
-   Cythera Data's fork holds 113 resources of 18 types and the program's
-   339 of 52, and a flat gallery of type codes says nothing about what any of
-   them is for. This table does: each kind names the four-letter types that
-   make it up, says in a sentence what they are (from looking at every one of
-   them, September 2026), and says where else on the site the kind is shown.
+   Cythera Data's fork has 113 resources of 18 types and the program's
+   339 of 52, and a flat gallery of type codes shows nothing about what any of
+   them is for. This table does: each kind has the four-letter types that
+   make it up, a sentence on what they are (from looking at every one of
+   them, September 2026), and where else on the site the kind is shown.
    Both fork galleries group by it, and the views in FORK_VIEWS below are the
    same renderer filtered to one or two kinds, which is how a screen or a
-   font or a cursor gets a place under Components without a second decoder.
+   font or a cursor has a place under Components without a second decoder.
    A type in no kind falls under "Other". */
 const RSRC_KINDS = [
   { id: 'screens', label: 'Screens', types: ['PICT'],
@@ -233,15 +233,15 @@ const FORK_VIEWS = {
 const CATEGORY_NAMES = { 0:"Global Symbols & Scripts", 1:"Text & Names", 135:"Character Portraits", 137:"Skill & Spell Icons", 141:"Tile Graphics", 131:"Landscape Graphics", 142:"General Graphics", 144:"Sounds", 127:"Maps", 128:"Prop Lists", 239:"Game Data Tables",
   143:"Music (QTMA)", 2:"Global Store", 3:"AI Combat Scripts", 4:"Archetypes", 7:"Generic Group Dialogue", 8:"Combat AI Tests & Actions", 9:"Eating & Potion Effects", 10:"Stub Script", 14:"Character Helpers", 11:"Task Helpers", 12:"Party & Inventory Helpers", 13:"Rule Helpers", 15:"Object Interaction Text", 16:"Object Scripts", 19:"Zone Entry Scripts", 20:"Sub-zone Scripts", 23:"Character Dialogue", 24:"Monster Class Scripts", 25:"Skill & Spell Classes", 26:"Room Scripts A", 27:"Room Scripts B", 29:"Room Scripts C", 47:"Character Action Scripts"
 };
-/* Pictures, sounds and tile sheets carry no names in the files, and the
+/* Pictures, sounds and tile sheets have no names in the files, and the
    typed labels they had -- the wiki's and the community's, behind the names
    switch -- went on 23 September 2026 at the maintainer's word, after they
    were checked (GRIMOIRE-NOTES.md, *The typed names, checked*): the gavel's
    sound was "Arrow Hits", the dice's "Fire (?)", and sheet 0 "Grass" where
-   its tiles are grass, swamp, shrub, bush and water. What names them now is
-   the game's own words: a tile sheet by 0xF004's names for its sixteen
+   its tiles are grass, swamp, shrub, bush and water. They are named now in
+   the game's words: a tile sheet by 0xF004's names for its sixteen
    tiles, a picture by the names of the things whose scripts open it
-   (buildScriptedWindows). A sound keeps its number; its page says what plays
+   (buildScriptedWindows). A sound stays a number; its page shows what plays
    it. */
 function tileSheetWords(n) {
   const seen = [];
@@ -268,7 +268,7 @@ const RESHINTS = {
   0x0241:"Death Text", 0x0242:"Defeat Text", 0x0243:"Victory Text",
   // Nothing for 0x80xx/0x81xx/0x14xx belongs here: the zone loop below fills
   // all three ranges. Two stale entries used to sit at this spot, labelling
-  // 0x8102 a landscape and 0x1402 a portrait. Both were wrong about their own
+  // 0x8102 a landscape and 0x1402 a portrait. Both were wrong about the
   // subindex -- 0x81xx is subindex 128 (prop lists) and 0x14xx is subindex 19
   // (zone-entry scripts), while landscapes are 0x84xx and portraits 0x88xx --
   // and both were overwritten a few lines later, so they were inert as well.
@@ -282,21 +282,21 @@ const RESHINTS = {
 // descriptive names for eighteen maps stood here behind the names switch
 // until 23 September 2026 and went with the other typed names; one of them,
 // "Goat Farm", is the map the editor calls "Flax Farm".
-// Distinguish a name we read out of the archive from one supplied by our own
-// built-in tables, so a hardcoded guess is never mistaken for game data.
+// Distinguish a name read out of the archive from one supplied by the
+// built-in tables here, so a hardcoded label is never mistaken for game data.
 // Zone names are not a lookup table anywhere -- they are string literals
 // inside each zone-entry script (subindex 19, 0x14xx), emitted by opcode 0x44
 // (`pushc`) as a NUL-terminated C string. Map 0x80nn pairs with script
-// 0x14nn, and the prop list 0x81nn with the same nn. This gives the game's own
+// 0x14nn, and the prop list 0x81nn with the same nn. This gives the game's
 // names ("Land King Hall", "Kosha Grotto", "Omen's Test") instead of the
-// hand-annotated guesses we were shipping.
+// hand-annotated labels shipped before.
 DERIVED.ZONE_NAMES = null;
 /* A second set of names, the editor's, from the resource fork: STR# 135 in
-   Cythera Data lists every zone in map order, one entry per map from map 1
+   Cythera Data has every zone in map order, one entry per map from map 1
    -- entry 0 is the world, map 1; map 0, the editor's blank "Map", has none.
    Where the entry script's string is the name the player is shown, this is
    the name the map was made under, and for the seventeen maps whose script
-   says only "Ruins", "Tomb", "Temple", "Cove", "Caves", "Stronghold" it is
+   has only "Ruins", "Tomb", "Temple", "Cove", "Caves", "Stronghold" it is
    the specific one: "Headwater Ruins", "Tyrant's Tomb", "Scylla Temple",
    "Crab Cove", "Eioneus Cave", "Tavara Fortress". Spellings are the
    file's -- "North Short Vinyard", "Inner Broutherhood Dungeon" [sic] --
@@ -314,14 +314,14 @@ function loadEditorZoneNames() {
   if (list) list.forEach((nm, i) => { if (nm) names[i + 1] = nm; });
   return (DERIVED.EDITOR_ZONE_NAMES = names);
 }
-// The combat AI's scripted tests and actions, named by the program's own
+// The combat AI's scripted tests and actions, named by the program's
 // lists: STR# 9307 has the six tests in the order of 0x901-0x906 and STR# 9308
 // the thirteen actions in the order of 0x981-0x98D (workbench
-// doc/save-format.md has the reading; the scripts match the names one for one
+// doc/save-format.md has the reading; the scripts match the list entry for entry
 // -- 0x905 walks equipment for reach and ammunition, and the list calls it
 // UsingRangedWeapon(@,#)). The entries are the file's, signature and all.
 // Null without the application's fork, when the static table in
-// js/delv-script.js is all a script gets.
+// js/delv-script.js is all a script has.
 DERIVED.AI_HOOK_NAMES = null;
 function aiHookName(resid) {
   const t = resid >= 0x901 && resid <= 0x906 ? ['tests', 9307, resid - 0x901]
@@ -336,7 +336,7 @@ function editorZoneName(resid) {
   return loadEditorZoneNames()[resid % 0x100] || null;
 }
 // " (Tyrant's Tomb in the editor's list)" after a map's label, when the
-// editor named it something else; nothing when the two agree or there is
+// editor named it something else; nothing when the two match or there is
 // no fork.
 function editorNameSuffix(resid, shown) {
   const ez = editorZoneName(resid);
@@ -412,7 +412,7 @@ function labelSource(resid) {
   // whichever terrain run happens to cover the number, and reported every
   // label as archive data -- the opposite of what this flag is for.
   if (subn === 135 && derivedCharacterName(n)) return 'data';
-  // A skill's own name string comes out of the resource itself, so it is data.
+  // A skill's name string comes out of the resource itself, so it is data.
   // A dialogue speaker is matched from this tool's character table, so it is
   // not -- it stays flagged with the dagger.
   if (subn === 25 && selfNameFor(resid)) return 'data';
@@ -433,7 +433,7 @@ function applyLabel(el, resid) {
   return txt;
 }
 
-// Names arrive with junk on the front, and the junk turns out to be readable.
+// Names come with junk on the front, and the junk turns out to be readable.
 // The skill name that displays as "DVision of the Night" is really the bytes
 // 8B 44 "Vision of the Night": 0x8B is `return`, and 0x44 is `pushc` -- which
 // happens to be ASCII 'D'. The implicit-string decoder is starting two bytes
@@ -453,7 +453,7 @@ function normalizeLabel(s) {
 
 function labelFor(resid) { return normalizeLabel(labelForUnnormalized(resid)); }
 
-// Any resource mentioned by id in a detail sheet is one click from its own
+// Any resource mentioned by id in a detail sheet is one click from its
 // detail view: the id IS the link. The href doubles as the page's bare deep
 // link (#8E88), so middle-click and copy-link behave.
 function residLink(resid, text) {
@@ -462,14 +462,14 @@ function residLink(resid, text) {
     ');return false">' + (text || '0x' + hex) + '</a>';
 }
 
-// Names this tool supplies rather than reads. Since 23 September 2026 that is
+// Labels this tool supplies rather than reads. Since 23 September 2026 that is
 // RESHINTS alone, the descriptions of the data tables; the wiki's and the
 // community's labels for sounds, pictures, tile sheets, zones, portraits,
-// prop types and dialogue groups went at the maintainer's word. They used to be indistinguishable from the file's own strings except
+// prop types and dialogue groups went at the maintainer's word. They were once indistinguishable from the file's strings except
 // for a dagger nobody reads. They were off by default until 6 September
 // 2026 and are on by default since (the maintainer's call: one name per
 // place); switched from the archive menu, and with them off the gallery
-// shows only what the file actually says. Generic numbering ("Sound 12") is not an override and stays.
+// shows only what is actually in the file. Generic numbering ("Sound 12") is not an override and stays.
 window.SHOW_BUILTIN_LABELS = true;   // on by default since 6 September 2026 (the maintainer's call)
 try {
   const st = localStorage.getItem('cythera.builtinLabels');
@@ -479,7 +479,7 @@ try {
    2026): a file the visitor supplied -- dropped, picked, or remembered from
    one of those -- starts with the names off, since it may not be the shipped
    game; the installer fetched for them starts with them on. A choice made
-   with the checkbox is kept in localStorage and wins over either. */
+   with the checkbox is kept in localStorage and overrides either. */
 window.ARCHIVE_OWN = false;
 function applyNamesDefault(own) {
   window.ARCHIVE_OWN = !!own;
@@ -492,7 +492,7 @@ function applyNamesDefault(own) {
 function setBuiltinLabels(on) {
   window.SHOW_BUILTIN_LABELS = !!on;
   try { localStorage.setItem('cythera.builtinLabels', on ? '1' : '0'); } catch (e) { quiet(e); }
-  // The atlas names its places once, when the scene is built.
+  // The atlas labels its places once, when the scene is built.
   try { DERIVED.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) { quiet(e); }
   if (ARCHIVE) {
     try { onCategoryChange(); } catch (e) { quiet(e); }
@@ -505,7 +505,7 @@ function labelForUnnormalized(resid) {
   // A map whose entry script names nothing still has the editor's name.
   const ez = editorZoneName(resid);
   if (ez) return ez;
-  // The archive names many of its own resources; prefer that over our tables.
+  // The archive has names for many of its resources; prefer that over our tables.
   // They are code identifiers -- "LKH_Guard", "Od_Trough1" -- so the
   // underscores become spaces for display. The symbol itself is untouched.
   try { const sy = resourceSymbol(resid); if (sy) return sy.replace(/_/g, ' '); } catch (e) { quiet(e); }
@@ -538,7 +538,7 @@ function decodeSound(resData) {
   const flags = u16be(resData, p); p+=2;
   const nsamples = Math.floor((resData.length - p)/2);
   const samples = new Int16Array(nsamples);
-  // A word a sample, but only its low byte carries signal: measured over the
+  // A word a sample, but only its low byte has signal: measured over the
   // shipped sounds, the high byte is always 00 or FF and 99.6% of the values
   // are within -127..127. So the word is an 8-bit sample sign-extended, and
   // shifting it up by eight is the gain that makes it a 16-bit one.
@@ -549,7 +549,7 @@ function decodeSound(resData) {
   return {rate: rate || 22050, samples};
 }
 
-// The shared writer in js/mac-media.js produces the bytes; this keeps the
+// The shared writer in js/mac-media.js produces the bytes; this preserves the
 // Blob shape the sound preview and the WAV download already expect.
 function samplesToWavBlob(rate, samples) {
   return new Blob([wavFromInt16(samples, rate)], { type: 'audio/wav' });
@@ -621,9 +621,9 @@ const UNDITHER_SUBN = new Set([131, 135, 137, 141, 142]);   // landscape, portra
 // The switch is global and lives under Tools. What a gallery or a single
 // view offers is a PREVIEW the other way -- "preview undithered" while the
 // switch is off, "preview dithered" while it is on -- which lasts until the
-// category changes. One switch, one override, and the label always says
+// category changes. One switch, one override, and the label always shows
 // which way the preview goes.
-window.UNDITHER_PREVIEW = null;           // null = as the switch says; true/false = this view only
+window.UNDITHER_PREVIEW = null;           // null = as the switch is set; true/false = this view only
 function unditherOn() {
   return window.UNDITHER_PREVIEW === null ? !!window.UNDITHER : !!window.UNDITHER_PREVIEW;
 }
@@ -727,8 +727,8 @@ function buildCompositeTile(entry) {
 // Terrain names live unencrypted in 0xF004 as repeated
 // { u16 value, NUL-terminated name } records.
 //
-// RUN DIRECTION: the value is the index of the HIGHEST tile carrying that
-// name -- the END of a run, not its start. The wiki's F004 page says so
+// RUN DIRECTION: the value is the index of the HIGHEST tile with that
+// name -- the END of a run, not its start. The wiki's F004 page states this
 // outright and its worked example proves it: in sheet 0x8E00 grass is tile 1,
 // swamp is tiles 2-4 and a shrub is tile 5, which the table records as
 // 0001 grass / 0004 swamp / 0005 shrub. So the name for an arbitrary tile is
@@ -776,8 +776,8 @@ function loadTerrainNames() {
         // that does not is the start of the trailing 0x0000 padding.
         if (id < prev) break;
         prev = id;
-        // Six names carry a plural suffix after a backslash -- "arrow\s",
-        // "unlit torch\es", "obol\s/oi" -- which is the game's own notation
+        // Six names have a plural suffix after a backslash -- "arrow\s",
+        // "unlit torch\es", "obol\s/oi" -- which is the game's notation
         // for how to pluralise the word, not part of it. Dropped for display;
         // it is the only editing done to a name read out of the archive, and
         // without it those six read worse than the wiki's hand-written list
@@ -921,8 +921,8 @@ const spriteTimers = [];
 function stopSpriteAnimations() {
   while (spriteTimers.length) clearInterval(spriteTimers.pop());
 }
-// Not every character has a full 4x4 sheet. Count frames that actually carry
-// pixels so the UI can say so rather than showing blanks.
+// Not every character has a full 4x4 sheet. Count frames that actually have
+// pixels so the UI can show it rather than showing blanks.
 const spriteCountCache = derivedMap('spriteCountCache');
 // How many frames a character actually owns is set by the prop->tile table:
 // a proptype's sprite block runs from its base tile up to the next proptype's
@@ -935,13 +935,13 @@ const spriteCountCache = derivedMap('spriteCountCache');
 // block at the next proptype's base gave Ignae 4 frames, because proptype
 // 0x128 also has a base at 0x7DC, inside Ignae's range. Ignae is the second
 // half of sheet 0x7D and owns all eight of 0x7D8-0x7DF, which is exactly what
-// "16 minus the offset into the sheet" gives. Ur-Sylph at 0x89C gets 4, Alaric
-// at 0x710 gets 16.
+// "16 minus the offset into the sheet" gives. Ur-Sylph at 0x89C has 4, Alaric
+// at 0x710 has 16.
 /* A prop's frames run from its base tile to the next prop type's base in
    the same 16-tile sheet, or to the sheet's end: the prop-tile table
-   (0xF000) is the file's own boundary. It ran to the sheet's end alone until
+   (0xF000) is the boundary in the file. It ran to the sheet's end alone until
    20 September 2026, so the gecko's page showed the sylph's four frames
-   after its own (the maintainer's report); the two share a sheet, the
+   after the gecko's (the maintainer's report); the two share a sheet, the
    gecko at 0x898 and the sylph at 0x89C. */
 function spriteBlockSize(proptype) {
   const tiles = getPropTileList();
@@ -951,7 +951,7 @@ function spriteBlockSize(proptype) {
   // The arms of an octopus-kind unit run over two sheets: the program draws
   // arms times aspectStep frames of the arm class (exeOctoRule, 32 for the
   // hydra's), so an arm class's block is that long, still stopped at the
-  // next prop type's base (25 September 2026; the hydra's own page showed
+  // next prop type's base (25 September 2026; the hydra's page showed
   // sixteen of its thirty-two until then).
   const arms = typeof unitArmsFrames === 'function' ? unitArmsFrames(proptype) : 0;
   if (arms > end - base) end = base + arms;
@@ -983,10 +983,10 @@ const WALK_CYCLE = [0, 1, 2, 1];   // 1-2-3-2, not 1-2-3-4: column 4 is the
                                    // the stride.
 const SPR_REST = 3;
 
-// The frame to show a character in when nothing else decides it: standing,
+// The frame to show a character in when nothing else sets it: standing,
 // facing south, which is facing the reader. Frame 0 -- the first frame that
-// happens to carry pixels -- is the north row's first stride, so every
-// gallery of characters used to be a gallery of the backs of their heads.
+// happens to have pixels -- is the north row's first stride, so every
+// gallery of characters was once a gallery of the backs of their heads.
 // Falls back through the south row's stride frames and then to whatever the
 // sheet has, for the short blocks that do not own four facings.
 function restingFrame(info) {
@@ -1032,11 +1032,11 @@ function spriteFrameInfo(baseTile, proptype) {
   return info;
 }
 
-// Walk a character around the outside of their own portrait, facing the way
-// they are going. Position along the perimeter decides the facing, which is
+// Walk a character around the outside of their portrait, facing the way
+// they are going. Position along the perimeter sets the facing, which is
 // what makes it read as walking rather than as a sprite cycling in place.
 //
-// Pace comes from the character's own record. Reflex sets stride speed --
+// Pace comes from the character's record. Reflex sets stride speed --
 // Cythera's stats run to about 20, so reflex 20 moves at roughly twice the
 // rate of reflex 6 -- and Body sets how willing they are to stop and rest,
 // with heavier characters pausing more often. Nothing here is invented data:
@@ -1072,7 +1072,7 @@ function animateSpriteTile(host, info, rec, opts) {
   // rather than slides, and changes walk frame at every step, but a step is
   // now half the figure's width and the gait cycles twice per width -- it
   // read as lurching a whole body-length at a time before. Reflex sets how
-  // long each step takes.
+  // long each step lasts.
   const reflex = Math.max(4, Math.min(24, (rec && rec.reflex) || 12));
   const stepMs = Math.round((620 - reflex * 16) * 0.7);  // ~160ms fast, ~390ms slow
   const rows = Math.max(1, Math.floor(info.present.length / 4));
@@ -1093,7 +1093,7 @@ function animateSpriteTile(host, info, rec, opts) {
   };
 
   // Where step n sits on the perimeter. Position and facing are worked out
-  // separately from this, which is the whole point: the facing used to be read
+  // separately from this, which is the whole point: the facing was once read
   // off whichever SIDE the current position landed on, so a step that arrived
   // exactly at a corner was already assigned to the next side and the sprite
   // turned a step before it started walking that way. Facing now comes from
