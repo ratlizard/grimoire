@@ -442,7 +442,7 @@ function translateWriteStrList(list) {
 // The data file's resource fork: its STR# strings by hash, as Mac Roman
 // (a resource-fork string is not script text, so an accent is a separate byte
 // there); a TxSt given a new face or size; and the conversation face with
-// the letters the translation needs (T.font gives which, and how).
+// the letters the translation needs (which ones, and how, is in T.font).
 function translateResourceFork(rsrc, T, report, log) {
   const spec = resourceForkSpec(openResourceFork(rsrc));
   let changed = false, widths = null, sfntId = null;

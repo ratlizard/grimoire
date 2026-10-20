@@ -26,7 +26,7 @@
    artPackChoose(pack, kind, name, n)
      The file for one of the game's names. The game's words are looked for
      among a file's words, a file's name counting three times its
-     folders; ART_PACK_WORDS gives which of the pack's words a Cythera word
+     folders; ART_PACK_WORDS has, for a Cythera word, the pack's words it
      may also be read as, and it is the one judgement in here, made by
      looking at what the plain match chose (the same standing as
      HERO_SPRITES in delv-graphics.js). A name nothing answers is given a file
@@ -183,8 +183,8 @@ function artPackChoose(pack, kind, name, n) {
     pack.chosen.set(key, hit);
   }
   if (!hit.files.length) return null;
-  // A name the pack answers uses its files in turn; one it does not uses
-  // one file by the name alone, so the stand-in is at least always the same.
+  // For a name the pack answers, its files are used in turn; for one it does
+  // not, a single file is picked by the name alone, so the stand-in is at least always the same.
   const i = hit.matched ? (n >>> 0) % hit.files.length : badArtHash([...String(name)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7)) % hit.files.length;
   return { file: hit.files[i], matched: hit.matched };
 }

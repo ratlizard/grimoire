@@ -2,8 +2,8 @@
 
    One of the fourteen js/page-*.js files that were index.html's inline
    script until 16 September 2026, cut at the section banners it had and
-   nowhere else, so every function is where it was in the one file. This
-   tier is the page's furniture: js/mac-*.js have nothing of Cythera in
+   nowhere else, so every function is where it was in the one file. The
+   page's furniture is in this tier: js/mac-*.js have nothing of Cythera in
    them, js/delv-*.js cover the formats but not the page, and these cover
    both. They are classic scripts, never modules, because the page has to
    work from a file:// origin, and they share one global scope, so a name
@@ -387,7 +387,7 @@ function loadSchedules() {
       // `at` is where the entry sits in 0xF00B, so a figure read off it
       // can open the bytes it came from.
       // Bytes 2 and 3 are a condition and its argument (scheduleCondition);
-      // `script` stores the two as one word for what read it that way.
+      // `script` has the two as one word, for the code that reads them that way.
       entries.push({ hour: raw[p], mode: raw[p+1],
                      script: u16be(raw, p+2), cond: raw[p+2], arg: raw[p+3], level: raw[p+4],
                      x: xy >> 12, y: xy & 0xFFF, at: p });

@@ -2,8 +2,8 @@
 
    One of the fourteen js/page-*.js files that were index.html's inline
    script until 16 September 2026, cut at the section banners it had and
-   nowhere else, so every function is where it was in the one file. This
-   tier is the page's furniture: js/mac-*.js have nothing of Cythera in
+   nowhere else, so every function is where it was in the one file. The
+   page's furniture is in this tier: js/mac-*.js have nothing of Cythera in
    them, js/delv-*.js cover the formats but not the page, and these cover
    both. They are classic scripts, never modules, because the page has to
    work from a file:// origin, and they share one global scope, so a name
@@ -456,8 +456,8 @@ function mechFoodTable(fd) {
 }
 
 /* A column heading that sorts its table on a click: the first click puts
-   the largest number (or the last name) first unless `dir` gives which way
-   the table already runs, and each click after turns it round. A cell
+   the largest number (or the last name) first unless `dir` sets the direction
+   the table already runs in, and each click after turns it round. A cell
    sorts by its data-sort, else by its text. Gold, being a thing to click. */
 function mechSortHead(label, col, dir) {
   return '<button class="svLink sortHead"' + (dir ? ' data-dir="' + dir + '"' : '') + ' onclick="mechSortBy(this,' + col + ')">' + svEsc(label) +
@@ -2051,7 +2051,7 @@ function fixAppChanges(f, a, host) {
    face with its new letters, the message pane's face and the buttons'
    labels are in the resource fork, which no patch reaches. It is built
    from the open file and its fork: a piece the file has changed has no
-   entry and stays in English, and the note gives how many. A copy without
+   entry and stays in English, and the note counts them. A copy without
    its resource fork is rejected, since the accents would draw as boxes. */
 // The Spanish table and the Geneva its strikes are made from, each added as
 // a script element (a page opened from a USB stick can load those), the

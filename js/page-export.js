@@ -2,8 +2,8 @@
 
    One of the fourteen js/page-*.js files that were index.html's inline
    script until 16 September 2026, cut at the section banners it had and
-   nowhere else, so every function is where it was in the one file. This
-   tier is the page's furniture: js/mac-*.js have nothing of Cythera in
+   nowhere else, so every function is where it was in the one file. The
+   page's furniture is in this tier: js/mac-*.js have nothing of Cythera in
    them, js/delv-*.js cover the formats but not the page, and these cover
    both. They are classic scripts, never modules, because the page has to
    work from a file:// origin, and they share one global scope, so a name
@@ -380,7 +380,7 @@ function cytheraOrdinalsFor(opts, L) {
 /* The Preferences tab's two presets, as options cytheraPrefsRecord accepts
    (the maintainer, 1 October 2026). DEFAULT is a new copy of the game: the
    record the program stores first, no answer to the 256-colour question so
-   the game puts it, no cheat keys, no extra mouse buttons, and every ordinal
+   the game shows the question, no cheat keys, no extra mouse buttons, and every ordinal
    where a fresh install reads it. EVERYTHING is below, beside its code. A
    setting is named by what the layout read, never by a
    bit typed here, so a patched build has its settings. */

@@ -39,7 +39,7 @@
 //    an involution: a resource wrongly judged encrypted is decrypted on read
 //    and re-encrypted on write, and comes back byte-identical anyway. The
 //    round trip proves the container, the master index and the writer on
-//    unfamiliar input. It shows nothing about the verdicts. Only oracle 1 does.
+//    unfamiliar input. It is no evidence about the verdicts; only oracle 1 is.
 //
 // The add-ons are .sit, .sitx, .sea, .zip and .hqx, which need `unar`; without
 // it this check does oracle 1 alone and states it. That is still the half that

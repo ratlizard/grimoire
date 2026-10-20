@@ -2,8 +2,8 @@
 
    One of the fourteen js/page-*.js files that were index.html's inline
    script until 16 September 2026, cut at the section banners it had and
-   nowhere else, so every function is where it was in the one file. This
-   tier is the page's furniture: js/mac-*.js have nothing of Cythera in
+   nowhere else, so every function is where it was in the one file. The
+   page's furniture is in this tier: js/mac-*.js have nothing of Cythera in
    them, js/delv-*.js cover the formats but not the page, and these cover
    both. They are classic scripts, never modules, because the page has to
    work from a file:// origin, and they share one global scope, so a name

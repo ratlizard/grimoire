@@ -38,7 +38,7 @@
              resource, or throws when the bytes are not what it expects.
      textEdits: [{ what, resid, find, replace, count?, mid?, at?, optional? }]
              -- every occurrence of the text `find` in the resource (count
-             gives how many there must be; omitted means at least one) is
+             is how many there must be; omitted means at least one) is
              replaced by `replace`, right to left, each through dvmRelink's
              splice with the new bytes, so the offsets past it move; and
              where the text sits inside a `data` block (the direction lists,

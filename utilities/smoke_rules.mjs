@@ -1140,7 +1140,7 @@ try {
 
    The page tiled one of 0x8F50/0x8F51 as a pattern behind Land King Hall,
    swapped the two, and showed them under every tile with a transparent
-   pixel. TViewer::Render shows otherwise (zoneBackdrop, js/page-data.js):
+   pixel. In TViewer::Render it is different (zoneBackdrop, js/page-data.js):
    each is a picture an egg of kind 10 places, drawn before the ground and
    seen through the tiles whose attribute has 0x10000000. Pinned on the
    hall's twelve, on the two pictures, on a depth being negative, and on
@@ -1303,7 +1303,7 @@ try {
     ['the bed divisor', sl && sl.div && link(0xE93, sl.div.at)],
     ['mastery', tr.masteryVal && link(0xEAF, tr.masteryVal.at)],
     ['a spell’s cost', (function () { const f = ctx.spellRules().spells.find(x => x.name === 'Fireball'); return f && f.costVal && link(f.resid, f.costVal.at); })(), sphtml]
-    // A third element gives which sheet the figure is on; the rest are on
+    // A third element is the sheet the figure is on; the rest are on
     // Mechanics, which stays the default.
   ].filter(([, re, where]) => !re || !re.test(where || html)).map(([what]) => what);
   // No typed names for prop types, portraits or zones since 23 September
@@ -1340,8 +1340,8 @@ try {
     const hero = sprites.find(s => s.pt === 32);
     const rows = (html.match(/<td class="cheatCombo">/g) || []).length;
     // No application in this run: the keys, the gate and the record are the
-    // program's, so none of them is stated, and the sheet gives where they
-    // come from. The installer section requires them.
+    // program's, so none of them is stated, and the sheet shows only where
+    // they come from. The installer section requires them.
     if (!/to read the program’s code here/.test(html) || rows || /©gra|jumpToExeAt\(/.test(html))
       fail('cheats', `with no application open the sheet states the keys or the gate (${rows} key rows)`);
     else if (!hero || !/hero/i.test(hero.name))
@@ -1510,10 +1510,10 @@ try {
       else if (clock !== 14 * 0x1000 || day !== 3 || ((plain[84] << 8) | plain[85]) === 3) fail('make a save', 'the hour and the day asked for are not in the Char block: ' + JSON.stringify({ clock, day }));
       else if (st && (ch[16 + +sn] !== sv || plain[16 + +sn] === sv)) fail('make a save', 'the named state did not set its quest value, or the plain save has it too');
       else console.log(`  make a save, the second half: zone ${z} with its list; ${pal.name} beside the hero as a party member; two in the afternoon on day 3; ` + (st ? `"${st.name}" sets quest value ${sn} to ${sv}` : 'no resource fork here, so no named state was tried') + `; ${d.zones.length} places, ${d.companions.length} who can join, ${d.stories.length} named states; a square off the map rejected`);
-      /* The archetypes (archetypeRules), the same day. The game states what
-         each is twice: the table the scripts read, and two tables of text
+      /* The archetypes (archetypeRules), the same day. The game records each
+         one twice: the table the scripts read, and two tables of text
          the creation dialog shows, 0x0205 ("Body: 18  Reflex: 18  Mind:
-         12") and 0x0206 ("Attack[4], Defense[4]"). The reader reads the
+         12") and 0x0206 ("Attack[4], Defense[4]"). archetypeRules reads the
          first; the text is the oracle. Every stat and every skill with
          its level must match, bar the one place the game differs from
          itself: the Beserker [sic], whose table has mind 12 and whose
@@ -1567,8 +1567,8 @@ try {
          welcome's four pieces must be read with their lines, and a save
          made with it must have the flag, the To Do line, the thing held
          and the king's flag, which the plain save must not. The faces
-         are the program's: with it open, two sexes of as many as it
-         gives, every one a portrait the file has and names for nobody;
+         are the program's: with it open, the portraits it offers for each
+         of two sexes, every one a portrait the file has and names for nobody;
          with none open, no strip. */
       else if ((() => { const kw = ctx.kingsWelcomeRules(), hp = ctx.exeHeroPortraits();
         const w = kw ? ctx.delverArchiveSpec(new Uint8Array(ctx.newGameSaveBytes({ name: 'NewGame01', welcomed: true }))) : null;

@@ -5,7 +5,7 @@
 //
 // WHY. js/delv-fold.js renders a Delver VM script as something closer to
 // source: the expression tree folded into calls and infix operators. Doing that
-// needs one fact the raw listing never has to have -- how many values each
+// needs one fact that the raw listing can do without -- how many values each
 // postfix op consumes -- and that fact is written down nowhere. delvmod's ddasm
 // emits postfix, so it never needs arity; its rdasm is a flat assembler and
 // has none; the wiki's RDASM Opcodes page gives the semantics in prose

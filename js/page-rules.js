@@ -2,8 +2,8 @@
 
    One of the fourteen js/page-*.js files that were index.html's inline
    script until 16 September 2026, cut at the section banners it had and
-   nowhere else, so every function is where it was in the one file. This
-   tier is the page's furniture: js/mac-*.js have nothing of Cythera in
+   nowhere else, so every function is where it was in the one file. The
+   page's furniture is in this tier: js/mac-*.js have nothing of Cythera in
    them, js/delv-*.js cover the formats but not the page, and these cover
    both. They are classic scripts, never modules, because the page has to
    work from a file:// origin, and they share one global scope, so a name
@@ -665,8 +665,8 @@ function renderSchedulesSheet() {
   const box = document.createElement('div');
   box.className = 'mechView';
   // Who is scheduled at all, read off ScheduleTime (exeScheduleWho); with
-  // no application open the sheet gives where the rule comes from and
-  // states none of it.
+  // no application open, the sheet shows only where the rule comes from,
+  // not the rule itself.
   {
     const who = appImage() ? exeScheduleWho() : null;
     const lede = document.createElement('p');
@@ -726,7 +726,7 @@ function renderSchedulesSheet() {
       ', ' + [...new Set(p.real.filter(e => e.level !== 255 && !(scheduleCondition(e) || {}).stop).map(e => zoneDisplayName(e.level)))].slice(0, 3).map(svEsc).join(', ') + '</span>' +
       '<span class="mechFrom">' + characterChip(p.i, true) + '</span>';
     sec.appendChild(head);
-    // A day with no conditions reads by the clock; a program stays in
+    // A day with no conditions reads by the clock; a program is listed in
     // the file's order, which is the order the game tests it in.
     const programmed = p.real.some(e => e.cond);
     const list = programmed ? p.real : p.real.slice().sort((a, b) => a.hour - b.hour);
@@ -1981,8 +1981,8 @@ function combatRules() {
      an iterator call that ran off the end and returned None (cbWorn), the
      class_member opcode answers None for anything that is not a prop, and
      cbGetSkill passes None's low half, -1, to FindSkill, which matches no
-     skill, so 0xEAC returns 0. An armed blow therefore has nothing from
-     Sword, Axe or Mace; Barehand is added in 0xE88 and Missile in 0xE89, and
+     skill, so 0xEAC returns 0. So Sword, Axe and Mace add nothing to an
+     armed blow; Barehand is added in 0xE88 and Missile in 0xE89, and
      both work. That is what 453 measured on the board (topic 2044). Read as
      a shape, so a resolver that reads Arg02 finds nothing here. */
   const iterSet = dvmSeqAll(ro, [/^set_local 0x[0-9A-F]+$/i, /^sys EquipmentIterator$/]).map(g => parseInt(g[0].text.split(' ')[1], 16));

@@ -1777,7 +1777,7 @@ function dvmBlocksOf(tree, follow) {
  * program is its number.
  *
  * A conversation's function is its answers, which the Text view lays out
- * whole; here it is one line that gives how many it answers.
+ * whole; here it is one line with the number of keywords it answers.
  *
  * The say switch is `ctx.say`: dvmFoldValue, dvmFoldOperator and dvmFoldCall
  * hand over to the functions below when it is set, so a value is read
