@@ -15,7 +15,7 @@
  *
  * WHAT FOLDING IS. The listing is already a tree -- dvmDisassemble gives each
  * op the number of expression frames it opens, and the 0x40 that closes one.
- * But inside a frame the stream is POSTFIX: `add` does not carry its operands,
+ * But inside a frame the stream is POSTFIX: `add` does not include its operands,
  * it consumes the two values before it. So
  *
  *     call_resource CastSpell           CastSpell(Arg00.container, 6, 24)
@@ -25,8 +25,8 @@
  *         byte 0x18
  *     end
  *
- * Note what that says and what it does not: `get_field` CONSUMES the Arg00
- * before it, so the call takes three arguments and not four. Read the other way
+ * Note what that means and what it does not: `get_field` CONSUMES the Arg00
+ * before it, so the call has three arguments and not four. Read the other way
  * it would be four, and the fold would be asserting something about CastSpell
  * that the bytes do not say.
  *
@@ -36,7 +36,7 @@
  *
  * WHICH OPS CONSUME VALUES IS THE ONE THING NOT WRITTEN DOWN ANYWHERE.
  * delvmod's ddasm emits postfix, so it never needs arity; its rdasm is a flat
- * one-mnemonic-one-byte assembler and carries none either. The wiki's RDASM
+ * one-mnemonic-one-byte assembler and has none either. The wiki's RDASM
  * Opcodes page gives the semantics in words -- "Push an immediate signed byte
  * onto the evaluation stack", "The usual arithmetic operation", "length of
  * object on top of stack" -- which settles what each op MEANS without ever
@@ -53,7 +53,7 @@
  */
 
 /* How many values an op consumes from the frame it sits in, for the ops that
-   open no frame of their own. Everything absent from this map is a value: a
+   open no frame themselves. Everything absent from this map is a value: a
    literal, a local, an argument, a global, a loaded word. Read off the wiki's
    RDASM Opcodes table. */
 const DVM_POPS = {
@@ -86,9 +86,9 @@ const DVM_INFIX = {
 const DVM_PREFIX = { 0x55: '-', 0x59: '~', 0x5E: '!' };
 
 /* A symbol's name without the code the listing prints beside it: the raw
-   listing says `get_field container (0xB)` so that the number is never hidden,
-   and folded text says `.container`, the number being one tap away in the raw
-   view. An operand with no name keeps whatever the listing gave it. */
+   listing reads `get_field container (0xB)` so that the number is never hidden,
+   and folded text reads `.container`, the number being one tap away in the raw
+   view. An operand with no name stays as the listing gave it. */
 function dvmPlainName(arg) {
   const m = /^(.*?)\s*\((0x[0-9A-Fa-f]+)\)\s*$/.exec(arg || '');
   return m ? m[1] : (arg || '');
@@ -106,7 +106,7 @@ function dvmBareOperand(arg) {
  * names it. The table is at the offset the first word gives, and each entry is
  * six bytes: a dref as a big-endian long, then the key as a word. A dref with
  * the top bit set and this resource's id in bits 16..30 points at an object
- * here; 0x5000FFFF is the table's way of saying the slot is empty.
+ * here; 0x5000FFFF is the table's marker for an empty slot.
  *
  * This is what turns `function obj_0061(1 args, 0 locals)` into
  * `function Use(Arg00)`. delvmod's ddasm has named functions this way since it
@@ -132,7 +132,7 @@ function dvmSlotNames(b, resid) {
     const name = (DVM_SYM.method && DVM_SYM.method[String(key)]) ||
                  (DVM_SYM.field && DVM_SYM.field[String(key)]) ||
                  ('Slot' + key.toString(16).toUpperCase().padStart(4, '0'));
-    // A slot already named keeps its first name: two keys can point at one
+    // A slot already named retains its first name: two keys can point at one
     // object (0x1A28 has two slots on 0x5000FFFF and the shipped archive has
     // objects shared between a method and a field), and the first is the one
     // the table lists.
@@ -142,11 +142,11 @@ function dvmSlotNames(b, resid) {
 }
 
 /* ---- the tree -------------------------------------------------------------
- * One pass over the flat op list. An op that opens frames gets its children in
+ * One pass over the flat op list. An op that opens frames has its children in
  * `groups`, one array per frame, in the order the frames close -- which is the
- * order they appear in the bytes. `close` keeps the closing op of each frame,
- * because `then -> 0x0094` and `cases ( ... )` carry the branch targets and an
- * `end` carries nothing.
+ * order they appear in the bytes. `close` stores the closing op of each frame,
+ * because `then -> 0x0094` and `cases ( ... )` have the branch targets and an
+ * `end` has nothing.
  */
 function dvmForest(ops) {
   const root = { groups: [[]], close: [], pending: 0, mn: '<root>' };
@@ -162,7 +162,7 @@ function dvmForest(ops) {
       owner.pending--;
       stack.pop(); owners.pop();
       if (owner.pending > 0) {
-        // The same op opens another frame straight away -- set_field takes two,
+        // The same op opens another frame straight away -- set_field needs two,
         // set_index three -- so open the next one for it rather than returning
         // to its parent.
         owner.groups.push([]);
@@ -221,7 +221,7 @@ function dvmFoldValue(n, ctx) {
     case 'byte': case 'short': case 'word': {
       /* The raw listing's note after an operand: a signed reading where a
          byte or short is negative (`byte 0xFB  // -5`), then whatever
-         dvmAnnotateInt knows the number to mean. The signed reading IS the
+         dvmAnnotateInt reads the number to mean. The signed reading IS the
          value -- 0xFB as 251 reads every dark zone's light level backwards --
          so it replaces the number. The rest of the note is not carried: its
          names are tables typed into this page from the board and the wiki,
@@ -230,7 +230,7 @@ function dvmFoldValue(n, ctx) {
       const note = String(n.arg || '').split('  //')[1];
       const neg = note && /^\s*(-\d+)(?:,|$)/.exec(note);
       /* delvmod's `&Var2` addresses slot 3, Var03 (the raw listing's note,
-         dvmDisasm); this view names the slot, as it does `Arg01`. */
+         dvmDisasm); this view gives the slot's name, as it does `Arg01`. */
       const ref = n.mn === 'word' && note && /^\s*(Var[0-9A-F]{2})$/.exec(note);
       return neg ? neg[1] : ref && /^&Var\d+$/.test(bare) ? '&' + ref[1] : dvmFoldNumber(bare);
     }
@@ -250,8 +250,8 @@ function dvmFoldValue(n, ctx) {
 /* An operand as a number. The raw listing prints a byte and a short in hex and
    a word already decimal, which reads as two conventions in one line --
    `PlaySound(0x30, ...)` beside `MagicAuraEffect(..., 240)`. Decimal throughout
-   here; the raw view keeps its own spelling, which is an open question of its
-   own and not one this view has to wait for. A value that is not a plain number
+   here; the raw view retains its spelling, which is a separate open question
+   and not one this view has to wait for. A value that is not a plain number
    (a dref, an object reference, a name the word decoder resolved) is left
    exactly as the decoder wrote it. */
 function dvmFoldNumber(bare) {
@@ -274,9 +274,9 @@ function dvmFoldOperator(n, args, ctx) {
     case 0x61: {                                               // class_member
       /* `class_member 0xKKWW` reads word WW of the class's member KK -- the
          member a `has` tests, by the same key -- so 0x2A03 is
-         `.MeleeWeapon[3]`, which is how the page's own readers write it
-         (weaponSkillOffLoop in js/page-rules.js). A key delvmod's method
-         table does not name stays as the number. */
+         `.MeleeWeapon[3]`, which is how the page's readers write it
+         (weaponSkillOffLoop in js/page-rules.js). A key that is not in
+         delvmod's method table stays as the number. */
       const m = /^0x([0-9A-F]{2})([0-9A-F]{2})$/i.exec(bare);
       const k = m && String(parseInt(m[1], 16));
       const key = m && ((DVM_SYM.method && DVM_SYM.method[k]) || (DVM_SYM.field && DVM_SYM.field[k]));
@@ -295,7 +295,7 @@ function dvmFoldCall(n, ctx) {
   if (ctx && ctx.say) return dvmSayCall(n, ctx);
   const bare = dvmPlainName(dvmBareOperand(n.arg));
   const g = n.groups.map(f => dvmFoldFrame(f, ctx));
-  // `sys Name` arrives as one mnemonic with the name inside it.
+  // `sys Name` comes as one mnemonic with the name inside it.
   if (/^sys /.test(n.mn)) {
     const name = n.mn.slice(4), vals = dvmReduceFrame(n.groups[0] || [], ctx);
     dvmFoldCallNotes(name, vals, ctx);
@@ -304,7 +304,7 @@ function dvmFoldCall(n, ctx) {
   switch (n.mn) {
     case 'call_resource': case 'call_subroutine': {
       // A resource the raw listing leaves as its id may have a name the page
-      // reads off its bytecode (dvmFoldResourceName); the call says it.
+      // reads off its bytecode (dvmFoldResourceName); the call shows it.
       const id = n.mn === 'call_resource' && /^0x([0-9A-F]+)$/i.exec(bare);
       return (id ? dvmFoldResourceName(parseInt(id[1], 16)) : bare) + '(' + dvmArgList(n.groups[0], ctx) + ')';
     }
@@ -330,7 +330,7 @@ function dvmFoldCall(n, ctx) {
 }
 
 /* ---- what a number stands for ----------------------------------------------
- * A statement's numbers that the game's own files name are said in a comment
+ * A statement's numbers that the game's files name are explained in a comment
  * at the end of its line: `ChangeZone(Arg00, 12)   // zoneport 12: Iron Mine`.
  * The number stays in the code, where it is what the bytes say.
  *
@@ -338,23 +338,23 @@ function dvmFoldCall(n, ctx) {
  * here is computed from the game's data or code, never typed in. The page
  * carried hand-made tables beside the file's names -- the Ambrosia board's
  * status flag names, the wiki's sound labels and prop types, which went on
- * 23 September 2026 -- and still carries helper names an earlier session
+ * 23 September 2026 -- and still has helper names that an earlier session
  * wrote after reading their bytecode (DVM_SCRIPT_NAMES); none of them is
  * used for these listings. The first version of this, the same day, used
  * several, and was taken out. What is used:
  *   - a To Do line: AddQuest's text reference read in the array it points
  *     into, and CompleteQuest's slot read in the same array, which is the
- *     page's own convention for the slot a line is struck from (todoRules);
+ *     page's convention for the slot a line is struck from (todoRules);
  *   - a sound, the number every sound call adds to 0x9100: its id, as a link,
- *     and a name only where the archive's own symbol table has one;
+ *     and a name only where the archive's symbol table has one;
  *   - a zoneport: the zone the 0xF00C entry sends to, named by the title its
  *     own entry script sets (loadZoneports, zoneNameFor);
  *   - the prop type Create and New make: named by the file's name for its
  *     base tile (0xF004, terrainNameFor), not by the wiki's list.
- * delvmod's symbol tables -- the syscall, method and field names the whole
+ * delvmod's symbol tables -- the syscall, method and field names that the whole
  * listing is spelt in -- are the one outside source kept, as they are
  * everywhere else on the site. `ctx.notes` collects the notes while a
- * statement folds; the renderer takes them when it prints the line. */
+ * statement folds; the renderer reads them when it prints the line. */
 // A slot of opcode 0x82, as `local` and `arg` spell it: below 0x30 VarNN,
 // 0x30 to 0x3F ArgNN (TInterp::DoInterpAt stores the second kind in the
 // arguments at the slot less 0x30). Null for anything else.
@@ -366,7 +366,7 @@ function dvmSlotName(bare) {
 function dvmFoldNote(ctx, text) {
   if (ctx && ctx.notes && text && ctx.notes.indexOf(text) < 0) ctx.notes.push(text);
 }
-// Which argument of a sound call is the sound (SOUND_CALLS in the page says
+// Which argument of a sound call is the sound (SOUND_CALLS in the page has
 // the same, and why ShootEffect's is its eighth).
 const DVM_SOUND_ARG = { PlaySound: 0, UnknownD4: 0, PlayAmbientSound: 0, ShootEffect: 7 };
 // Page readers of the file, called only where the page has them and the
@@ -406,8 +406,8 @@ function dvmFoldCallNotes(name, vals, ctx) {
     if (nm) dvmFoldNote(ctx, 'prop type ' + pt + (name === 'Create' && v >> 10 ? ', aspect ' + (v >> 10) : '') + ': ' + nm);
   }
 }
-// A text array's entries by their own index field, which is not their
-// position beyond entry 37 of 0x021A (todoRules says the same).
+// A text array's entries by the index field in each, which is not their
+// position beyond entry 37 of 0x021A (todoRules notes the same).
 function dvmFoldTextArray(arc, resid) {
   return derivedTable(arc, 'foldText' + resid, () => {
     try {
@@ -416,10 +416,10 @@ function dvmFoldTextArray(arc, resid) {
     } catch (e) { quiet(e); return null; }
   });
 }
-/* The array CompleteQuest's slot is read in: whichever one the archive's own
+/* The array CompleteQuest's slot is read in: whichever one the archive's
    AddQuest calls point into. Found once per archive by walking every function
-   for an AddQuest, which is the only place the file says it; a CompleteQuest
-   carries no reference of its own. */
+   for an AddQuest, which is the only place the file has it; a CompleteQuest
+   has no reference to it. */
 function dvmTodoTextResid(arc) {
   return derivedTable(arc, 'foldTodoResid', () => {
     for (let subn = 0; subn < 256; subn++) {
@@ -453,15 +453,15 @@ function dvmArgList(nodes, ctx) {
 
 /* What a resource is called in the folded listings, at a call to it and at the
    head of the function that is the whole of it. The raw listing's order --
-   the archive's own symbol table, then delvmod's short list -- and then the
-   AI's tests and actions by the application's own string lists (aiHookName),
+   the archive's symbol table, then delvmod's short list -- and then the
+   AI's tests and actions by the application's string lists (aiHookName),
    when the application is open, which the raw listing does not print. Not
    DVM_SCRIPT_NAMES: those helper names were written by a session reading
-   the bytecode, not read out of a file (dvmFoldNote says why that matters). With none, the id as a call site spells it, `0x904`, so the
-   head of 0x904's own listing reads `function 0x904(...)`, as its callers do.
+   the bytecode, not read out of a file (dvmFoldNote explains why that matters). With none, the id as a call site spells it, `0x904`, so the
+   head of 0x904's listing reads `function 0x904(...)`, as its callers do.
    It was `function obj_0000(...)` until 22 September 2026: the object at
    offset 0 of a resource that is one function, named by nothing because the
-   dispatch table that names the others is not there. */
+   dispatch table with the others' names is not there. */
 function dvmFoldResourceName(rid) {
   let n = null;
   try {
@@ -470,15 +470,15 @@ function dvmFoldResourceName(rid) {
         (typeof aiHookName === 'function' && aiHookName(rid));
   } catch (e) { quiet(e); }
   // The AI's list writes each name with the argument kinds the rule
-  // language takes, "UsingMeleeWeapon(@)"; a listing calls it with the
-  // script's own arguments, so the name is printed without them.
+  // language accepts, "UsingMeleeWeapon(@)"; a listing calls it with the
+  // script's arguments, so the name is printed without them.
   if (n) n = String(n).replace(/\(.*\)$/, '');
   return n || ('0x' + rid.toString(16).toUpperCase().padStart(2, '0'));
 }
 
 /* ---- statements -----------------------------------------------------------
- * The top level of a function body, and of any frame that holds statements
- * rather than one value. A statement keeps its offset, because the offset is
+ * The top level of a function body, and of any frame that contains statements
+ * rather than one value. A statement retains its offset, because the offset is
  * the join to Edit Bytes: js/page-rules.js maps a listed operand to its place
  * in the plaintext and the raw view shows it.
  */
@@ -504,7 +504,7 @@ function dvmFoldStatement(n, ctx) {
          stores it in the frame's locals at that index, and for 48 to 63 in
          its arguments at the operand less 48 (the two arrays `local` and
          `arg` read). So `set_local 0x31` is `Arg01 = ...`. The raw listing
-         keeps delvmod's spelling, with this name in a note. */
+         retains delvmod's spelling, with this name in a note. */
       const lhs = dvmSlotName(bare);
       return (lhs || 'set_local ' + bare) + ' = ' + (g[0] || '');
     }
@@ -604,7 +604,7 @@ function dvmFoldRender(arc, b, resid) {
 }
 
 /* ---- two versions of a script, line by line ----------------------------------
-   The patches section and the comparison said which scripts a patch changes
+   The patches section and the comparison showed which scripts a patch changes
    and by how many bytes, and nothing of what: the maintainer asked for the
    exact difference (27 September 2026), and nearly all of what the fix
    patches change is scripts, the dialogue among them.
@@ -615,7 +615,7 @@ function dvmFoldRender(arc, b, resid) {
    is compared with its offsets masked -- the gutter, the labels, an answer's
    target, an unnamed object's name -- because one inserted instruction moves
    every offset after it, and unmasked every later line would differ. What is
-   shown is each side's own line without its gutter.
+   shown is each side's line without its gutter.
 
    diffSequences is Myers's difference over two arrays, the common head and
    tail taken off first; it gives up past MAX_DIFF_EDITS and reports the rest
@@ -630,7 +630,7 @@ function diffSequences(a, b) {
   const N = ea - s, M = eb - s, out = [];
   for (let k = 0; k < s; k++) out.push(['=', k, k]);
   const mid = [];
-  // trace[d] holds v[k] for k in -(d+1)..d+1 as it stood before round d.
+  // trace[d] has v[k] for k in -(d+1)..d+1 as it stood before round d.
   const trace = [];
   let v = new Map([[1, 0]]), D = -1;
   if (N && M) {
@@ -669,12 +669,12 @@ function diffSequences(a, b) {
 
 /* The script diff itself: the two folded renders compared a line at a time,
    in hunks with `context` unchanged lines round each change. Where a hunk
-   takes out and puts in lines, they are paired in order and compared a word
+   removes and adds lines, they are paired in order and compared a word
    at a time, so a changed word in a long line of dialogue can be picked out
    (`parts`, [text, changed]). Either side may be null, for a script only one
    file has.
 
-   The listing does not show everything a script holds: an array of names
+   The listing does not show everything in a script: an array of names
    is `<array>` there, and a block of data inside a function is `<data <N
    bytes>>`. The text patches' first run had two changes with no line to
    show them, a character's name in gCharNames and "obolio" in a notice's
@@ -682,7 +682,7 @@ function diffSequences(a, b) {
    printable characters that reads as words, in the objects that are not
    functions and the data blocks of those that are -- and compared the same
    way, as `text`. The whole resource's text was tried first and gave
-   hundreds of false changes: a string beside code carries the code's
+   hundreds of false changes: a string beside code has the code's
    offsets as stray characters, and they move when the code does. */
 function dvmDiffHunks(A, B, keys, context, tokenKey) {
   const C = context === undefined ? 2 : context;
@@ -730,7 +730,7 @@ function dvmScriptText(d, resid) {
     let run = [];
     const flush = () => {
       if (run.length >= 4) {
-        // A table of strings keeps a byte of offset or length before each,
+        // A table of strings has a byte of offset or length before each,
         // and it is printable as often as not ("vMaster Tros", "™Librarian
         // Selinus", "7Master Pheres"); it moves when an earlier entry grows.
         // One such first character is dropped: anything outside ASCII but
@@ -776,7 +776,7 @@ function dvmScriptDiff(arc, resid, aData, bData, context) {
 
 /* ---- the round trip ------------------------------------------------------
  * Re-emit the flat op sequence a tree came from. utilities/fold_check.mjs
- * compares this with dvmDisassemble's own output for every function in the
+ * compares this with dvmDisassemble's output for every function in the
  * archive: equal means the tree lost nothing and invented nothing, which is
  * the half of the proof that the frame-balance count does not cover.
  */
@@ -814,13 +814,13 @@ function dvmExpandForest(forest) {
  *
  * So the recovery is built around two rules.
  *
- * FIRST, IT REFUSES RATHER THAN GUESSES. Each pattern below is matched only
+ * FIRST, IT STOPS RATHER THAN ASSUMES. Each pattern below is matched only
  * when the region it would build is closed -- nothing outside it jumps into its
  * middle, and nothing inside it leaves except to the one place control is meant
  * to continue. A jump that fits no pattern stays a `goto` with its label, which
  * is the honest rendering and is what the folded view already gives. A function
  * can come out wholly structured, partly, or not at all, and the header line
- * says which.
+ * shows which.
  *
  * SECOND, THE CONTROL-FLOW GRAPH HAS TO SURVIVE IT. Every statement has
  * successors that the flat listing fixes: a conditional goes to its target and
@@ -838,23 +838,21 @@ function dvmExpandForest(forest) {
  */
 
 /* ---- text split where a jump lands in it ------------------------------------
- * The disassembler reads direct text as delvmod does -- any byte below 0x80
- * on an empty expectation stack, until the first byte that is not -- and
- * delv_dasm_check.mjs holds it to that. But the compiler shares the tails of
- * strings: 0xE91 prints "You don't have enough money." on one path and
- * `"` + name + " doesn't have enough money." on the other, and both end by
- * printing `"*`, so the first path's `branch` lands two bytes from the end
- * of the second's text run. A label inside a run has no line, the goto
- * that names it stays a goto, and the block round it cannot close: 117
- * gotos on 24 September 2026, the largest class left once jumps to a
- * return were folded. So the fold tier -- the folded, structured and Read
- * views and their checks -- splits a text run at every jump target inside
- * it, into two runs of the same bytes, which is exact: direct text is
- * printed byte by byte and a run's boundary means nothing to the machine.
- * The raw listing keeps delvmod's one run, since that is what the oracle
- * reads. `segStart` is the function's offset in the resource, which is
- * what the targets count from.
- */
+ * The disassembler reads direct text as delvmod does -- any byte below 0x80 *
+ on an empty expectation stack, until the first byte that is not -- and *
+ delv_dasm_check.mjs checks it against that. But the compiler shares the tails
+ of * strings: 0xE91 prints "You don't have enough money." on one path and *
+ `"` + name + " doesn't have enough money." on the other, and both end by *
+ printing `"*`, so the first path's `branch` lands two bytes from the end * of
+ the second's text run. A label inside a run has no line, the goto * that names
+ it stays a goto, and the block round it cannot close: 117 * gotos on 24
+ September 2026, the largest class left once jumps to a * return were folded.
+ So the fold tier -- the folded, structured and Read * views and their checks
+ -- splits a text run at every jump target inside * it, into two runs of the
+ same bytes, which is exact: direct text is * printed byte by byte and a run's
+ boundary means nothing to the machine. * The raw listing retains delvmod's one
+ run, since that is what the oracle * reads. `segStart` is the function's
+ offset in the resource, which is * what the targets count from. */
 function dvmSplitTextAtTargets(ops, segStart) {
   const targets = new Set();
   for (const o of ops) {
@@ -888,7 +886,7 @@ function dvmDisassembleFolded(seg, st) {
 }
 
 /* The top-level statements of a function, in address order, each with what the
-   listing says its successors are. `abs` is the offset in the resource, which
+   listing gives as its successors. `abs` is the offset in the resource, which
    is the coordinate the branch targets use. */
 function dvmStatementList(forest, segStart) {
   const out = [];
@@ -937,21 +935,17 @@ function dvmFlatEdges(stmts) {
   return { edges, offEnd };
 }
 
-/* Is [lo, hi) a region a block can be built from? Two conditions, and refusing
- * when either fails is the whole of what keeps this half honest:
- *
- *   nothing outside the range jumps into its MIDDLE -- an entry past `lo` means
- *   the range is not a block, it is part of something larger, and
- *
- *   nothing inside leaves except to one of `allowed`, which is the place control
- *   is meant to continue -- a jump out to anywhere else means the same thing.
- *
- * A fallthrough into the middle is impossible, the statements being in address
- * order. This is a top-level function rather than a closure inside the recovery
- * so that utilities/structure_check.mjs can replace it with one that says yes to
- * everything: a recovery that cannot be caught claiming a region it has no right
- * to is not one anybody should trust.
- */
+/* Is [lo, hi) a region a block can be built from? Two conditions, and stopping
+ * when either fails is the whole of what makes this half trustworthy: * *
+ nothing outside the range jumps into its MIDDLE -- an entry past `lo` means *
+ the range is not a block, it is part of something larger, and * *   nothing
+ inside leaves except to one of `allowed`, which is the place control *   is
+ meant to continue -- a jump out to anywhere else means the same thing. * * A
+ fallthrough into the middle is impossible, the statements being in address *
+ order. This is a top-level function rather than a closure inside the recovery
+ * so that utilities/structure_check.mjs can replace it with one that answers
+ yes to * everything: a recovery that cannot be caught claiming a region it has
+ no right * to is not one anybody should trust. */
 function dvmRegionClosed(stmts, index, lo, hi, allowed, sources) {
   if (hi <= lo) return false;
   /* `sources[j]` is every statement index that jumps to j, built once per
@@ -974,45 +968,34 @@ function dvmRegionClosed(stmts, index, lo, hi, allowed, sources) {
 }
 
 /* ---- two tests, one condition --------------------------------------------
- * Two conditionals in a row that jump to the same place are one condition:
- *
- *     if_not A -> L0094               if (A && B) {
- *     if_not B -> L0094      -->          ...
- *     ...                             }
- *   L0094:
- *
- * which is what a compiler emits for `if (A && B)`, and also for
- * `if (A) { if (B) { ... } }`. The two are the same program, so the merged
- * spelling costs nothing when the nesting was already recoverable -- and where
- * it was not, it is the only spelling that is: `if (A && B) { .. } else { .. }`
- * shares its else between both tests, which nested ifs cannot say, and a loop
- * whose test is two tests (`while (A && B)`) otherwise keeps its second test as
- * a goto out of its own body. Measured on 22 September 2026: 212 such pairs,
- * every one of them two `if_not`s.
- *
- * Merged only when nothing else jumps to the second test. If something did, the
- * second test would be a place of its own that control can reach without the
- * first, and one condition cannot be entered halfway. On the shipped archive no
- * pair fails that, so the guard is never exercised here and nothing here
- * demonstrates it working; it is kept because a hand-edited archive can do
- * what Ambrosia's compiler did not.
- *
- * A pair of `if`s (jump when true) would merge the same way into
- * `if (A || B) goto L`; the archive has none, and a mixed pair is left alone
- * rather than spelt with a negation inside a conjunction.
- *
- * THE SPELLING. The VM also has `and` and `or` opcodes (0x5C, 0x5D; 245 uses
- * in the archive). They are not the same thing: an opcode consumes two values
- * already on the stack, so both sides were evaluated, where the jump pair never
- * evaluates B when A is false. So `&&` and `||` are kept for this, which is
- * what a reader of C-like text takes them to mean, and the opcodes are spelt
- * `and` and `or` (DVM_INFIX). They were both `&&` until 22 September 2026, and
- * only the brackets told them apart.
- *
- * utilities/structure_check.mjs tests each merged condition against the flat
- * listing for every truth assignment of its parts, reading the text the
- * listing prints; the edge check sees the pair as one node.
- */
+ * Two conditionals in a row that jump to the same place are one condition: * *
+ if_not A -> L0094               if (A && B) { *     if_not B -> L0094      -->
+ ... *     ...                             } *   L0094: * * which is what a
+ compiler emits for `if (A && B)`, and also for * `if (A) { if (B) { ... } }`.
+ The two are the same program, so the merged * spelling costs nothing when the
+ nesting was already recoverable -- and where * it was not, it is the only
+ spelling that is: `if (A && B) { .. } else { .. }` * shares its else between
+ both tests, which nested ifs cannot express, and a loop * whose test is two
+ tests (`while (A && B)`) otherwise has its second test as * a goto out of its
+ body. Measured on 22 September 2026: 212 such pairs, * every one of them two
+ `if_not`s. * * Merged only when nothing else jumps to the second test. If
+ something did, the * second test would be a separate place that control can
+ reach without the * first, and one condition cannot be entered halfway. On the
+ shipped archive no * pair fails that, so the guard is never exercised here and
+ nothing here * demonstrates it working; it is kept because a hand-edited
+ archive can do * what Ambrosia's compiler did not. * * A pair of `if`s (jump
+ when true) would merge the same way into * `if (A || B) goto L`; the archive
+ has none, and a mixed pair is left alone * rather than spelt with a negation
+ inside a conjunction. * * THE SPELLING. The VM also has `and` and `or` opcodes
+ (0x5C, 0x5D; 245 uses * in the archive). They are not the same thing: an
+ opcode consumes two values * already on the stack, so both sides were
+ evaluated, where the jump pair never * evaluates B when A is false. So `&&`
+ and `||` are kept for this, which is * what a reader of C-like text takes them
+ to mean, and the opcodes are spelt * `and` and `or` (DVM_INFIX). They were
+ both `&&` until 22 September 2026, and * only the brackets distinguished them.
+ * * utilities/structure_check.mjs tests each merged condition against the flat
+ * listing for every truth assignment of its parts, reading the text the *
+ listing prints; the edge check sees the pair as one node. */
 function dvmMergeConditions(stmts) {
   const jumpedTo = new Set();
   for (const s of stmts) for (const t of s.targets) jumpedTo.add(t);
@@ -1044,21 +1027,21 @@ function dvmMergeConditions(stmts) {
  * close because the block leaves for the exit rather than its continuation.
  * A jump to a return IS that return: nothing runs between the jump and the
  * statement it lands on, and a return has no successor, so the jump can be
- * printed as the return's own text (`exit`, `return 0`, `return Var00`) and
+ * printed as the return's text (`exit`, `return 0`, `return Var00`) and
  * treated as an end. Folding it closes the blocks around it too.
  *
  * Folded only where the first pass left it as a goto, so every block the
  * first pass built stands as it was: an if-else's `goto Lend` is still
  * absorbed into its braces even when Lend is a return, and a jump a loop
  * would print as `break` is folded first and prints as the return, which
- * says where control goes more directly than `break` does. The fold is
+ * shows where control goes more directly than `break` does. The fold is
  * this function so that utilities/structure_check.mjs can replace it with
  * one that folds a jump onto a statement that is not a return: the check
  * reads the target off the ops for every folded statement, and that
  * control must fail it. `index` is the merged list's; `stmts` is the merged
  * list, and the result is its indices that hold such a jump. A jump to a
  * jump folded on an earlier pass counts, since that one is an end now, and
- * the recovery names the return at the end of the chain.
+ * the recovery records the return at the end of the chain.
  */
 function dvmEndJumps(stmts, index, left) {
   const out = [];
@@ -1077,10 +1060,10 @@ function dvmEndJumps(stmts, index, left) {
  * `follow` when the range runs out. Every pattern checks that the region it
  * would claim is closed before claiming it.
  *
- * It runs over the list with its paired tests merged (above), and says which
+ * It runs over the list with its paired tests merged (above), and records which
  * statements were folded into another's condition in `merged`, because the
- * flat control-flow graph the check compares against has them as nodes of
- * their own.
+ * flat control-flow graph the check compares against has them as separate
+ * nodes.
  */
 function dvmRecoverStructure(flat) {
   const { list: stmts, merged } = dvmMergeConditions(flat);
@@ -1102,10 +1085,10 @@ function dvmRecoverStructure(flat) {
   const ended = new Map();
   /* The unconditional jumps the structure swallows: an if-else's `goto Lend` at
      the end of its then-branch, and a loop's `goto Lhead` at the end of its
-     body. Each exists only to reach a place the braces now say, so it is not
-     rendered -- and utilities/structure_check.mjs has to be told, because the
-     control-flow graph is legitimately one node shorter for each of them. A
-     jump with one outgoing edge can be contracted out of a graph without
+     body. Each exists only to reach a place the braces now show, so it is not
+     rendered -- and utilities/structure_check.mjs has to be informed, because
+     the control-flow graph is legitimately one node shorter for each of them.
+     A jump with one outgoing edge can be contracted out of a graph without
      changing what reaches what, which is why absorbing it is safe and why the
      check contracts rather than excuses. */
   const absorbed = new Set();
@@ -1115,18 +1098,18 @@ function dvmRecoverStructure(flat) {
      this: 0x1804's function at +0x2 has `goto 0x57B` at 0x40F, and 0x57B is
      itself the `goto` closing a loop. Absorbing 0x57B left 0x40F pointing at a
      label that no longer existed -- a dangling `goto L057B` for a reader, and an
-     edge to a node that is not in the tree for the graph. Refusing to absorb it
-     keeps the label, which is the same rule as everywhere else here: when the
+     edge to a node that is not in the tree for the graph. Not absorbing it
+     leaves the label, which is the same rule as everywhere else here: when the
      structure cannot account for something, leave it as the bytes have it. */
   const absorbable = i => !sources[i] || sources[i].length === 0;
   /* Since 25 September 2026 a jump to the goto a block absorbs is allowed
      from INSIDE the block: the dice game's inner if-else ends its then-branch
      by jumping to the outer if-else's closing goto, and a loop body may jump
-     to its own closing goto, which is a `continue`. The absorbed goto exists
+     to its closing goto, which is a `continue`. The absorbed goto exists
      only to reach the place the braces say, so a jump to it is a jump to
-     that place, and `retarget` says so on the node (`goes`), which is what
+     that place, and `retarget` records it on the node (`goes`), which is what
      the renderers, the loop exits and the labels then read. A jump to it
-     from outside the block is still refused: that would enter the block at
+     from outside the block is still rejected: that would enter the block at
      its end. */
   const absorbableFrom = (k, lo) => !sources[k] || sources[k].every(j => j >= lo && j < k);
   const retarget = (list, from, to) => {
@@ -1138,8 +1121,8 @@ function dvmRecoverStructure(flat) {
 
   /* `loops` is every place the enclosing loops may be left for or gone
      round from -- a `break` or a `continue` -- which a block inside them may
-     leave for as well as for its own continuation (25 September 2026: `if
-     (c) break` was refused as a block that leaves for a third place, and
+     leave for as well as for its continuation (25 September 2026: `if
+     (c) break` was rejected as a block that leaves for a third place, and
      printed as `if (!c) goto L; break; L:`). utilities/structure_check.mjs
      allows the same exits in its region test, through dvmBlocksOf. */
   function build(lo, hi, follow, loops) {
@@ -1181,7 +1164,7 @@ function dvmRecoverStructure(flat) {
               const lend = beforeElse.targets[0], emptyThen = tIdx - 1 === i + 1;
               // An else that is empty -- the then-branch's closing goto lands
               // on the statement the test jumps to -- is a plain if whose last
-              // statement is a jump to its own continuation, absorbed like an
+              // statement is a jump to its continuation, absorbed like an
               // if-else's (0xEAB's "around two hundred paces").
               if (endIdx !== undefined && endIdx === tIdx && tIdx - 1 > i + 1 &&
                   absorbableFrom(tIdx - 1, i + 1) &&
@@ -1281,7 +1264,7 @@ function dvmRecoverStructure(flat) {
     if (!fold.length) break;
     for (const i of fold) {
       // A jump to a jump already folded lands on the return that one goes
-      // to: `ended` names the return, and the check follows the chain.
+      // to: `ended` records the return, and the check follows the chain.
       const s = stmts[i], t = stmts[index.get(s.targets[0])], end = t.ended || t.abs;
       ended.set(s.abs, end);
       stmts[i] = { abs: s.abs, node: t.node, kind: 'end', targets: [], negated: false, ended: end, jump: s };
@@ -1294,10 +1277,10 @@ function dvmRecoverStructure(flat) {
 }
 
 /* Take the trailing nodes of `out` that start at or after `abs`, in order, for a
- * backward jump to claim as its body. Returns null when they do not line up with
- * a node boundary -- which means the loop's head is in the middle of a block
- * already built, and a region that cannot be taken cleanly is one to refuse.
- */
+ * backward jump to claim as its body. Returns null when they do not line up
+ with * a node boundary -- which means the loop's head is in the middle of a
+ block * already built, and a region that cannot be taken cleanly is one to
+ leave alone. */
 function dvmTakeBack(out, abs) {
   let i = out.length;
   while (i > 0) {
@@ -1382,16 +1365,15 @@ function dvmStructureEdges(tree, follow) {
 
 /* A conditional's expression, in the polarity the reader needs.
  * `if_not C -> T` jumps when C is false, so the statements it falls through to
- * run when C is TRUE -- which is the `if (C)` a reader wants. `if C -> T` is the
- * other way round, and its fallthrough block is `if (!(C))`. A backward jump
- * wants the opposite of both, since a loop repeats when the jump IS taken.
- *
- * A merged condition (dvmMergeConditions) joins its parts: two `if_not`s fall
- * through when both hold, so `A && B`, and jump when that fails; two `if`s jump
- * when either holds, so `A || B`. `ctx.leaf`, when given, spells a part --
- * utilities/structure_check.mjs names each one `c0`, `c1`, ... and evaluates the
- * result, which is how the joined text is held to the flat listing.
- */
+ * run when C is TRUE -- which is the `if (C)` a reader wants. `if C -> T` is
+ the * other way round, and its fallthrough block is `if (!(C))`. A backward
+ jump * needs the opposite of both, since a loop repeats when the jump IS
+ taken. * * A merged condition (dvmMergeConditions) joins its parts: two
+ `if_not`s fall * through when both are true, so `A && B`, and jump when that
+ fails; two `if`s jump * when either is true, so `A || B`. `ctx.leaf`, when
+ given, spells a part -- * utilities/structure_check.mjs names each one `c0`,
+ `c1`, ... and evaluates the * result, which is how the joined text is held to
+ the flat listing. */
 function dvmCondJoined(s, ctx) {
   const leaf = p => (ctx && ctx.leaf) ? ctx.leaf(p) : dvmFoldFrame(p.node.groups[0] || [], ctx);
   if (!s.parts) return leaf(s);
@@ -1420,60 +1402,46 @@ function dvmCondOperand(e) {
 }
 
 /* ---- for-each, break and continue ------------------------------------------
- * The engine's iterators are one syscall called three ways, and the compiler
- * lays a loop over one out the same way every time:
- *
- *     Var01 = EquipmentIterator(&Var02, 0, Arg01)     the first item
- *     while (!(EquipmentIterator(&Var02, 1))) {        not yet finished
- *         ...
- *         Var01 = EquipmentIterator(&Var02, 2)         the next item
- *     }
- *
- * which is `for Var01 in EquipmentIterator(Arg01) { ... }`. 152 loops in the
- * archive, measured on 22 September 2026, and every one recovers as a `while`
- * with its start just before it and its step last in its body -- so this is a
- * way of printing a recovered `while`, not a new pattern for the recovery, and
- * the tree the structure check compares is the same tree either way.
- *
- * The state word (`&Var02`, delvmod's `&Var1`) is not printed on the `for`
- * line: it is the iterator's bookkeeping, in the slot after the loop
- * variable, and the raw and folded listings still show it. The
- * iterator keeps its name as the listing gives it rather than losing the
- * `Iterator`, so it can be searched for.
- *
- * The step moves to the loop's closing brace, which carries its offset in the
- * gutter so that a ring on the step lands on the brace rather than on the
- * statement before it; the `for` line carries the start's, and the test,
- * between the two, rings the `for` line.
- *
- * What makes it safe to print, beyond the three calls agreeing on the name,
- * the state word and the loop variable:
- *
- *   nothing jumps to the TEST except the loop's own back edge, which the
- *   recovery absorbed -- in a `for` there is nowhere to jump that runs the test
- *   without the step, and
- *
- *   every goto to the STEP can be printed without a label: a `continue` of
- *   this loop, or a `break` out of a loop nested in it whose exit is the step.
- *   Four jumps in three functions (0xEA3, 0xEB7, 0x1827) are the second kind,
- *   an inner loop left for the outer one's step, and read as the `break` they
- *   are. A goto to the step that is neither would leave the loop a `while`;
- *   the archive has none.
- *
- * `continue` and `break` are printed for every kind of loop, and only for a
- * jump whose innermost enclosing loop is the one it continues or leaves -- the
- * loop a reader would take it to mean. A jump from an inner loop to an outer
- * one's step or exit stays a goto. utilities/structure_check.mjs reads each
- * `break` and `continue` in the printed text, finds its loop by the braces as
- * a reader would, and holds the flat statement's target to that loop's step or
- * exit.
- */
+ * The engine's iterators are one syscall called three ways, and the compiler *
+ lays a loop over one out the same way every time: * *     Var01 =
+ EquipmentIterator(&Var02, 0, Arg01)     the first item *     while
+ (!(EquipmentIterator(&Var02, 1))) {        not yet finished *         ... *
+ Var01 = EquipmentIterator(&Var02, 2)         the next item *     } * * which
+ is `for Var01 in EquipmentIterator(Arg01) { ... }`. 152 loops in the *
+ archive, measured on 22 September 2026, and every one recovers as a `while` *
+ with its start just before it and its step last in its body -- so this is a *
+ way of printing a recovered `while`, not a new pattern for the recovery, and *
+ the tree the structure check compares is the same tree either way. * * The
+ state word (`&Var02`, delvmod's `&Var1`) is not printed on the `for` * line:
+ it is the iterator's bookkeeping, in the slot after the loop * variable, and
+ the raw and folded listings still show it. The * iterator retains its name as
+ the listing gives it rather than losing the * `Iterator`, so it can be
+ searched for. * * The step moves to the loop's closing brace, which has its
+ offset in the * gutter so that a ring on the step lands on the brace rather
+ than on the * statement before it; the `for` line has the start's, and the
+ test, * between the two, rings the `for` line. * * What makes it safe to
+ print, beyond the three calls matching on the name, * the state word and the
+ loop variable: * *   nothing jumps to the TEST except the loop's back edge,
+ which the *   recovery absorbed -- in a `for` there is nowhere to jump that
+ runs the test *   without the step, and * *   every goto to the STEP can be
+ printed without a label: a `continue` of *   this loop, or a `break` out of a
+ loop nested in it whose exit is the step. *   Four jumps in three functions
+ (0xEA3, 0xEB7, 0x1827) are the second kind, *   an inner loop left for the
+ outer one's step, and read as the `break` they *   are. A goto to the step
+ that is neither would leave the loop a `while`; *   the archive has none. * *
+ `continue` and `break` are printed for every kind of loop, and only for a *
+ jump whose innermost enclosing loop is the one it continues or leaves -- the *
+ loop a reader would take it to mean. A jump from an inner loop to an outer *
+ one's step or exit stays a goto. utilities/structure_check.mjs reads each *
+ `break` and `continue` in the printed text, finds its loop by the braces as *
+ a reader would, and checks the flat statement's target against that loop's
+ step or * exit. */
 
 /* The three calls, read off the ops rather than the text. Returns what the
    `for` line needs, or null. `prev` is the node before the `while`. */
 function dvmForEach(prev, w, ctxIn) {
-  // Its own notes, since this folds before anything is printed; the `for`
-  // line takes them when it is.
+  // A separate list of notes, since this folds before anything is printed;
+  // the `for` line reads them when it is.
   const ctx = Object.assign({}, ctxIn, { notes: [] });
   if (!prev || prev.kind !== 'stmt' || w.kind !== 'while' || !w.body.length) return null;
   const last = w.body[w.body.length - 1];
@@ -1553,8 +1521,8 @@ function dvmLoopExits(tree, ctx) {
   };
   /* A `for` stands only if every jump to its step is printed as a `continue`
      of it or a `break` out of a loop nested in it that ends on the step; a
-     jump left as a goto would need a label on the step, which has no line of
-     its own. Dropping one `for` changes where that loop continues, so mark
+     jump left as a goto would need a label on the step, which has no line
+     to itself. Dropping one `for` changes where that loop continues, so mark
      again until nothing is dropped. */
   for (;;) {
     exits = new Map();
@@ -1589,7 +1557,7 @@ function dvmRemainingLabels(tree, exits) {
  * of an `if` or a `while` named a label that was printed nowhere -- 94 of
  * them across the archive. (Another 116 aim inside a run of text, where no
  * statement starts, and have no line a label could go on; that is the
- * disassembler's question.) A `do` and a `loop` have no line of their own at
+ * disassembler's question.) A `do` and a `loop` have no line to themselves at
  * their first offset, so theirs is left to the first node of the body, which
  * does.
  *
@@ -1600,7 +1568,7 @@ function dvmRemainingLabels(tree, exits) {
 function dvmRenderStructured(tree, ctx, labels, indent, lines, loops) {
   const pad = '    '.repeat(indent);
   const hex4 = v => v.toString(16).toUpperCase().padStart(4, '0');
-  // A line takes the notes its text gathered as it folded (dvmFoldNote).
+  // A line reads the notes its text gathered as it folded (dvmFoldNote).
   const line = (at, text) => {
     const notes = ctx.notes ? ctx.notes.splice(0) : [];
     lines.push('    ' + (at === null ? '    ' : hex4(at)) + pad + '  ' + text + (notes.length ? '   // ' + notes.join('; ') : ''));
@@ -1669,7 +1637,7 @@ function dvmRenderStructured(tree, ctx, labels, indent, lines, loops) {
 
 /* The third state of the script view's toggle. Same decode and same fold as
    dvmFoldRender; the difference is that the jumps become blocks where a block
-   can be proven, and stay gotos where one cannot. The header line says how many
+   can be proven, and stay gotos where one cannot. The header line shows how many
    of each, because a reader is entitled to know whether they are looking at
    recovered structure or at the same gotos with extra indentation. */
 function dvmStructureRender(arc, b, resid, out) {
@@ -1682,9 +1650,9 @@ function dvmStructureRender(arc, b, resid, out) {
   let whole = 0, partial = 0, plain = 0;
   /* Where each `break` and `continue` goes, by the offset in its gutter, for a
      caller that makes them links (`out.exits`, read by listingJumps). The text
-     cannot say it: the words carry no label, which is the point of them. A
+     cannot show it: the words have no label, which is the point of them. A
      target that is a jump the braces absorbed is followed to where that jump
-     goes, since the absorbed jump has no line of its own to ring. */
+     goes, since the absorbed jump has no line to ring. */
   const exitsAt = new Map();
   for (const [st, en, kind] of objs) {
     const seg = b.subarray(st, Math.min(en, b.length));
@@ -1741,13 +1709,13 @@ function dvmStructureRender(arc, b, resid, out) {
  * block ends. utilities/structure_check.mjs walks these to re-derive, from the
  * tree alone, that each is a region with one way in and one way out -- the
  * property dvmRegionClosed enforces while building, and which has to be checked
- * from the outside or the check is only asking the recovery whether it agrees
+ * from the outside or the check only compares the recovery
  * with itself.
  */
 function dvmBlocksOf(tree, follow) {
   const out = [];
   // `loops`: the enclosing loops' exits, which any block inside them may
-  // be left for (a break, a continue) as well as for its own continuation.
+  // be left for (a break, a continue) as well as for its continuation.
   const walk = (list, cont, loops) => {
     loops = loops || [];
     for (let i = 0; i < list.length; i++) {
@@ -1794,27 +1762,27 @@ function dvmBlocksOf(tree, follow) {
  * The maintainer's "functions read in full" (23 September 2026): each part of
  * a function as a plain sentence, derived from the code wherever it can be.
  * This walks the same recovered tree the structured listing prints
- * (dvmRecoverStructure, dvmLoopExits) and says each statement in words, with
+ * (dvmRecoverStructure, dvmLoopExits) and puts each statement into words, with
  * the conditions as clauses and the blocks nested under them.
  *
- * NO VOCABULARY IS TYPED IN. A call's words are its own name taken apart --
+ * NO VOCABULARY IS TYPED IN. A call's words are its name taken apart --
  * PlaySound is "play sound", ClearFlag "clear flag", a field talk_balloon
- * "talk balloon" -- so what a sentence says a call does is exactly what the
- * name says and no more; the names are delvmod's symbols, the one outside
+ * "talk balloon" -- so what a sentence states a call does is exactly what the
+ * name means and no more; the names are delvmod's symbols, the one outside
  * source the listings already use, and the file-derived notes the fold makes
  * (a sound's id, a zoneport's zone, a To Do line, a prop type's name) come
- * along in brackets. The only words this adds are the language's own: if,
+ * along in brackets. The only words this adds are the language's: if,
  * otherwise, for each, repeat, set, print, return, and the comparisons.
  * Unknowns stay numbers, as in the listings: a flag with no name in the
  * program is its number.
  *
  * A conversation's function is its answers, which the Text view lays out
- * whole; here it is one line that says how many it answers.
+ * whole; here it is one line that gives how many it answers.
  *
  * The say switch is `ctx.say`: dvmFoldValue, dvmFoldOperator and dvmFoldCall
  * hand over to the functions below when it is set, so a value is read
- * through the same walk as the listing and cannot disagree with it about
- * what is inside what. utilities/read_check.mjs holds every call and
+ * through the same walk as the listing and cannot differ from it about
+ * what is inside what. utilities/read_check.mjs checks every call and
  * condition of every function to its sentences.
  */
 function dvmSayName(name) {
@@ -1832,7 +1800,7 @@ function dvmSayOperator(n, args, ctx) {
        use -- and such a test compared with 0 is the test itself. */
     if (infix === '&') {
       const m = /^\(1 << (\w+)\)$/.exec(args[1]), v = /^\d+$/.test(args[1]) ? +args[1] : 0;
-      // A bit of the bit flags the program names is said with its word.
+      // A bit of the bit flags the program names is written with its word.
       const bw = b => /bit flags$/.test(args[0]) && dvmBitFlagName(+b) ? ' (' + dvmBitFlagName(+b) + ')' : '';
       if (m) { dvmSayBitNote(ctx, args[0], m[1]); return args[0] + ' has bit ' + m[1] + bw(m[1]); }
       const k = /^~\(1 << (\w+)\)$/.exec(args[1]);
@@ -1879,11 +1847,11 @@ function dvmSayOwner(x) {
   const y = String(x).replace(/ as [a-z ]+$/, '');
   return y === 'it' ? 'its ' : /^\w+$|^the (target|signal|wearer)$|^[A-Z][\w' -]* \(\d+\)$/.test(y) ? y + '’s ' : '(' + y + ')’s ';
 }
-/* A helper that is only a few settings of its own locals and one return --
-   `Var00 = Character(Arg00); return (Var00.bit_flags & 64)` -- is said by
+/* A helper that is only a few settings of its locals and one return --
+   `Var00 = Character(Arg00); return (Var00.bit_flags & 64)` -- is written as
    what it returns, with the caller's arguments put in: "its bit flags has
    bit 6" in place of "run 0xF13 it". The helper's name or id follows in
-   brackets, so nothing is hidden. Anything with a jump, a call of its own
+   brackets, so nothing is hidden. Anything with a jump, a further call
    that has effects, or a second return that is not the dead `return 0`
    after the first is left as a call. */
 function dvmInlineHelper(arc, rid) {
@@ -1921,11 +1889,11 @@ function dvmInlineHelper(arc, rid) {
   all.set(rid, out);
   return out;
 }
-/* Where a character's bit is set, said beside a test of it: every "set
-   bit n of X's F" and "clear bit n of X's F" the Read view says anywhere in
+/* Where a character's bit is set, written beside a test of it: every "set
+   bit n of X's F" and "clear bit n of X's F" the Read view writes anywhere in
    the archive, for a named character (a number the table names) or for
-   "it" in a character's own conversation script, which is that character.
-   The table is built from the sayer's own sentences, so a test and the
+   "it" in a character's conversation script, which is that character.
+   The table is built from the Read view's sentences, so a test and the
    settings it names are in the same words by construction. */
 function dvmSayBitNote(ctx, owner, bit) {
   if (!ctx || !ctx.say || !ctx.arc || ctx.noBitNotes || !/^\d+$/.test(bit)) return;
@@ -1978,7 +1946,7 @@ function dvmSayBitNote(ctx, owner, bit) {
 }
 function dvmSayPossessive(nm) { return nm + (/s$/.test(nm) ? '’' : '’s'); }
 // Which character a phrase is: "Name (n)'s ..." by its number, "it" or
-// "its ..." in a character's own conversation script by the script's.
+// "its ..." in a character's conversation script by the script's.
 function dvmSayWhose(ctx, owner) {
   const m = /\((\d+)\)(?:’s .*)?$/.exec(owner);
   if (m) { const nm = dvmFoldPage(ctx, () => characterName(+m[1])); return nm ? { index: +m[1], name: nm } : null; }
@@ -1988,7 +1956,7 @@ function dvmSayWhose(ctx, owner) {
   }
   return null;
 }
-/* Where a game state is set, said beside a read of it: every SetState and
+/* Where a game state is set, written beside a read of it: every SetState and
    SetStateFlag call with numbers for both arguments, in every script, by
    the resource that makes it. The state's meaning is in no file; where it
    changes is, and that is what a reader follows. */
@@ -2041,7 +2009,7 @@ function dvmSayStateNote(ctx, name, k) {
   dvmFoldNote(ctx, [...byV].sort((a, b) => a[0] - b[0]).map(([v, who], i) => who.slice(0, 3).join(', ') + (who.length > 3 ? ' and ' + (who.length - 3) + ' more' : '') +
     (who.length === 1 ? ' sets ' : ' set ') + (i ? 'it' : what) + ' to ' + v).join('; '));
 }
-/* A behaviour number said with the word the game's own text gives it. The
+/* A behaviour number written with the word the game's text gives it. The
    game names some behaviours where it describes a person: a script that
    tests `X.behavior == N` and at once prints a word (the Look helper,
    0x3007: 144 "working", 145 "sleeping", 147 "eating", 148 "farming", 146
@@ -2073,10 +2041,11 @@ function dvmBehaviourWords(arc) {
           const ctx = { label: t => t, notes: [] };
           for (let k = 0; k + 1 < stmts.length; k++) {
             const s = stmts[k];
-            // `if_not ... goto`: the statement after it runs when the test holds.
+            // `if_not ... goto`: the statement after it runs when the test
+            // passes.
             if (s.kind !== 'cond' || s.parts || s.node.mn !== 'if_not') continue;
             // A negated test that jumps past the print when it fails: the
-            // print is what follows when it holds, which is the test itself.
+            // print is what follows when it passes, which is the test itself.
             const c = dvmCondJoined(s, ctx), w = word(dvmFoldStatement(stmts[k + 1].node, ctx));
             if (!w) continue;
             let m = /^\(\w+\.behavior == (\d+)\)$/.exec(c);
@@ -2100,16 +2069,16 @@ function dvmSayCall(n, ctx) {
     const name = n.mn.slice(4), v = vals(n.groups[0]);
     dvmFoldCallNotes(name, v, ctx);
     if ((name === 'GetState' || name === 'GetStateFlag') && /^\d+$/.test(v[0] || '') && ctx.arc) dvmSayStateNote(ctx, name, +v[0]);
-    // A character given by number to a syscall that takes one (the program
-    // says which: exeSyscallCharacterArgs), named from the character table.
+    // A character given by number to a syscall that accepts one (the program
+    // shows which: exeSyscallCharacterArgs), named from the character table.
     const chars = dvmFoldPage(ctx, () => typeof exeSyscallCharacterArgs === 'function' ? exeSyscallCharacterArgs() : null);
     const which = chars && chars.get(n.op);
     if (which) for (const k of which) if (/^\d+$/.test(v[k] || '')) {
       const nm = dvmFoldPage(ctx, () => characterName(+v[k]));
       if (nm) v[k] = nm + ' (' + v[k] + ')';
     }
-    // The program's name for it (dvmSyscallShown). cbHeartBeat's says least
-    // of what it does, so the handler's effect is said with it: it adds its
+    // The program's name for it (dvmSyscallShown). cbHeartBeat's explains least
+    // of what it does, so the handler's effect is written with it: it adds its
     // argument to the countdown the current character's turn waits out
     // (byte 18, TActiveMonster::DoTick).
     if (name === 'UseTime' && /^\d+$/.test(v[0] || '')) dvmFoldNote(ctx, 'the current character spends ' + v[0] + ' ticks');
@@ -2118,11 +2087,11 @@ function dvmSayCall(n, ctx) {
   switch (n.mn) {
     case 'call_resource': case 'call_subroutine': {
       const id = n.mn === 'call_resource' && /^0x([0-9A-F]+)$/i.exec(bare);
-      // A named helper's operand carries its name; its id is in the raw operand.
+      // A named helper's operand has its name; its id is in the raw operand.
       const rawId = n.mn === 'call_resource' && /0x([0-9A-F]{3,4})\b/i.exec(String(n.arg || ''));
       const rid = id ? parseInt(id[1], 16) : rawId ? parseInt(rawId[1], 16) : null;
       const inl = rid !== null && ctx.arc ? dvmInlineHelper(ctx.arc, rid) : null;
-      // An effect helper is said by its effect only where it is a statement.
+      // An effect helper is written as its effect only where it is a statement.
       if (inl && (!inl.eff || ctx.asStatement)) {
         const a = vals(n.groups[0]);
         if (a.length === inl.args) {
@@ -2200,7 +2169,7 @@ function dvmSayCond(s, ctx, taken) {
   if (n && !/ (and|or) /.test(j)) return n[1] + ' is ' + n[2];
   return 'not ' + dvmSayGroup(j);
 }
-/* What a statement does, for the summary: the verb it is said with, or the
+/* What a statement does, for the summary: the verb it is written with, or the
    value it returns. The verb is the call's name taken apart, as in the
    sentence; a setting is "set" and what it sets. */
 function dvmSayMeta(n, ctx) {
@@ -2214,7 +2183,7 @@ function dvmSayMeta(n, ctx) {
   return {};
 }
 /* A function in one line: what it does, in the order it first does each,
-   what it can return, and how many tests decide which. */
+   what it can return, and how many tests settle which. */
 function dvmSaySummary(clauses) {
   const does = [], rets = [];
   let tests = 0;
@@ -2233,7 +2202,7 @@ function dvmSaySummary(clauses) {
   return parts.join('; ');
 }
 /* The tree as clauses: { text, kids } with the blocks as kids. `notes` a
-   clause gathered while it folded are said after it in brackets. */
+   clause gathered while it folded are written after it in brackets. */
 function dvmSayTree(tree, ctx, loops) {
   const out = [];
   const fors = loops.fors, exits = loops.exits;
@@ -2245,7 +2214,8 @@ function dvmSayTree(tree, ctx, loops) {
   };
   let prints = null, printAt = null;
   const flush = () => { if (prints) { push('print ' + prints.join(', '), null, printAt, { verb: 'print' }); prints = null; } };
-  // A heading takes the notes its condition gathered before its block is said.
+  // A heading reads the notes its condition gathered before its block is
+  // written.
   const head = text => { const nt = ctx.notes.splice(0); return text + (nt.length ? ' (' + nt.join('; ') + ')' : ''); };
   for (const n of tree) {
     if (n.kind === 'stmt' && skip.has(n.stmt)) continue;
@@ -2300,14 +2270,14 @@ function dvmSayTree(tree, ctx, loops) {
   flush();
   return out;
 }
-/* A conversation, said. A character's Talk is a loop: it opens with the
+/* A conversation, in words. A character's Talk is a loop: it opens with the
    lines the window starts on, then an `exit` that waits for a word, then a
    chain of `answer "kw" -> target` guards -- each "if the word typed is not
    this, go on at target" -- whose bodies end by jumping back to the `exit`.
    So an answer is its guard and the statements up to its target, and a
-   guard inside that stretch is a follow-up prompt of its own. Each stretch
+   guard inside that stretch is a separate follow-up prompt. Each stretch
    between guards goes through the same recovery and sayer as any code; the
-   jump back to the wait is not said, since every answer makes it. */
+   jump back to the wait is not written, since every answer makes it. */
 function dvmSayConversation(stmts, ctx) {
   const wait = stmts.find(s => s.node && s.node.mn === 'exit');
   const loopAt = wait ? wait.abs : null;
@@ -2343,8 +2313,8 @@ function dvmSayConversation(stmts, ctx) {
   };
   return build(stmts);
 }
-/* Every function of a resource, said. The same extents, names and recovery as
-   dvmStructureRender; a prose object is said as what it holds. */
+/* Every function of a resource, in words. The same extents, names and recovery
+   as dvmStructureRender; a prose object is written as what it contains. */
 function dvmReadRender(arc, b, resid, opts) {
   const extra = Object.assign({ resid }, opts || {});
   dvmContextResid = (typeof resid === 'number') ? resid : null;
@@ -2382,14 +2352,14 @@ function dvmReadRender(arc, b, resid, opts) {
        by that address's class. So in a method Arg00 is "it". A resource
        that is one function is a helper, called with whatever it is given. */
     const self = slots.has(st) && args.length ? 'Arg00' : null;
-    /* A method's second argument is named where the engine's own calls say
+    /* A method's second argument is named where the engine's calls show
        what it is, and nowhere else. Method 10, UseOn: TGameSys::UseOnCommand
        (thing, target) calls DoInterp(10, thing, 0x40000000 | target), the
        second a prop the player chose -- "the target". Method 21, GetMessage:
        every caller is a signal's sender -- TGameSys::SendSignal passes the
        signal it was given, TGameViewer::DoTicks, TSpellFX::PassTime and
-       RemoveAllAbility pass 32 and 64, TGremlin::OnSignal passes its own --
-       so it is "the signal". Methods 13 and 14, Wear and UnWear:
+       RemoveAllAbility pass 32 and 64, TGremlin::OnSignal passes the one it
+       received -- so it is "the signal". Methods 13 and 14, Wear and UnWear:
        TGameSys::WieldCommand passes the item and then the character wielding
        it -- "the wearer". Read off a scan of every call into TInterp::DoInterp
        by method number on 25 September 2026 (the notes, *The engine's names
@@ -2407,7 +2377,7 @@ function dvmReadRender(arc, b, resid, opts) {
     /* The compiler ends every function with `return 0`, reached or not
        (the maintainer asked how Look could return twice: it cannot). A bare
        return straight after another at the top, with nothing jumping to it,
-       is never run, so it is not said and not counted in what the function
+       is never run, so it is not written and not counted in what the function
        returns. */
     {
       const jumped = new Set();

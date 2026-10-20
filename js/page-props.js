@@ -15,22 +15,22 @@
 // --- Prop types ------------------------------------------------------------
 // Every prop type's base tile is in 0xF000 and its name is 0xF004's name for
 // that tile. This table was the wiki's "List of Prop-Tile Associations", 395
-// names, embedded when the archive was thought to carry none; 393 of them are
-// the file's own name for the prop type's base tile, letter for letter, and
+// names, embedded when the archive was thought to have none; 393 of them are
+// the file's name for the prop type's base tile, letter for letter, and
 // were removed on 11 September 2026, since a copy of the file's words is a
 // thing an edited archive contradicts without a sign. The two left are the
 // two the file does not say: "obols", where 0xF004 has "obol", and the wiki
 // scrape's "[LandKing](LandKing) Amulet" [sic], where it has "LandKing
-// Amulet". The file names no prop type the table did not, so taking the
+// Amulet". Every prop type the file names, the table named too, so taking the
 // file's name first changed no classification (propTypeName). Those two went
 // on 23 September 2026 with the other typed names (the maintainer's call):
 // the table is empty, and kept so the paths that read it stay one shape.
 const PROP_TYPE_NAMES = {};
 
 // Which prop types are inhabited: any type used by a record in the character
-// table is somebody rather than something. Read from 0xF009, not guessed from
+// table is somebody rather than something. Read from 0xF009, not inferred from
 // the names -- "goat" and "harpy" are creatures, but so is "king", and no
-// keyword list gets that right.
+// keyword list is right about that.
 DERIVED.LIVING_PROPTYPES = null;
 function livingPropTypes() {
   if (DERIVED.LIVING_PROPTYPES) return DERIVED.LIVING_PROPTYPES;
@@ -41,7 +41,7 @@ function livingPropTypes() {
   return (DERIVED.LIVING_PROPTYPES = set);
 }
 
-// A prop type's name for deciding what it is: the two entries above where
+// A prop type's name for working out what it is: the two entries above where
 // they differ from the file, the file's name for its base tile otherwise.
 // isWallProp, classifyProp, the lockable and exit tests and the container
 // pictures all key off this, so it answers without the names switch.
@@ -57,33 +57,33 @@ function propTypeName(pt) {
 }
 
 /* ---------------------------------------------------------------------------
-   Names this tool supplies
+   Labels this tool supplies
    ---------------------------------------------------------------------------
    PROP_TYPE_NAMES above is the delvmod wiki's prop-type list. It is a good
    list and it is not in the archive, which already put the resource-label
    tables behind a switch ("Names this tool supplies", off by default) -- but
    the prop-type names escaped that switch and went on printing, flagged with
    a dagger that had no legend anywhere on the page because #labelLegend is
-   hidden. So the dagger marked something as a guess without ever saying what
-   kind of guess, which is the worst of both.
+   hidden. So the dagger marked something as uncertain without ever stating what
+   kind of uncertainty, which is the worst of both.
 
-   They are behind the same switch now, and where they do print they carry a
+   They are behind the same switch now, and where they do print they have a
    readable tag rather than a footnote mark. Classification is unaffected:
    isWallProp, classifyProp and the container-picture table all still read
-   propTypeName directly, because deciding what a prop IS from its name is not
+   propTypeName directly, because working out what a prop IS from its name is not
    the same act as showing that name to a reader.
 --------------------------------------------------------------------------- */
 function propTypeNameShown(pt) {
   return window.SHOW_BUILTIN_LABELS ? PROP_TYPE_NAMES[pt] || null : null;
 }
-// Every prop type's shown name, for the search: the tile's own name from
+// Every prop type's shown name, for the search: the tile's name from
 // 0xF004 first, the built-in list only behind the switch.
 function propNameTable() {
   const t = getPropTileList(), out = {};
   for (let pt = 1; pt < t.length && pt < 1024; pt++) { const n = propDisplayName(pt); if (n) out[pt] = n; }
   return out;
 }
-// The best name for a prop type: the archive's own name for its base tile
+// The best name for a prop type: the archive's name for its base tile
 // (0xF004) first, the wiki's list second and only when it is switched on.
 function propDisplayName(pt, base) {
   const b = (base === undefined || base === null) ? (getPropTileList()[pt] || 0) : base;
@@ -111,7 +111,7 @@ function itemNameHTML(pt, base) { return propNameHTML(pt, base); }
 // Which of a prop's frames are still the SAME THING. A prop's frame block is
 // bounded by the end of its 16-tile sheet, and that bound is too generous for
 // small props: prop type 0x141 is the crystal ball at tile 0x883, but its
-// block runs to 0x88F, which takes in the four paintings at 0x88C-0x88F. The
+// block runs to 0x88F, which includes the four paintings at 0x88C-0x88F. The
 // gallery picked its representative frame by looking for span bits, found them
 // on the 2x1 painting at 0x88D, and drew a painting captioned "crystal ball".
 // 0xF004 names tiles in runs and settles it: 0x883-0x886 are "crystal ball"
@@ -132,7 +132,7 @@ function framesSharingName(base, present) {
   // this one's: the rolled map (0x265, type 378) has the flat map (0x267,
   // type 273) two tiles on, both called "map", and the Items gallery used
   // to show one map turning into the other. Found 6 September 2026; the
-  // same rule keeps a doorway from cycling into an archway and a sword
+  // same rule stops a doorway cycling into an archway and a sword
   // into the next sword.
   const bases = propBaseTileSet();
   const mine = present.filter(f => !f || !bases.has(base + f));
@@ -143,7 +143,7 @@ function framesSharingName(base, present) {
 
 // The same frames, cut into runs by the name 0xF004 gives each one. Prop type
 // 0x141 comes back as [{crystal ball, 0-3}, {boards, 4}, {staff, 5-8},
-// {painting, 9-12}] -- which is what the sheet really holds, against the flat
+// {painting, 9-12}] -- which is what the sheet really has, against the flat
 // "13 frames of crystal ball" the galleries used to print.
 function frameRuns(base, present) {
   const runs = [];
@@ -159,10 +159,11 @@ function frameRuns(base, present) {
 /* Frames that share a name can still be different things: 0x883-0x886 are four
    crystal balls and the archive calls all four "crystal ball", but they are
    cobalt, green, magenta and lavender, and a gallery that prints the name four
-   times has thrown away the only thing that tells them apart. The palette is
+   times has thrown away the only thing that distinguishes them. The palette is
    fixed and indexed, so the dominant colour of a frame is a fact about it, not
-   a guess -- this averages the SATURATED pixels (the greys and the black
-   outline are shared by every frame and say nothing) and names the hue. */
+   an assumption -- this averages the SATURATED pixels (the greys and the black
+   outline are shared by every frame and add nothing) and gives the hue's name.
+   */
 const HUE_WORDS = [[15,'red'],[45,'orange'],[70,'yellow'],[160,'green'],[200,'cyan'],
                    [258,'blue'],[320,'purple'],[345,'pink'],[361,'red']];
 const _frameColourCache = derivedMap('_frameColourCache');
@@ -209,8 +210,8 @@ function frameColourWord(tileId) {
 // not have: the four crystal balls share an identical grey stand and black
 // outline and differ only in the glass. So the palette indices common to every
 // frame in the run are dropped first, and each frame is then named by what is
-// left. Returns a map frame -> word, or null when the run has nothing to tell
-// apart.
+// left. Returns a map frame -> word, or null when the run has nothing to
+// distinguish.
 function distinguishingColours(base, frames) {
   if (!frames || frames.length < 2) return null;
   const hists = frames.map(f => {
@@ -307,8 +308,8 @@ function unitLayout(pt) {
    The hydra is the case: its body is prop type 0x117, whose tiles 0xF004
    names "polyp" -- the same word as the separate polyp unit 0x115 -- while
    the arms' class 0x116 is "hydra". So a unit of that kind is called by its
-   arms' name, which is the file's own word for the assembled creature, and
-   the body's name is said beside it. */
+   arms' name, which is the file's word for the assembled creature, and
+   the body's name is shown beside it. */
 function unitArmClass(pt) {
   const lay = unitLayout(pt);
   if (!lay) return null;
@@ -322,7 +323,7 @@ function unitArmClass(pt) {
    arms on it (key 54): the arms times the aspect step the program draws
    with, off exeOctoRule when the application is open and its constants
    otherwise. 0 for a class no unit names. Worked out for every class in
-   one pass over the prop types and kept: asked a class at a time, it
+   one pass over the prop types and kept: computed a class at a time, it
    walked all of them for each sprite a gallery drew, and with the program
    read again each time the Props tab took half a minute (27 September
    2026). */
@@ -363,14 +364,14 @@ function unitNameHTML(pt) {
    and tail through the two aspects a facing has, and everything else its
    own frames, or the spans those frames anchor where it covers more than
    one square. */
-/* The way a unit faces on the Units page and its own page: east. They
+/* The way a unit faces on the Units page and on the unit's page: east. They
    faced the reader, south, until the maintainer asked for right on
    6 October 2026. The Sprites gallery's creatures still face south. */
 const UNIT_FACING = SPR_E;
 /* Which edges of its square a tile's art runs off: 1 north, 2 east,
    4 south, 8 west. An edge counts when the art covers more than half of
-   it: the ooze's joining edges carry 25 to 28 of their 32 pixels, and a
-   blob that only grazes an edge carries 3 to 6. */
+   it: the ooze's joining edges have 25 to 28 of their 32 pixels, and a
+   blob that only grazes an edge has 3 to 6. */
 function tileEdgeMask(tile) {
   const img = resolveTileImage(tile);
   if (!img) return -1;
@@ -399,13 +400,13 @@ function unitSteps(pt) {
     const rule = (appImage() && exeOctoRule()) || null;
     const dx = rule ? rule.dx.v : OCTO_DEFAULT.dx, dy = rule ? rule.dy.v : OCTO_DEFAULT.dy, n = rule ? rule.arms.v : OCTO_DEFAULT.arms;
     const step = (rule && rule.aspectStep ? rule.aspectStep.v : OCTO_DEFAULT.aspectStep) || 1;
-    // The arm class's own run is n aspects of `step` frames, and that is
+    // The arm class's run is n aspects of `step` frames, and that is
     // what the constructor addresses. It is not what spriteFrameInfo
     // reports: a frame block stops at the end of the sheet its base tile
     // is on, and the hydra's thirty-two arm tiles are two sheets, so the
     // last four arms fell outside the block and stood still.
     // The body is aspect 0 to AdjustAspect, and its frames -- the polyp's
-    // mouth -- run on their own as a bird's wings do, so it steps through
+    // mouth -- run by themselves as a bird's wings do, so it steps through
     // them beside the arms rather than standing on its first.
     const body = info.present.length ? info.present : [0];
     const steps = [];
@@ -441,7 +442,7 @@ function unitSteps(pt) {
      middle, then up, left, down and right, every square wearing the frame
      that joins the neighbours it has. Which frame joins which edges is
      read off the art (a frame is open on an edge its pixels reach), so
-     nothing here knows the ooze by name or number. His five stages use
+     nothing here identifies the ooze by name or number. His five stages use
      twelve of the sixteen, and he asked for all of them the same day, so
      two more follow the full nine: the middle row, which is the east
      end, the east-west piece and the west end, and the middle column,
@@ -470,7 +471,7 @@ function unitSteps(pt) {
     const steps = [SPR_N, SPR_E, SPR_S, SPR_W].filter(f => info.present.includes(f)).map(f => [{ tile: base + f, dx: 0, dy: 0, what: 'frame ' + f }]);
     if (steps.length > 1) return { steps, kind: 'single', layout: lay, frame: UNIT_FACING, step: steps.length };
   }
-  // Everything else: its own frames, and the spans they anchor. Same choice
+  // Everything else: its frames, and the spans they anchor. Same choice
   // the props gallery makes for a cell, so a creature walks one facing's
   // row rather than turning on the spot; the units face east.
   const pool = galleryFrames({ pt, base, info, alive: true, facing: UNIT_FACING });
@@ -518,7 +519,7 @@ function drawUnitSprite(pt, px) {
 
 /* Everything that moves in a gallery, on one timer.
 
-   A cell either steps through a run of tiles -- a prop's own frames, an
+   A cell either steps through a run of tiles -- a prop's frames, an
    item's variants -- or repaints an assembled unit at its next step. Both
    are the same thing to the tick, so both are registered here.
 
@@ -534,8 +535,8 @@ function drawUnitSprite(pt, px) {
 
    Units all move at the same pace and in step with each other. The
    maintainer asked for that on 20 September 2026, having seen the hydra's
-   arms run at their own speed beside a gator walking at another: a gallery
-   of creatures each on its own clock reads as noise. Things that are not
+   arms run at one speed beside a gator walking at another: a gallery
+   of creatures each on a separate clock reads as noise. Things that are not
    creatures keep a slower beat, because what they are showing is a set of
    variants rather than a movement. */
 const UNIT_FRAME_MS = 440;      // every unit, and every creature in a gallery
@@ -578,8 +579,8 @@ function registerCellCycle(ent) {
 }
 
 /* An assembled unit repainting where it stands. The character gallery's
-   walkers orbit a portrait; a unit has no portrait to orbit, so it holds
-   its square and moves through its own steps. */
+   walkers orbit a portrait; a unit has no portrait to orbit, so it stays on
+   its square and moves through its steps. */
 function animateUnitSprite(spr) {
   if (!spr || !spr.paint || spr.frames < 2 || !window.SPRITE_ANIM) return;
   registerCellCycle({ spr, period: UNIT_FRAME_MS });
@@ -606,8 +607,8 @@ function galleryFrames(e) {
   // of it: the adobe arch's 1 spans left and its 3 spans up, the arch
   // across a road and the arch along one, and cycling the two turned the
   // arch round in its cell where the game sets one aspect and leaves it
-  // (the maintainer, 16 October 2026). The cell keeps the first anchor's
-  // way; a creature keeps them all, for its facings are its own (below).
+  // (the maintainer, 16 October 2026). The cell uses the first anchor's
+  // way; a creature uses them all, for its facings belong to it (below).
   // The bookshelf's 1, 3 and 5 all span left and still cycle, three
   // shelves of one wall; a full 0xC0 anchor lies neither way and stays.
   let anchors = own.filter(f => (attrs[e.base + f] || 0) & 0xC0);
@@ -639,7 +640,7 @@ function galleryFrames(e) {
    0 and leaves it there, and nothing else in the game moves those frames:
    the tile animation table (0xF001, tileAnimTable) lists none of them. So
    in the game the bird, the ooze and the hydra's body stand on frame 0; the
-   gallery cycles the whole pool to show what the sheet holds, which is the
+   gallery cycles the whole pool to show what is on the sheet, which is the
    rule above rather than the game's (read 23 September 2026). Nor does a
    unit tread when it stops: only HandleMove and HandleSubMove advance the
    step; every other call -- turning, pacing, the turn's DoMove -- passes
@@ -716,7 +717,7 @@ function fitGalleryCell(cell, wrap, spr, px) {
    What the Scenery gallery shows is a placed thing, and a placed thing is
    often several props standing next to each other: the conjurer's triangle
    is four props, one at each of four aspects, and an altar is two. The tile
-   attributes cannot say so -- they carry a span of one or two squares and
+   attributes cannot show it -- they have a span of one or two squares and
    nothing wider -- so the arrangement is read from where the scenario
    actually puts them.
 
@@ -732,10 +733,10 @@ function fitGalleryCell(cell, wrap, spr, px) {
 
    Measured against the shipped file: most of the 337 classes the scenario
    places are placed one at a time, so for almost everything this finds
-   nothing and the gallery falls back to the class's own span.
+   nothing and the gallery falls back to the class's span.
 
-   The group is the largest found anywhere in the file, and it remembers
-   which prop list it came from so the cell can say where it stands. */
+   The group is the largest found anywhere in the file, and it records
+   which prop list it came from so the cell can show where it stands. */
 const SCENERY_GROUP_SIDE = 4;   // the widest and tallest group looked for
 DERIVED.SCENERY_GROUPS = null;
 function buildSceneryGroups() {
@@ -779,7 +780,7 @@ function buildSceneryGroups() {
             for (let dy = 0; ok && dy < h; dy++) for (let dx = 0; ok && dx < w; dx++) {
               const c = m.get((seed.x + dx) + ',' + (seed.y + dy));
               if (!c || aspects.has(c.aspect)) { ok = false; break; }
-              // The span bit says which way this one lies, and two that lie
+              // The span bit shows which way this one lies, and two that lie
               // different ways are two different pieces of furniture, not one.
               // The bookshelf's twelve frames are six pairs: 1, 3 and 5 span
               // left, along a wall that runs north and south, and 7, 9 and 11
@@ -815,10 +816,10 @@ function buildSceneryGroups() {
   return (DERIVED.SCENERY_GROUPS = best);
 }
 
-/* A placed group drawn as one picture: each prop at its own aspect, with
-   the rotate bit the record carries -- which transposes both the tile image
+/* A placed group drawn as one picture: each prop at its aspect, with
+   the record's rotate bit -- which transposes both the tile image
    and the direction its span runs -- and the squares its span covers. Null
-   where the class is placed alone, and the caller draws the class's own
+   where the class is placed alone, and the caller draws the class's
    frames instead. */
 function drawSceneryWhole(pt, px) {
   const g = buildSceneryGroups().get(pt);
@@ -858,7 +859,7 @@ function renderPropTypeSheet() {
   // Under Scenario, Scenery is what is placed and is neither a unit (a
   // character's class or a class with a stats record) nor a thing that is
   // carried (the Items gallery): doors, furniture, trees, the towns. The
-  // same gallery, filtered by what the file says a class is.
+  // same gallery, filtered by what the file makes a class.
   const scenery = window.CUR_SUBN === 'SCENERY';
   const units = new Set();
   if (scenery) try { for (const m of parseMonsterStats()) if (!m.blank) units.add(m.proptype); } catch (e) { quiet(e); }
@@ -903,7 +904,7 @@ function renderPropTypeSheet() {
     // A sprite is laid out at once and painted, and set walking, when its
     // cell comes near the screen (lazyTile): 392 of them drawn before the
     // gallery showed was most of its first paint on a phone, for the twenty
-    // a phone's screen holds (27 September 2026).
+    // that fit on a phone's screen (27 September 2026).
     let spr = scenery ? drawSceneryWhole(e.pt, GALLERY_TILE_PX) : null;
     const cyc = spr ? null : galleryFrames(e);
     if (!spr) spr = drawPropSprite(e.base + (cyc.length ? cyc[0] : 0), GALLERY_TILE_PX, true);
@@ -916,7 +917,7 @@ function renderPropTypeSheet() {
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
     lbl.className = 'lbl';
-    // The archive's own name for the base tile, where it has one, in
+    // The archive's name for the base tile, where it has one, in
     // preference to the wiki's prop-type list.
     const own0 = terrainNameFor(e.base);
     lbl.innerHTML = propNameHTML(e.pt, e.base);
@@ -928,7 +929,7 @@ function renderPropTypeSheet() {
     bits.push(e.info.count + (e.info.count === 1 ? ' frame' : ' frames'));
     if (spr && spr.multi) bits.push(spr.cols + '\u00d7' + spr.rows);
     // Where the group came from, so the arrangement is traceable to the
-    // prop list that holds it rather than asserted.
+    // prop list it is in rather than asserted.
     if (spr && spr.group) bits.push(spr.group.cells.length + ' placed together');
     sub.textContent = bits.join(' \u00b7 ');
     cell.appendChild(sub);
@@ -981,15 +982,15 @@ function showPropTypeDetail(pt) {
   }
 
   // Frames, in the runs 0xF004 cuts them into. Prop type 0x141's sheet block
-  // runs to the end of its 16-tile sheet, so it takes in a board, four staves
+  // runs to the end of its 16-tile sheet, so it includes a board, four staves
   // and four paintings after the four crystal balls -- and the gallery used to
   // print all thirteen as one undifferentiated strip of "crystal ball".
   const ownName = terrainNameFor(base);
   for (const run of frameRuns(base, info.present)) {
     const own = run.name && run.name === ownName;
-    // Only this prop's own frames. The neighbouring runs on the same sheet
-    // used to be listed too ("boards -- a neighbour on this sheet, not this
-    // prop"), which told a reader about the sheet, not the prop; the sheet
+    // Only this prop's frames. The neighbouring runs on the same sheet
+    // were once listed too ("boards -- a neighbour on this sheet, not this
+    // prop"), which was about the sheet, not the prop; the sheet
     // itself is one click away for anyone who wants its neighbourhood.
     if (!own) continue;
     const runHead = document.createElement('div');
@@ -999,7 +1000,7 @@ function showPropTypeDetail(pt) {
       (run.frames.length === 1 ? ' ' + run.frames[0] : 's ' + run.frames[0] + ' to ' + run.frames[run.frames.length-1]) +
       (own ? '' : ', a neighbor on this sheet, not this prop');
     panel.appendChild(runHead);
-    // A frame saves as a GIF from its own view, beside the PNG; the button
+    // A frame saves as a GIF from its view, beside the PNG; the button
     // that saved a run as an animated GIF went on 16 September 2026 (the
     // maintainer).
     const colours = null;   // the colour words ("cobalt", "pale") were removed by request
@@ -1008,7 +1009,7 @@ function showPropTypeDetail(pt) {
     // A 2x2 beast -- the titan -- is four tiles a facing, and the tile
     // attributes (0xC0 on the bottom-right corner) say which three others
     // belong to it. drawPropSprite assembles the corner; the three pieces
-    // are not shown again on their own.
+    // are not shown again separately.
     const pieceOf = new Set();
     for (const f of run.frames) {
       const pcs = multiTilePieces(base + f, false);
@@ -1024,7 +1025,7 @@ function showPropTypeDetail(pt) {
       if (spr) holder.appendChild(spr.canvas);
       const col = colours && colours.get(f);
       // A tap opens the sheet the frame is on; the enlargement with its
-      // downloads is in the sheet's own view. The maintainer's ask of
+      // downloads is in the sheet's view. The maintainer's ask of
       // 18 September 2026: an image goes to its resource.
       imageOpens(holder, sheetOfTile(base + f), 'frame ' + f + ' \u00b7 tile 0x' + (base + f).toString(16).toUpperCase() +
                      (run.name ? ' \u00b7 ' + run.name : '') + (col ? ' \u00b7 ' + col : '') + ', sheet');
@@ -1093,11 +1094,11 @@ function showPropTypeDetail(pt) {
    one that lands on a function (0x81) is behaviour. The keys are the same
    numbering as DVM_SYM.method, which is what makes reading them safe rather
    than speculative: the wiki independently documents key 0x0024 as Weight and
-   method 36 is Weight, and the values agree with the game (a sword weighs 34
+   method 36 is Weight, and the values match the game (a sword weighs 34
    grains, a cuirass 24 and gives 3 points of armour).
 
-   Of the 268 item classes in the shipped archive, 123 carry a weight. Where a
-   key has no published meaning the panel says so instead of guessing.
+   Of the 268 item classes in the shipped archive, 123 have a weight. Where a
+   key has no published meaning the panel states that instead of filling one in.
 --------------------------------------------------------------------------- */
 
 // Labels come from DVM_SYM.method so the two can never drift apart; only the
@@ -1137,7 +1138,7 @@ function itemFieldLabel(key) {
 }
 
 /* Any class's table, not only an item's: a monster class at 0x19xx is laid
-   out the same way, and the sound reader wants both. `bytes` is kept so a
+   out the same way, and the sound reader needs both. `bytes` is kept so a
    word that points at another array in the same class can be followed. */
 DERIVED.ITEM_CLASSES = null;
 function parseItemClass(pt) { return parseClassTable(0x1000 + pt); }
@@ -1192,15 +1193,15 @@ function classFieldNumber(cls, key, word, slot) {
   return (w & 0xF0000000) === 0 ? w : null;
 }
 
-/* Whether a class carries a member, by its table: what `has_member` in a
-   script answers. Every class table is "Item" (no class here names a
+/* Whether a class has a member, by its table: what `has_member` in a
+   script answers. Every class table is "Item" (no class here has a
    parent), so a class without the key has not got it. This is the file's
    own rule for lockable (Lockable, 52), container (IsContainer, 23), seat
    (Chair, 34) and portal (Portal, 58), and it replaced four name lists on
    19 September 2026: the wooden door, the portcullis and the secret door
    are not Lockable in this archive, the urns are not containers, and the
    coffer and the trapdoor are locks the names had missed. */
-// Does a class's ClassFlags word (key 39) carry `bit`: the file's own word
+// Does a class's ClassFlags word (key 39) have `bit` set: the file's marker
 // for a door (0x200, which the level loader tests) and the rest of the bits
 // the Mechanics sheet lists by their readers. False where the word is not a
 // plain number.
@@ -1220,8 +1221,8 @@ function classTravels(pt) {
   const e = refExists(0x1000 + pt) ? buildScriptTextIndex().find(x => x.resid === 0x1000 + pt) : null;
   if (!e) return false;
   if (/\bsys ChangeZone\b/.test(e.text)) return true;
-  // A thing that is dug (Dug, 57) and reads its own Data3 is a buried way
-  // somewhere: the loose dirt on the world map carries the zoneport the
+  // A thing that is dug (Dug, 57) and reads its Data3 is a buried way
+  // somewhere: the loose dirt on the world map has the zoneport the
   // hole it becomes will use.
   return classHasMember(pt, 57) && /\bget_field data3\b/.test(e.text);
 }
@@ -1282,7 +1283,7 @@ function fieldReadersHTML(key, cap) {
     ' <span style="color:#dcd8cc">(' + all.length + ' site' + (all.length === 1 ? '' : 's') + ')</span>';
 }
 
-/* The ClassFlags word (key 39), by bit: which classes carry each. The
+/* The ClassFlags word (key 39), by bit: which classes have each. The
    application's per-class flag table is filled at load from the classes
    (FillIntfCache), and this word is the part of that the file states
    outright; what a bit means is not read here, so the sheet shows the
@@ -1309,13 +1310,13 @@ function classFlagBits() {
 /* The letter under a key (the maintainer, 23 September 2026: in the game
    the keys are labelled with a letter under the sprite that says what they
    open). Read off the program: DrawInventoryIcon draws an item's count
-   under its picture when it has more than one, and otherwise asks
+   under its picture when it has more than one, and otherwise calls
    GetItemLetter, which answers byte 6 of the item's record -- the high byte
-   of d3 -- when the class's cached flags carry 0x400, and 0; a byte above
+   of d3 -- when the class's cached flags have 0x400, and 0; a byte above
    0 is drawn as the one character 'A' + byte, centred and outlined.
    FillIntfCache sets 0x400 from bit 0x04 of the class's member 40, so the
    classes that can wear a letter are the file's: the key, and the mushroom
-   steak and the flatbread, none of which carries one in the shipped
+   steak and the flatbread, none of which has one in the shipped
    scenario but the key. The keys there wear B to I. */
 function classWearsLetter(pt) {
   const cls = parseItemClass(pt);
@@ -1356,12 +1357,12 @@ function itemWeight(pt) {
 }
 
 /* What each character carries, from every prop list: the records whose
-   location word names the character (parseDelverPropList's carriedBy), and
-   inside a carried container what that holds. Keyed by character index;
+   location word points at the character (parseDelverPropList's carriedBy), and
+   inside a carried container what that contains. Keyed by character index;
    each entry { pt, aspect, equipped, count, resid, index, inside }. The
    maintainer asked for it on 22 September 2026 ("show what items
    characters are holding"); the Items sheet had counted these for a while
-   without ever saying whose they were. */
+   without ever showing whose they were. */
 function carriedByCharacter(ci) {
   if (!DERIVED.CARRIED) {
     const by = new Map();
@@ -1491,7 +1492,7 @@ function buildItemIndex() {
 
    A prop record's identity word is (aspect << 10) | class -- ten bits of
    class, five of aspect (parseDelverPropList) -- and the same word is what
-   the create-a-prop cheat asks for. The aspect adds onto the class's base
+   the create-a-prop cheat prompts for. The aspect adds onto the class's base
    tile in 0xF000, and the prop is then named by that tile's name in 0xF004
    (delvmod prop.py: get_tile(aspect), then the tile's name). What else an
    aspect changes is the class script's affair: the general foodstuff class
@@ -1504,14 +1505,14 @@ function buildItemIndex() {
    sheet, the base tile of no class and shared by name with no class's
    frames, placed nowhere in any of the 40 prop lists, built by no script.
    "hatchet" and "flail". The list is computed rather than typed so a
-   modded archive gets its own, and it is stated where it is read: a tile
+   modded archive has its list, and it is stated where it is read: a tile
    is an orphan when it has a name, that name is not the name of any
-   class's base tile (framesSharingName's own test for "this class's
+   class's base tile (framesSharingName's test for "this class's
    frame"), it is not itself a base, it has pixels, and nothing in any prop
    list wears it -- a picture the file places at some class's aspect is a
    variant that class uses (bread and cheese under the foodstuff class, a
    kilt under tunic), not an orphan. An item reaches one when it lies above
-   the item's base on the item's own 16-tile sheet: the aspect field can
+   the item's base on the item's 16-tile sheet: the aspect field can
    count past the sheet's edge, but what it lands on there is another
    sheet's art, reached by arithmetic and not by design. And a class whose
    own script writes its aspect (`set_field aspect`: the torch when lit,
@@ -1520,7 +1521,7 @@ function buildItemIndex() {
    left in the shipped file is hatchet and flail on the weapon sheet, two
    dried foods, a plow, a broken axe, a broken bow, and four petroglyph
    tiles the two traps reach. "Placed" means by a prop record; whether a
-   map's own tile layer draws any of them is not asked here. */
+   map's tile layer draws any of them is not checked here. */
 DERIVED.ORPHAN_ART = null;
 function orphanItemArt() {
   if (DERIVED.ORPHAN_ART) return DERIVED.ORPHAN_ART;
@@ -1570,12 +1571,12 @@ function orphanArtReachable(pt) {
 
 /* WHICH CLASSES READ THEIR ASPECT. The aspect changes the picture and the
    name for every class; whether it changes anything else is decided by
-   whether the class's own script ever reads the field. A weapon's numbers
+   whether the class's script ever reads the field. A weapon's numbers
    are constants in its class script, so a spear at aspect 1 is named
    hatchet and is a spear in every number; the general foodstuff class
    indexes a nutrition table and a table of lines by the aspect, so a
-   mushroom steak at aspect 1 is a dried jellyfish that feeds less and says
-   something else when eaten. Read off the listings: `get_field aspect` is
+   mushroom steak at aspect 1 is a dried jellyfish that feeds less and has
+   a different line when eaten. Read off the listings: `get_field aspect` is
    a read, `set_field aspect` a write (a state the class puts itself in,
    the torch lit, the door open). The prop record block on an item's page
    and the Mechanics section say which case a class is in. */
@@ -1603,10 +1604,10 @@ function aspectUseAt(pt, a) {
 
 /* THE TWO DATA BYTES, and the enchantment (v1.33.0).
 
-   Beside its word a prop record carries two bytes the scripts' field table
+   Beside its word a prop record has two bytes the scripts' field table
    calls data1 and data2 (fields 6 and 7; field 8, data3, is both read as
    one 16-bit value). They have no fixed meaning: each class script reads
-   them for its own purpose -- a door its lock, a passage its destination,
+   them for a different purpose -- a door its lock, a passage its destination,
    a candle its countdown -- and the weapons' purpose is not in the weapon
    classes at all but in the attack resolver 0xE87, which reads Data1 off a
    weapon that is both a MeleeWeapon (0x2A) and Equipment (0x26), adds it to
@@ -1614,11 +1615,11 @@ function aspectUseAt(pt, a) {
    0x80, a magic bit, on the damage type when it is not zero. An arrow's
    Data1 is not read there: the guard is on MeleeWeapon, and the missile
    routine 0xE89 reads no data field, so the arrows placed with a Data1 of
-   20 and 30 hit for what their class says. Three classes -- the dagger and
+   20 and 30 hit for what their class sets. Three classes -- the dagger and
    the two swords -- say so in Examine, testing Data1 above 2 and above 0
-   for two lines of the game's own text; they are found by that test rather
-   than named. The Mechanics sheet's combat section had said "plus the
-   enchantment" since v1.7.0 without ever saying the enchantment was this
+   for two lines of the game's text; they are found by that test rather
+   than named. The Mechanics sheet's combat section had read "plus the
+   enchantment" since v1.7.0 without ever stating the enchantment was this
    byte. Each pattern below is a shape in the listing, so an archive whose
    resolver has been edited shows what it has. Read by the item page's word
    block and the Mechanics section of the same name. */
@@ -1663,7 +1664,7 @@ function propWordRules() {
     }
   }
   // Every placed record whose Data1 the resolver would add -- a class with
-  // both members, not an egg, not deleted -- and the ammunition carrying a
+  // both members, not an egg, not deleted -- and the ammunition with a
   // Data1 the resolver does not read.
   const melee = new Set(), ammoCls = new Set();
   for (let pt = 1; pt < 512; pt++) {
@@ -1687,7 +1688,7 @@ function propWordRules() {
   // The Examine that reports Data1 is the weapons': the shape (two nested
   // tests of Data1, a line each) also turns up on classes whose Data1 is
   // something else, the amulet's charge and the unguent's fill, and the
-  // sentence it feeds is about the enchantment. It was told apart by the
+  // sentence it feeds is about the enchantment. It was distinguished by the
   // number in the inner test, `byte 0x02`, until 11 September 2026.
   const weaponExamines = examines.filter(x => melee.has(x.pt) && x.hiVal && x.loVal);
   return (DERIVED.PROP_WORD_RULES = { ench, readers, examines: weaponExamines, zoneReaders, scripts, scriptIds, placed, ammo, melee });
@@ -1757,16 +1758,16 @@ function propWordData(k, v) {
   st['d' + k] = Math.max(0, Math.min(255, parseInt(v, 10) || 0));
   propWordRender();
 }
-/* THE SWING. What a weapon draws when it strikes is not its own tile at all:
+/* THE SWING. What a weapon draws when it strikes is not its tile at all:
    the outcome routine 0xE87 hands the HitWithTile syscall (cbAttackFX, which
    calls TGameViewer::ShowAttack) a list of tiles to play between the two
    squares, and the list is field 6 of the class's melee entry (key 0x2A),
-   a dref into the class's own script where a five-word array sits: 0, three
+   a dref into the class's script where a five-word array sits: 0, three
    tiles, 0. A class whose field is None (rolling pin, cleaver, pick,
-   gauntlets, staff in the shipped file) gets the routine's own inline
+   gauntlets, staff in the shipped file) falls back to the routine's inline
    default, two tiles, found here by its shape (the 0x45 data opcode, 22
    bytes, a 0x90 array of five) rather than by offset. Read on 9 September
-   2026; the mace's list is 0x8A3-0x8A5 and the spear's is its own tile
+   2026; the mace's list is 0x8A3-0x8A5 and the spear's is its tile
    three times, which is why a mace at aspect 8 wears the flail in the pack
    and still swings as a mace. */
 function dvmWordArrayAt(d, off) {
@@ -1788,7 +1789,7 @@ function weaponSwingFrames(pt) {
     if (!words) return null;
     return { own: true, resid, off, tiles: words.filter(t => t > 0 && t <= 0xFFFF) };
   }
-  // No list of its own: the outcome routine's default.
+  // No list in the class: the outcome routine's default.
   const d = read(0xE87);
   if (!d) return null;
   for (let i = 0; i + 5 <= d.length; i++) {
@@ -1814,7 +1815,7 @@ function swingFramesHTML(pt) {
 // Another class's page, at the aspect that shows the same tile.
 function propWordOpen(pt, aspect) { showItemDetail(pt); propWordSet(aspect); }
 // Whether this class makes anything of its aspect beyond the picture and
-// the name, from its own script (aspectReaders).
+// the name, from its script (aspectReaders).
 function propWordAspectSentence(pt) {
   const w = s => '<b style="color:#fff">' + s + '</b>';
   const own = svEsc(propDisplayName(pt) || 'this item');
@@ -1826,13 +1827,13 @@ function propWordAspectSentence(pt) {
   return w('This class’s script never reads its aspect') + ': at any aspect it is the same ' + own + ' in every figure, with a different picture and name.';
 }
 // What using the item at this aspect does, for the classes that read the
-// aspect at use: a food's nutrition and the line said, a potion's effect.
+// aspect at use: a food's nutrition and its line, a potion's effect.
 function propWordUseSentence(pt, a) {
   const w = s => '<b style="color:#fff">' + s + '</b>';
   const u = aspectUseAt(pt, a);
   if (!u) return '';
   if (u.kind === 'food') return u.beyond ? ' The class reads a nutrition for ' + u.count + ' variants; beyond those, the amount comes from whatever follows the table.'
-    : ' Eaten, it feeds ' + w('+' + u.plus) + (u.says ? ' and says “' + svEsc(u.says) + '”' : '') + '.';
+    : ' Eaten, it feeds ' + w('+' + u.plus) + (u.says ? ' and the eater says “' + svEsc(u.says) + '”' : '') + '.';
   if (u.kind === 'potion') return u.beyond ? ' The class calls one of ' + u.count + ' effect scripts by the aspect; beyond those there is none.'
     : ' Drunk, it is the ' + w(svEsc(u.name)) + (u.does.length ? ': ' + svEsc(u.does.join('; ')) : '') + (u.says ? ', “' + svEsc(u.says) + '”' : '') + '.';
   return '';
@@ -1918,10 +1919,10 @@ function itemGroup(pt) {
   const cls = parseItemClass(pt);
   if (cls && ITEM_COMBAT_KEYS.some(k => cls.data.some(f => f.key === k))) return 'Weapons & Armor';
   // A container is a class that answers IsContainer or is Lockable, and
-  // nothing else. It used also to want a prop list to have put something
+  // nothing else. It once also needed a prop list to have put something
   // inside one, which is a fact about the shipped scenario rather than about
   // the class: it left the corpse -- which answers IsContainer, opens a
-  // window and holds what the body was carrying -- filed under carried goods.
+  // window and contains what the body was carrying -- filed under carried goods.
   if (classHasMember(pt, 0x17) || classHasMember(pt, 0x34)) return 'Containers';
   return 'Carried Goods';
 }
@@ -1946,8 +1947,8 @@ function inventoryItemList() {
 }
 
 const ITEM_GROUP_ORDER = ['Weapons & Armor', 'Containers', 'Carried Goods'];
-// What puts an item under each divider, said under it: the rule is the
-// class script's members (itemGroup), named here from the file's own symbol
+// What puts an item under each divider, shown under it: the rule is the
+// class script's members (itemGroup), named here from the file's symbol
 // table, and the item test is isInventoryItem's.
 function itemGroupNote(group) {
   if (group === 'Weapons & Armor') return 'Anything used in a fight: weapons, launchers, ammunition, armor and shields.';
@@ -1985,7 +1986,7 @@ function renderItemSheet() {
     wrap.className = 'cellimgwrap';
     const base = getPropTileList()[e.pt] || 0;
     const info = spriteFrameInfo(0, e.pt);
-    // The item's OWN frames, not the whole tail of its sheet. A frame block is
+    // The item's frames alone, not the whole tail of its sheet. A frame block is
     // bounded by the sheet, not by the thing, so full helmet's block runs on
     // into the grimoire beside it -- which is how the grimoire came to be
     // listed as the second frame of a helmet.
@@ -2014,7 +2015,7 @@ function renderItemSheet() {
   }
   // Art no class owns: named, drawn, the base of nothing, worn by nothing
   // the file places. Reached by an item's aspect, which is how the
-  // create-a-prop cheat gets a flail.
+  // create-a-prop cheat makes a flail.
   let orphans = [];
   try { orphans = orphanItemArt().filter(o => !q || o.name.toLowerCase().includes(q)); } catch (e) { orphans = []; }
   if (orphans.length) {
@@ -2050,7 +2051,7 @@ function renderItemSheet() {
     (orphans.length ? '; ' + orphans.length + ' picture' + (orphans.length === 1 ? '' : 's') + ' no class owns' : '') + '.';
 }
 
-/* Each one placed, and what tells them apart.
+/* Each one placed, and what distinguishes them.
 
    The zone chips on an item's page say where a class's props are and how
    many, which is all there is to say about a torch. It is not enough for a
@@ -2113,8 +2114,9 @@ function itemDataMeaning(pt) {
 function placeChip(p, n) {
   const map = 0x8000 + p.zone;
   const note = n > 1 ? '\u00d7' + n : '';
-  // A carrier the character table has; one key in Land King Hall is held by
-  // a number that is not a character (0xF02F), and says only that it is carried.
+  // A carrier the character table has; one key in Land King Hall is held by a
+  // number that is not a character (0xF02F), and shows only that it is
+  // carried.
   if (p.carriedBy !== undefined) return characterRecord(p.carriedBy) ? characterChip(p.carriedBy)
     : relChip({ resid: map, main: zoneLabel(p.zone), sub: 'carried', note, title: trailForResid(map) });
   const inside = p.host !== null ? 'in a ' + (propDisplayName(p.host) || 'container') : '';
@@ -2138,7 +2140,7 @@ function itemEachOneHTML(pt) {
   if (groups.size < 2) return '';
   const base = getPropTileList()[pt] || 0;
   const all = [...groups.values()].sort((a, b) => a[0].d1 - b[0].d1 || a[0].d2 - b[0].d2 || a[0].aspect - b[0].aspect);
-  // A look is named when its name says something: a potion by what the class
+  // A look is named when its name means something: a potion by what the class
   // makes of it drunk, anything else by its tile's name where the aspects
   // placed do not all share one ("bread", "cheese"; not "book" six times).
   const tileNames = new Set(all.map(l => terrainNameFor(base + l[0].aspect) || ''));
@@ -2149,7 +2151,7 @@ function itemEachOneHTML(pt) {
     return tileNames.size > 1 ? (terrainNameFor(base + a) || '') : '';
   };
   // A prop record is sixteen bytes of a prop list, and `at` is where this
-  // one sits in its own.
+  // one sits in its list.
   const recSrc = (p, off, what) => p.at === undefined ? null : { resid: p.resid, byte: p.at + off, stride: 16, what };
   const rows = all.slice(0, 40).map(list => {
     const p = list[0];
@@ -2190,9 +2192,9 @@ function itemEachOneHTML(pt) {
    for this kind of thing (FillIntfCache), 0x0000, and what checks each one"
    meant on the ancient tree: a hex word in the gist and in mid-sentence,
    and "what checks each one" over nothing. So the gist names what was
-   noted, or says nothing was; the lede says what the routine looks for,
+   noted, or states nothing was; the lede gives what the routine looks for,
    by the keys read off it (exeIntfCache), so a class with nothing noted
-   says so against that list ("none applies", not "has none": a class
+   states it against that list ("none applies", not "has none": a class
    can have Class Flags with none of the copied bits set); and the word itself closes the block, for
    whoever wants the number. */
 function classCacheBlock(pt) {
@@ -2216,8 +2218,8 @@ function classCacheBlock(pt) {
   const tested = list => list.length ? 'checked by ' + list.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : 'no routine checks it';
   const rows = cw.bits.map(b => '<tr><td style="' + cell + ';color:#fff">' + from(b) + '</td><td style="' + cell + ';color:#dcd8cc;font-size:0.75rem">' + tested(b.testedBy) + '</td><td class="num" style="' + cell + '">' + srcNum(b.bit, propWordHex(b.bit.v)) + '</td></tr>').join('');
   const side = cw.tables.map(t => '<tr><td style="' + cell + ';color:#fff">' + svEsc(itemFieldLabel(t.key)) + (t.plusOne ? ' plus one' : '') + '</td><td class="num" style="' + cell + '">' + srcNum(t.at, String(t.value)) + '</td><td style="' + cell + ';color:#dcd8cc;font-size:0.75rem">' + (t.readBy.length ? 'read by ' + t.readBy.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : 'no routine reads it') + '</td></tr>').join('');
-  // What the routine looks for, in the order it asks: every key it tests
-  // for a bit or keeps a value of, each once.
+  // What the routine looks for, in the order it tests: every key it tests
+  // for a bit or stores a value of, each once.
   const looked = ic ? [...new Set(ic.has.map(h => h.key).concat(ic.bits.map(x => x.key), ic.tables.map(t => t.key)))].map(itemFieldLabel) : [];
   const noted = [...new Set(cw.bits.map(b => b.key).concat(cw.tables.map(t => t.key)))].map(itemFieldLabel);
   const none = !cw.bits.length && !cw.tables.length;
@@ -2270,7 +2272,7 @@ function showItemDetail(pt) {
   }
   panel.innerHTML = h;
   // Every section below the frames is a fold, shut by default, its summary
-  // carrying one line of what is inside; the page had grown to seven
+  // with one line of what is inside; the page had grown to seven
   // blocks on top of each other (the maintainer, 9 September 2026).
   const fold = (id, title, gist, inner) => {
     const sec = foldCard('item-' + id, 'itemFold', false);
@@ -2286,7 +2288,7 @@ function showItemDetail(pt) {
   };
 
   // Only the frames the archive still calls by this item's name. Everything
-  // after them belongs to whatever the sheet holds next, and is named as such
+  // after them belongs to whatever comes next on the sheet, and is named as such
   // below rather than passed off as another view of this item.
   const runs = frameRuns(base, info.present);
   const ownFrames = framesSharingName(base, info.present);
@@ -2362,7 +2364,7 @@ function showItemDetail(pt) {
     fold('data', 'Class data', 'no data fields', '<div class="sv-note">This class has only behavior, and no data fields.</div>');
   }
 
-  // The long the application keeps for this class at load, computed from
+  // The long the application stores for this class at load, computed from
   // the table above as FillIntfCache computes it (classCacheWord); the
   // same block the creatures-and-props page shows. Only with the
   // application open: the map of what goes where is read off the routine.
@@ -2379,7 +2381,7 @@ function showItemDetail(pt) {
       '<div class="sv-note" style="margin-top:6px">Each opens the class script 0x' +
       cls.resid.toString(16).toUpperCase() + ' at its method.</div>');
   }
-  // What a blow does to it, where the class has a TakeDamage of its own.
+  // What a blow does to it, where the class defines a TakeDamage.
   if (cls && cls.code.some(f => f.key === 0x41)) {
     let row = null;
     try { row = damageTakers().rows.find(r => r.pt === pt) || null; } catch (e) { row = null; }
@@ -2392,8 +2394,8 @@ function showItemDetail(pt) {
         '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to Things') + '</div>');
     }
   }
-  // A status this thing gives whoever wears or uses it, and what takes it
-  // away again, from its own methods (grantRules).
+  // A status this thing gives whoever wears or uses it, and what removes it
+  // again, from its methods (grantRules).
   {
     let grants = [];
     try { grants = grantRules().filter(g => g.pt === pt); } catch (e) { grants = []; }
@@ -2406,7 +2408,7 @@ function showItemDetail(pt) {
         '<div class="sv-note">' + mechLink('status', 'Mechanics › Status Effects') + '</div>');
     }
   }
-  // What it asks for when it is used, and what the application requires of
+  // What it prompts for when it is used, and what the application requires of
   // that target (targetRules).
   if (cls) {
     let t = null;
@@ -2427,7 +2429,7 @@ function showItemDetail(pt) {
       fold('blast', 'When it goes off', bl.centre.v + ' on its square, ' + (bl.edge ? bl.edge.v : '') + ' beside it',
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It hands ' + srcNum(bl.centre) + ' to everything on its square, ' +
         srcNum(bl.edge) + ' to the four squares beside it and ' + srcNum(bl.corner) + ' to the four corners, as ' +
-        (bl.type ? svEsc(damageTypeName(bl.type.v)) + ' (type ' + srcNum(bl.type) + ')' : 'its own type') + '.</div>' +
+        (bl.type ? svEsc(damageTypeName(bl.type.v)) + ' (type ' + srcNum(bl.type) + ')' : 'its type') + '.</div>' +
         '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to Things') + '</div>');
     }
   }
@@ -2454,7 +2456,7 @@ function showItemDetail(pt) {
 
     const zoneIds = Object.keys(idx.zones).map(Number).sort((a, b) => idx.zones[b] - idx.zones[a]);
     /* Each zone goes to the map with every one ringed; where there are a
-       handful, each square is its own chip as well, so the page says where
+       handful, each square is a separate chip as well, so the page shows where
        and not only how many (the maintainer, 22 September 2026). */
     body += '<div style="margin-top:8px">' + zoneIds.slice(0, 16).map(rid => {
       const spots = itemSpotsInZone(rid, pt);
@@ -2502,7 +2504,7 @@ function showItemDetail(pt) {
     fold('world', 'In the world', 'none placed', '<div class="sv-note">The original scenario places none of these, so either a script creates it or nothing uses it.</div>');
   }
 
-  // The key is one prop type carrying eight different keys, told apart by
+  // The key is one prop type with eight different keys, distinguished by
   // the lock id in their data byte -- so its detail page is the key ring.
   if (pt === KEY_PROPTYPE) {
     const { keys, locks } = buildKeyLockIndex();
@@ -2533,20 +2535,20 @@ function showItemDetail(pt) {
 
 /* --- The resource fork ------------------------------------------------------
    "Cythera Data" is a Mac file with two forks. The game archive is the data
-   fork, and everything else in this viewer reads that. The resource fork holds
-   113 resources of 18 types, and it arrives here for free: a .hqx, MacBinary or
-   AppleSingle container carries both forks, and binhexSplitForks already
+   fork, and everything else in this viewer reads that. The resource fork has
+   113 resources of 18 types, and it comes here for free: a .hqx, MacBinary or
+   AppleSingle container has both forks, and binhexSplitForks already
    decoded the second one before extractDelverArchive threw it away.
 
    Most of it is ordinary Mac resources -- PICT, NFNT, clut, STR#, vers --
    which js/mac-rsrc-types.js decodes, and RSRC_KINDS (beside CATEGORY_NAMES)
-   says what each kind is for and where on the site it is shown: the title
+   describes what each kind is for and where on the site it is shown: the title
    and menu screens under Graphics, the fonts under Text, the string lists
    under Labels, the editor's zone list beside every map's name, the default
    conversation keywords on the Dialogue gallery,
-   the Finder icons on the installer's rows, and the page's own face, which
+   the Finder icons on the installer's rows, and the page's face, which
    is the sfnt in this fork (installGameFont). What needs Cythera's tile
-   system is the four types that are Delver's own:
+   system is the four types that belong to Delver:
 
      eSTM  16  editor stamps: an 8x8 patch of terrain the map editor could
                stamp down in one go, with names like "Forest Medium 1"
@@ -2572,15 +2574,15 @@ function showItemDetail(pt) {
    stamp resolves to real artwork here and has a name in F004, which is the
    check that the format is being read correctly.
 
-   The brush layout is a guess and is labelled as one on screen: 16 tiles with
-   "joining rules" looks like a 4-bit edge mask (which of the four neighbours
-   match), and the first tile of every brush is the F004 entry "Nothing", which
-   would be the isolated case. Nothing here depends on that being right -- the
-   tiles are drawn in file order either way.
+   The brush layout is an inference and is labelled as one on screen: 16 tiles
+   with "joining rules" looks like a 4-bit edge mask (which of the four
+   neighbours match), and the first tile of every brush is the F004 entry
+   "Nothing", which would be the isolated case. Nothing here depends on that
+   being right -- the tiles are drawn in file order either way.
 --------------------------------------------------------------------------- */
 window.CYTHERA_RSRC = null;
 
-// The two forks arrive together; this opens the second one. Failure is not
+// The two forks come together; this opens the second one. Failure is not
 // interesting enough to report: a bare .rsrc-less archive is the normal case.
 function openCytheraResourceFork(bytes) {
   window.CYTHERA_RSRC = null;
@@ -2589,10 +2591,10 @@ function openCytheraResourceFork(bytes) {
   return window.CYTHERA_RSRC;
 }
 
-/* The file's own face, made usable. Argos A Nouveau is sfnt 7289 in Cythera
+/* The file's face, made usable. Argos A Nouveau is sfnt 7289 in Cythera
    Data's resource fork (FOND 1046 names it); a browser loads a font from
    bytes through FontFace, once sfntToTrueType has given it the OS/2 table
-   OTS requires. It is registered under its own family name, 'ArgosGame',
+   OTS requires. It is registered under a separate family name, 'ArgosGame',
    which setFace() puts at the head of the stack when the reader is set to
    the game's face.
 
