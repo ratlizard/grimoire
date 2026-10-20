@@ -1,6 +1,6 @@
 // smoke_atlas.mjs -- one part of the UI smoke: the arrival on a link, the conversation and detail views, the atlas and the world tab end to end, the gate, the brand line, the square card, skills and spells, the GIF and dither tools, the animation modes.
 // Cut out of viewer_smoke.mjs on 18 September 2026 at a point where the open
-// file changes, so it runs from a fresh boot (smoke_boot.mjs) as its own
+// file changes, so it runs from a fresh boot (smoke_boot.mjs) as a separate
 // process. Run alone with
 //   node utilities/viewer_smoke.mjs index.html "$TMPDIR/Cythera Data.data" "" <installers .sit> <saved game> atlas
 // and with the other parts by naming them; with none named the runner drives
@@ -10,7 +10,7 @@ import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsr
          ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally } from './smoke_boot.mjs';
 
 
-// "Where is this art used?" — the reverse index has to agree with the forward
+// "Where is this art used?" — the reverse index has to match the forward
 // one: every sheet it claims a map uses must really appear in that map.
 try {
   const t = Date.now();
@@ -23,7 +23,7 @@ try {
   const mapsCovered = new Set();
   for (const s2 of withMaps) for (const r of idx[s2].maps) mapsCovered.add(r);
   // subindex 127 declares 256 slots; only some are populated, and the gallery
-  // knows which -- that is the number every map should be accounted for in.
+  // records which -- that is the number every map should be accounted for in.
   ctx.showCategory('127');
   const realMaps = (ctx.CUR_RESIDS || []).length;
   console.log(`  art usage: ${mapsCovered.size} of ${realMaps} maps contributed tiles`);
@@ -49,7 +49,7 @@ try {
   ctx.showCategory('141');
   ctx.openResource(sheet);
   const panel = REGISTRY.get('artUsage').innerHTML;
-  if (!/Maps|Prop types|Composite/.test(panel)) fail('art usage', 'panel said: ' + panel.slice(0, 80));
+  if (!/Maps|Prop types|Composite/.test(panel)) fail('art usage', 'panel showed: ' + panel.slice(0, 80));
 } catch (e) { fail('art usage', e); }
 
 // The conversation view: a dialogue resource must render structured topic
@@ -66,15 +66,15 @@ try {
   if (chips < 10) fail('conversation', 'keyword chips missing');
   if (!/>0x804<\/button>/.test(wrap.innerHTML)) fail('conversation', 'inheritance chain chips missing');
   if (!/convLink/.test(wrap.innerHTML)) fail('conversation', '@keyword links missing');
-  // A card says what its answer depends on as the Read view says it, a
-  // helper's test included: Aethon's "demo" asks 0xF13 whether he is in the
+  // A card shows what its answer depends on as the Read view words it, a
+  // helper's test included: Aethon's "demo" calls 0xF13 to test whether he is in the
   // party (bit 0x40 of byte 8), which the old badge, a list of test names,
   // missed.
   ctx.jumpToResource(0x1861);
   const demo = (/id="conv-6241-651"[\s\S]*?<\/div>/.exec(REGISTRY.get('dlgWrap').innerHTML) || [''])[0];
   if (!/convBadge">if its bit flags has bit 6 \(InParty\)</.test(demo) || /calls InParty/.test(demo))
     fail('conversation', 'Aethon\u2019s "demo" card does not say its condition: ' + demo.replace(/<[^>]+>/g, ' ').slice(0, 200));
-  // And each line says the conditions that pick it, an otherwise as the
+  // And each line shows the conditions that pick it, an otherwise as the
   // negation of the if before it, without a doubled not.
   const aeText = REGISTRY.get('dlgWrap').innerHTML.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"');
   if (!/if not \(its bit flags has bit 6 \(InParty\)\): "Fine, be that way\."/.test(aeText) || !/if its bit flags has bit 6 \(InParty\): "Maybe it is time/.test(aeText) || /not \(not/.test(aeText))
@@ -88,8 +88,8 @@ try {
 } catch (e) { fail('conversation', e); }
 
 /* Everything at once (23 September 2026, convEverythingHtml): Aethon's view
-   carries his groups' topics under an "Answers as" heading, a group topic he
-   answers himself is not repeated (Cademia's own "job" never shows under
+   includes his groups' topics under an "Answers as" heading, a group topic he
+   answers himself is not repeated (Cademia's "job" never shows under
    Cademia when Aethon has one), and a stored four-letter keyword is shown
    with the word the game's text spells it as ("demo", DEMODOCUS). */
 try {
@@ -133,7 +133,7 @@ try {
   // the further right you looked, with the rightmost part of the viewport
   // showing bare base. Nothing in a DOM stub can resolve a percentage, so
   // what is checked is the two halves the page itself owns: that the box it
-  // asks for is the box it painted, and that the inline max-width now
+  // requests is the box it painted, and that the inline max-width now
   // outranks any sheet rule.
   if (lens) {
     const vp = REGISTRY.get('mapViewport');
@@ -152,7 +152,7 @@ try {
                      `viewport (margin ${Math.round(100 * mx / vw)}%), unclampable`);
   }
   // The base map and everything drawn over it must share one origin. The
-  // terrain canvas alone used to carry a `10px auto` margin from when maps
+  // terrain canvas alone once had a `10px auto` margin from when maps
   // rendered inline, and #mapCanvasWrap is absolutely positioned so the
   // margin could not collapse out of it -- which put the terrain 10px below
   // the layers, the hit test and the lens, times the zoom. At the zoom the
@@ -161,7 +161,7 @@ try {
   {
     const margin = String((peek('CUR_MAP').canvas.style.margin) || '0');
     if (!/^0(px)?$/.test(margin.trim()))
-      fail('detail lens', `terrain canvas carries margin "${margin}" -- it must share the ` +
+      fail('detail lens', `terrain canvas has margin "${margin}" -- it must share the ` +
                           'wrap origin with the overlay layers, the lens and mapSquareFromClient');
   }
   // Zooming must not throw the painted detail away. The lens is slid AND
@@ -178,12 +178,12 @@ try {
     else {
       const busy = REGISTRY.get('mapLensBusy');
       if (!busy || !busy.classList.contains('on'))
-        fail('detail lens', 'nothing tells the reader a sharper view is on its way');
+        fail('detail lens', 'nothing shows the reader a sharper view is on its way');
       else {
         peek('paintDetailLens')();
         if (lens.style.transform) fail('detail lens', 'repaint left a stale slide transform');
         else if (busy.classList.contains('on')) fail('detail lens', 'the badge outlived its repaint');
-        else console.log('  detail lens: a zoom slides the painted pixels and says so, ' +
+        else console.log('  detail lens: a zoom slides the painted pixels and shows it, ' +
                          'then repaints clean');
       }
     }
@@ -209,7 +209,7 @@ try {
                  'singleControls', 'propFilterWrap', 'resourceNav', 'mapCanvasWrap',
                  'mapPreview', 'mapViewport', 'mapStage', 'mapInspect'];
   const snapRegions = () => watch.map(id => {
-    // The stub answers with null for an id the markup does not carry; the
+    // The stub answers with null for an id the markup does not have; the
     // point here is the comparison, and an absent element compares equal.
     const el = ctx.document.getElementById(id) || { style: {} };
     return id + '=' + el.style.display + '/' + (el.style.height || '') +
@@ -222,10 +222,10 @@ try {
   ctx.showCategory('WORLD');
   const sc = peek('atlasScene')();
   const av = peek('atlasView');
-  // v1.48.0: the two memory switches are gone, the selection bar says so
+  // v1.48.0: the two memory switches are gone, the selection bar shows it
   // until a square is picked, the atlas bar's place name is not styled as a
   // link, and an egg is any record with flags 0x42 or 0x44 -- the one at
-  // Hall of Truth (8,38) carries no argument and 18 more on that map do.
+  // Hall of Truth (8,38) has no argument and 18 more on that map do.
   {
     const all = (function walk(el) { return (el.innerHTML || '') + (el.textContent || '') + (el.children || []).map(walk).join(''); })(REGISTRY.get('atlasPanel') || { children: [] });
     const insp = ctx.document.getElementById('atlasInspect');
@@ -350,7 +350,7 @@ try {
       if (Math.abs(zDouble - 2) > 0.01) fail('atlas', 'a double tap on open ground zoomed ' + zDouble.toFixed(2) + 'x, not 2x');
       else if (!(fl.carried > 20) || !fl.still) fail('atlas', `a drag let go at 1 px/ms carried on ${fl.carried.toFixed(1)} px and ${fl.still ? 'stopped' : 'is still going'}`);
       else if (Math.abs(fl0.carried) > 0.5) fail('atlas', 'a drag let go slowly carried on ' + fl0.carried.toFixed(1) + ' px');
-      else console.log(`  atlas: a double tap zooms in 2x, a drag let go moving carries on ${fl.carried.toFixed(0)} px and stops, and a slow one does not`);
+      else console.log(`  atlas: a double tap zooms in 2x, a drag let go moving continues ${fl.carried.toFixed(0)} px and stops, and a slow one does not`);
     }
     clock.now = stoppedNow;
     /* A tap anywhere in a town's circle goes in (29 September 2026), not
@@ -412,7 +412,7 @@ try {
        map whose edge leads to the world, whose entry script sets a horizon
        rather than an indoor backdrop, and which the world map draws as a
        place rather than a way in (mapIsSurface). A stair or a cave mouth
-       says where you go in, not where the place reaches, so drawing the
+       shows where you go in, not where the place reaches, so drawing the
        Sewers under nine squares of Cademia, or the Temple beside its cave,
        was a claim the archive does not support. */
     fail('atlas', 'the scene places a map the archive does not put on the surface: ' +
@@ -431,7 +431,7 @@ try {
     if (Math.abs(cx - want) > 0.01)
       fail('atlas', `Cademia's middle sits at world ${cx.toFixed(2)}, its icon at ${want}`);
     else if (Math.abs((b.x1 - b.x0 + 1) * cad.s - (gwC.x1 - gwC.x0 + 1)) > 1.2)
-      fail('atlas', 'Cademia does not cover its own pictogram');
+      fail('atlas', 'Cademia does not cover its pictogram');
     else console.log('  atlas: ' + sc.nodes.length + ' nodes; Cademia sits on its icon ' +
                      'through one transform');
 
@@ -448,7 +448,7 @@ try {
 
     /* "Which place am I in" is read off the view rather than stored. Put
        Cademia's middle under a point and the deepest node covering it is
-       Cademia -- no state, so no way for it to disagree with what is drawn. */
+       Cademia -- no state, so no way for it to differ from what is drawn. */
     const r = peek('atlasRect')(cad, av);
     const hit = peek('atlasAt')(r.x + r.w / 2, r.y + r.h / 2);
     if (!hit) fail('atlas', 'nothing was found under the middle of Cademia');
@@ -517,7 +517,7 @@ try {
       else if (!/Show Tavara No Fortress/.test(card) || !/jumpToScriptAt|srcNum/.test(card) || !/ring gives the flag/.test(card))
         fail('atlas', 'the fortress\'s card does not offer the island without it, link the flag, and say what gives it: ' + card.replace(/<[^>]+>/g, ' '));
       else {
-        const surf = peek('DERIVED').ATLAS_SCENE;       // the page's own, which the swap edits
+        const surf = peek('DERIVED').ATLAS_SCENE;       // the page's, which the swap edits
         const before = surf.nodes.find(q => q.resid === 0x8024);
         peek('atlasShowState')(0x8024);
         const swapped = surf.nodes.find(q => q.resid === 0x8025);
@@ -542,7 +542,7 @@ try {
 
     /* The 17 it does not locate are reached through a mouth: a ring on the
        square the archive gives, and a step rather than a zoom, because a
-       doorway is what the file says and a position is not. */
+       doorway is what the file has and a position is not. */
     {
       const cadN = sc.nodes.find(n => n.resid === 0x8008);
       const mouths = peek('atlasMouths')(cadN);
@@ -556,7 +556,7 @@ try {
           ctx.atlasDescend(sewers, cadN);
           const bs = peek('atlasScene')();
           if (!bs || bs.root.resid !== 0x8015)
-            fail('atlas', 'taking the mouth did not arrive in the Sewers');
+            fail('atlas', 'taking the mouth did not land in the Sewers');
           else if (bs.surface !== false)
             fail('atlas', 'an unlocated place was shown as part of the surface');
           else if (!peek('DERIVED').ATLAS_BELOW.length)
@@ -585,7 +585,7 @@ try {
       const before = peek('CUR_MAP');
       const cadN = peek('atlasScene')().nodes.find(n => n.resid === 0x8002);   // Odemia
       let painted = 0;
-      // A real stub context, since the people now carry balloons with text.
+      // A real stub context, since the people now have balloons with text.
       const spy = ctx.document.createElement('canvas').getContext('2d');
       const realDraw = spy.drawImage;
       spy.drawImage = function () { painted++; return realDraw.apply(this, arguments); };
@@ -680,10 +680,10 @@ try {
       ctx.__peek('atlasMovedAt = 0; atlasBusyUntil = 0');
       for (let i = 0; i < 50 && ctx.ATLAS_RENDER_JOB; i++) drainRaf();
       ctx.atlasWhenStill = realStill;
-      if (!inUse || whileInUse) fail('atlas', 'the largest place\'s render was started while a town on screen drew from its own (' + inUse + ', ' + whileInUse + ')');
+      if (!inUse || whileInUse) fail('atlas', 'the largest place\'s render was started while a town on screen drew from its render (' + inUse + ', ' + whileInUse + ')');
       else if (!freeNow || atRest !== 0x8008) fail('atlas', 'with the whole world in view the largest place\'s render was not started: ' + atRest);
       else if (!cache.has(0x8008)) fail('atlas', 'the largest place\'s render was started and not kept');
-      else console.log('  atlas: Cademia\'s render is made ahead of the tap with the world in view, and not while a town draws from its own');
+      else console.log('  atlas: Cademia\'s render is made ahead of the tap with the world in view, and not while a town draws from its render');
     }
 
     /* The panel needs its rules as much as its markup.
@@ -700,10 +700,10 @@ try {
     if (need.some(re => !re.test(html)))
       fail('atlas', 'the atlas panel has lost its stylesheet rules — ' +
                     'a viewport with no height shows nothing');
-    else console.log('  atlas: the panel keeps the rules it cannot live without');
+    else console.log('  atlas: the panel retains the rules it needs');
   }
 
-  /* The atlas has its own container, and that is the fix for the seam that
+  /* The atlas has a separate container, and that is the fix for the seam that
        produced every regression this tab has had -- CUR_MAP, then the panel's
        own elements, then the class that unframed the sheet. Sharing was the
        cause each time, so the check is that nothing is shared: a full pass
@@ -730,7 +730,7 @@ try {
           fail('atlas', 'the sheet did not come back');
         else {
           /* The panel must be gone from EVERY other tab, not just the one
-             checked above. It carries a zoom slider, and a stray zoom slider
+             checked above. It has a zoom slider, and a stray zoom slider
              under a gallery of portraits is how this was reported. */
           const showing = [];
           for (const v of ['CHARACTERS', '135', 'TOOLS', 'DATAFORK', '127', '23']) {
@@ -740,7 +740,7 @@ try {
           }
           if (showing.length)
             fail('atlas', 'the atlas panel is showing under ' + showing.join(', '));
-          else console.log('  atlas: its own panel — gone from every other tab, and Regions ' +
+          else console.log('  atlas: a separate panel — gone from every other tab, and Regions ' +
                            'comes back bit for bit');
           ctx.showCategory('WORLD');
         }
@@ -781,7 +781,7 @@ try {
     else console.log('  atlas: the scene paints into one ' + cvA.width + 'x' + cvA.height +
                      ' canvas, redrawn rather than slid');
 
-    // A pan asks for a paint rather than painting: many moves in one frame
+    // A pan requests a paint rather than painting: many moves in one frame
     // are one paint, drawn when the frame comes.
     let paints = 0;
     const realPaint = ctx.paintAtlas;
@@ -794,7 +794,7 @@ try {
     else console.log('  atlas: five pans in a frame are one paint, at the frame');
     ctx.paintAtlas = realPaint;
 
-    // Magnified past its own render, a node's native art is tiles
+    // Magnified past its render, a node's native art is tiles
     // (paintAtlasTiles, 28 September 2026), and three rules keep them from
     // being the jerk the one window of native art was: with a finger down
     // no art is painted and no tile is made; a paint never paints art, the
@@ -848,7 +848,7 @@ try {
       if (peek('atlasFolkCache').size !== folkKeys) fail('atlas', 'a repaint recomputed the schedules');
     } else console.log('  note: could not magnify Cademia past its render in a 300px panel; native art not exercised' +
                        ` (Z ${av2.Z.toFixed(2)}, s ${cad2.s}, ppt ${peek('atlasNodePpt')(cad2, av2).toFixed(1)}, ts ${cad2.ts}, maxZ ${peek('atlasMaxZ')().toFixed(1)}, below ${(peek('DERIVED').ATLAS_BELOW || []).length})`);
-    // The world itself, at the closest zoom: the art's own 32 px a square.
+    // The world itself, at the closest zoom: the art's native 32 px a square.
     {
       const root = peek('atlasScene')().root;
       const was = { x: av2.x, y: av2.y, Z: av2.Z };
@@ -861,7 +861,7 @@ try {
       const wTS = tileTS(root);
       const worldTiles = Array.from(peek('atlasTiles').values()).filter(t => t.key.startsWith(root.resid + ':'));
       if (wTS !== 32 || !worldTiles.length || worldTiles.some(t => t.TS !== 32) || onScreenWantedWorld())
-        fail('atlas', `the world at its closest zoom (${peek('atlasNodePpt')(root, av2).toFixed(1)} px a square) wants tiles of ${wTS} px and has ${worldTiles.length}`);
+        fail('atlas', `the world at its closest zoom (${peek('atlasNodePpt')(root, av2).toFixed(1)} px a square) needs tiles of ${wTS} px and has ${worldTiles.length}`);
       else console.log(`  atlas: the world at its closest zoom is ${worldTiles.length} tiles of its native 32 px a square`);
       function onScreenWantedWorld() { return peek('atlasTileWant').filter(w => !w.tile && w.d < 1e6 && w.node === root).length; }
       Object.assign(av2, was);
@@ -995,7 +995,7 @@ try {
     const folk = peek('atlasFolk')(ode);
     const someone = folk[0];
     const cardP = someone && ctx.squareCard(ode.resid & 0xFF, eO, Math.round(someone.x), Math.round(someone.y), ode.name, false);
-    if (!cardP || !cardP.html.includes(ctx.svEsc(someone.name))) fail('square card', 'a square with somebody on it did not name them');
+    if (!cardP || !cardP.html.includes(ctx.svEsc(someone.name))) fail('square card', 'a square with somebody on it did not show their name');
     else if (!ctx.characterFace(someone.index)) fail('square card', someone.name + ' has no face to show');
     let bare = null;
     for (let y = 0; y < ode.h && !bare; y++) for (let x = 0; x < ode.w; x++) {
@@ -1008,7 +1008,7 @@ try {
       const asked = ctx.squareCard(ode.resid & 0xFF, eO, bare.x, bare.y, ode.name, true);
       if (quiet) fail('square card', 'a passing pointer got a card over bare ground');
       else if (!asked || !/hvWhat/.test(asked.html)) fail('square card', 'a held finger got no ground');
-      else console.log('  square card: names ' + someone.name + '; quiet over bare ground; a held finger gets the ground');
+      else console.log('  square card: names ' + someone.name + '; quiet over bare ground; a held finger shows the ground');
     }
     const propSq = (eO.result.props || []).find(p => p.cells.length && !folk.some(c => Math.round(c.x) === p.cells[0][0] && Math.round(c.y) === p.cells[0][1]));
     if (propSq) {
@@ -1017,7 +1017,7 @@ try {
     }
 
     // Full screen, in a browser with no element full screen: the panel is
-    // pinned over the page and the button says how to leave.
+    // pinned over the page and the button shows how to leave.
     ctx.atlasToggleFull();
     const fullOn = ctx.document.body.classList.contains('atlasFull') && /Full screen off/.test(REGISTRY.get('atlasFullBtn').textContent);
     ctx.atlasToggleFull();
@@ -1025,7 +1025,7 @@ try {
     if (!fullOn || !fullOff) fail('atlas', 'full screen did not pin and unpin the panel');
     else console.log('  atlas: full screen pins the panel where the browser offers no better, and unpins');
     // The gate before a download: shown until answered, and the answer is
-    // what the caller gets.
+    // what the caller receives.
     {
       const pr = ctx.landingGate();
       const shown = REGISTRY.get('landingGate').style.display === 'flex';
@@ -1034,23 +1034,23 @@ try {
       const hidden = REGISTRY.get('landingGate').style.display === 'none';
       if (!shown || !hidden || ans !== 'own') fail('gate', 'the landing gate did not show, hide, or answer: ' + JSON.stringify([shown, hidden, ans]));
       else console.log('  gate: stands before the download, and answers with the button pressed');
-      // The gate says why it is the whole installer and not the one file the
+      // The gate explains why it is the whole installer and not the one file the
       // page reads: Ambrosia's licence allows the work to be passed on only
       // complete and unmodified (NOTICE quotes it). Read off the markup, since
       // the stub does not populate innerHTML from the page source.
       const gateSrc = html.slice(html.indexOf('id="landingGate"'), html.indexOf('id="atlasPanel"'));
-      if (!/downloads its installer from archive\.org/.test(gateSrc) || !/28&nbsp;MB/.test(gateSrc) || !/read directly from the supplied file/.test(gateSrc)) fail('gate', 'the gate no longer says what is downloaded and what is read');
-      else console.log('  gate: says what is downloaded, how big it is, and what is read from the file');
+      if (!/downloads its installer from archive\.org/.test(gateSrc) || !/28&nbsp;MB/.test(gateSrc) || !/read directly from the supplied file/.test(gateSrc)) fail('gate', 'the gate no longer shows what is downloaded and what is read');
+      else console.log('  gate: shows what is downloaded, how big it is, and what is read from the file');
     }
-    // The names are the game's own: the mouth into Land King Hall says so,
-    // not the editor's "LKH"; and two "Ruins" are told apart by the
+    // The names are the game's: the mouth into Land King Hall reads so,
+    // not the editor's "LKH"; and two "Ruins" are distinguished by the
     // editor's name after the game's.
     {
       const sc2 = peek('surfaceScene')();
       const wm = peek('atlasMouths')(sc2.root);
       const lkh = wm.find(m => m.dest.resid === 0x8003);
       const names = sc2.nodes.map(n => n.name).concat(wm.map(m => m.name));
-      if (!lkh || lkh.name !== 'Land King Hall' || names.some(n => /\bLKH\b/.test(n))) fail('atlas', 'the world still says LKH: ' + (lkh && lkh.name));
+      if (!lkh || lkh.name !== 'Land King Hall' || names.some(n => /\bLKH\b/.test(n))) fail('atlas', 'the world still reads LKH: ' + (lkh && lkh.name));
       // (This section runs without the fork -- the deep-link check above
       // re-opened the data fork alone -- so the editor's name is only
       // expected when the fork is there.)
@@ -1068,7 +1068,7 @@ try {
         av.Z = 40; av.x = vw / 2 - 163.5 * 40; av.y = vh / 2 - 20.5 * 40; ctx.paintAtlas();
         peek('atlasGesture').active = true; peek('atlasGesture').z0 = 20; ctx.atlasGestureEnd();
         const stayedUp = !peek('atlasBelowTop')();
-        // A tap on its ring falls in from that view and arrives at half the zoom
+        // A tap on its ring falls in from that view and lands at half the zoom
         const q = (peek('ATLAS_MOUTHS') || []).find(q => q.m.dest.resid === 0x8003);
         if (q) ctx.atlasTakeMouth(q.m, q.node);
         const inHall = peek('atlasBelowTop')();
@@ -1088,7 +1088,7 @@ try {
         if (upRing) { ctx.atlasTakeMouth(upRing.m, upRing.node); rose = peek('atlasBelowTop')(); }
         if (!stayedUp) fail('atlas', 'a zoom onto the hole went through it by itself');
         else if (!q || !inHall || inHall.resid !== 0x8003) fail('atlas', 'tapping the ring into the hall did not go in: ' + (inHall && inHall.resid.toString(16)));
-        else if (Math.abs(arrivedZ - 20) > 0.5) fail('atlas', 'did not arrive at half the zoom it fell in at: ' + arrivedZ);
+        else if (Math.abs(arrivedZ - 20) > 0.5) fail('atlas', 'did not land at half the zoom it fell in at: ' + arrivedZ);
         else if (!hole || !arch || !arch.m.up || hole.m.up) fail('atlas', 'the hall’s rings are not one gold down and one blue up: ' + JSON.stringify(rings.map(r => [r.m.name, !!r.m.up])));
         else if (!top || top.resid !== 0x8009) fail('atlas', 'tapping the hole did not go down: ' + (top && top.resid.toString(16)));
         else if (!upRing || !rose || rose.resid !== 0x8003) fail('atlas', 'tapping the blue ring did not rise to the hall: ' + (rose && rose.resid.toString(16)));
@@ -1101,7 +1101,7 @@ try {
         ctx.atlasToggleFull();
         if (!top || top.resid !== 0x8009) fail('atlas', 'zooming onto the hole in Land King Hall did not go down: at ' + (top && top.resid.toString(16)) + ', mouths ' + holes.join(' '));
         else if (where !== 'Underground') fail('atlas', 'the full-screen overlay does not say where you are: ' + JSON.stringify(where));
-        else console.log('  atlas: the world says Land King Hall, not LKH; a zoom goes nowhere, a tap on a gold ring falls in at half the zoom, a tap on a blue ring rises; full screen names the place');
+        else console.log('  atlas: the world reads Land King Hall, not LKH; a zoom goes nowhere, a tap on a gold ring falls in at half the zoom, a tap on a blue ring rises; full screen shows the place');
         // Below ground, a zoom out that begins at the floor and goes on out
         // rises one level, to the hall; one that begins above the floor
         // stops at it (the maintainer, 17 October 2026). Tried: with the
@@ -1124,7 +1124,7 @@ try {
         while (peek('atlasBelowTop')()) ctx.atlasAscend();
         ctx.atlasFitAndPaint();
         // The view's middle stays over the island however far it is dragged,
-        // and a finger held down carries the pick from square to square
+        // and a finger held down moves the pick from square to square
         // without clearing it on the square it starts on.
         {
           const land = peek('atlasLandBounds')();
@@ -1140,8 +1140,8 @@ try {
           ctx.ATLAS_SEL = null; ctx.atlasFitAndPaint();
           if (!inside) fail('atlas', `a drag took the view's middle off the island: ${mx.toFixed(1)}, ${my.toFixed(1)} against ${JSON.stringify(land)}`);
           else if (!s1 || !s2 || s2.tx !== s1.tx || s2.ty !== s1.ty || !s3 || (s3.tx === s1.tx && s3.ty === s1.ty))
-            fail('atlas', 'a held finger did not carry the pick: ' + JSON.stringify([s1, s2, s3]));
-          else console.log('  atlas: a drag stops with the view over the island, and a held finger carries the pick');
+            fail('atlas', 'a held finger did not move the pick: ' + JSON.stringify([s1, s2, s3]));
+          else console.log('  atlas: a drag stops with the view over the island, and a held finger moves the pick');
         }
       }
     }

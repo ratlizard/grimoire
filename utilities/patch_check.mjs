@@ -9,8 +9,8 @@
 // The merge could touch a resource the patch never named -- 1,558 resources go
 // through the writer and only twelve are meant to move -- and the
 // re-serialization could differ from what the format's reference writer
-// produces, which is the property delv_write_check.mjs holds
-// writeDelverArchive to against delvmod. Neither would look like a failure:
+// produces, which is the property delv_write_check.mjs checks
+// writeDelverArchive against delvmod. Neither would look like a failure:
 // the game would boot and something would be subtly wrong somewhere in it.
 //
 // THE ORACLE IS THE UNPATCHED RE-SERIALIZATION. writeDelverArchive is not
@@ -22,22 +22,22 @@
 //     writeDelverArchive(delverArchiveSpec(base))   the base, re-written
 //     mergeDelverPatch(base, patch).bytes           the same, patched
 //
-// Every resource the patch does not name must come back byte for byte between
+// Every resource that is not in the patch must come back byte for byte between
 // those two, and every resource it does name must read back as what the patch
-// holds. That isolates the merge from the writer, and the writer already has
-// its own oracle in delv_write_check.mjs.
+// is valid. That isolates the merge from the writer, and the writer already has
+// a separate oracle in delv_write_check.mjs.
 //
 // THE NEGATIVE CONTROL. A check that cannot fail proves nothing. Merging a
 // patch whose replacement bytes have been changed must move the merged
 // archive's hash, and re-reading resource 0x8E04 must give back the changed
 // bytes rather than the original. Both directions are asserted here.
 //
-// The patch arrives as .hqx wrapping a .sit whose data fork is compressed
+// The patch comes as .hqx wrapping a .sit whose data fork is compressed
 // with StuffIt method 13. The page decompresses that itself since 15
 // September 2026, so this check no longer shells out to `unar` and no longer
 // skips on a machine that lacks it -- and getting the patch out through
 // extractDelverArchive is now part of what is being tested, which is the
-// route a visitor's dropped file actually takes.
+// route a visitor's dropped file actually follows.
 
 import {readFileSync, existsSync} from 'node:fs';
 import {join} from 'node:path';
@@ -65,8 +65,9 @@ const ev = code => vm.runInContext(code, ctx);
 
 // ---- the page opens the .hqx the way a dropped file is opened --------------
 // BinHex around StuffIt around the patch, and extractDelverArchive walks all
-// three. The listing is asserted as well as the extraction, because it is
-// what names the file inside and a wrong one would still extract something.
+// three. The listing is asserted as well as the extraction, because it is what
+// gives the name of the file inside and a wrong one would still extract
+// something.
 sandbox.__hqx = new Uint8Array(readFileSync(hqx));
 const listed = ev(`(() => {
   globalThis.__sit = binhexSplitForks(binhexDecode(__hqx)).data;
@@ -74,7 +75,7 @@ const listed = ev(`(() => {
 })()`);
 if (!listed.includes('Patches/Pumpkin Patch'))
   fail('StuffIt listing', 'no "Patches/Pumpkin Patch" in ' + JSON.stringify(listed));
-else ok('the .sit lists the patch', listed.length + ' entries');
+else ok('the .sit has the patch', listed.length + ' entries');
 
 const opened = ev(`(() => {
   const g = extractDelverArchive(__hqx);
@@ -94,7 +95,7 @@ const r = ev(`(() => {
   return {replaced: m.replaced, skipped: m.skipped, disagreed: m.disagreed,
           title: m.title, len: m.bytes.length};
 })()`);
-ok('the patch applies', `${r.replaced.length} resource(s) replaced, ${r.skipped.length} skipped, ${r.disagreed.length} refused on an encryption disagreement`);
+ok('the patch applies', `${r.replaced.length} resource(s) replaced, ${r.skipped.length} skipped, ${r.disagreed.length} rejected on an encryption mismatch`);
 if (r.replaced.length !== 12) fail('replaced count', `expected 12, got ${r.replaced.length}`);
 if (r.skipped.length !== 1 || r.skipped[0] !== 0xFFFF)
   fail('skipped set', `expected only 0xFFFF, got ${r.skipped.map(i => '0x' + i.toString(16))}`);
@@ -126,7 +127,7 @@ if (movedSet !== wantSet)
   fail('only the patch moved', `changed ${cmp.moved.map(i => '0x' + i.toString(16)).join(' ')}, patch names ${r.replaced.map(i => '0x' + i.toString(16)).join(' ')}`);
 else ok('only the patch\'s resources changed', `${cmp.moved.length} of ${cmp.aCount}, the other ${cmp.aCount - cmp.moved.length} byte for byte`);
 if (cmp.wrong.length) fail('replacement bytes', cmp.wrong.length + ' changed resource(s) do not equal the patch');
-else ok('each replacement reads back as the patch holds it', cmp.moved.length + ' resource(s)');
+else ok('each replacement reads back as it is in the patch', cmp.moved.length + ' resource(s)');
 
 // ---- the negative control --------------------------------------------------
 const neg = ev(`(() => {
@@ -144,7 +145,7 @@ if (!neg.moved) fail('negative control', 'changing the patch did not change the 
 else if (!neg.carries) fail('negative control', 'the changed bytes did not reach the merged archive');
 else ok('the check can fail', 'a two-byte change to the patch moves the merged archive and reads back');
 
-// ---- refusals --------------------------------------------------------------
+// ---- rejections ------------------------------------------------------------
 const refusals = ev(`(() => {
   const out = [];
   const tryIt = (label, fn) => { try { fn(); out.push([label, null]); } catch (e) { out.push([label, e.message]); } };
@@ -160,22 +161,22 @@ const refusals = ev(`(() => {
   return out;
 })()`);
 for (const [label, msg] of refusals) {
-  if (!msg) fail('refuses ' + label, 'it was accepted');
-  else ok('refuses ' + label, msg.length > 72 ? msg.slice(0, 69) + '…' : msg);
+  if (!msg) fail('rejects ' + label, 'it was accepted');
+  else ok('rejects ' + label, msg.length > 72 ? msg.slice(0, 69) + '…' : msg);
 }
 
-/* ---- the descriptor, and what the page says about a patch it has not applied
+/* ---- the descriptor, and what the page shows about a patch it has not applied
    Added 15 September 2026 with the Hackery section. The merge above proves
-   what a patch DOES; this proves what it SAYS, which is the half a reader
+   what a patch DOES; this proves what it CLAIMS, which is the half a reader
    sees first and the half that was read out of Magpie's PowerPC code rather
    than out of a sample. Each figure below was written down from the
    disassembly before this file was ever opened, so the assertions are a
-   second, independent source agreeing with the first -- except the
-   description's offset, where they disagree and the file wins.
+   second, independent source matching the first -- except the
+   description's offset, where they differ and the file is taken as right.
 
    The 55 changed tiles are the figure worth pinning hardest: nothing in this
    project derived it from the pixels until now. It was counted by hand off
-   the patch's own advertising and has stood in the notes since; decoding both
+   the patch's advertising and has stood in the notes since; decoding both
    sides and comparing them tile by tile reaches the same number. */
 const desc = ev(`(() => {
   const B = delverArchiveSpec(__base), P = delverArchiveSpec(__patch);
@@ -215,13 +216,13 @@ const want = (what, got, expect) => {
 want('the descriptor UUID', desc.uuid, '00b21e58-a47f-11d4-8a4a-000502c9f8b7');
 want('the descriptor check value', desc.check, 'c49ba9810778a4b9');
 // Recovered out of Magpie's PowerPC code on 15 September 2026. The page
-// computes the same digest now, so the real patch's own value has to verify:
-// this is the assertion that says the routine was read correctly, and it is
+// computes the same digest now, so the real patch's value has to verify:
+// this is the assertion that shows the routine was read correctly, and it is
 // held to the only sample that exists.
 want('and the real patch\'s check value verifies', desc.checkValid, true);
-want('the descriptor states its own length', desc.len, 568);
-want('the length is the one Magpie takes', desc.lenOk, true);
-want('the descriptor names the offset it sits at', desc.selfOk, true);
+want('the descriptor states its length', desc.len, 568);
+want('the length is the one Magpie accepts', desc.lenOk, true);
+want('the descriptor gives the offset it sits at', desc.selfOk, true);
 want('the type and trust code', desc.type, 3);
 /* The mapping was left at 0 alone until the row drawer's two dispatches were
    read on 15 September 2026. The Pumpkin Patch's 3 is Official Add On, which
@@ -231,22 +232,22 @@ want('the Pumpkin Patch is an Official Add On', desc.label, 'Official Add On');
    carried 3 until the maintainer saw his own patch listed as Official. 5 is
    the same type with no trust prefix, which is what a community patch is. */
 want('a patch made here is a plain Add On', desc.exportLabel, 'Add On');
-if (desc.exportType === 0) fail('the export is removable', 'type 0 is the one Magpie refuses to uninstall');
+if (desc.exportType === 0) fail('the export is removable', 'type 0 is the one Magpie cannot uninstall');
 else ok('and one Magpie will uninstall', 'type ' + desc.exportType);
 want('the description', desc.text,
      'Harvest time, and the leaves change - something strange is happening in Cythera...');
 want('the patch\'s format', desc.format, '2.0');
 want('the game\'s format', desc.baseFormat, '2.0');
 want('Magpie\'s three tests pass', desc.usable, true);
-if (desc.reasons.length) fail('no reason to refuse it', desc.reasons.join('; '));
-// The shipped archive carries neither resource, which is what makes "this
-// file lists no patches" the honest thing for the page to say about it.
-want('the shipped archive lists no applied patches', desc.installedInBase, 0);
-want('the shipped archive has no descriptor of its own', desc.baseDescriptor, false);
+if (desc.reasons.length) fail('no reason to reject it', desc.reasons.join('; '));
+// The shipped archive has neither resource, which is what makes "this
+// file lists no patches" the honest thing for the page to state about it.
+want('the shipped archive has no applied patches', desc.installedInBase, 0);
+want('the shipped archive has no descriptor', desc.baseDescriptor, false);
 want('so this patch does not read as installed', desc.isInstalled, false);
 want('resources it would replace', desc.willReplace, 12);
 want('resources it names that are not in the game', desc.willAdd, 0);
-want('resources refused on an encryption disagreement', desc.disagreed, 0);
+want('resources rejected on an encryption mismatch', desc.disagreed, 0);
 want('resources already identical', desc.unchanged, 0);
 want('tile sheets it redraws', desc.sheets, 12);
 want('tiles it redraws', desc.tiles, 55);
@@ -297,8 +298,8 @@ if (Object.values(dneg).every(Boolean))
    the difference, apply that patch to the ORIGINAL, and every resource must
    come back exactly as the edited archive had it. That is the whole contract,
    and it fails if the diff misses a resource, if the writer drops one, if the
-   descriptor lands somewhere the self-offset does not name, or if the merge
-   refuses one for an encryption disagreement.
+   descriptor lands somewhere the self-offset does not point at, or if the merge
+   rejects one for an encryption mismatch.
 
    The negative controls are at the end and there are four, because a round
    trip is unusually easy to pass by accident: a diff that reported everything
@@ -308,7 +309,7 @@ const rt = ev(`(() => {
   const base = delverArchiveSpec(__base);
   const edited = delverArchiveSpec(__base);
   // Three resources of three different kinds: a tile sheet, a dialogue and a
-  // text array, so the writer is not only ever asked for one shape.
+  // text array, so the writer is not only ever given one shape.
   const ids = [0x8E04, 0x1801, 0x021A];
   for (const id of ids) {
     const r = edited.resources.find(x => x.resid === id);
@@ -332,9 +333,9 @@ const rt = ev(`(() => {
                                  {description: 'Three resources, for the round trip.', typeCode: 0, uuid: w.uuid});
   /* The MacBinary shape of the same patch. Type and creator are the whole of
      what it adds -- DelP is a saved game too, and Magpie's creator is what
-     tells the Finder which of the two this is -- so what has to be true is
-     that the wrapper carries them, carries the patch's own bytes unchanged,
-     and carries no resource fork, a patch having none. */
+     shows the Finder which of the two this is -- so what has to be true is
+     that the wrapper has them, has the patch's bytes unchanged,
+     and has no resource fork, a patch having none. */
   const wrapped = writeMacBinary({name: 'Round Trip Patch', type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes});
   const un = sniffMacContainer(wrapped);
   return {
@@ -362,17 +363,18 @@ want('and calls nothing else changed', rt.unchanged, rt.aCount - 3);
 want('nothing added', rt.added, 0);
 want('nothing removed', rt.removed, 0);
 want('an archive against itself is identical', rt.identicalFlag, true);
-want('the written patch carries the description', rt.descBack, 'Three resources, for the round trip.');
+want('the written patch has the description', rt.descBack, 'Three resources, for the round trip.');
 want('type 0 reads back as Bug Fix', rt.typeBack, 'Bug Fix');
-want('the descriptor names the offset it landed at', rt.selfOk, true);
-want('the descriptor is the length Magpie takes', rt.lenOk, true);
+want('the descriptor gives the offset it landed at', rt.selfOk, true);
+want('the descriptor is the length Magpie accepts', rt.lenOk, true);
 want('the written patch is usable against the archive', rt.usable, true);
 want('it would replace three resources', rt.willReplace, 3);
 want('it applies three', rt.applied, 3);
 // The check value is the one field this project cannot produce, and writing
-// zeroes rather than a guess is a decision. This is what keeps it a decision.
-want('a written patch carries a check value', rt.checkValueWritten, true);
-want('and its own check value verifies', rt.checkValueValid, true);
+// zeroes rather than an assumption is a decision. This is what makes it a
+// decision.
+want('a written patch has a check value', rt.checkValueWritten, true);
+want('and its check value verifies', rt.checkValueValid, true);
 want('every resource comes back as the edited archive had it', rt.everyResourceBack, true);
 // The MacBinary shape, which is what gives a patch Magpie's icon rather than
 // the game's saved-game one on a real Mac.
@@ -380,7 +382,7 @@ want('the MacBinary wrapper reads back as one', rt.binKind, 'MacBinary');
 want('typed as a Delver patch', rt.binType, 'DelP');
 want('with Magpie as its creator', rt.binCreator, 'Delp');
 want('under the name it was given', rt.binName, 'Round Trip Patch');
-want('carrying the patch byte for byte', rt.binSameData, true);
+want('with the patch byte for byte', rt.binSameData, true);
 want('and no resource fork, a patch having none', rt.binNoRsrc, true);
 want('writing it twice gives the same size', rt.deterministic, true);
 if (rt.skipped.length !== 1 || rt.skipped[0] !== 0xFFFF)
@@ -396,17 +398,17 @@ const rtneg = ev(`(() => {
   // A diff that reported everything would still round-trip, so the count is
   // held to one rather than to "more than none".
   out.onlyOne = describeDelverDiff(base, edited).changed.length === 1;
-  // A patch must carry only what it was asked for, not the whole archive.
+  // A patch must contain only what was requested, not the whole archive.
   const w = writeDelverPatch(edited, [0x8E04], {});
   const carried = delverArchiveSpec(w.bytes).resources.filter(x => x.resid !== 0xFFFF);
   out.carriesOnlyWhatItWasAsked = carried.length === 1 && carried[0].resid === 0x8E04;
-  // And what it carries must be the EDITED bytes, not the originals.
+  // And what it contains must be the EDITED bytes, not the originals.
   const orig = base.resources.find(x => x.resid === 0x8E04).data;
   out.carriesTheNewBytes = carried[0].data[0] === (orig[0] ^ 0xFF);
-  // Refusing the empty case rather than writing a patch that does nothing.
+  // Rejecting the empty case rather than writing a patch that does nothing.
   try { writeDelverPatch(edited, [], {}); out.refusesNothing = false; }
   catch (e) { out.refusesNothing = true; }
-  // Refusing an id the archive does not have, rather than writing a hole.
+  // Rejecting an id the archive does not have, rather than writing a hole.
   try { writeDelverPatch(edited, [0x0999], {}); out.refusesUnknown = false; }
   catch (e) { out.refusesUnknown = true; }
   return out;
@@ -414,15 +416,15 @@ const rtneg = ev(`(() => {
 for (const [what, got] of Object.entries(rtneg))
   if (!got) fail('the writer can fail: ' + what, 'it did not');
 if (Object.values(rtneg).every(Boolean))
-  ok('the writer can fail', Object.keys(rtneg).length + ' ways it must refuse or narrow, each held');
+  ok('the writer can fail', Object.keys(rtneg).length + ' ways it must fail or narrow, each checked');
 
 /* ---- a resource the game file does not have is added -------------------------
    Added 26 September 2026 with the gremlin trial: the shipped file has no
    0x1Fxx script, and a patch that brings one must put it in. The bytes are
    arbitrary; what is held is that the merge adds the one resource, byte for
-   byte, keeps the descriptor out, changes nothing else, and that describing
-   the patch says so before it is applied. A patch that only adds is accepted
-   rather than refused as applying nothing. */
+   byte, leaves the descriptor out, changes nothing else, and that describing
+   the patch shows it before it is applied. A patch that only adds is accepted
+   rather than rejected as applying nothing. */
 const add = ev(`(() => {
   const edited = delverArchiveSpec(__base);
   const bytes = new Uint8Array(40); for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 37 + 11) & 0xFF;
@@ -441,13 +443,13 @@ const add = ev(`(() => {
            sameBytes: same(back, getResourceBytes(openDelverArchive(w.bytes), 0x1F00)), storedEncrypted: same(back, decryptResource(bytes, 0x1F00)),
            others, count: B.size - A.size };
 })()`);
-want('describing a patch with a new resource says it would be added', add.willAdd, '1f00');
+want('describing a patch with a new resource shows it would be added', add.willAdd, '1f00');
 want('and that patch is usable', add.usable, true);
 want('the merge adds it', add.added, '1f00');
 want('and replaces nothing', add.replaced, 0);
 want('the descriptor stays out of the game file', add.skipped + (add.hasDescriptor ? ' and 0xffff is in it' : ''), 'ffff');
-// Stored bytes, not plaintext: the spec reader guesses encryption, and on
-// arbitrary bytes the guess differs from the flag the patch was written with.
+// Stored bytes, not plaintext: the spec reader infers encryption, and on
+// arbitrary bytes the inference differs from the flag the patch was written with.
 want('the added resource is stored as the patch stores it', add.sameBytes, true);
 want('stored encrypted by its id, as the game reads it', add.storedEncrypted, true);
 want('one resource more, the rest byte for byte', add.others + ' changed, ' + add.count + ' more', '0 changed, 1 more');
@@ -462,7 +464,7 @@ want('one resource more, the rest byte for byte', add.others + ' changed, ' + ad
    code that produced its value would be the code under test.
 
    The length fold and the complement are asserted by reimplementing the
-   digest here, deliberately, rather than by calling the page's own function
+   digest here, deliberately, rather than by calling the page's function
    with a flag: a check that shares the code it is checking proves nothing. */
 const cv = ev(`(() => {
   const P = delverArchiveSpec(__patch);
@@ -493,13 +495,13 @@ const cv = ev(`(() => {
     noLength:    hex(crc(body, 560, {foldLength: false, complement: true})),
     noComplement:hex(crc(body, 560, {foldLength: true,  complement: false})),
     oneByteBent: hex(crc(bent.subarray(8, 568), 560, {foldLength: true, complement: true})),
-    // And the page's own answer, which must be the same as the full one here.
+    // And the page's answer, which must be the same as the full one here.
     pageSays: Array.from(delverPatchCheckValue(d)).map(b => b.toString(16).padStart(2,'0')).join('')
   };
 })()`);
 const WANT = 'c49ba9810778a4b9';
 want('an independent implementation reaches the same value', cv.full, WANT);
-want('and the page agrees with it', cv.pageSays, WANT);
+want('and the page matches it', cv.pageSays, WANT);
 if (cv.noLength === WANT) fail('the length fold matters', 'dropping it changed nothing, so it is not being done');
 else ok('dropping the length fold breaks it', cv.noLength.slice(0, 16));
 if (cv.noComplement === WANT) fail('the final complement matters', 'dropping it changed nothing');
@@ -508,7 +510,7 @@ if (cv.oneByteBent === WANT) fail('the digest discriminates', 'one flipped byte 
 else ok('one flipped byte of the descriptor changes it', cv.oneByteBent.slice(0, 16));
 
 /* ---- what the type and trust byte can possibly affect -----------------------
-   The mapping above says what Magpie DRAWS for each code. This says what it
+   The mapping above shows what Magpie DRAWS for each code. This shows what it
    DOES, and the answer is almost nothing -- which is the sort of claim that
    invites being wrong, so it is derived here rather than asserted in prose.
  *
@@ -530,7 +532,7 @@ else ok('one flipped byte of the descriptor changes it', cv.oneByteBent.slice(0,
  * method has.
  *
  * It also exercises js/mac-ppc.js over a SECOND PowerPC binary. ppc_check
- * holds the decoder to LLVM over Cythera's code; this is the only thing in the
+ * checks the decoder against LLVM over Cythera's code; this is the only thing in the
  * suite that decodes Magpie's, so a decoder regression that happened to spare
  * Cythera would show up here. */
 const field = ev(`(() => {

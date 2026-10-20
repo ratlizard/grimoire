@@ -19,7 +19,7 @@
    resource at a time: 160 tile sheets meant 160 clicks. This writes the whole
    open gallery as a .zip -- PNG for art, WAV for sound, MIDI for music, the
    decoded listing plus the raw bytes for everything else, and an index.txt
-   that says what each file is.
+   that describes each file.
 
    Store-only (no compression): the PNGs and WAVs are already compressed or
    near-incompressible, a stored archive needs no deflate implementation, and
@@ -109,7 +109,7 @@ async function exportGallery() {
    ---------------------------------------------------------------------------
    Every gallery in this file -- resources, characters, prop types, items,
    monsters, fork resources, composites -- builds the same thing: a run of
-   .cell elements inside #sheetGrid, each carrying a .lbl name and a .resid
+   .cell elements inside #sheetGrid, each with a .lbl name and a .resid
    line. So the list view and the sort are one pair of controls applied to the
    grid afterwards rather than a variant of seven different renderers.
 
@@ -229,14 +229,14 @@ function drawSheetGridlines(canvas, W, H, mode) {
 
 // --- One sprite, up close ---------------------------------------------
 // Click any frame in a prop or item panel and get it big: 8x, pixelated,
-// with its own indexed-PNG download. The overlay is one div; clicking
+// with a separate indexed-PNG download. The overlay is one div; clicking
 // anywhere on it, or Escape, puts it away.
 /* What a tile is to the file, under its picture: the sheet it is cut from,
    the prop type whose base it is, and every class that draws it at an aspect
-   -- a class at aspect n draws its base tile + n, on its own sheet -- with how
+   -- a class at aspect n draws its base tile + n, on its sheet -- with how
    often the file places that class at that aspect. A chip opens the item at
    that aspect, where the prop record shows the picture, or the prop type's
-   page. A picture no class owns (orphanItemArt) says so. */
+   page. A picture no class owns (orphanItemArt) is marked so. */
 function tileFactsHTML(tileId) {
   const rows = [];
   const sheet = 0x8E00 + (tileId >> 4);
@@ -340,7 +340,7 @@ function showSpriteZoom(tileId, label) {
 // not move anything. The rule here: the new text is padded with spaces to
 // EXACTLY the stored length, the length byte stays untouched, and nothing
 // shifts. Growing a string means reassembling the container, which is the
-// script editor's future job, so a longer text is refused with that
+// script editor's future job, so a longer text is rejected with that
 // explanation rather than half-done.
 function locatePascalString(data, approxOffset) {
   // Delver text is a run of printable ASCII ended by a non-printing byte
@@ -421,7 +421,7 @@ let _ditherSrc = null;      // the loaded Image, kept so sliders re-render
 /* To the canvas page and back. The picture on screen goes over as a PNG
    through localStorage under one key, and canvas.html opens it on load;
    its file menu's "Send back to Grimoire" puts the result under another,
-   which the storage event delivers here and the ditherizer takes as its
+   which the storage event delivers here and the ditherizer uses as its
    source, aimed at the resource it came from. Two pages of one origin,
    no server, no clipboard. A portrait comes back into its resource; any
    other picture comes back into the ditherizer, which writes portraits
@@ -457,9 +457,9 @@ function receiveFromCanvas() {
 }
 if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('storage', e => { if (e.key === 'grimoire.return') receiveFromCanvas(); });
 
-/* Whether a picture keeps off the colour-cycling ramps. Only a tile sheet
+/* Whether a picture stays off the colour-cycling ramps. Only a tile sheet
    does, and only by choice (a tile is where water and lava are drawn on
-   purpose); on by default, and the last choice holds for the rest of the
+   purpose); on by default, and the last choice stays for the rest of the
    visit (the maintainer, 22 September 2026). Every other kind used to keep
    off them too, on the reasoning that a portrait on a cycling ramp would
    shimmer with the sea; the maintainer said on 3 October 2026 that only a
@@ -533,7 +533,7 @@ function openDitherTool() {
    Items sheet lists, from its prop type's base tile to the next type's,
    the first tile of each name the tile-name table gives them, so the
    food type offers its bread, cheese and grapes and a creature its
-   first frame. Named as the file names them, with the tile, since three
+   first frame. Named with the file's names, with the tile, since three
    swords share a name. */
 DERIVED.DITHER_ITEM_TILES = null;
 function ditherItemTiles() {
@@ -563,7 +563,7 @@ function ditherItemOptions(pick) {
 
 /* The frames the portraits share, as the ditherizer offers them
    (sharedPortraitFrames in js/delv-graphics.js finds them): every family
-   but the two the list above names with their own rule for the hole
+   but the two the list above gives, with a separate rule for the hole
    (0x88A2, 0x88F2, frames drawn empty), and not a family whose shared pixels are mostly
    index 0, the white field the fountain, the door and two pictures that are
    not faces have in common rather than a frame. */
@@ -576,7 +576,7 @@ function ditherSharedFrames() {
     return white < n * 0.6;
   });
 }
-// Whose portraits wear a frame, by the names the file gives them.
+// Whose portraits wear a frame, by the file's names for them.
 function ditherFrameOwners(members) {
   // characterName never comes back empty ("Character 206" for a slot with
   // no name), so the fallback has to be chosen here: a portrait whose slot
@@ -588,7 +588,7 @@ function ditherFrameOwners(members) {
 /* A frame from the archive to set a picture in. 0x88A2 and 0x88F2 are
    frames drawn empty: the hole is the run of index 0 (white, the cut-out
    slot) that does not touch the outside. 0x887E, Ur-Sylph's framed
-   portrait, had a rule of its own until 3 October 2026, its middle cleared
+   portrait, had a separate rule until 3 October 2026, its middle cleared
    from the first ring of background colour in; it is one of a family with
    Ignae and Omen, whose shared frame is found by comparing the three like
    every other family's, which the maintainer asked for. The picture is
@@ -612,7 +612,7 @@ function ditherFrameMask(resid) {
   // The hole is the largest run of one colour that does not touch the
   // border: index 0 in 0x88A2, but 0x88F2 fills its window with index 17,
   // and looking for 0 there found nothing (the maintainer, 9 September
-  // 2026). Every uniform region is flooded once; the biggest inner one wins.
+  // 2026). Every uniform region is flooded once; the biggest inner one is used.
   const comp = new Int32Array(W * H).fill(-1);
   let best = -1, bestN = 0, id = 0;
   const stack = [];
@@ -688,7 +688,7 @@ function ditherDownloadGIF() {
    icon 137 (0x8Axx, 32×16 raw indices), sheet 141 (0x8Exx, 32×512 DCG,
    sixteen tiles in a column), and a sized graphic 142 (0x8Fxx, a four-byte
    header then DCG at the padded size). Every page's resources are offered,
-   named where the file names them. */
+   named where the file has names for them. */
 const DITHER_KINDS = { portrait: 135, landscape: 131, icon: 137, sheet: 141, free: 142 };
 function ditherKind() {
   const mode = (document.getElementById('dtMode') || {}).value || 'portrait';
@@ -709,12 +709,12 @@ function ditherFillTargets() {
   sel.innerHTML = opts.join('');
   if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
 }
-/* The bytes a kind's resource holds, from the indexed picture. The sized
+/* The bytes in a kind's resource, from the indexed picture. The sized
    header is the decoder's read backwards: fourteen bits of width over four,
    two of the remainder, fifteen of height over two, one of its remainder,
    most significant first, and the DCG buffer is the width rounded up to
    four. A sheet goes back from the 128×128 grid the page shows to the
-   32×512 column the file keeps (reshapeTileSheetGrid's inverse). */
+   32×512 column the file stores (reshapeTileSheetGrid's inverse). */
 function encodeGraphicResource(kind, W, H, indexed) {
   if (kind === 'icon') return indexed.slice(0, 32 * 16);
   if (kind === 'sheet') {
@@ -762,7 +762,7 @@ function renderDither() {
     sx = (img.width - side) / 2; sy = (img.height - side) / 2;
     sw = sh = side;
   } else if (FIXED[kind]) {
-    // Cover crop to the kind's own proportions.
+    // Cover crop to the kind's proportions.
     [W, H] = FIXED[kind];
     const k = Math.max(W / img.width, H / img.height);
     sw = W / k; sh = H / k;
@@ -833,18 +833,18 @@ function ditherReplace() {
 
 // --- Locks and the keys that fit them ---------------------------------
 // A door, gate, portcullis, chest or trunk with a nonzero first data byte is
-// locked, and that byte is the LOCK ID; a key item (proptype 66) carries the
+// locked, and that byte is the LOCK ID; a key item (proptype 66) has the
 // id it opens in the same byte. Checked across every prop list in the
 // archive: 111 of 408 such props are locked over 62 distinct ids, exactly 8
 // key items exist, and all 8 match a lock -- no key opens nothing. The 54
 // ids with no key are the lockpick's and the scripts' business, and the UI
-// says so instead of hunting for a key that does not exist.
-// Lockable is the class's own word for it since 19 September 2026: key 52
+// states it instead of hunting for a key that does not exist.
+// Lockable is the class's marker for it since 19 September 2026: key 52
 // of its table, what `has_member Lockable` answers (classHasMember). A
-// name list stood here and disagreed with the file five times.
-// The key's prop type is still a number: nothing in a class table says
+// name list stood here and differed from the file five times.
+// The key's prop type is still a number: nothing in a class table marks
 // "this is a key" -- the lock's side is UseLock (53), and the key class
-// carries only ClassFlags 0x08, which it shares with the amulet and the
+// has only ClassFlags 0x08, which it shares with the amulet and the
 // grimoire.
 const KEY_PROPTYPE = 66;
 DERIVED.KEY_LOCK_INDEX = null;
@@ -868,7 +868,7 @@ function buildKeyLockIndex() {
   }
   return (DERIVED.KEY_LOCK_INDEX = { locks, keys });
 }
-// A key by the letter it wears in the game, with the lock id it carries.
+// A key by the letter it wears in the game, with the lock id it has.
 function keyLabel(k) { const L = itemLetter(k.rec); return 'key ' + (L ? L + ' (' + k.id + ')' : k.id); }
 function keysForLock(id) { return buildKeyLockIndex().keys.filter(k => k.id === id); }
 function locksForKey(id) { return buildKeyLockIndex().locks.filter(l => l.id === id); }
@@ -903,11 +903,11 @@ function lockLocationChip(l) {
 
 /* Open a map and land on one square: centred, ringed and inspected.
 
-   Every link that names a coordinate (a schedule's post, a passage's
+   Every link that points at a coordinate (a schedule's post, a passage's
    destination, a teleporter, a key's door, "where X is") comes here. Two
    of the three copies this replaces waited a fixed time after opening the
    map -- 0 ms for the schedules, 900 ms for the rest -- and then set the
-   pan; the map's own opening fit (restoreOrFitMap, on the frame after the
+   pan; the map's opening fit (restoreOrFitMap, on the frame after the
    render) ran after the 0 ms one and undid it, and on a slow phone after
    the 900 ms one too, which is why a link opened the zone and left the
    reader at the fit. Now the opener stamps MAP_SETTLED when its fit or
@@ -933,7 +933,7 @@ function whenMapSettled(mapResid, fn, tries) {
    with .hexNum to bring the monospace face down to the size of the game's
    face beside it, which is small for its em.
    Left alone: anything already monospace by its element (pre, code, the
-   listings' panes), form controls, whose text cannot hold a span, and a
+   listings' panes), form controls, whose text cannot contain a span, and a
    node already inside .hex or .resid. textContent reads the same before
    and after, which is what every check and every filter box reads. The
    wrap is itself an insertion, and the walk skips it by its class. */
@@ -1012,10 +1012,10 @@ function showSquareOnMap(mapResid, x, y) {
 // finding to the reader. Now the map opens with every loose instance of
 // the item ringed and the view centred on the first, the same after-load
 // settle showCharacterOnMap uses.
-/* The squares a prop type is found on in one map's records: its own square
+/* The squares a prop type is found on in one map's records: its square
    where it lies loose, and where it is inside something, the square of the
    container it is in (climbing through a pouch in a chest to the chest).
-   Carried things have no square of their own and are left to the "Carried
+   Carried things have no square and are left to the "Carried
    by" chips. Until 23 September 2026 only the loose ones were found, so a
    zone chip for something kept in a chest opened a map with nothing marked. */
 function itemSpotsIn(recs, pt) {
@@ -1064,7 +1064,7 @@ function updateGalleryTools() {
   const grid = document.getElementById('sheetGrid');
   const hasCells = grid && grid.querySelector('.cell');
   // A detail view is drawn into the grid, and it is not a gallery, whatever
-  // cells it happens to carry (a portrait strip), so nothing below applies.
+  // cells it happens to have (a portrait strip), so nothing below applies.
   const inGallery = currentMode === 'sheet' && !!hasCells && !window.DETAIL_VIEW;
   const on = ((galleryIsExportable() && currentMode === 'sheet') || inGallery) && !window.DETAIL_VIEW;
   wrap.style.display = on ? 'flex' : 'none';
@@ -1072,7 +1072,7 @@ function updateGalleryTools() {
   if (exp) exp.style.display = galleryIsExportable() && currentMode === 'sheet' ? '' : 'none';
   const arr = document.getElementById('galleryArrange');
   if (arr) arr.style.display = inGallery ? 'flex' : 'none';
-  // Every gallery gets the filter box, not just the three built from tables.
+  // Every gallery has the filter box, not just the three built from tables.
   const pw = document.getElementById('propFilterWrap');
   if (pw) pw.style.display = inGallery ? 'block' : 'none';
 
@@ -1087,7 +1087,7 @@ function updateGalleryTools() {
   const isZone = window.CUR_SUBN === 127;
   const eb = document.getElementById('editAnyBtn');
   if (eb) eb.style.display = (currentMode === 'single' && currentResid != null && !isZone) ? '' : 'none';
-  // The way round says what it goes round, on the zone pages.
+  // The way round shows what it goes round, on the zone pages.
   for (const [id, zone, other] of [['backToSheet', 'All Zones', 'All of this gallery'], ['navPrev', 'Previous Zone', 'Previous'], ['navNext', 'Next Zone', 'Next']]) {
     const nb = document.getElementById(id);
     if (nb) nb.textContent = isZone ? zone : other;
@@ -1096,7 +1096,7 @@ function updateGalleryTools() {
   const cb = document.getElementById('editCodeBtn');
   if (cb) cb.style.display = (currentMode === 'single' && currentResid != null && window.LAST_DECODED && window.LAST_DECODED.isScript && window.LAST_DECODED.resid === currentResid) ? '' : 'none';
   // The undither preview goes with one picture of a kind the undither
-  // reads, and its label says which way the preview would go from here.
+  // reads, and its label shows which way the preview would go from here.
   const ub = document.getElementById('unditherBtn');
   if (ub) {
     const can = currentMode === 'single' && UNDITHER_SUBN.has(+window.CUR_SUBN);
@@ -1116,7 +1116,7 @@ function updateGalleryTools() {
 /* ---------------------------------------------------------------------------
    Decoding a gallery only as far as the eye gets
    ---------------------------------------------------------------------------
-   Every tile in a gallery used to be decoded the moment the category changed:
+   Every tile in a gallery was once decoded the moment the category changed:
    180 tile sheets, or 142 portraits, decompressed and drawn before anything
    appeared. The retired resource fork browser had solved this with an
    IntersectionObserver, and this is the same pattern with one observer for the
@@ -1149,7 +1149,7 @@ function stopLazyTiles() {
 }
 
 // The gallery tally cannot be printed once and left, now that tiles decode as
-// they scroll into view. It says what is known so far, and how much is not.
+// they scroll into view. It shows what is known so far, and how much is not.
 let sheetStats = null;
 function updateSheetSummary() {
   const s = sheetStats;
@@ -1170,8 +1170,8 @@ function renderContactSheet() {
   grid.classList.toggle('landscapeGrid', window.CUR_SUBN === 131);
   grid.classList.remove('scriptList');
   const subn = window.CUR_SUBN;
-  /* Two galleries carry a rules card above the tiles, which is where the
-     rule and the thing it describes finally sit together: the game's own
+  /* Two galleries have a rules card above the tiles, which is where the
+     rule and the thing it describes finally sit together: the game's
      writing over the text arrays (Writings, subindex 1) and who answers as
      whom over the conversations (Dialogue, 23). The grid is cleared once at
      the top of this function and never again, so a card put in here survives
@@ -1253,7 +1253,7 @@ function renderContactSheet() {
     /* A script read for its code (scriptPaneFor) is a row, not a tile: its
        name, id and class, the first of its prose, and what its code calls.
        The tile was 84 px square with the text at 10 or 11 px and cut after
-       four lines, and for a script without strings it said "(binary, 153
+       four lines, and for a script without strings it read "(binary, 153
        bytes)"; a hundred scripts of one class are a list to be read down,
        which is what the maintainer asked for on 23 September 2026. The
        cells keep .lbl and .resid, so the filter, the sort and the keyboard
@@ -1267,7 +1267,7 @@ function renderContactSheet() {
         cell.className = 'cell scriptRow';
         let o = null;
         try { o = scriptOutline(resid, roff, rlen); } catch (e) { quiet(e, 'the outline of 0x' + resid.toString(16)); }
-        // The snippet leads with a skill's own name, which the row has just said.
+        // The snippet leads with a skill's name, which the row has just shown.
         let prose = sheetTextSnippet(resid, roff, rlen, 160);
         const nm = labelFor(resid);
         if (nm && prose.startsWith(nm + ' \u00b7 ')) prose = prose.slice(nm.length + 3);
@@ -1304,7 +1304,7 @@ function renderContactSheet() {
       cell.className = 'cell';
       cell.style.justifyContent = 'center';
 
-      // A generic page glyph told you nothing about which resource this is.
+      // A generic page glyph showed nothing about which resource this is.
       // Show what the bytes actually say, the same way the resource-fork
       // browser previews undecodable types.
       const snip = document.createElement('div');
@@ -1363,13 +1363,13 @@ function renderContactSheet() {
     const metaDiv = document.createElement('div');
     metaDiv.className = 'listMeta'; metaDiv.textContent = fmtBytes(rlen);
     cell.appendChild(metaDiv);
-    // A landscape is chosen at run time: a zone's entry script names its
+    // A landscape is chosen at run time: a zone's entry script picks its
     // strip with SetLandscapeImage, and the game draws it in the status
-    // window. The zones that name this one are the cell's label, since the
-    // file gives a strip no name of its own: until 6 October 2026 the label
+    // window. The zones that use this one are the cell's label, since the
+    // file gives a strip no name: until 6 October 2026 the label
     // read "none" with the zones a third line under the id, set like an id
     // and joined with semicolons, which the maintainer called oddly
-    // labelled. With or without a sky is on the strip's own page.
+    // labelled. With or without a sky is on the strip's page.
     if (subn === 131) {
       let zones = [];
       try { zones = landscapeZones(resid); } catch (e) { zones = []; }
@@ -1459,8 +1459,8 @@ function enhanceCellsForKeyboard(root) {
   }
 }
 
-/* Something that scrolls sideways says so at its right edge while there is
-   more past it: the class is the whole of what the script decides, and the
+/* Something that scrolls sideways shows it at its right edge while there is
+   more past it: the class is the whole of what the script sets, and the
    stylesheet draws the fade (.ftabRow::after, .tableScroll.moreRight). A tab
    row is watched when it is rendered (renderTabRow); a table wrapper when
    the sheet that built it lands in the grid (the observer at boot). */
@@ -1543,7 +1543,7 @@ function tabRowMouseScroll(el) {
    "heading  value" (table.asCards in index.html). Only the sheets' tables,
    .mechTable and .vocabTable with a header row, and the Data tab's two of
    prose (.cheatTable, the preferences record, and .cardTable, what a saved
-   game holds): the Data tab's other byte and record tables (.forkTable) and
+   game has): the Data tab's other byte and record tables (.forkTable) and
    a table whose columns are mostly figures are read down a column, and keep
    their grid and the sideways scroll. A
    table is labelled once and again when its row count changes, since some
@@ -1580,7 +1580,7 @@ function tableCardsLabel(table) {
         td.setAttribute('data-label', h.t);
         // The value goes in one element, so the heading and it are the
         // cell's two grid items: left loose, every run of text and every
-        // chip in a cell was an item of its own and they split across the
+        // chip in a cell was a separate item and they split across the
         // two columns.
         if (col > 0 && !(td.childNodes.length === 1 && td.firstChild.classList && td.firstChild.classList.contains('cardVal'))) {
           const v = document.createElement('span');
@@ -1635,7 +1635,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // a click that did nothing had no explanation on a phone. It reaches the
   // status line now and the Tools sheet's list, with everything else that
   // fell back. ?loud=1 also prints each quiet failure to the console, for a
-  // headless load that wants to count them (utilities/browser_check.mjs).
+  // headless load that needs to count them (utilities/browser_check.mjs).
   try { window.LOUD_QUIET = /[?&]loud\b/.test(location.search); } catch (e) { quiet(e); }
   window.addEventListener('error', ev => {
     quiet(ev.error || ev.message, 'uncaught');
@@ -1650,7 +1650,7 @@ document.addEventListener('DOMContentLoaded', () => {
   slider.addEventListener('pointermove', e => { if(e.buttons){ const r=slider.getBoundingClientRect(); const min=+slider.min,max=+slider.max; slider.value=Math.round(min+(e.clientX-r.left)/r.width*(max-min)); applyZoom(); } });
   installArchiveDropTarget();
   installKeyboardShortcuts();
-  // Every table wrapper a sheet builds gets its edge hint as it lands, and
+  // Every table wrapper a sheet builds is given its edge hint as it lands, and
   // every sheet's table its card labels (tableCardsLabel), and
   // a resize re-measures everything watched. Coalesced to a frame, since a
   // gallery landing is hundreds of insertions.
@@ -1673,7 +1673,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (_hashWrite) return;
     // Back or forward. Back to the trail's top pops it; anywhere else --
     // forward, or a hand-typed hash -- records the view being left, so the
-    // crumb always names the previous page whichever button moved us.
+    // crumb always shows the previous page whichever button moved us.
     const trail = window.VIEW_TRAIL;
     const arrived = location.hash;
     if (trail.length && trail[trail.length - 1] === arrived) trail.pop();

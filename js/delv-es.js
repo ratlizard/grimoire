@@ -1,5 +1,5 @@
 /* delv-es.js -- Cythera Data in Spanish: the table js/delv-translate.js
-   applies. Loaded only when the Patches section is asked for Spanish, since
+   applies. Loaded only when Spanish is chosen in the Patches section, since
    it is the largest script the page has and nothing else reads it.
 
    HOW IT IS KEYED. Every piece of the game's text by its resource (four hex
@@ -12,7 +12,7 @@
    dvmTextSites and the disassembly, and is not kept, since it is the game's
    text.
 
-   THE RULES THE TEXT KEEPS (29 September 2026).
+   THE RULES THE TEXT FOLLOWS (29 September 2026).
    - Castilian Spanish, and the hero is "tú" to everyone; a speaker who says
      "sir" or "ma'am" in English says "señor" or "señora" and still "tú",
      for one register throughout.
@@ -26,32 +26,32 @@
      Freemage un Mago Libre, the Journey el Viaje, an obol un óbolo (plural
      óbolos, which is Spanish; the game's "oboloi" is the Greek plural).
    - Magpie keeps his inverted order ("Muchos nombres Magpie tiene.").
-   - The hero may be a man or a woman, and English says neither, so nothing
+   - The hero may be a man or a woman, and English marks neither, so nothing
      that refers to the hero is gendered unless the script branches on the
      hero's sex (as it does for "sir" and "ma'am"): "Despiertas con un
      sobresalto", not "sobresaltado"; "Te doy la bienvenida", not
-     "Bienvenido"; a noun's own gender ("una criatura", "otro títere") is
+     "Bienvenido"; a noun's gender ("una criatura", "otro títere") is
      not the hero's and stays.
-   - The marks stay where the script wants them: `*` waits for a click,
+   - The marks stay where the script puts them: `*` waits for a click,
      `@` highlights the word after it, `\n` breaks the line, and a NUL
-     stays exactly where the English has one (the applier refuses
-     otherwise). Dialogue keeps the game's straight double quotes, and a
+     stays exactly where the English has one (the applier rejects
+     anything else). Dialogue uses the game's straight double quotes, and a
      spaced hyphen where the English has one and a dash reads naturally.
-   - A highlighted word has no accent, because the program's "@" scan takes
+   - A highlighted word has no accent, because the program's "@" scan accepts
      A to Z and a to z only and would end the word at the accent; and its
      stem is added to the keyword list that answers it (`keys`), since a
-     click says the highlighted word. "@lazo" for "@bond", not "@vínculo".
+     click sends the highlighted word. "@lazo" for "@bond", not "@vínculo".
    - A keyword stem is cut before any accent (a byte of 0x80 up in a keyword
      list is fatal, GRIMOIRE-NOTES under grimoire/fixable-bugs-1adxav), so a
      word typed with its accent is met only when the accent comes late
      enough: "adi" answers "adiós" and "adios", "faci" answers "facil" only.
    - Five English lines break the line before their closing quote
      (Alaric's name, and the four dismissals of the Seldane in 0x1878 and
-     0x187A to 0x187C), so the quote stands alone on a line of its own; no
+     0x187A to 0x187C), so the quote stands alone on a separate line; no
      other spoken line has a break inside its quotes, and the same
      resource's farewell has none, so it is a slip and the Spanish closes
      the quote on the line (GRIMOIRE-NOTES, grimoire/spanish-033k7i).
-   - Only the characters Argos A Nouveau carries, with the letters this adds:
+   - Only the characters Argos A Nouveau has, with the letters this adds:
      a-z, A-Z, 0-9, space and ! " # $ & ' ( ) , - . : ; = ? and á é í ó ú ñ
      ü ¿ ¡ Á É Í Ó Ú Ñ Ü. No % (the menus' format), no *, @ or # in running
      text beyond what the English has, no curly quotes and no dashes.
@@ -68,13 +68,13 @@ const DELV_TRANSLATION_ES = {
 
   // The styles the game draws in Geneva: the message pane (TxSt 132, 10
   // point), the labels and the stats (130 and 131, 9 point). Geneva has
-  // nothing at the codes the script text carries its accents at, so they
-  // are set in a family of their own made from js/mac-geneva.js, Geneva 9's
+  // nothing at the codes the script text has its accents at, so they
+  // are set in a separate family made from js/mac-geneva.js, Geneva 9's
   // letters at Geneva's widths with the accented letters at their codes
   // (js/delv-translate.js, translateAddStrikes).
   strikes: { name: 'Geneva ES', id: 1047, nfnt: { 9: 25809, 10: 25810 }, styles: [130, 131, 132] },
 
-  // The program's own text (js/delv-translate.js, translateProgramResources):
+  // The program's text (js/delv-translate.js, translateProgramResources):
   // by resource type, the id in four hex digits and the hash of the English
   // bytes; a TEXT is its style runs' pieces. keep: left as shipped.
   program: {
@@ -160,7 +160,7 @@ const DELV_TRANSLATION_ES = {
       '0385': { 'd16590d9': ["NOTA: ", "Tienes ^0 desde hace más de 30 días; apóyanos registrándolo, por favor."] },
     },
     // The strings pooled in the code, C and Pascal, by the hash of their bytes;
-    // the article formats say the name alone, since the name carries its article.
+    // the article formats give the name alone, since the name includes its article.
     C: {
       'b1ca1307': "=",
       '303cb97b': "=",
@@ -696,9 +696,9 @@ const DELV_TRANSLATION_ES = {
   // The data file's STR# resources, by the id in four hex digits, as every
   // other section keys a resource, and the hash of each English string.
   strings: {
-    // A button says its own label when it is clicked, so each label starts
-    // with a stem the keyword lists carry: "Indicaciones", since "Dónde"
-    // would arrive with its accent as a Mac Roman byte no stem can hold.
+    // A button sends its label when it is clicked, so each label starts
+    // with a stem the keyword lists have: "Indicaciones", since "Dónde"
+    // would come with its accent as a Mac Roman byte no stem can contain.
     '0080': { 'd6f8a003': 'Adiós', '0fe07306': 'Nombre', '42d9307c': 'Trabajo', 'fd838566': 'Indicaciones...' },
   },
 
@@ -749,7 +749,7 @@ const DELV_TRANSLATION_ES = {
       '2b4c5b74': 'De nuevo, Omen aparece ante tus ojos...*"Ah, veo que has empezado a recomponer la Crolna entera.  ¡Excelente!"*"Ahora te acercas al corazón del misterio.  Una vez completa, la Crolna podrá curar la tierra."*"Claro que necesitarás valor para empuñarla, pero tenemos fe en ti y en tu juicio."*"Cuidado con tu enemigo, eso sí, pues te enredará con mentiras escondidas en medias verdades."*Omen se desvanece...*',
       '866e9170': 'Omen aparece de nuevo en una visión...*"Lo has hecho bien, y estamos orgullosos de tus logros.  Ha llegado la hora de que cumplas tu destino."*"Sabes lo que tienes que hacer: ¡no nos falles!"*Omen se desvanece...*',
       // "A ready hero" + "ine" (for a heroine) + ", out to save the world.":
-      // Spanish cannot make heroína of héroe by a suffix, so the line says
+      // Spanish cannot make heroína of héroe by a suffix, so the line puts
       // it with a noun whose gender is not the hero's, and the suffix goes.
       'eae9ac6b': 'La visión de Omen aparece ante ti...*"¡Te doy la bienvenida al ancho mundo de Cythera!  Toda una figura heroica',
       'a6e99921': '',
@@ -1014,7 +1014,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   '0210': { 'cc01b1df': 'Volver' },
   // Signs. A Seldane sign is the Seldane words between < and >, drawn in
   // the Seldane face and left alone, then a word-for-word gloss between the
-  // two &, which keeps the Seldane order in Spanish as it does in English.
+  // two &, which preserves the Seldane order in Spanish as it does in English.
   '0218': {
     'b30f54d2': '<ERI AY N USXT WN>&El guardián de la puerta de sala esta&',
     'f3a4e745': '<ARIT ABT NT SBY PN>&El poste izquierdo de puerta esta&',
@@ -1046,7 +1046,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     'f5352bb4': 'doce', '63374a36': 'trece', '01a53a61': 'catorce', '07cc2b2a': 'quince', 'c5d13fab': 'dieciséis',
     'a4c6ff66': 'diecisiete', 'a57e9c10': 'dieciocho', 'e21ee631': 'diecinueve', '00500da8': 'veinte',
   },
-  // A ring's inscription, said after the ring
+  // A ring's inscription, shown after the ring
   '021F': {
     'f9f4711e': "con la inscripción '742 - Voluntad de Unión'",
     '7952052e': 'con un ojo grabado dentro de un triángulo que apunta hacia abajo',
@@ -1084,7 +1084,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   },
 });
 
-/* ---- the To Do list: each line's title, then what it says --------------- */
+/* ---- the To Do list: each line's title, then what it reads -------------- */
 
 Object.assign(DELV_TRANSLATION_ES.text['021A'], {
   'bfadf3e6': 'Rescatar a Ariadne, secuestrada',
@@ -1365,7 +1365,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
 
 // 0x0EAB gives directions: [distance] + "to the " + a point of the compass
 // [+ " of here" when far], after "The kitchen is " and the like, so the
-// pieces before it end where "está" or "queda" wants its complement.
+// pieces before it end where "está" or "queda" needs its complement.
 Object.assign(DELV_TRANSLATION_ES.keys['*'], {
   magi: 'magi', grim: 'grim', book: 'libr', alch: 'alqu', teac: 'ense,maes', rune: 'runa', runi: 'runi',
   pass: 'contr,clav', gole: 'gole', nele: 'nele', aloi: 'aloi', dim: 'oscu', light: 'luz',
@@ -1855,7 +1855,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
 Object.assign(DELV_TRANSLATION_ES.text['*'], { '25c0e506': 'señora', 'c42ffe39': 'señor', '644611c5': 'No se mueve.\n' });
 Object.assign(DELV_TRANSLATION_ES.text, {
   '1001': { '471c1319': 'Al acercarte al edificio, este reluce y luego se desvanece.\n' },
-  // a bed: the window's buttons carry their key after a slash, and Cancel
+  // a bed: the window's buttons have their key after a slash, and Cancel
   // its escape as well
   '100E': {
     'ab890be3': 'Parece que ya hay alguien alojado aquí; quizá otra cama...\n',
@@ -2253,7 +2253,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   },
 });
 // A creature's state after a spell: "^" + the creature + " is confused." and
-// the like, which says nothing gendered, the creature being either.
+// the like, which marks nothing as gendered, the creature being either.
 Object.assign(DELV_TRANSLATION_ES.text['*'], {
   'e57f727a': ' no sabe lo que hace.\n', '2ca4bc2b': ' cae en un sueño profundo.\n', '33600b98': ' grita de miedo.\n', 'f57f42ab': ' no puede moverse.\n',
   '4e1ab80e': 'Te duele la cabeza de tanto mirarla.\n',
@@ -2383,7 +2383,7 @@ Object.assign(DELV_TRANSLATION_ES.text['*'], {
 
 // "stranger" and "friend" as a way of addressing the hero say nothing of
 // the hero's sex in English and would in Spanish (forastero, amigo), so a
-// line that says one is put another way where it can be.
+// line that has one is put another way where it can be.
 Object.assign(DELV_TRANSLATION_ES.keys['*'], { guar: 'guar', capt: 'capi', son: 'hijo', shie: 'escu', swor: 'espa', atta: 'ataq', defe: 'defe', andr: 'andr' });
 Object.assign(DELV_TRANSLATION_ES.text['*'], {
   'fcbb60f3': 'Defensa', '798a26d0': 'Escudo', '8b2893d9': '¿En qué quieres entrenarte?', '1e127109': 'Entrenar',
@@ -2462,7 +2462,7 @@ Object.assign(DELV_TRANSLATION_ES.keys['*'], {
   fath: 'padr', moth: 'madr', stra: 'fuer,fora,extr', suff: 'sufr', evil: 'mal', warr: 'guer', hono: 'hono', come: 'ven',
 });
 // "Good " + the program's word for the part of the day, "morning",
-// "afternoon" or "evening": Spanish says the greeting whole ("Buenas
+// "afternoon" or "evening": Spanish has the greeting whole ("Buenas
 // tardes"), so the script's piece is the quote alone and the program's three
 // words are to be the three greetings, when the program is translated.
 Object.assign(DELV_TRANSLATION_ES.text['*'], { 'e8f821a8': '"', '2df7d460': 'Daños' });
@@ -2526,7 +2526,7 @@ Object.assign(DELV_TRANSLATION_ES.text['*'], {
   '33759704': '"¿Perdona?  Eso no es muy educado: ¡otro hombre con menos temple se sentiría insultado!"',
   '7218bedc': '"Hasta que volvamos a vernos..."',
 });
-// "hero" + "ine" for a heroine: said with a noun whose gender is not the
+// "hero" + "ine" for a heroine: written with a noun whose gender is not the
 // hero's, and the suffix empty.
 Object.assign(DELV_TRANSLATION_ES.text, {
   // Myus, Elder of House Comana
@@ -3229,8 +3229,8 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   },
 });
 Object.assign(DELV_TRANSLATION_ES.keys, { '1830': { bias: 'bias', cybe: 'cybe', mali: 'mali', thur: 'thur' }, '1831': { cybe: 'cybe', mali: 'mali', thur: 'thur' }, '1832': { aria: 'aria', ophe: 'ophe', asca: 'asca', tlep: 'tlep' } });
-// "friend", "citizen" and "stranger" said to the hero after a comma the
-// script keeps: said with words whose gender is not the hero's.
+// "friend", "citizen" and "stranger" used for the hero after a comma the
+// script has: written with words whose gender is not the hero's.
 Object.assign(DELV_TRANSLATION_ES.text['*'], { 'cba09f8d': 'alma amiga', '0fde0387': 'caminante', 'ba65ebd9': '"Protejo a los ciudadanos de Odemia."' });
 Object.assign(DELV_TRANSLATION_ES.keys['*'], { youn: 'meno', capt: 'capt', jail: 'cala,carc,pris' });
 Object.assign(DELV_TRANSLATION_ES.text, {
@@ -4042,7 +4042,7 @@ Object.assign(DELV_TRANSLATION_ES.keys, { '1851': {
 Object.assign(DELV_TRANSLATION_ES.text, {
   // Selinus the librarian, the Sapphire Books and the Degree Halls'
   // passwords: "I see you found " + a number word + " Book" + "s" when more
-  // than one, said "de los libros" for any number; "The password to the " +
+  // than one, written "de los libros" for any number; "The password to the " +
   // an ordinal + " Degree Hall is '" + the password + "'."
   '1851': {
     'c1994989': 'Ves a un anciano desaliñado, que parece más viejo que el mismo polvo.*"¿Eh?  ¿Qué puedo hacer por ti?"',
@@ -4074,7 +4074,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   },
 });
 Object.assign(DELV_TRANSLATION_ES.keys['*'], { elem: 'elem', sour: 'agri,avin', regi: 'regi,insc', asiu: 'asiu', char: 'char' });
-// "young " + "lady" or "man", which Spanish says in one word.
+// "young " + "lady" or "man", which Spanish puts in one word.
 Object.assign(DELV_TRANSLATION_ES.text['*'], { '6f023d15': 'jovencita', 'e9a2ff6f': 'jovencito', '47998c9c': '"Protejo a los Magos y al resto de la gente de aquí, de Pnyx."' });
 Object.assign(DELV_TRANSLATION_ES.text, {
   // Palaestra, who teaches Alchemy
@@ -4813,7 +4813,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     'b227a074': 'La bola de luz palpita una vez, pero no se oye respuesta alguna.',
   },
 });
-// Pieces said the same way in more than one script, first written for one.
+// Pieces worded the same way in more than one script, first written for one.
 Object.assign(DELV_TRANSLATION_ES.text['*'], {
   '694789ee': 'Director Lindus', '513aa10c': 'Bibliotecario Selinus', 'e373ea8a': 'Maestra Palaestra', 'eea59ba9': 'Maestro Tros', 'e1ca5322': 'Maestro Pheres',
   '286628ec': 'Casa Comana', '52e77950': 'Casa Attis',
@@ -4824,7 +4824,7 @@ Object.assign(DELV_TRANSLATION_ES.text['*'], {
 });
 Object.assign(DELV_TRANSLATION_ES.text, { '191A': { '2185ba6a': 'Algo huele mal.\n' } });
 
-/* ---- spells and skills: a name, what it does, and what casting it asks ---- */
+/* ---- spells and skills: a name, what it does, and what casting it prompts for */
 
 // "Cast '" + a spell + "' on whom?" and the like, shared by every spell.
 Object.assign(DELV_TRANSLATION_ES.text['*'], {
@@ -4860,7 +4860,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   '1A18': { 'f91b1d74': 'Disipar runa', '39a54b58': 'Este conjuro borra una Runa determinada.\n', '5dd73c91': 'Eliminas la runa.\n', 'f5f07746': 'Eso no es una runa.\n' },
   '1A19': { '2929c53b': 'Este conjuro rompe el efecto del miedo en todo el grupo.\n' },
   '1A1A': { '05a4572d': 'Runa de bloqueo', '8ae90572': 'Este conjuro inscribe una Runa que impide el paso.\n' },
-  // "The " + a thing + " is now mage locked.": said without the article, which would need the thing's gender
+  // "The " + a thing + " is now mage locked.": written without the article, which would need the thing's gender
   '1A1B': {
     'a145cab6': 'Cierre mágico', '4ba0e3e9': 'Este conjuro cierra con magia una puerta o un cofre.\n',
     '7e2e4360': 'La puerta está ahora cerrada con magia.\n', '2f4ee094': 'Cerrado con magia: ', '7cd3e9c7': '.\n',
@@ -4989,7 +4989,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
 
 /* ---- rooms: what is seen on looking at one, and what a companion says ---- */
 
-// Each is its own room's, and several rooms share one; they are kept with
+// Each belongs to a room, and several rooms share one; they are kept with
 // what is the same everywhere, as none of them means two things.
 Object.assign(DELV_TRANSLATION_ES.text['*'], {
   '4306726c': 'Lo más interesante de esta sala es el suelo de ónice negro con un triángulo luminoso en el centro, rodeado por un banco alto.\n',
@@ -5185,7 +5185,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
     'ec3c007e': '¿No deberías registrarte?', 'a3c5cadd': '¿Te has registrado?', '7332abef': '¡Regístrate, por favor!',
   },
   '3039': { 'c4ac964e': '¡Aquí no puedes cavar!\n' },
-  // "-- ^" + a creature + " killed! --" and its wounds, said as nouns
+  // "-- ^" + a creature + " killed! --" and its wounds, written as nouns
   '3041': { '3023d279': ' ha muerto --\n', '0ae34e4a': ': herida grave --\n', '89622873': ': herida --\n' },
 });
 Object.assign(DELV_TRANSLATION_ES.text['*'], { '6127ccd4': '¡Argh!' });
@@ -5195,10 +5195,10 @@ Object.assign(DELV_TRANSLATION_ES.text['*'], { '522116c6': 'Labia', '90e481ec': 
 
 // A name is a name code (SingPlur in the program, read 29 September 2026):
 // text after a backslash is printed only for more than one, text after a
-// slash only for one, and a space ends either, so each word can carry its
-// own ending: "antorcha\s apagada\s", "pe/z\ces". TGameSys::ShortName asks
-// for the singular with 1 and for the plural with 0 before "%d %s".
-// The backslash is written twice below, as JavaScript wants it: written once,
+// slash only for one, and a space ends either, so each word can have its
+// ending: "antorcha\s apagada\s", "pe/z\ces". TGameSys::ShortName requests
+// the singular with 1 and for the plural with 0 before "%d %s".
+// The backslash is written twice below, as JavaScript needs it: written once,
 // "\s" was read as "s", and until 29 September 2026 every name here reached
 // the file without its code ("espadas" for one sword, "pociónones").
 DELV_TRANSLATION_ES.tiles = { 'F004': {
@@ -5313,11 +5313,11 @@ Object.assign(DELV_TRANSLATION_ES.strings, {
   }),
 });
 
-// The page loads this file only when the Patches section asks for it, and
+// The page loads this file only when the Patches section requests it, and
 // finds the table on window, since a top-level const is not a property of
 // the global object.
 // Each thing's gender, for its article (js/delv-translate.js, translateTileNames):
-// m, f, fa (feminine, takes el and un), mp, fp (said in the plural only), by the
+// m, f, fa (feminine, takes el and un), mp, fp (used in the plural only), by the
 // hash of its English name; only the names some tile gives an article.
 DELV_TRANSLATION_ES.tileGenders = {
   '0060bba9': 'f', '01219a52': 'f', '018c50b3': 'm', '04688705': 'f', '07db6d48': 'f', '0961769c': 'f', '0982b683': 'm', '0ae8a87d': 'm',

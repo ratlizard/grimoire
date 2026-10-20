@@ -1,6 +1,6 @@
 // smoke_installer.mjs -- one part of the UI smoke: the installer opened through adoptArchive: its views, the executable, the program's figures and keys, the hero portrait, preferences, the dialogue box, the vocabulary, icons, the installer text and its versions.
 // Cut out of viewer_smoke.mjs on 18 September 2026 at a point where the open
-// file changes, so it runs from a fresh boot (smoke_boot.mjs) as its own
+// file changes, so it runs from a fresh boot (smoke_boot.mjs) as a separate
 // process. Run alone with
 //   node utilities/viewer_smoke.mjs index.html "$TMPDIR/Cythera Data.data" "" <installers .sit> <saved game> installer
 // and with the other parts by naming them; with none named the runner drives
@@ -12,7 +12,7 @@ import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsr
 // The installer. The page's default input is the whole game as one file,
 // and three views exist only when it arrived that way: Data › Installer, and
 // the two Combat AI tabs, which were placeholders before. Opened through
-// adoptArchive -- the path a dropped file takes -- so that the application's
+// adoptArchive -- the path a dropped file follows -- so that the application's
 // fork gallery is also drawn here from the installer, without the fetch the
 // bare-archive run above cannot make.
 if (visePath && existsSync(visePath) && !onlyCat) {
@@ -22,7 +22,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     if (!ctx.INSTALLER) throw new Error('INSTALLER not set after adopting the installer');
     const drawn = {};
     for (const v of ['INSTALLER', 'AISCRIPTS', 'AIRULES', 'APPRSRC', 'APPPEF', 'APPSND', 'SCREENS', 'FONTS', 'STRINGS']) {
-      if (!ctx.showCategory(v)) { fail('installer view ' + v, 'refused'); continue; }
+      if (!ctx.showCategory(v)) { fail('installer view ' + v, 'rejected'); continue; }
       const grid = REGISTRY.get('sheetGrid');
       const n = (grid.children || []).length;
       drawn[v] = n;
@@ -37,7 +37,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     if (!pef || !pef.routines || pef.routines.length < 1800 || !pef.loader || pef.loader.libraries.length !== 10)
       fail('executable', 'the PEF was not read: ' + JSON.stringify(pef && [pef.sections.length, pef.loader && pef.loader.libraries.length, pef.routines && pef.routines.length]));
     else if (!/InterfaceLib/.test(pefhtml) || !/TGameViewer::DoTicks/.test(pefhtml) || !/notes the compiler left/.test(pefhtml))
-      fail('executable', 'the Data Fork sheet does not list the libraries and the routines');
+      fail('executable', 'the Data Fork sheet does not show the libraries and the routines');
     else if (peek('TAB_BY_ID').get('apppef').wip) fail('executable', 'the Data Fork tab is still faded with the application open');
     else {
       ctx.openPefRoutine('TMapWindow::KeyRoutine');
@@ -48,7 +48,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     /* The program's figures on the Mechanics sheet, v1.51.0: the clock,
        hunger, healing, poison, the talk balloon, what a command spends and
        who is whose enemy, each read out of the application's code with the
-       address of the instruction that holds it. The figures are the shipped
+       address of the instruction it is in. The figures are the shipped
        program's. Two negative controls: a link followed rings the line with
        the number in it and the next address rings a line without it, and
        the hour's shift changed in a copy of the application moves the
@@ -82,7 +82,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // order the wiki doubted, byte 0 body, 1 reflex, 2 mind, 5 health.
       else if ((sc => !sc || [[0, 9, 'body'], [1, 10, 'reflex'], [2, 11, 'mind'], [5, 14, 'health']].some(([b, to, nm]) => !sc[b] || sc[b].to.v !== to || sc[b].name !== nm || !inRoutine(sc[b].to, 'TActiveMonster::TActiveMonster')))(ctx.exeMonsterStatCopy()))
         fail('program figures', 'the unit stat copy was misread: ' + JSON.stringify(ctx.exeMonsterStatCopy()));
-      // The hours a hatching egg keeps: day from 6 to 18, off HatchEgg's two
+      // The hours a hatching egg is limited to: day from 6 to 18, off HatchEgg's two
       // clock constants over the clock's units an hour.
       else if ((h => !h || h.dawn.v !== 6 || h.dusk.v !== 18 || !inRoutine(h.dawn, 'TActiveMonster::HatchEgg'))(ctx.exeHatchHours()))
         fail('program figures', 'the hatching hours were misread: ' + JSON.stringify(ctx.exeHatchHours()));
@@ -94,8 +94,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // The party bar's colours (exePartyColours), 3 October 2026: palette
       // index by state, in the order DrawCharStatus tests them, poison
       // green 2 to sleep blue 9, then hunger grey 7 below nutrition 4 by
-      // HasAbility's own constant, and white 0 for none; each figure in the
-      // routine that holds it.
+      // HasAbility's constant, and white 0 for none; each figure in the
+      // routine it is in.
       else if ((p => !p || p.rows.map(r => r.colour.v + ':' + (r.hunger ? 'hunger' : r.flag.v)).join() !== '2:9,6:14,5:21,14:13,13:17,9:22,7:hunger' ||
                   !p.plain || p.plain.v !== 0 || !p.hungry || p.hungry.v !== 4 || !inRoutine(p.rows[0].colour, 'TStatusWindow::DrawCharStatus') || !inRoutine(p.hungry, 'TSpellFX::HasAbility'))(ctx.exePartyColours()))
         fail('program figures', 'the party bar\u2019s colours were misread: ' + JSON.stringify(ctx.exePartyColours()));
@@ -105,7 +105,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // The files beside the game (exePatchFiles), which Patch Types, on the Patches tab,
       // states: Cythera Data and Cythera Patch by STR 129 and
       // 130 in PostInitMac, the patch list STR# 129 of nine names and User
-      // Custom Data in OpenScenFile, each in the routine that holds it; and
+      // Custom Data in OpenScenFile, each in the routine it is in; and
       // the section drawing all three names.
       else if ((p => !p || !p.data || p.data.name !== 'Cythera Data' || p.data.id.v !== 129 || !p.patch || p.patch.name !== 'Cythera Patch' || p.patch.id.v !== 130 ||
                   !inRoutine(p.patch.id, 'TDelverApp::PostInitMac') || !p.list || p.list.v !== 129 || !p.count || p.count.v !== 9 || !inRoutine(p.list, 'TDelverApp::OpenScenFile') ||
@@ -115,8 +115,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         fail('program figures', 'the Patches tab does not say the three ways a patch reaches the game');
       // A unit's flags as the creature moves (exeUnitMoveRules): CanMove's
       // five rules, unit bits against square bits, and the two tests of the
-      // word through the monster's pointer, each in the routine that holds
-      // it. Then the names on four units, linked; the harpy's 0x0002 said
+      // word through the monster's pointer, each in the routine it is
+      // in. Then the names on four units, linked; the harpy's 0x0002 shown
       // for what the code does with it and nowhere as flight; and with no
       // application open the same bits left as numbers.
       else if ((r => !r || JSON.stringify(r.map(x => [x.kind, x.unit >>> 0, x.square === undefined ? null : x.square >>> 0])) !==
@@ -131,7 +131,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         return !/jumpToExeAt\(\d+\)[^>]*>can move onto water or pool</.test(harpy) || !/>sets off nothing it steps on</.test(harpy) || /\bfl(y|ies|ight)\b/.test(harpy) ||
                !/cannot move onto a rope or fence/.test(said(0x10004000)) || !/moves only onto water, shore or pool/.test(said(0x20001001)) ||
                !/can move onto a mousehole/.test(said(0x40084040)) || !/immune to fire · can move onto lava/.test(said(0x000200F2)) ||
-               // The king: the party's mark named, and the bits nothing tests said to be so.
+               // The king: the party's mark named, and the bits nothing tests marked as such.
                !/can move onto a party member’s square/.test(said(0x800201F4)) || !/\+0x30 \(read by nothing\)/.test(said(0x800201F4)) ||
                // The death script's 0x2000, linked to its test there.
                !/jumpToScriptAt\(3725,\d+\)[^>]*>fades away with its parts when it dies</.test(harpy) ||
@@ -145,7 +145,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
                      !new RegExp('stats it was <button[^>]*jumpToExeAt\\(' + c.exe + '\\)[^>]*>made at</button>').test(ctx.charEditHTML(1)))(ctx.exeCreatureSize()))
         fail('program figures', 'byte 31 is not linked to the constructor that stores it: ' + JSON.stringify(ctx.exeCreatureSize()));
       else if ((h => /water|steps on|jumpToExeAt|read by nothing/.test(h) || !/\+0x81002 \(unidentified\)/.test(h))(withoutApp(() => ctx.monsterFlagsHTML(0x00083042))))
-        fail('program figures', 'with no application open a unit’s flags still name what only the program says: ' + withoutApp(() => ctx.monsterFlagsHTML(0x00083042)));
+        fail('program figures', 'with no application open a unit’s flags still show what only the program has: ' + withoutApp(() => ctx.monsterFlagsHTML(0x00083042)));
       // The five 2012 bed measurements, with the program's clock.
       else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
         .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== want))
@@ -156,12 +156,12 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         fail('program figures', 'the Barks sheet does not state the balloon’s figures as links');
       else {
         // The listing opens in words (EXE_VIEW, 6 October 2026): the ringed
-        // line says what the instruction does, and the code view names it.
+        // line describes what the instruction does, and the code view names it.
         const said = ringOf(bark.ticks.exe);
         ctx.EXE_VIEW = 'code';
         const hit = ringOf(bark.ticks.exe), miss = ringOf(bark.ticks.exe + 4);
         // The third view folds the instruction into a statement, which still
-        // carries its figure, and a line of it is ringed.
+        // has its figure, and a line of it is ringed.
         ctx.EXE_VIEW = 'pseudo';
         const folded = ringOf(bark.ticks.exe);
         ctx.EXE_VIEW = 'words';
@@ -189,9 +189,9 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     /* The per-class cache, computed for every class (classCacheWord) from
        the class table and the map read off FillIntfCache (exeIntfCache).
        Held to two facts the notes established by reading the routine: a
-       class carries the GetMessage has-bit exactly when its own table has
-       a member 21, and a class whose Weight is a plain number keeps that
-       number in the byte side table and does NOT carry the tag bit, which
+       class has the GetMessage has-bit exactly when its table has
+       a member 21, and a class whose Weight is a plain number has that
+       number in the byte side table and does NOT have the tag bit, which
        until 24 September 2026 the reader gave every class with a weight.
        Then the item page must show the word. */
     try {
@@ -207,14 +207,14 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         if (!cw || !cls) continue;
         classes++;
         const has = key => cls.data.some(f => f.key === key) || cls.code.some(f => f.key === key) || cls.text.some(f => f.key === key);
-        if (!!(cw.value & msgBit.cacheBit.v) !== has(21)) { bad = 'class ' + pt + ': the GetMessage bit disagrees with the table'; break; }
+        if (!!(cw.value & msgBit.cacheBit.v) !== has(21)) { bad = 'class ' + pt + ': the GetMessage bit differs from the table'; break; }
         if (has(21)) { listeners++; if (doorPt === null) { doorPt = pt; doorWord = cw.value; } }
         const w = cls.data.find(f => f.key === 36);
         if (w && w.words.length === 1 && !(w.words[0] & 0xF0000000)) {
           weighed++;
           const side = cw.tables.find(t => t.key === 36);
           if (!side || side.value !== (w.words[0] & 0xFF)) { bad = 'class ' + pt + ': a plain weight of ' + w.words[0] + ' is not in the byte side table'; break; }
-          if (cw.value & tagBit.cacheBit.v) { bad = 'class ' + pt + ': a plain weight carries the not-a-plain-number bit'; break; }
+          if (cw.value & tagBit.cacheBit.v) { bad = 'class ' + pt + ': a plain weight has the not-a-plain-number bit'; break; }
         } else if (has(36)) { tagged++; if (!(cw.value & tagBit.cacheBit.v)) { bad = 'class ' + pt + ': a weight that is not a plain number lacks the tag bit'; break; } }
         for (const b of cw.bits) if (!(cw.value & b.bit.v)) { bad = 'class ' + pt + ': a bit listed is not in the word'; break; }
       }
@@ -228,9 +228,9 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         const pp = all(REGISTRY.get('sheetGrid'));
         if (!/In the application/.test(ph) || ph.indexOf(hexw) < 0 || !/FillIntfCache/.test(ph)) fail('class cache', 'the item page for class ' + doorPt + ' does not show its cache word ' + hexw);
         else if (!/In the application/.test(pp) || pp.indexOf(hexw) < 0) fail('class cache', 'the creatures-and-props page for class ' + doorPt + ' does not show its cache word ' + hexw);
-        // Said, not left out (16 October 2026): a class with nothing noted
-        // says so against what the routine looks for, and a kind with no
-        // class script at all says that, on both pages.
+        // Stated, not left out (16 October 2026): a class with nothing noted
+        // states it against what the routine looks for, and a kind with no
+        // class script at all states that, on both pages.
         else if ((() => {
           const named = re => { for (let pt = 0; pt < tiles.length; pt++) if (re.test(ctx.propTypeName(pt) || '')) return pt; return -1; };
           const tree = named(/^ancient tree$/i), fume = named(/^fumerole$/i);
@@ -242,7 +242,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
           }
           return false;
         })()) ;
-        else console.log(`  class cache: ${classes} classes, ${listeners} with a GetMessage, ${weighed} with a plain weight and ${tagged} with another kind; class ${doorPt} shows ${hexw}; the ancient tree says nothing applies and the fumerole that it has no class script`);
+        else console.log(`  class cache: ${classes} classes, ${listeners} with a GetMessage, ${weighed} with a plain weight and ${tagged} with another kind; class ${doorPt} shows ${hexw}; the ancient tree shows nothing applies and the fumerole that it has no class script`);
       }
     } catch (e) { fail('class cache', e); }
 
@@ -277,14 +277,14 @@ if (visePath && existsSync(visePath) && !onlyCat) {
           else if (!(d1.length === 1 && d1[0].why === 'in the party')) fail('who is scheduled', 'the hero is not left standing as in the party: ' + JSON.stringify(d1.slice(0, 2)));
           else if (plain) fail('who is scheduled', 'with no application open the day walker still applies the program’s tests');
           else if (!/not scheduled, dead/.test((ctx.characterDossier(96) || {}).notScheduled ? 'not scheduled, ' + ctx.characterDossier(96).notScheduled : '')) fail('who is scheduled', 'the dossier does not say why 96 is not scheduled');
-          else console.log(`  who is scheduled: four tests read off ScheduleTime; behaviour 112 is set by ${waits.length} scripts, the Wait command among them, and the sheet says so; character 96 stands dead all day and the hero in the party`);
+          else console.log(`  who is scheduled: four tests read off ScheduleTime; behaviour 112 is set by ${waits.length} scripts, the Wait command among them, and the sheet shows it; character 96 stands dead all day and the hero in the party`);
         }
       }
     } catch (e) { fail('who is scheduled', e); }
     /* What each behaviour does, off DoMove (exeBehaviours, 2 October 2026;
        the workbench's doc/behaviours.md is the reading): the table's 171
        cases, a handful of them as the reading has them with their waits,
-       each linked inside DoMove; the Schedules sheet saying a behaviour by
+       each linked inside DoMove; the Schedules sheet giving a behaviour by
        the game's word with the number linked; and with no application
        open the game's words alone, no link. */
     try {
@@ -305,8 +305,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         if (!/jumpToExeAt\(\d+\)[^>]*>144<\/button> <span title="wanders, waits 20 between turns">working<\/span>/.test(sh) || !/>145 <span title="nothing of its own">sleeping<\/span>/.test(sh) || !/>comes to the party leader and talks</.test(sh))
           fail('behaviours', 'the Schedules sheet does not say the behaviours with their links');
         else if (/comes to the party leader|jumpToExeAt\(\d+\)[^>]*>144</.test(wh) || !/144 <span>working<\/span>/.test(wh))
-          fail('behaviours', 'with no application the Schedules sheet says more than the game’s words, or not them');
-        else console.log(`  behaviours: ${b.count} cases off DoMove, ${want.length} pinned with their waits; the Schedules sheet says them, linked`);
+          fail('behaviours', 'with no application the Schedules sheet shows more than the game’s words, or not them');
+        else console.log(`  behaviours: ${b.count} cases off DoMove, ${want.length} pinned with their waits; the Schedules sheet shows them, linked`);
       }
     } catch (e) { fail('behaviours', e); }
     /* The sky of the hour, off DrawSky, CalcLocations and gXPos (exeSkyRules).
@@ -358,7 +358,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       ctx.setScriptFold('structured');
       const folded = REGISTRY.get('textContent').innerHTML;
       if (!pn || !pn.syscalls || !got.size) fail('program names', 'the handler table was not read');
-      else if ([...got].some(([op, n]) => pn.syscalls.get(op) !== n)) fail('program names', 'programNames and the handler table disagree');
+      else if ([...got].some(([op, n]) => pn.syscalls.get(op) !== n)) fail('program names', 'programNames and the handler table differ');
       else if (!/sys nearby/.test(raw) || /sys IsInParty/.test(raw) || !/\bnearby\(/.test(folded)) fail('program names', 'the listing does not print the program\u2019s names');
       else if (ctx.dvmFlagName(9) !== 'Poisoned' || ctx.dvmFlagName(18) !== 'Night Vision' || ctx.dvmFlagName(0) !== null || ctx.dvmFlagName(24) !== null)
         fail('program names', 'the flags are misnamed: ' + [9, 18, 0, 24].map(ctx.dvmFlagName).join(', '));
@@ -396,7 +396,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (sg.sends < 3) fail('program signals', 'only ' + sg.sends + ' dispatches, so the walk through the routine is wrong');
       else if (!sg.gremlin || !/OnSignal/.test(sg.gremlin.name)) fail('program signals', 'the tail call was not found: ' + JSON.stringify(sg.gremlin));
       else if (typeof sg.method.exe !== 'number' || typeof sg.under.exe !== 'number')
-        fail('program signals', 'a figure carries no address, so it cannot link to the instruction holding it');
+        fail('program signals', 'a figure has no address, so it cannot link to its instruction');
       else console.log(`  program signals: GetMessage to the zone and the room, then things below ${sg.under.v} by Data1, then ${sg.slots.v} character slots, then ${sg.gremlin.name}; ${sg.sends} dispatches`);
     } catch (e) { fail('program signals', e); }
     /* The hero's portrait off the program, v1.111.0: the slot arithmetic in
@@ -414,7 +414,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       if (!pc || pc.perRow.v !== 6 || pc.first.v !== 240 || pc.base.v !== 0x87FF || pc.writes.v !== 0x8800)
         fail('hero portrait', 'the portrait choice was misread: ' + JSON.stringify(pc));
       else if (!inRoutine(pc.first, 'TCreatePlayerDialog::GetPortrait') || !inRoutine(pc.writes, 'CreatePlayer'))
-        fail('hero portrait', 'a figure is not in the routine that holds it: ' + JSON.stringify(pc));
+        fail('hero portrait', 'a figure is not in the routine it comes from: ' + JSON.stringify(pc));
       else if (!pc.offered || pc.offered.rows !== 3 || pc.offered.cols !== 2 || pc.offered.count.v !== 6 || pc.offered.stride.v !== 6 ||
                !inRoutine(pc.offered.count, 'TCreatePlayerDialog::TCreatePlayerDialog') || !inRoutine(pc.offered.stride, 'TPortraitList::LDEFDraw'))
         fail('hero portrait', 'the portraits offered were misread: ' + JSON.stringify(pc.offered));
@@ -480,7 +480,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       }
     } catch (e) { fail('program keys', e); }
     // The Preferences tab's file, from the program's layout of the
-    // record: the switches wear the game's own labels, and the bytes are the
+    // record: the switches wear the game's labels, and the bytes are the
     // ones the file was put in front of the game with.
     try {
       ctx.showCategory('PREFS');
@@ -488,19 +488,19 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       const switches = ['prefCheats', 'prefLiveDrag', 'prefManualContainers', 'prefMotionFilters', 'prefWalkAround', 'prefZoomRects', 'prefSwitch256', 'prefDontAsk', 'prefMouseButtons'];
       // The settings that are a choice rather than a switch, and the file's
       // other keys. Named by what they say rather than by an element id,
-      // since a field's id is its own bit positions.
-      // The record's own choices wear the game's menu text. The backdrop's
+      // since a field's id is its bit positions.
+      // The record's choices wear the game's menu text. The backdrop's
       // options are checked by the values they write, not by their labels:
-      // a graphic is labelled by the page's own labelFor, which answers
+      // a graphic is labelled by the page's labelFor, which answers
       // differently with and without an archive open, and either answer is
       // the name the rest of the page uses for that resource.
       const choices = ['Smoother Movement', 'Fastest Movement', 'Limit to 10 FPS'];
       const missingChoices = choices.filter(t => !tools.includes(t));
       /* The fallback the page writes a file from with nothing open, held to
-         every release Ambrosia shipped. It exists because all four agree; if
+         every release Ambrosia shipped. It exists because all four match; if
          one of them ever does not, or the constant is edited, this goes red
          rather than a visitor getting a file built for the wrong build. The
-         installer in hand carries all four, so each is opened in turn. */
+         installer in hand has all four, so each is opened in turn. */
       const strip = L => JSON.stringify({
         key: L.key, bytes: L.bytes, base: L.base, type: L.type, gate: L.gate, controls: L.controls,
         smooth: L.smooth, smoothLabel: L.smoothLabel,
@@ -542,11 +542,11 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         rec({ motionFilters: true })[1] !== 0x88 || rec({ walkAround: true })[1] !== 0xC0 || rec({ zoomRects: false })[1] !== 0x00 ||
         rec({ smooth: true, cheats: true }).join() !== [0x9A, 0x80, 0, 1].join() ||
         rec({ switch256: true })[1] !== 0xB0 ||
-        // Each half of the startup question on its own, so "don't ask, and
+        // Each half of the startup question by itself, so "don't ask, and
         // keep the screen's colours" can be written (byte 1 bits 5 and 4).
         rec({ startup: { 'Switch to 256 Colors': true } })[1] !== 0xA0 ||
         rec({ startup: { "Don't Ask Again": true } })[1] !== 0x90 ||
-        // The frame-rate field takes any number of ticks, not only the
+        // The frame-rate field accepts any number of ticks, not only the
         // menu's 4, 6 and 8: 0 clears it, 2 is bits 2-5 holding 2.
         rec({ c0_2: 'raw:0' })[0] !== 0x00 || rec({ c0_2: 'raw:2' })[0] !== 0x08 ||
         rec({ c0_2: 'Limit to 16 FPS' })[0] !== 0x10 ||
@@ -563,7 +563,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         rec(ctx.cytheraPrefsPreset('default')).join() !== [0x18, 0x80, 0, 0].join() ||
         rec(ctx.cytheraPrefsPreset('everything')).join() !== [0xD3, 0xFC, 0, 1].join() ||
         ctx.cytheraPrefsPreset('everything').Ambient !== 1;
-      // A file that sets one ordinal carries two resources, not one, and an
+      // A file that sets one ordinal has two resources, not one, and an
       // ordinal left at what a fresh install reads is not written at all.
       const forkOf = o => ctx.openResourceFork(ctx.buildCytheraPreferences(o));
       const names = o => forkOf(o).all().map(x => x.entry.name).join(',');
@@ -581,14 +581,14 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!/Manually Place Containers/.test(tools) || !/Smoother Movement/.test(tools)) fail('preferences', 'the switches do not wear the game’s own labels');
       else if (bitsWrong) fail('preferences', 'a switch does not land on the bit the program writes for it: ' + JSON.stringify(ctx.cytheraPrefsLayout()));
       else if (/never been tried|untried/.test(tools)) fail('preferences', 'the section still calls the file untried');
-      else if (!/replacing the one there/.test(tools)) fail('preferences', 'the section no longer says the file replaces the stored settings');
-      else if (!/©gra/.test(tools)) fail('preferences', 'the section does not name the code');
+      else if (!/replacing the one there/.test(tools)) fail('preferences', 'the section no longer states the file replaces the stored settings');
+      else if (!/©gra/.test(tools)) fail('preferences', 'the section does not give the code');
       // The 256-colour answer is the one switch this page turns on that the
-      // game's own default leaves off, so it has to arrive ticked or the file
+      // game's default leaves off, so it has to start ticked or the file
       // people download is not the one the section describes.
       else if (!/id="prefSwitch256" checked/.test(tools)) fail('preferences', 'the 256-colour answer is not ticked by default');
       else if (!/id="prefDontAsk" checked/.test(tools)) fail('preferences', 'the "don\u2019t ask again" switch is not ticked by default');
-      else if (/id="prefMouseButtons" checked/.test(tools)) fail('preferences', 'the extra mouse buttons switch arrives on, though the game never sets it');
+      else if (/id="prefMouseButtons" checked/.test(tools)) fail('preferences', 'the extra mouse buttons switch starts on, though the game never sets it');
       else if (/value="raw:/.test(tools)) fail('preferences', 'the frame-rate chooser offers values the game\u2019s menu does not');
       else if (!/Switch to 256 Colors/.test(tools) || !/Don't Ask Again/.test(tools)) fail('preferences', 'the 256-colour switch does not wear the dialog\u2019s own labels');
       else if (ctx.buildCytheraPreferences({ cheats: true }).length < 280) fail('preferences', 'the fork came out too small to be one');
@@ -607,9 +607,9 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     }
     /* Build a Patch's Apply to Site Data with a program fix (17 October
        2026): the site's program becomes the fixed one, which the program's
-       readers then parse; Replacement Files carries that same program; a
+       readers then parse; Replacement Files has that same program; a
        second Apply builds again from the program as it arrived, which the
-       fixes need, since they refuse a program that has them; and Apply
+       fixes need, since they stop on a program that has them; and Apply
        with no program fix chosen puts the program as it arrived back. */
     {
       const r = ctx.__peek(`(() => {
@@ -627,7 +627,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         return { first, changed: !!fixed && fixed !== was && (fixed.length !== was.length || fixed.some((x, i) => x !== was[i])), parsed, same, second, third, back, note: (document.getElementById('patchBarNote') || {}).textContent || '' };
       })()`);
       if (!r.first || !r.changed || !r.parsed) fail('apply to site', 'the program was not replaced by the fixed one: ' + JSON.stringify(r));
-      else if (!r.same) fail('apply to site', 'Replacement Files does not carry the program the site has: ' + JSON.stringify(r));
+      else if (!r.same) fail('apply to site', 'Replacement Files does not have the program the site has: ' + JSON.stringify(r));
       else if (!r.second) fail('apply to site', 'a second Apply did not build: ' + JSON.stringify(r));
       else if (!r.third || !r.back) fail('apply to site', 'Apply with no program fix did not put the program back: ' + JSON.stringify(r));
       else console.log('  apply to site: option-p applied to the site\u2019s program and parsed, the same program in Replacement Files, applied again, and the program as it arrived put back');
@@ -638,8 +638,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     ctx.showCategory('AIRULES');
     const vocab = REGISTRY.get('sheetGrid').children.find(c => /vocabTable/.test(c.innerHTML || ''));
     if (!vocab || !/HasSpell|IsSpecies/.test(vocab.innerHTML)) fail('combat vocabulary', 'the Rules tab did not draw the AI string lists');
-    // And says which words are scripts, with a chip to the first test and
-    // the first action, and how a file gets in and is debugged.
+    // And shows which words are scripts, with a chip to the first test and
+    // the first action, and how a file is added and debugged.
     else if (!/Edit User Strategies/.test(vocab.innerHTML) || !/0x0?901/i.test(vocab.innerHTML) || !/0x0?981/i.test(vocab.innerHTML))
       fail('combat vocabulary', 'the Rules tab does not say which words are scripts, or does not link them');
     // The same lists name the scripted tests and actions, in order: with the
@@ -666,7 +666,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
        run here: navIconFromFork answers null without window.APP_RSRC, which
        adoptArchive above is what sets. The bare-archive run earlier in this
        file has no application at all, which is the fallback case -- every one
-       of these nodes keeps a tile beside its file icon for exactly that, and
+       of these nodes has a tile beside its file icon for exactly that, and
        the tabs draw there without any of this.
 
        The two cursors are required to differ, and it is worth being exact
@@ -683,14 +683,14 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // icon of the folder, which on a classic Mac is an invisible Icon file
       // inside it, at -16455.
       // License wears Register Cythera's icon, the program in the installer
-      // that makes a license, which must not be Cythera's own.
+      // that makes a license, which must not be Cythera's.
       const want = ['cytheradata', 'cythera', 'savegame', 'apppef', 'apprsrc', 'combatai', 'license'];
-      /* The VISE mark is in the installer's own resource fork, and whether
+      /* The VISE mark is in the installer's resource fork, and whether
          that fork is in hand depends on the container it arrived in. A
-         MacBinary carries it; archive.org's four-in-one StuffIt compressed it
+         MacBinary has it; archive.org's four-in-one StuffIt compressed it
          with method 15 (Arsenic), which this page does not decompress, so
-         through the page's own default source there is no mark to draw and
-         the tab keeps its tile. Both outcomes are correct; which one is
+         through the page's default source there is no mark to draw and
+         the tab retains its tile. Both outcomes are correct; which one is
          asserted follows what the caller passed, as in vise_check.mjs. */
       const viseFork = ctx.INSTALLER && ctx.INSTALLER.container && ctx.INSTALLER.container.rsrc;
       const haveVise = !!(viseFork && viseFork.length);
@@ -706,7 +706,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       const sameCursor = c257 && c259 && c257 === c259;
       if (!byId || !byId.get) fail('data tab icons', 'TAB_BY_ID is not reachable, so the tabs cannot be read');
       else if (lacking.length) fail('data tab icons', 'a Data tab draws no icon from the open application: ' + lacking.join(', '));
-      else if (plain.length) fail('data tab icons', 'a tab that names no file icon got one anyway: ' + plain.join(', '));
+      else if (plain.length) fail('data tab icons', 'a tab that sets no file icon got one anyway: ' + plain.join(', '));
       else if (sameCursor) fail('data tab icons', 'both application forks resolved to the same cursor, so one of the two ids is wrong');
       else if (art('license') === art('cythera') || (haveVise && art('license') === art('installer'))) fail('data tab icons', 'the License tab wears another program\u2019s icon, not Register Cythera\u2019s');
       else console.log('  data tab icons: ' + want.length + ' Data tabs drawn from the file itself (' +
@@ -755,12 +755,12 @@ if (visePath && existsSync(visePath) && !onlyCat) {
          file chosen (compareWithRelease, 7 October 2026). Three things are
          held, and the third is the one a reader would be misled by: the
          report puts the earlier release first whichever of the two is
-         open, so 1.0.1 with 1.0.4 is asked for from both ends and must
+         open, so 1.0.1 with 1.0.4 is requested from both ends and must
          name its sides alike and count the same changes. The control is
          1.0.3 with 1.0.4, whose data is the same: a `pick` that did not
          reach the extractor would compare 1.0.4 with itself for every
          release and report nothing changed for all three, which only a
-         comparison expected to differ can tell from the truth. */
+         comparison expected to differ can distinguish from the truth. */
       const picked0 = ctx.INSTALLER.picked;
       const relNames = ctx.compareReleases().map(it => it.name);
       const sides = () => { const r = peek('window.COMPARE_REPORT'); return r ? [r.aName, r.bName, r.changed.length + r.added.length + r.removed.length] : null; };
@@ -771,9 +771,9 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       ctx.compareForget();
       if (picked0 !== 'Cythera 1.0.4 Installer') fail('release comparison', 'the file did not open at 1.0.4: ' + picked0);
       else if (relNames.length !== ctx.INSTALLER.installers.length - 1 || relNames.includes(picked0)) fail('release comparison', 'the releases offered are ' + JSON.stringify(relNames));
-      else if (!from104 || !from101 || !same) fail('release comparison', 'a comparison was refused: ' + JSON.stringify([from104, same, from101]));
+      else if (!from104 || !from101 || !same) fail('release comparison', 'a comparison was rejected: ' + JSON.stringify([from104, same, from101]));
       else if (from104[0] !== 'Cythera 1.0.1' || from104[1] !== 'Cythera 1.0.4' || JSON.stringify(from104) !== JSON.stringify(from101)) fail('release comparison', '1.0.1 with 1.0.4 reads differently from the two ends: ' + JSON.stringify([from104, from101]));
-      else if (!from104[2]) fail('release comparison', '1.0.1 and 1.0.4 compare as the same, so the release asked for was not the one read');
+      else if (!from104[2]) fail('release comparison', '1.0.1 and 1.0.4 compare as the same, so the release requested was not the one read');
       else if (same[2]) fail('release comparison', '1.0.3 and 1.0.4 differ in ' + same[2] + ' resources, where their data is the same');
       else console.log(`  release comparison: ${relNames.length} other releases offered; 1.0.1 with 1.0.4 is ${from104[2]} resources from either end, earlier first; 1.0.3 with 1.0.4 none`);
       const after = peek('ARCHIVE.bytes').length;

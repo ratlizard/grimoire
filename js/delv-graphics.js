@@ -2,7 +2,7 @@
  * the undither filter, from bytes to pixels and no further.
  *
  * Nothing in here touches the DOM. decompressDCG() and decodeResource() return
- * a plain Uint8Array of palette indices; undither() takes and returns RGBA
+ * a plain Uint8Array of palette indices; undither() is given and returns RGBA
  * arrays. Drawing those onto a canvas is the page's job and stays there, which
  * is what makes this file checkable: utilities/delv_graphics_check.mjs runs
  * delvmod's independent decoder over every image in the archive and compares
@@ -16,7 +16,7 @@
  * bit readers decodeResource() uses; before the page.
  *
  * ABOUT THE PALETTE, before anyone corrects it: this table differs from the
- * application's own `clut` 256 at exactly two entries, index 0 and index 247,
+ * application's `clut` 256 at exactly two entries, index 0 and index 247,
  * and both differences are absorbed by the `>> 2` in scale6to8 -- the rendered
  * pixels are identical either way. The comment above scale6to8 explains why
  * the widening is done by scaling rather than the shift the original used.
@@ -40,7 +40,7 @@ const PALETTE = ["ffffff","0000a8","00a800","00a8a8","a80000","a800a8","a85400",
 // 16 and 48 -- the same intended white -- are stored 252,252,252. An undither
 // pass then sees a 3-level step between two whites and treats it as signal.
 //
-// Scaling instead of shifting maps 63 -> 255 exactly and keeps every
+// Scaling instead of shifting maps 63 -> 255 exactly and preserves every
 // intermediate step proportional: round(v6 * 255/63). All four whites collapse
 // onto 255,255,255 and the 252/255 split disappears. The two entries that are
 // not multiples of 4 (index 0, already full range, and index 247) round back
@@ -110,7 +110,7 @@ function decompressDCG(data, width, height) {
     } else if (opcode < 0xE0) {
       // 0xD0-0xDF: Short Data. The wiki splits the low nibble as 0b1101 BB CC
       // -- two UNKNOWN bits then two literal bits -- so the literal count is
-      // the low 2 bits only, not the whole nibble. The two readings agree for
+      // the low 2 bits only, not the whole nibble. The two readings match for
       // 0xD0-0xD3 and diverge above that; only 0xD1 and 0xD2 appear in the
       // Cythera corpus, so the wiki's split is untested but is what we follow.
       // (Before either reading, this was a 2-byte no-op, which dropped pixels
@@ -169,7 +169,7 @@ function decompressDCG(data, width, height) {
        bytes read as sizes like 61693x128 or 20x61185 -- they are compression
        opcodes, not a header; only 0x8E8D at 272x46 and 0x8EFF at 194x127 are
        even arguable), and
-     * none of the sixteen tile ids the sheet would occupy carries any tile
+     * none of the sixteen tile ids the sheet would occupy has any tile
        attribute in 0xF002. 0x8E8D's sixteen are all attributed and all named
        ("earthen wall", "small hole", "fine wire"...) and all referenced by
        maps; 0x8EFF's sixteen are attributed nowhere and referenced by nothing.
@@ -211,7 +211,7 @@ function decodeResource(arc, resData, subn, resid) {
     const flags2 = bitsOf(header, 1, 31);
     // logH2 must include flags2. delv computes logical_height = height + flags2
     // BEFORE adding flags2 to height, so the two end up equal and the decode
-    // buffer holds every row. Taking logH2 from the pre-adjustment height
+    // buffer has room for every row. Taking logH2 from the pre-adjustment height
     // decoded one row short, and the crop below then read past the end of the
     // buffer and filled the last row with the `|| 0` fallback -- 28 of the 59
     // sized resources have flags2 set and were losing their bottom row.
@@ -254,14 +254,14 @@ function reshapeTileSheetGrid(W, H, image) {
 // subject to palette animation", and Glenn Andreas describes the engine
 // iterating those indices for "the lava, or waves in the water". The Andreas
 // quote and the 0xE0-0xFB range are the wiki's. Where the ramps divide is no
-// longer a guess: the engine masks with 0xF8 below 0xF0 and with 0xFC above
+// longer an assumption: the engine masks with 0xF8 below 0xF0 and with 0xFC above
 // it, which is the 8, 8, 4, 4, 4 below, and it leaves 0xFC-0xFF alone. What
-// each ramp is FOR is still this tool's own reading and appears nowhere in
+// each ramp is FOR is still this tool's reading and appears nowhere in
 // the wiki:
 //   E0-E7 fire/lava   E8-EF water   F0-F3 magic (the void sparkle)
 //   F4-F7 earth       F8-FB nature
 //
-// The direction is NOT a guess and was wrong here until 14 September 2026,
+// The direction is NOT an assumption and was wrong here until 14 September 2026,
 // which is why the rivers ran upstream. The engine does not animate the CLUT
 // at all: it builds eight 256-byte translation tables once, counts a phase
 // 0..7 up by one per animation tick, and passes every pixel of the finished
@@ -321,7 +321,7 @@ const UD = {
  * archive and never was.
  *
  * utilities/undither_check.mjs makes one. ditherToCytheraPalette is the
- * forward process this repository already carries, so an image put through it
+ * forward process this repository already has, so an image put through it
  * has a KNOWN original and the filter can be scored against the thing it is
  * trying to recover. Over four sources -- a smooth ramp, a grey-to-warm hue
  * sweep at constant lightness, fine linework, and a lit sphere -- the settings
@@ -329,16 +329,16 @@ const UD = {
  * against 11.95, a tenth better, for 3% more error at edges.
  *
  * Both are offered rather than one replacing the other, because the two
- * measures disagree honestly. The ground truth here is recovery from THIS
+ * measures differ honestly. The ground truth here is recovery from THIS
  * dither; Ambrosia's artwork was made by another, and the portraits the
  * original was tuned on are the class with least dither in them (3.4% of
  * pixels textured, against 17.9% for the misc graphics). Which looks right on
- * the real art is a question for the person looking at it, so the page asks.
+ * the real art is a question for the person looking at it, so the page offers the choice.
  *
- * passes is 1 here and that is not a compromise: checkerNotch takes a `guide`
+ * passes is 1 here and that is not a compromise: checkerNotch accepts a `guide`
  * argument and never reads it, so every pass after the first recomputes an
  * identical result. The sweep shows it exactly -- 11.945 for one pass, two,
- * three and four. UD keeps 3 so that its output is the byte-for-byte thing it
+ * three and four. UD retains 3 so that its output is the byte-for-byte thing it
  * always was; this one does the same work once.
  */
 const UD_MEASURED = Object.assign({}, UD, {
@@ -346,7 +346,7 @@ const UD_MEASURED = Object.assign({}, UD, {
 });
 
 const UD_PRESETS = { original: UD, measured: UD_MEASURED };
-// The page sets this; anything else loading these files gets the settled one.
+// The page sets this; anything else loading these files has the settled one.
 function activeUD() {
   const p = (typeof window !== 'undefined' && window.UNDITHER_PRESET) || 'original';
   return UD_PRESETS[p] || UD;
@@ -370,7 +370,7 @@ function isAnimatedIndex(n){ return n >= 0xE0 && n < 0xFC; }
    reconstruction, it is damage: the vintner's grapes came out
    as two flat magenta blobs.
 
-   Nothing in a pixel tells you which it is, and every local
+   Nothing in a pixel shows which it is, and every local
    test tried confuses them -- a checkerboard of two magentas is
    a checkerboard of two magentas whether a hand or a dither put
    it there. So the evidence is taken from the archive instead:
@@ -381,16 +381,16 @@ function isAnimatedIndex(n){ return n >= 0xE0 && n < 0xFC; }
    The test is therefore whether a pixel's whole neighbourhood
    appears identically, at the same coordinates, in some other
    portrait. 5x5 rather than 3x3, which was tried first and is
-   too weak: flat highlights on two different faces agree over
+   too weak: flat highlights on two different faces match over
    3x3 by coincidence often enough to lock parts of a cheek. At
    5x5 that stops, and what is left is the frame, the vine and
    the grapes, with the face untouched.
 
    It is measured from the corpus rather than listed, so a
-   modded archive gets its own frames and nothing here has a
+   modded archive has its frames and nothing here has a
    table to go stale. A portrait whose frame is unique to it
    locks nothing, which is the right answer: there is then no
-   evidence, and the filter's old behaviour is what it gets.
+   evidence, and the filter's old behaviour is what it has.
    ------------------------------------------------------------ */
 const SHARED_ART_R = 2;              /* the 5x5 above */
 const PORTRAIT_SUBN = 135;
@@ -446,9 +446,9 @@ function sharedArtMask(arc, image, W, H){
 /* ------------------------------------------------------------
    The frames themselves, one per family of portraits.
 
-   The same evidence, the other way round: sharedArtMask asks which
+   The same evidence, the other way round: sharedArtMask finds which
    of one portrait's pixels some other portrait also has, and this
-   asks which portraits share a frame and what the frame is. The
+   finds which portraits share a frame and what the frame is. The
    maintainer asked for every shared frame to be offered in the
    ditherizer, as the grape frame of Ariethous, Dares and Diomede had
    been drawn out by hand for the sour grapes (27 September 2026).
@@ -526,7 +526,7 @@ function sharedPortraitFrames(arc){
        the frame leaves; every smaller one is a gap in the border and is
        filled, with the colour most members have there, which is also
        what the frame is painted in everywhere, so no one member's
-       crossing art is carried into it. Grouping above still decides on
+       crossing art is carried into it. Grouping above still settles on
        the strict frame. */
     const offered = g => {
       const { frame } = frameOf(g), out = new Uint8Array(frame), img = new Uint8Array(N), seen = new Int32Array(N).fill(-1);
@@ -578,10 +578,10 @@ function sharedPortraitFrames(arc){
    edge, so one taller than wide is turned before any of that.
 
    Each item is its tile's drawn pixels cropped to their box, at
-   their own size. An edge takes as many as fit between the
+   their native size. An edge has room for as many as fit between the
    corners, evenly spaced, and at least one, centred; the corners
    go on last. Index 0 is a tile's transparency and is the frame's
-   too: where the result is 0 the picture shows. Takes two 32x32
+   too: where the result is 0 the picture shows. Is given two 32x32
    tile images, either of which may be null, and returns a W x H
    array of indices.
    ------------------------------------------------------------ */
@@ -639,13 +639,13 @@ function itemFramePixels(corner, edge, W, H) {
    Two things are never touched by any stage:
 
      transparency, so the cut-out can never be dragged into the
-     artwork or the artwork smeared out past its own silhouette;
+     artwork or the artwork smeared out past its silhouette;
 
      palette-animated indices E0-FB, whose exact values are chosen
-     for their position in a runtime colour cycle and so carry
+     for their position in a runtime colour cycle and so have
      meaning that averaging would destroy.
 
-   There used to be a third: pixels the encoder emitted as a long
+   There was once a third: pixels the encoder emitted as a long
    run or a distant copy were treated as deliberate structure and
    locked. That was wrong, and measurably so. In dithered artwork
    the dither is itself what compresses into long copies — the
@@ -797,8 +797,8 @@ function detect(src, mean, W, H, thr, diagonals, locked, alpha){
    untouched. Diagonal neighbours are deliberately excluded — they share the
    centre's phase and would reinforce what we are trying to null.
 
-   On its own it removes a third of the local variation on every portrait
-   tried. It cannot tell a one-pixel pupil from one square of a checkerboard,
+   By itself it removes a third of the local variation on every portrait
+   tried. It cannot distinguish a one-pixel pupil from one square of a checkerboard,
    so like the other smoothers it is applied through the dither detector rather
    than everywhere.
    ------------------------------------------------------------ */
@@ -826,7 +826,7 @@ function checkerNotch(src, guide, out, W, H, r, edge, alpha){
 /* ------------------------------------------------------------
    Stray colour repair.
 
-   Some resources carry isolated pixels in a wildly wrong hue — Erechtheus has
+   Some resources have isolated pixels in a wildly wrong hue — Erechtheus has
    69 magenta ones scattered over his face, from palette index 5 and the far
    end of the magenta ramp. They are quantisation accidents, not paint, and
    they are the most visually offensive thing left in the output because the
@@ -834,9 +834,9 @@ function checkerNotch(src, guide, out, W, H, r, edge, alpha){
 
    Despeckle above will not do the job. It flags a pixel that is isolated and
    far from its neighbours in FULL COLOUR, and that is also an exact
-   description of a pupil, which is why it takes the detail you wanted with it.
+   description of a pupil, which is why it removes the detail you wanted with it.
 
-   The distinction that actually holds is hue. A pupil is extreme in
+   The distinction that actually works is hue. A pupil is extreme in
    brightness but its chroma matches its surroundings — it is a neutral dot in
    a neutral socket. A stray is extreme in chroma: it points somewhere in
    colour space that nothing near it points. Measured on Erechtheus, the
@@ -846,7 +846,7 @@ function checkerNotch(src, guide, out, W, H, r, edge, alpha){
 
    The isolation test is kept as a second condition so that a small but
    deliberate patch of colour — a gem, a coloured highlight — survives: only a
-   pixel with no neighbour of its own hue is treated as an accident.
+   pixel with no neighbour of its hue is treated as an accident.
    ------------------------------------------------------------ */
 function fixStrayColours(src, W, H, rgba, T, locked, dLocal, dMin){
   const N=W*H, out=new Float32Array(src), fixed=new Uint8Array(N);
@@ -862,7 +862,7 @@ function fixStrayColours(src, W, H, rgba, T, locked, dLocal, dMin){
       if(rgba[i*4+3]===0) continue;
       if(locked && locked[i]) continue;
       /* Only inside dithered content. A stray reads as incoherent wherever it
-         sits, so the pixel's own detector value cannot tell a magenta accident
+         sits, so the pixel's detector value cannot distinguish a magenta accident
          on a cheek from an odd pixel in a drawn frame — both score about 1.
          What separates them is the company they keep: averaged over a
          neighbourhood, a face runs 0.67-0.89 and a drawn frame 0.24-0.59. */
@@ -908,10 +908,10 @@ function fixStrayColours(src, W, H, rgba, T, locked, dLocal, dMin){
 
    Ordinary interpolation has no idea which neighbours belong
    together, so it rounds off exactly the edges the artist drew.
-   Here the lock mask is available, and it already knows: a pixel
+   Here the lock mask is available, and it already has the answer: a pixel
    the encoder wrote as a long run is on one side of a boundary,
-   its unlocked neighbour is on the other. Refusing to mix across
-   that boundary keeps silhouettes crisp at 4x while flat interiors
+   its unlocked neighbour is on the other. Not mixing across
+   that boundary leaves silhouettes crisp at 4x while flat interiors
    still interpolate smoothly.
    ------------------------------------------------------------ */
 function guidedUpscale(src, W, H, S, locked, alpha, edgeThr){
@@ -1010,7 +1010,7 @@ function undither(rgba, W, H, p, locked, cls){
      Mixing them per region does no better. The idea was sound — the local size
      of what the notch removes IS the local checkerboard energy, so you can
      measure which tool suits where — but the blend never rose above the line
-     joining the two. Where the detector wants smoothing at all, the
+     joining the two. Where the detector finds a need for smoothing at all, the
      checkerboard is present, so there is no territory for the general filter
      to win that the notch was losing.
 
@@ -1079,8 +1079,8 @@ function undither(rgba, W, H, p, locked, cls){
        The guided upscale stays the default despite coming third, because that
        ranking is about edges and gradients and this artwork's hardest content
        is one-pixel features. At the shipped settings xBR lifts Magpie's pupils
-       to 25 and 29 where the guided upscale holds them at 16: a lone pupil has
-       no edge direction for xBR to commit to, so it gets averaged along a
+       to 25 and 29 where the guided upscale leaves them at 16: a lone pupil has
+       no edge direction for xBR to commit to, so it is averaged along a
        direction that is not there. */
     const up = guidedUpscale(res, W, H, S, locked, alpha, p.edge);
     res=up.out; outAlpha=up.outAlpha; outW=W*S; outH=H*S;
@@ -1273,7 +1273,7 @@ function reshapeTileSheet(W, H, image, mode) {
    The other direction: full colour IN, Cythera OUT.
 
    ditherToCytheraPalette is the deliberate inverse of the undither above.
-   The undither's own analysis (see the checkerboard-notch comment) found
+   The undither's analysis (see the checkerboard-notch comment) found
    that this artwork's dither is a checkerboard in WHICH RAMP each pixel is
    taken from -- greys interleaved with warm browns for skin, close in
    lightness, far in hue -- the single frequency (pi,pi). So the way to make
@@ -1291,7 +1291,7 @@ function reshapeTileSheet(W, H, image, mode) {
 
    checker (0..1, default 0.6) sets how eagerly a pair beats a flat pixel:
    at 0 the result is plain nearest-colour quantisation; at 1 any pair that
-   is at all better wins and everything shimmers with pattern.
+   is at all better is used and everything shimmers with pattern.
    ------------------------------------------------------------ */
 function ditherToCytheraPalette(rgba, W, H, opts) {
   const o = opts || {};
@@ -1300,7 +1300,7 @@ function ditherToCytheraPalette(rgba, W, H, opts) {
   // The checker setting is the most contrast a pair may have, from none at
   // 0 to black beside white at 1, in the weighted distance below (whose
   // square root runs 0 to 765). A pair is used when it beats the flat
-  // colour and stays under that contrast. It used to be a factor the pair
+  // colour and stays under that contrast. It was once a factor the pair
   // had to beat the flat error by, 0.4 at the first notch, which most pairs
   // beat, so the slider went from nothing to everything in its first
   // notch (the maintainer, 9 September 2026). The undither merges a checker
@@ -1400,7 +1400,7 @@ function ditherByTone(rgba, W, H, tones, maxContrast) {
  * opcodes: 0xC0-0xCF chunks of 4..64 pixels, a 0xD0-0xDF nibble chunk for a
  * sub-4 remainder, 0xFF to terminate. The same store-only trade the ZIP
  * writer makes: bigger than DelvEd's output and byte-for-byte decodable by
- * every decompressor in sight -- delvmod's own literal emitter (the 0xC0
+ * every decompressor in sight -- delvmod's literal emitter (the 0xC0
  * chunker at the end of graphics.py compress) is the model.
  * delv_write_check.mjs proves decompressDCG AND delvmod's DelvImage both
  * decode this encoding back to the exact input. */
@@ -1431,7 +1431,7 @@ function encodeDCGLiterals(indexed) {
  * flat blocks (redrawDelverArt, below), which literals alone would write
  * at a byte a pixel: the 59 full pictures would come to several megabytes.
  * The decoder is the check: redrawDelverArt decodes every stream it writes
- * and keeps the literal encoding where the two differ. */
+ * and retains the literal encoding where the two differ. */
 function encodeDCGRuns(indexed) {
   const out = [];
   const literals = (from, to) => {
@@ -1465,7 +1465,7 @@ function encodeDCGRuns(indexed) {
    replacement at full resolution, a black and white stick man for the
    hero, the look of a Flash game. So nothing of a picture survives here
    but its size, where it was see-through, and the colour it had most of,
-   which is what keeps grass green and water (a cycling index) moving.
+   which is what leaves grass green and water (a cycling index) moving.
 
      a figure   a tile the caller names (`figures`: tile id to 'hero',
                 'person' or 'beast', with the frame's place in its run): a
@@ -1578,7 +1578,7 @@ function badArtPicture(d, subn, resid, ink) {
   }
   return out;
 }
-/* `from`, when given, is asked first: from.tile(id, old, figure) for a
+/* `from`, when given, is consulted first: from.tile(id, old, figure) for a
    tile's 1,024 indices, from.portrait(resid, W, H, d) for a portrait's and
    from.picture(subn, resid, d) for any other picture's, d the old picture
    decoded; null from any of them leaves the drawing here to do it. It is
@@ -1610,7 +1610,7 @@ function redrawDelverArt(bytes, figures, from) {
       if (UNCOMPRESSED[subn]) data = image;
       else {
         // The sized header is decodeResource's read backwards, as the
-        // page's encodeGraphicResource writes it: the stream holds the
+        // page's encodeGraphicResource writes it: the stream has the
         // width rounded up to four.
         const flags = HAS_HEADER[subn] ? d.W & 3 : 0, logW = d.W - flags + (flags ? 4 : 0);
         let buf = image;
@@ -1641,7 +1641,7 @@ function redrawDelverArt(bytes, figures, from) {
    what drives it.
 
    WHICH PIXEL IS WHICH PART IS NOT IN THE FILE. The art is flat indexed
-   pixels with no layer saying "hair" or "shirt", so the table is the one part
+   pixels with no layer marked "hair" or "shirt", so the table is the one part
    of this that is a judgement rather than a reading, and it was made by
    looking: every index each sheet uses was drawn in false colour, frame by
    frame, on 17 September 2026. Most indices belong to one part outright
@@ -1657,8 +1657,8 @@ function redrawDelverArt(bytes, figures, from) {
 
    The indices are this release's art. A patch or a mod that redraws the
    sheet leaves them describing pixels that are no longer there, which is why
-   the page labels the file as it arrived and says what it did not recognise
-   rather than recolouring a guess. */
+   the page labels the file as it came and states what it did not recognise
+   rather than recolouring an assumption. */
 const HERO_SPRITES = [
   { key: 'hero', proptype: 32,
     // Two pixels of 0xDB, one in each of two frames, both in the face between
@@ -1697,7 +1697,7 @@ const HERO_SPRITES = [
 
 /* Every pixel of a sheet labelled with the index of the part it belongs to
    in def.parts, or -1 for transparency, the outline, the figure's fixed
-   indices, and any index the table does not know. `unknown` counts the last kind, so a caller can tell a sheet
+   indices, and any index that is not in the table. `unknown` counts the last kind, so a caller can distinguish a sheet
    it recognises from one somebody has redrawn. A run of shared shades is
    4-connected and never crosses from one 32-row frame into the next. */
 function heroPartMap(image, W, H, def) {
@@ -1771,7 +1771,7 @@ const HERO_INKS = (() => { const a = []; for (let i = 0x01; i < 0xE0; i++) a.pus
 /* One remap table per part, shipped index to new index, or null for a part
    left as shipped. `choices` maps a part key to an [r, g, b].
 
-   The part's own shading is kept: each index moves by its lightness away
+   The part's shading is kept: each index moves by its lightness away
    from the part's mean, so the chosen colour lands at the part's middle and
    the folds and highlights keep their distance from it. When that would run
    off either end of the scale (a pale skin, a white shirt) the spread is
@@ -1908,7 +1908,7 @@ function heroShadeDef(image, W, frameH, opts) {
   // `hue` degrees and chroma within `chroma`, and two greys within `greyL`
   // of lightness. The defaults are the sprites' readings; a portrait's
   // caller tightens them, since a face's skin, hair and clothes are painted
-  // in neighbouring browns that a sprite's smaller art keeps apart.
+  // in neighbouring browns that a sprite's smaller art separates.
   const O = Object.assign({ hue: 18, chroma: 32, greyL: 100, small: 50 }, opts || {});
   const skip = new Set([0, 0xFF, 0x1D, 0x1E]);
   const count = new Uint32Array(256);

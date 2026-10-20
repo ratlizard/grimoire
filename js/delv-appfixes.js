@@ -6,7 +6,7 @@
    an entry, change a line, drop one, and the applier and its check
    (`utilities/app_patch_check.mjs`) do the rest. Nothing here is the
    program's bytes except the words each site expects to find, which is
-   what makes a wrong application, or a wrong address, refuse rather than
+   what makes a wrong application, or a wrong address, stop rather than
    patch.
 
    WHICH PROGRAM. Cythera 1.0.4's PowerPC slice: the PEF container in the
@@ -27,7 +27,7 @@
      bug         the entry's title in the workbench's bugs.md, where there
                  is one
      script      a hook's method and what it is sent, for a script's
-                 writer, shown under the fix; the title says what it lets a
+                 writer, shown under the fix; the title states what it lets a
                  script do (19 October 2026)
      played      where and how the fix was seen working in the game, the
                  unpatched program beside it showing the bug; with none the
@@ -51,9 +51,9 @@
    as bare numbers), with `@0x...` for a code address, `@Name` for a
    routine by its mangled name and `@label` for a label in the entry's
    cave. `beq`, `bne` and the rest stand for the decoder's `bt` and `bf`.
-   `;` begins a comment. js/mac-ppc-asm.js says what else it takes.
+   `;` begins a comment. js/mac-ppc-asm.js lists what else it accepts.
 
-   HOOKS. A hook is a call from the program into the game's own scripts,
+   HOOKS. A hook is a call from the program into the game's scripts,
    so that what happens at that point can be changed by a Magpie patch to
    Cythera Data rather than by another change to the program. Each calls
    `TInterp::DoInterp` with a method number no class table uses (241 up;
@@ -64,7 +64,7 @@
    shipped Cythera Data does not have; with no script added the
    interpreter answers None and the program goes on as it did. A character
    is the object 0x4040nnnn (type 0x40, nnnn its character entry), a thing
-   0x4000nnnn. None, True and False are the interpreter's own words, read
+   0x4000nnnn. None, True and False are the interpreter's words, read
    from the globals `__sinit_THeap_cp` sets (0x5000FFFF, 0x50000001,
    0x50000000; None was written 0x5001FFFF here until 15 October 2026,
    a misreading of `lis 0x5001; addi -1`); a number is any word whose top
@@ -73,16 +73,16 @@
    A CAVE IS FAR from the code it serves, more than the 32 KB a
    conditional branch reaches, so a site branches to it unconditionally
    and the test the site made moves into the cave, which leaves by `b`.
-   The assembler refuses a branch that cannot reach.
+   The assembler rejects a branch that cannot reach.
 
-   Each hook's cave makes a stack frame of its own for the call, 64 bytes
+   Each hook's cave makes a separate stack frame for the call, 64 bytes
    with the answer at 56, so no slot of the routine it sits in is
    borrowed, and puts back every register the code after it reads. */
 
 const APP_FIXES_TARGET = {
   name: 'Cythera 1.0.4, PowerPC',
   // The layout the applier grows. Another release, or a copy patched
-  // already, differs here or at a site's words, and is refused.
+  // already, differs here or at a site's words, and is rejected.
   codeOffset: 0x3470, codeSize: 0xCD280, dataOffset: 0xD06F0,
 };
 
@@ -122,16 +122,16 @@ const APP_FIXES = [
   // In SaveLevelProps, which writes a zone's list on leaving it and at a
   // save: the records after the 256 characters, up to the last in use,
   // the party's things taken out first on leaving. For a zone with
-  // nothing of its own, which is Tavara's island without the fortress
+  // nothing in it, which is Tavara's island without the fortress
   // (zone 37) and no other, that is length 0, and to a segment file a
   // segment of length 0 is one that is not there: TSegFileIterator steps
   // over it, so SaveToFile never copies it into the player's file, and
-  // the player's file keeps the list it had. A save made on the island
+  // the player's file retains the list it had. A save made on the island
   // puts the carried things in that list; after a save anywhere else the
   // island's list is read from the player's file again, and going back
   // loads the old things beside the ones in hand. Here a list that would
   // be empty is written as one free slot (flags 0xFF, what the routine's
-  // own trimming loop takes for unused), 16 bytes, which is copied like
+  // own trimming loop treats as unused), 16 bytes, which is copied like
   // any other and replaces what was there.
   { id: 'empty-zone-save', kind: 'fix', title: 'A zone left with nothing in it is saved as one free slot, so Tavara\u2019s island no longer doubles what you carry',
     bug: 'Saving and reverting around Tavara\u2019s ring duplicates everything carried',
@@ -181,8 +181,8 @@ const APP_FIXES = [
   // schedule) end in one tail that sets nutrition to 30 and the timing
   // byte to 32, so a companion was fed whenever its target died or the
   // party left an area mid-fight, and one fed past 30 was cut back. The
-  // tail's two middle words swap places, so the timing store has an entry
-  // of its own, and the party member's branch takes it; the others, and
+  // tail's two middle words swap places, so the timing store has a separate
+  // entry, and the party member's branch is taken; the others, and
   // behaviour 146, which enters the tail at its start, are as before.
   { id: 'target-hunger', kind: 'fix', title: 'A companion whose target is gone goes back to following without its hunger set to 30',
     played: 'fork, PowerPC, 30 September 2026: two companions saved at behavior 113 follow again with their food as it was',
@@ -243,7 +243,7 @@ const APP_FIXES = [
 
   // The multi-button mouse switch (UI Prefs byte 1 bit 2, which nothing in
   // the game sets; the workbench's cheats.md, *Bit 2 of byte 1*): with it on,
-  // TDelverApp::MyGetEvent asks which button went down and adds a modifier
+  // TDelverApp::MyGetEvent tests which button went down and adds a modifier
   // to the click, Command for button 2, Control for 3, Option for 4, Shift
   // for 5. A two-button mouse's right button is button 2, and SheepShaver
   // sends a right-click as the second button and a middle click as the third
@@ -253,7 +253,7 @@ const APP_FIXES = [
   // contextual menu at once, on button 2. Does nothing unless the switch is
   // on in the preferences file (grimoire's Preferences tab, Extra mouse
   // buttons), and nothing where the emulator passes one button only, as
-  // Infinite Mac's SheepShaver does; whether Mac OS's own mouse driver hands
+  // Infinite Mac's SheepShaver does; whether Mac OS's mouse driver hands
   // the game a second button at all is untried.
   { id: 'right-click', kind: 'fix', title: 'With Extra mouse buttons on, a right-click opens the contextual menu, as Control-click does, and the middle button clicks with Command',
     sites: [
@@ -265,17 +265,17 @@ const APP_FIXES = [
   // item's height at 28 of the mode plus 4. The code that makes the scroll
   // bar (0x3F9DC on, before its NewControl) counts the rows that fit by the
   // height alone, the box's bottom less its top of 20 over 20 pixels, so it
-  // takes 11 rows to fit where 9 are drawn and sets the bar's maximum two
+  // needs 11 rows to fit where 9 are drawn and sets the bar's maximum two
   // short: the last two entries of any list longer than the box are never
   // shown. That is the board's "the last two" missing from Land King Hall's,
   // Odemia's and Pnyx's lists, Catamarca's 9 of 10, and Cademia's 18 (its 22
   // cut to 20 by menu-items' limit, then two). The count is the height plus
   // 4 now; the top, a constant 20 stored at 72(1), is subtracted as one, so
-  // the word that loaded it takes the height into r4, free until
+  // the word that loaded it puts the height into r4, free until
   // NewControl's arguments set it. MouseRoutine divides by the same bare
   // height for a page (0x402C8), so a click in the track moved 10 rows of 9;
   // the plus 4 goes in there too, in place of an extsh of the quotient that
-  // a row count cannot need, since the halfword store takes the low half.
+  // a row count cannot need, since the halfword store uses the low half.
   { id: 'menu-scroll', kind: 'fix', name: 'Almost there', title: 'Long lists of dialogue choices (like Where Is\u2026) now scroll to the last entry instead of stopping two short',
     played: 'fork, PowerPC, 30 September 2026: Pnyx’s list reaches Kosha, Cademia’s its last; a page’s length read, not seen',
     bug: '"Where Is" lists stop short',
@@ -301,11 +301,11 @@ const APP_FIXES = [
       'ok:', 'b @0x54254', 'fail:', 'b @0x54240             ; the existing rejection'] },
 
   // In TActiveMonster::~TActiveMonster. A creature that leaves a corpse has
-  // its number set to 0 by Die, so that the destructor keeps its record as
+  // its number set to 0 by Die, so that the destructor retains its record as
   // the corpse, and the destructor then called RemoveAllAbility with that
   // 0, which removes every timed effect filed under character 0: the light
   // spells file theirs there, so killing such a creature put the party's
-  // light out. Character 0 is nobody, so nothing of a creature's own is
+  // light out. Character 0 is nobody, so nothing of a creature's is
   // filed under it; the call is skipped for 0 and made as before otherwise.
   { id: 'corpse-light', kind: 'fix', title: 'Killing a creature that leaves a corpse no longer ends Embrightenment or Daylight',
     played: 'fork, PowerPC, 30 September 2026: a chicken killed with the light on, which the unpatched game put out',
@@ -315,18 +315,18 @@ const APP_FIXES = [
            'bl @RemoveAllAbility__8TSpellFXFs', 'skip:', 'b @0x464F8'] },
 
   // TGameSys::WalkToLocation was shipped empty (li 3, 0; blr). Its six
-  // callers are TDroppableWindow::MouseRoutine's, on the branch that takes
+  // callers are TDroppableWindow::MouseRoutine's, on the branch that handles
   // a command chosen from the Commands popup (a click held, or a
   // control-click): a Look, Attack, Use or Take on something out of reach
-  // asks it to bring the current character there and acts only if it
+  // calls it to bring the current character there and acts only if it
   // answers true, and a click on the ground far off calls it and ignores
   // the answer. So a touch spell aimed at someone not beside the caster,
-  // and every command clicked on something distant, did nothing. It takes
+  // and every command clicked on something distant, did nothing. It has
   // one step now and answers false, the game's one click, one turn: each
   // click brings the character a square nearer, and once in reach the
   // command acts as it always did. A touch spell is the exception, played
   // on 30 September 2026: its magic is spent when it is cast, before the
-  // target is chosen, and the refusal cancels it, so a click on someone out
+  // target is chosen, and the rejection cancels it, so a click on someone out
   // of reach now steps once and prints [Cancel], where the shipped program
   // printed [Cancel] without the step; the spell is cast again to go on.
   // With the data fix spell-cost-after-target the cancelled cast costs no
@@ -342,7 +342,7 @@ const APP_FIXES = [
   // index (dy + 2) * 5 + dx + 2: the ring about the centre is the
   // directions 0 to 7, north clockwise, the centre 9). FindPath answers
   // 32767 when the target is more than 15 squares off or nothing nearer
-  // was found, and that answer takes no step.
+  // was found, and that answer makes no step.
   // FINDFIRSTSTEP NEVER RETURNED, and the first design, played on 30
   // September 2026, hung the game on the first such click. It walks back
   // from the square FindPath reached to the start, which FindPath marks
@@ -353,9 +353,9 @@ const APP_FIXES = [
   // of TActiveMonster::DoMove (0x4CD08), would have hung the same way; the
   // corrected word mends that branch too.
   // THE HOTKEYS. A command armed by its key (U, G, A, T, L; TOC -29912)
-  // takes MouseRoutine's other branch, where Use (0x272CC) and Take
+  // goes down MouseRoutine's other branch, where Use (0x272CC) and Take
   // (0x27348) out of reach go straight to the branch's end at 0x27378 and
-  // no WalkToLocation is called. Each now takes the step there when the
+  // no WalkToLocation is called. Each now makes the step there when the
   // click was on a thing (312(1)), to the square the click named (318(1),
   // 316(1), which the branch passes to the Attack of a square), and ends
   // as before, which disarms the command: press the key again to go on.
@@ -388,7 +388,7 @@ const APP_FIXES = [
            'keyDone:', 'b @0x27378'] },
 
   // TJournalList::AppendEntry adds one List Manager row a wrapped line and
-  // sets 12 bytes of cell data in it, and the List Manager keeps its cell
+  // sets 12 bytes of cell data in it, and the List Manager stores its cell
   // data at 16-bit offsets: "The List Manager cannot maintain lists that
   // occupy more than 32 KB of memory" (More Macintosh Toolbox, page 405 of
   // the PDF), so past about 2,730 rows LSetCell fails and the new lines draw
@@ -396,7 +396,7 @@ const APP_FIXES = [
   // LAddRow calls go through a cave now that, with 2,688 rows or more, first
   // deletes the list's top row, the oldest line, and moves the row about to
   // be added, and the caller's copy of it at 92(1) (156 from the cave's
-  // frame), up by one. The journal file keeps every entry; only the window
+  // frame), up by one. The journal file has every entry; only the window
   // shows the newest 2,688 lines. The call replaced was a glue call, after
   // which AppendEntry reloads its TOC from 20(1); for the first LAddRow
   // nothing has stored it there yet, so the cave does, as a glue stub would.
@@ -422,11 +422,11 @@ const APP_FIXES = [
   // stats, flags, alignment and, at its death, its corpse word are then
   // read from low memory. The scenario gives the two types that happened
   // units ("Cythera Community Fixes", sleeping-units); this is the
-  // program's own guard, for a scenario without that fix or a type added
+  // program's guard, for a scenario without that fix or a type added
   // later: a null unit is the table's first record (TOC -30376, the base
   // ObjToMonst walks), the hero's. ObjToMonst itself still answers null,
   // since HatchEgg and the scripts' Ctor read that as "no unit".
-  // A sleeper's own unit. The default EveryTurn (0x3020) puts a character
+  // A sleeper's unit. The default EveryTurn (0x3020) puts a character
   // in bed into type 264, "person sleeping", in its map record and in the
   // word at 4 of its character record (field 0x24), and leaves the word at
   // 20 (field 0x25) as it was, to put back on waking. A creature is given
@@ -434,9 +434,9 @@ const APP_FIXES = [
   // built while asleep was given 264's, which the shipped table does not
   // have (the scenario fix sleeping-units gives 264 a copy of the man's,
   // the one unit a table can give every sleeper). Both places a sleeper is
-  // built know the real type. A named character (below 256) is built by
+  // built have the real type. A named character (below 256) is built by
   // HatchEgg through the short constructor, and its record's word at 20
-  // holds its own type. A creature from an egg is rebuilt from a saved game
+  // has its type. A creature from an egg is rebuilt from a saved game
   // by the stream constructor, which has just read its template's number
   // (144 of its frame; the template is the egg's record of what it hatches,
   // and the constructor sets it as the creature's template three words
@@ -447,8 +447,8 @@ const APP_FIXES = [
   // September 2026, Lindus saved asleep in Pnyx and loaded went through the
   // template test to type 264's lookup and died without a body on both
   // programs, while a hatched guard saved asleep was mended. Where the map record
-  // says 264, each call of ObjToMonst now asks for that type instead, so the
-  // sleeper gets its own corpse, alignment and unit flags (a guard's 0x40,
+  // has 264, each call of ObjToMonst now requests that type instead, so the
+  // sleeper has its corpse, alignment and unit flags (a guard's 0x40,
   // which the swamp reads as immunity to poison). A creature newly hatched
   // was never affected: HatchEgg builds it on a record of the template's
   // type, and the swap comes later. The stream constructor restores the
@@ -473,7 +473,7 @@ const APP_FIXES = [
   // answered null and nothing checked, so the creature's stats, side and
   // corpse were read from low memory. In the shipped data that is 264 (the
   // sleeper, which sleeper-unit names properly where it can) and 229, the
-  // Odemia night guard's type. A null now takes a unit: for 229 the
+  // Odemia night guard's type. A null is now given a unit: for 229 the
   // guard's, found by its key 46 the way ObjToMonst walks the table (16
   // bytes a unit from the base at TOC -30376, the key at 12, a key of 0
   // ending it), and for anything else, or a table without 46, the first
@@ -512,14 +512,14 @@ const APP_FIXES = [
   // drawers, whose address is the TOC slot at -25704, built once through
   // the runtime's array constructor (0xBE3E4, with 12 and 20) behind the
   // guard byte at TOC -25700, and it stops at the twentieth item
-  // (cmpwi 0, 20 at 0x96924): Cademia's holds 23, of which 22 can show
+  // (cmpwi 0, 20 at 0x96924): Cademia's has 23, of which 22 can show
   // (Pnyx's two, upstairs and down, hold 16 and 15). The menu itself
   // (TPickMode) draws from the vector it is handed until its box is full
-  // and scrolls, with no count of its own (how many rows its scroll bar
-  // takes to fit is menu-scroll's, above). Now the first call allocates
-  // 64 drawers (operator new, 0xBE7C8, as the routine's own vector does),
+  // and scrolls, with no separate count (how many rows its scroll bar
+  // needs to fit is menu-scroll's, above). Now the first call allocates
+  // 64 drawers (operator new, 0xBE7C8, as the routine's vector does),
   // puts the address in the TOC slot, where every later call reads it, and
-  // in r24, and builds them; the guard byte keeps the capacity (it only had
+  // in r24, and builds them; the guard byte records the capacity (it only had
   // to be nonzero) and the loop's test reads it. If the allocation fails the
   // shipped array is built with its 20, as before. r25 is free until
   // 0x96AAC sets it.
@@ -536,22 +536,22 @@ const APP_FIXES = [
            'cap:', 'lwz 3, -25700(2)', 'lbz 3, 0(3)', 'cmpw 0, 3', 'b @0x96928'] },
 
   // The neighbourhood (THood) is the list of prop records the game ticks
-  // and draws: the whole zone while it holds fewer than 1,536 records, and
+  // and draws: the whole zone while it has fewer than 1,536 records, and
   // past that a window round the party. It is one static object, a flag
   // byte, three halfwords and 2,048 halfword entries, reached only through
   // the TOC slot at -30392, and AddToHood and ResetHood each throw "Too
-  // many objects in the neighborhood." once it holds 2,048, which ends the
+  // many objects in the neighborhood." once it has 2,048, which ends the
   // game. Things carried stand on the party's square, so they are always in
   // the window, and a trader's stock of flax bought a bale at a time (flax
   // does not stack) reached it [Theo Nean Donly@t373]. The prop table
-  // itself holds 16,384 records (NewProp throws there), so that is the
-  // size given now: the static initialiser asks NewPtrClear for a
+  // itself has room for 16,384 records (NewProp throws there), so that is the
+  // size given now: the static initialiser requests from NewPtrClear a
   // neighbourhood of 16,384 entries, puts its address in the TOC slot,
   // where every reader loads it from at each use, and marks it in the
   // constructor's unused byte at 1; the two tests read the mark. If the
   // memory is not there the shipped object is built and kept, 2,048 and
   // all. Allocated at startup, before any reader, so the address never
-  // changes under a routine holding it in a register. The viewer's own
+  // changes under a routine holding it in a register. The viewer's
   // list of what to draw stops at 4,096 without a throw (SetStage), so a
   // square piled past that draws some of its things and not others.
   { id: 'hood-size', kind: 'fix', title: 'The game can have as many things near the party as in all, instead of stopping at 2,048',
@@ -590,8 +590,8 @@ const APP_FIXES = [
   // QuickTime calls, freed its object and allocated the new one. Any of
   // those can move an unlocked block, and then the new tune is queued from
   // where its data was, memory the heap goes on to reuse while QuickTime
-  // plays from it. TAudio::PlayMusic, the one caller, holds the data locked
-  // across the call instead: the lock is counted, so GMSPlayAmbient's own
+  // plays from it. TAudio::PlayMusic, the one caller, leaves the data locked
+  // across the call instead: the lock is counted, so GMSPlayAmbient's
   // lock and every path through it, music-revert's too, are as before.
   // Read, not reproduced (no moved block was forced): the board's "wrong instruments, distorted timing"
   // after long play fits it and nothing here shows it is the cause.
@@ -624,7 +624,7 @@ const APP_FIXES = [
 
   // In TConversation::ShowPortrait. The name is in the frame at 56(1); r28 is
   // the portrait's GWorld, the current port, whose txSize is the halfword at
-  // 74; r23 is dead once the routine has set its port, and keeps the size to
+  // 74; r23 is dead once the routine has set its port, and stores the size to
   // put back. The imports are called at their glue: TextWidth 0xC2AC0,
   // TextSize 0xC35B8, CharExtra 0xC3630; 0xB6CE8 is strlen.
   { id: 'name-fit', kind: 'fix', title: 'A long name under a conversation portrait shrinks until it fits, instead of squeezing until its letters overlap',
@@ -658,7 +658,7 @@ const APP_FIXES = [
   // speech is cleared without the portraits being drawn again. The copy to
   // 2136(31) is written as the constants it always
   // was (top 12, left 115, bottom 80, right 500) in the same eight words,
-  // so the text keeps its place; r3 and r4 are the OffsetRect arguments
+  // so the text stays in place; r3 and r4 are the OffsetRect arguments
   // that follow, and r5 and r6 were only the copy's.
   { id: 'speech-clear', kind: 'fix', title: 'The conversation box clears the ink a line’s first letter draws left of the text',
     bug: 'A sliver of a letter stays at the start of a line in the conversation box',
@@ -734,13 +734,13 @@ const APP_FIXES = [
   // tidying's halves off, each alone or both. THE SHIPPED RULE:
   // LoadLevelProps, given a level's list from a save or a patch and its
   // third argument set (TGameViewer::GoToLocation, entering a level in play,
-  // and TDelverApp::NewModel, a new game), streams Cythera Data's own list
+  // and TDelverApp::NewModel, a new game), streams Cythera Data's list
   // beside it. A record flagged 0x20, made or moved in play (a corpse, what
   // an egg hatched, a thing dropped or slid that is not of a carried class),
   // is overwritten whole by the scenario's record at that index when that is
   // a thing of the same type on the map; a door of the six ClassFlags 0x200
   // classes whose aspect differs from the scenario's has its method 0 run,
-  // which takes the scenario's aspect. Then ChainFreeProps, with the same
+  // which restores the scenario's aspect. Then ChainFreeProps, with the same
   // argument, DELETES every record still flagged 0x20 (flags 0xFF, its
   // storage released by THeapObj::DecRef). So a level entered is set back
   // (doors, things the level began with) and cleared (everything else play
@@ -752,8 +752,8 @@ const APP_FIXES = [
   // a square vanished on entering the level in the run that tried it. So
   // where the scenario would overwrite a flagged record, the first clears
   // its 0x20 instead, which leaves it where it is and no longer play's to
-  // clear; and it never takes the door path, branching to the Seek that
-  // keeps the stream in step. The second branches past ChainFreeProps's
+  // clear; and it never goes down the door path, branching to the Seek that
+  // stays in step with the stream. The second branches past ChainFreeProps's
   // deletion, so what is still flagged stays, flag and all.
   { id: 'level-keep-place', kind: 'change', title: 'Entering a level leaves its doors, and the things it began with that moved in play, as you left them, instead of setting them back',
     played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a door left open stays open and a slid chair stays where it was; a rock made in play is still removed, as on the stock program, which also shuts the door and puts the chair back',
@@ -782,7 +782,7 @@ const APP_FIXES = [
   // caller, OpenPlayerFile, which calls it for the start board (RunStart,
   // which a new game goes through), Open and a revert, and not for Save As.
   // Nothing in play comes through it: a change of zone, a sleep, a death and
-  // every command hand HeartBeat their own costs elsewhere. A new game opens
+  // every command hand HeartBeat their costs elsewhere. A new game opens
   // on the king's welcome with it as without (the two frames are the same).
   { id: 'load-cost', kind: 'change', title: 'Starting or opening a game costs no time, so a game opens on the moment it was saved, instead of fifteen ticks later with everyone moved',
     played: 'fork, PowerPC, 9 October 2026: a save of Cademia opened and saved again has the same clock, where the unpatched program writes it fifteen units on; a new game opens on the king\u2019s welcome as before',

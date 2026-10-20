@@ -12,7 +12,7 @@
  * disassembly produced here is meant to read the same way as one produced
  * there. utilities/delv_crosscheck.mjs re-parses all of it out of the Python on
  * every run, because a copied table drifts silently -- nothing in a browser
- * complains that a syscall is labelled with the wrong name.
+ * reports that a syscall is labelled with the wrong name.
  *
  * See delv-archive.js for why these are classic scripts and why the three
  * delv-* files are organisation rather than a library. LOAD ORDER: after
@@ -55,7 +55,7 @@ function itemStringAt(b, off) {
 //
 // The subtlety that breaks a naive linear walk: opcode 0x40 ("end") closes an
 // expression sub-stream, and when it closes an if / if_not / switch it also
-// carries a u16 branch target. Everywhere else it has no operand. Without an
+// has a u16 branch target. Everywhere else it has no operand. Without an
 // expectation stack the decoder desyncs by two bytes after every conditional.
 // The mnemonics are delvmod's, from the OpTable in delv/ddasm.py, so that a
 // disassembly here and one from delvmod read the same way -- `bitwise_and`
@@ -85,8 +85,8 @@ const DVM_OPS = {
   0x9B:['gui',1,1], 0x9C:['call_index',2,2], 0x9D:['method',1,1],
   0x9E:['call_subroutine',2,1], 0x9F:['call_resource',2,1]
 };
-// if / if_not: their closing 0x40 carries a single u16 branch target.
-// switch (0x89) is NOT here -- its 0x40 carries a case count and a whole
+// if / if_not: their closing 0x40 has a single u16 branch target.
+// switch (0x89) is NOT here -- its 0x40 has a case count and a whole
 // label array, handled separately in dvmDisassemble.
 const DVM_TARGETED = new Set([0x8C, 0x8D]);
 
@@ -96,7 +96,7 @@ const DVM_TARGETED = new Set([0x8C, 0x8D]);
 // Word encoding, from the wiki's Word page. A 4-byte value is not just an
 // integer: the top nibble selects a type, and drefs are 0x80000000|(resid<<16)|offset.
 /* Which resource is being disassembled, so a reference into it can be shown as
- * `here:` rather than repeating its own id on every line. delvmod calls this
+ * `here:` rather than repeating its id on every line. delvmod calls this
  * `context_resource`; it is set for the duration of a render. */
 let dvmContextResid = null;
 
@@ -132,11 +132,11 @@ function dvmWord(v) {
   // 0x1xxxxxxx: a reference to one of the enclosing function's locals.
   //
   // delvmod treats 0x10000000-0x2FFFFFFF as unidentified and the wiki's Word
-  // page reads the 0x1 nibble as a variable reference, so this was a guess
+  // page reads the 0x1 nibble as a variable reference, so this was an assumption
   // where the rest of this function is evidence. It has since been checked
   // against the whole archive, and the wiki is right:
   //
-  //   * all 456 of these references have an index inside their own function's
+  //   * all 456 of these references have an index inside their function's
   //     declared local count -- not one lands outside,
   //   * 441 of the 456 (97%) name a local that the same function also reads
   //     directly with a `local` opcode, which is what a reference to a
@@ -175,7 +175,7 @@ function dvmWord(v) {
   }
 }
 
-// Classes by resource range. Above 0x1000 this is the executable's own rule,
+// Classes by resource range. Above 0x1000 this is the executable's rule,
 // ObjIDToSegmentID: a script's id is 0x1000 + objtype * 32 + object id, so
 // the object types in DVM_SYM.objtype lay out as Item (Prop, type 0, by prop
 // type) 0x10xx-0x13xx, Zone 0x14xx, SubZone 0x15xx, Character 0x18xx,
@@ -183,12 +183,12 @@ function dvmWord(v) {
 // so four pages) and Gremlin (type 0x78) 0x1Fxx. The wiki's Object page had
 // most of these; it called 0x19 "MonsterDeaths" and 0x1E "Unknown1E", both
 // corrected by the rule (0x1E20 is room 800, whose Enter changes zone).
-// 0x30xx is not from the rule and keeps the wiki's name.
+// 0x30xx is not from the rule and retains the wiki's name.
 //
 // Below 0x1000 there is no rule in the engine; these are by what the scripts
 // are and who reaches them. 0x901-0x906 and 0x981-0x98D are the scripted half
 // of the combat AI's vocabulary -- the six tests and thirteen actions the
-// application's own string lists STR# 9307 and 9308 name, in that order, and
+// application's string lists STR# 9307 and 9308 name, in that order, and
 // which compiled .ai rules invoke rather than scripts. 0x0Fxx is a library
 // of one-function character helpers, named by nothing in the files; 0x0Cxx-0x0Exx
 // are helpers too, called from dialogue and object scripts. 0x03xx is data
@@ -215,7 +215,7 @@ function dvmClassName(resid) {
   return null;
 }
 
-// Names for the scripts nothing in the file names. The archive's own symbol
+// Names for the scripts nothing in the file names. The archive's symbol
 // table (0x0101) and delvmod's short list come first in dvmResourceName;
 // these are read off the bytecode, one function each, on 8 September 2026.
 // Every 0x0Fxx script casts its first argument to a Character and does one
@@ -227,11 +227,11 @@ function dvmClassName(resid) {
    after reading their bytecode, and the files name none of them; the
    maintainer's rule is that a name shown is read out of the game's files or
    program. A helper is its id; the Read view reads a small one through, so
-   what it does is said anyway. */
+   what it does is written anyway. */
 const DVM_SCRIPT_NAMES = {};
 
-// A name for a script the file does not name itself: the AI vocabulary from
-// the application's own string lists when the page has that fork open
+// A name for a script that has none in the file: the AI vocabulary from
+// the application's string lists when the page has that fork open
 // (aiHookName is the page's; the lists are STR# 9307 and 9308, one entry per
 // script in order), else the table above.
 function dvmScriptName(rid) {
@@ -264,12 +264,12 @@ function dvmArrayContents(seg) {
 // Script contradicts that -- it compares field 3 against 0/1/2/4 with the
 // messages "It is locked" and "It is magically locked", which is a lock
 // state, and it adjusts field 1 by one when the door opens, which behaves
-// like a frame index. The prop records agree with the Door Script: doors are
-// placed at aspects 5, 7, 9 and 11, values field 3 never takes. So expect
+// like a frame index. The prop records match the Door Script: doors are
+// placed at aspects 5, 7, 9 and 11, values field 3 never has. So expect
 // `set_field aspect` in a door disassembly to be mislabelled; the struct
 // table has not been rewritten here because nothing else contradicts it.
 const DVM_SYM = {"syscall":{"160":"RangeIterator","161":"ArrayIterator","162":"GameOver","163":"UseTime","164":"TalkParticipant","165":"UnseenA5","166":"Delay","167":"Delete","168":"Create","169":"GetMapTile","170":"UnseenAA","171":"TakeItem","172":"Random","173":"New","174":"WhoHasItem","175":"UnseenAF","176":"UnseenB0","177":"RemoveItem","178":"UnseenB2","179":"UnseenB3","180":"ModalNumberInput","181":"UnseenB5","182":"UnseenB6","183":"WeightCapacity","184":"GetWeight","185":"JoinParty","186":"LeaveParty","187":"ModalPartySelector","188":"IsInParty","189":"PassTime","190":"UpdateLighting","191":"ChangeZone","192":"ShowMenu","193":"SetFlag","194":"ClearFlag","195":"StatusEffect","196":"TestFlag","197":"EmitSignal","198":"UnseenC6","199":"PropListIterator","200":"ContainerIterator","201":"RecursiveContainerIterator","202":"PartyIterator","203":"LocationIterator","204":"EquipmentIterator","205":"UnseenCD","206":"EnemyIterator","207":"EffectIterator","208":"MonsterIterator","209":"NearbyIterator","210":"PlayNote","211":"PlaySound","212":"UnknownD4","213":"UnseenD5","214":"PlayMusic","215":"PlayAmbientSound","216":"SetAmbientLighting","217":"SetLandscapeImage","218":"SetTitle","219":"HasWindow","220":"GetState","221":"SetState","222":"GetStateFlag","223":"SetStateFlag","224":"UnknownE0","225":"MagicAuraEffect","226":"ShootEffect","227":"FlashTile","228":"HitWithTile","229":"GetNextProp","230":"RefreshView","231":"SpecialView","232":"OpenConversation","233":"FinishConversation","234":"BeginCutscene","235":"EndCutscene","236":"BeginSlideshow","237":"EndSlideshow","238":"Slideshow","239":"UnseenEF","240":"AddTask","241":"FinishTasks","242":"AddQuest","243":"CompleteQuest","244":"AddConversationKeyword","245":"GetSkill","246":"SetViewPosition","247":"HasSightLine","248":"CDPlayerControl","249":"UnseenF9","250":"GetProp","251":"UnseenFB","252":"SetAutomapping","253":"SetBackgroundColor","254":"UnseenFE","255":"UnseenFF"},"field":{"0":"flags","1":"x","2":"y","3":"aspect","4":"obj_type","5":"aspect_and_proptype","6":"data1","7":"data2","8":"data3","9":"quantity","10":"tile","11":"container","12":"erode_effect","13":"rotate","17":"has_storage","18":"storage","19":"bit_flags","20":"status_flags","21":"behavior","22":"behavior2","23":"body","24":"reflex","25":"mind","26":"exp","27":"level","28":"health","29":"full_health","30":"magic","31":"full_magic","32":"dispatch_thing","33":"training","34":"target","35":"timing","38":"talk_balloon","40":"nutrition","41":"room_occupied","50":"monster_flags","53":"alignment"},"method":{"2":"Look","4":"HasSkill","7":"LookAt","8":"Examine","9":"Use","10":"UseOn","11":"UseAt","12":"Talk","13":"Wear","14":"UnWear","15":"Take","16":"PutInside","17":"Relinquish","20":"Enter","21":"GetMessage","23":"IsContainer","26":"Learn","29":"OnDeath","31":"StepOn","32":"EveryTurn","34":"Chair","35":"Mirror","36":"Weight","38":"Equipment","39":"ClassFlags","40":"Stacking","42":"MeleeWeapon","43":"ThrownWeapon","44":"ArmorValue","45":"Ammunition","46":"RangedWeapon","47":"Shield","48":"AlchemicalReagent","50":"LightSource","51":"AskedAbout","52":"Lockable","53":"UseLock","54":"AIInformation","57":"Dug","58":"Portal","59":"SoundEffects","60":"MoneyValue","64":"ResistDamage","65":"TakeDamage","68":"SpellsKnown","69":"NegotiationPoints"},"gui":{"4":"Create","6":"Text","8":"Button","15":"Instrument","17":"Spinner","20":"TextBox"},"global":{"0":"CurrentHour","1":"CurrentTime","2":"PlayerCharacterName","5":"PlayerCharacter","6":"CharactersInParty","7":"CharactersInParty2","9":"CurrentCharacter","10":"ConversationResponse","12":"Karma","13":"Registered","14":"LanguagesKnown","15":"GameDay","16":"CurrentZone","17":"DifficultyLevel","18":"CurrentRoom","19":"IsPlayerTurn"},"objtype":{"0":"Prop","32":"Zone","64":"Character","72":"Monster","80":"Skill","88":"Room"},"resource":{"2070":"GiveDirections","3206":"BlacksmithTasker","3332":"CountMoneyInParty","3651":"PickLock","3718":"AdjCharLevel","3723":"GainExp","3745":"CastSpell","3766":"AskAbout","3840":"SetCharacterFlag"},"character":{"0":"NoCharacter","1":"Hero","2":"Alaric","3":"Magpie","4":"Hadrian","5":"Emesa","6":"Hector","7":"LKH_Guard","8":"Cademia_Guard","9":"Ruins_Guard","10":"Myus","11":"Naxos","12":"Darius","13":"Pelagon","14":"Deiphobus","15":"Kosha_Guard","16":"Atreus","17":"Ennomus","18":"Ariethous","19":"Laodice","20":"Thuria","21":"Malis","22":"Cybele","23":"Amphidamas","24":"Eurybates","25":"Rhesus","26":"Lycurgus","27":"Erechtheus","28":"Thamyris","29":"Atymnius","30":"Milcom","31":"Sardis","32":"Ake","33":"Neoptolemus","34":"Meleager","35":"Hebe","36":"Antenor","37":"Alastor","38":"Aeneas","39":"Eioneus","40":"Parium","41":"Crito","42":"Apis","45":"Dares","46":"Diomede","48":"Thetis","49":"Bias","50":"Philinus","51":"Opheltius","52":"Ascalon","53":"Ariadne","54":"Odemia_Guard","55":"Tlepolemus","56":"Eteocles","57":"Laomedon","58":"Ilus","59":"Autonous","60":"Propontis","61":"Mantinea","62":"Halos","63":"Catamarca_Guard","64":"Oeneus","65":"Periphas","66":"Theano","67":"Hypsenor","68":"Thoas","69":"Dymas","70":"Sacas","71":"Metopes","72":"Berossus","73":"Itanos","74":"Timon","75":"Prusa","76":"Bryaxis","77":"Anisa","78":"Pheres","79":"Charax","80":"Lindus","81":"Selinus","82":"Palaestra","83":"Tros","84":"Pnyx_Guard","85":"Alcestris","86":"Asius","87":"Paris","88":"Helen","89":"Niobe","90":"Larisa","91":"Joppa","92":"Eudoxus","93":"Eumelus","94":"Antiphus","95":"Polydamas","96":"Peirithous","97":"Aethon","98":"Dryas","100":"Gate_Guard","101":"Thersites","102":"Glaucus","103":"Borus","104":"Briseis","105":"Pelops","106":"Alcmena","107":"Asteropaeus","108":"Stentor","109":"Demodocus","110":"Thrasymedes","111":"Protesilaus","112":"Menelaus","113":"Lycaon","114":"Peleus","115":"Peisander","116":"Danae","117":"Semele","118":"Alcyone","119":"Clytemnestra","120":"Sabinate","121":"Jhiaxus","122":"Unhayt","123":"Seqedher","124":"Uset","125":"Ignae","126":"Omen","127":"UrSylph","189":"Wishing_Fountain","190":"Degree_Hall_Door"}};
-/* The names an archive gives its own resources, read out of its 0x0101:
+/* What an archive calls its resources, read out of its 0x0101:
    "LKH_Guard", "Od_Trough1", the code identifiers the scripts were compiled
    with. Built once per archive. */
 function loadResourceSymbols(arc) {
@@ -314,11 +314,11 @@ function dvmSym(table, code) {
   return n ? n + ' (0x' + code.toString(16).toUpperCase() + ')' : '0x' + code.toString(16).padStart(2,'0').toUpperCase();
 }
 
-/* The character flags by the program's own names (23 September 2026; read
+/* The character flags by the program's names (23 September 2026; read
    out of the application since the 24th, programNames in js/page-rules.js).
-   The application's STR# titled "ObjectFlags" names the bits of the
+   The application's STR# titled "ObjectFlags" gives names to the bits of the
    halfword that the combat AI's TestFlag reads, and TSpellFX::AddAbility
-   keeps a range of flag numbers in that halfword; so the flag a word names
+   uses a range of flag numbers in that halfword; so the flag a word names
    is that range's first number plus its place in the list. Flags outside the
    range, and every flag without the application, print as numbers. The
    "Is" the authors put before each is not printed, and the words are spaced
@@ -330,7 +330,7 @@ function dvmFlagName(flag) {
 }
 /* Two bits of a character's bit flags (byte 8) by the program's words: the
    combat AI's tests that read a single bit of byte 8 (exeAiBitTests), named
-   from its own list of tests. Nothing without the application. */
+   from its list of tests. Nothing without the application. */
 function dvmBitFlagName(bit) {
   const pn = dvmProgramNames();
   return pn && pn.bits && pn.bits[bit] ? pn.bits[bit] : null;
@@ -341,12 +341,12 @@ function dvmBitFlagName(bit) {
 // (recipient, aspect<<10|proptype, data1, data2); New is (flags, x, y,
 // aspect, proptype, data1, data2)) and every position was confirmed against
 // real call sites in the shipped archive before being annotated here -- the
-// archive reproduces the board's own examples exactly: Emesa's flour is
+// archive reproduces the board's examples exactly: Emesa's flour is
 // New(16,0,0,0,167,0,0) at 0x1805 (her dialogue), Ennomus's tomb key is
 // Create(you, 3<<10|66, 5, 0) at 0x1811 (his). ChangeZone's integer operand
 // indexes the 0xF00C zoneport table: the portal object scripts (ladder,
 // hole, stairs, mineshaft, cave) pass get_field data3 straight into it.
-// StatusEffect takes a third operand, a duration, left unannotated because
+// StatusEffect has a third operand, a duration, left unannotated because
 // its unit is not established.
 function dvmAnnotateInt(encl, argIdx, v) {
   if ((encl === 0xC1 || encl === 0xC2 || encl === 0xC3 || encl === 0xC4) && argIdx === 1)
@@ -384,15 +384,15 @@ function dvmAnnotateInt(encl, argIdx, v) {
   return null;
 }
 
-/* The syscalls by the program's own names (the maintainer, 23 September
+/* The syscalls by the program's names (the maintainer, 23 September
    2026: the program's names replace delvmod's everywhere a name is shown;
    and on the 24th: read them out of the files, which the page has through
    the installer, rather than keep a copy). TInterp::DoExpr calls a syscall
-   through a table of the handlers, and each handler carries its authors'
+   through a table of the handlers, and each handler has its authors'
    name (cbnearby, cbAddAbility); programNames() in js/page-rules.js reads
    them off that table when the application is open (exeSyscallTable).
    Without it, delvmod's name stands. What delvmod calls them stays the key
-   inside the page (DVM_SYM.syscall, which delv_crosscheck holds to
+   inside the page (DVM_SYM.syscall, which delv_crosscheck checks against
    delvmod's source): every reader and matcher keys on those, and only what
    is printed changes. The "cb" the authors put before a callback's name is
    not printed. */
@@ -410,7 +410,7 @@ function dvmSyscallShown(name) {
   return _dvmShownOf.get(name) || name;
 }
 /* A listing as it is shown: each syscall by the program's name. The text the
-   page keeps (LAST_DECODED, the snapshots, the rule readers) keeps delvmod's,
+   page stores (LAST_DECODED, the snapshots, the rule readers) has delvmod's,
    so this runs at the moment of printing only. Raw: `sys Name`; folded and
    structured: a call `Name(` that is not a method (`.Name(`). */
 let _dvmSyscallNames = null;
@@ -435,16 +435,17 @@ function dvmOpEntry(op) {
 // where a raw string sits in the instruction stream with no 0x44 marker. The
 // page offers THREE possibilities without preferring any of them; delvmod's
 // ddasm acts on the second -- with the expectation stack empty, what follows
-// cannot be an opcode -- and states it as a rule with no printability test
-// at all: in direct mode ANY byte below 0x80 is output text, and the run
-// ends at the first byte >= 0x80, full stop. This function used to demand a
-// run of 3+ printable characters ending in a control byte instead, and
+// cannot be an opcode -- and states it as a rule with no printability test at
+// all: in direct mode ANY byte below 0x80 is output text, and the run ends at
+// the first byte >= 0x80, full stop. This function used to demand a run of 3+
+// printable characters ending in a control byte instead, and
 // delv_dasm_check.mjs showed on its first run what that heuristic cost: a
-// two-byte ")\n" in 0x301A or a lone '"' in 0x0EB6 was refused and decoded
-// as bogus local/arg opcodes, and a refused text byte in 0x41..0x64 consumed
-// phantom operand bytes and desynced the rest of the function. So this is
-// now delvmod's rule verbatim, held to it by that harness; the run keeps its
-// embedded NULs and newlines, exactly as ddasm's direct mode collects them.
+// two-byte ")\n" in 0x301A or a lone '"' in 0x0EB6 was rejected and decoded as
+// bogus local/arg opcodes, and a rejected text byte in 0x41..0x64 consumed
+// phantom operand bytes and desynced the rest of the function. So this is now
+// delvmod's rule verbatim, checked against it by that harness; the run retains
+// its embedded NULs and newlines, exactly as ddasm's direct mode collects
+// them.
 function dvmImplicitString(b, p) {
   if (p >= b.length || b[p] >= 0x80) return null;
   let q = p;
@@ -455,11 +456,11 @@ function dvmImplicitString(b, p) {
 }
 
 // A function body that is bare text: the head is the run of bytes below
-// 0x80 up to a NUL or the first opcode byte, and `bare` says that nothing
+// 0x80 up to a NUL or the first opcode byte, and `bare` records that nothing
 // follows it but a return (8B, an optional byte/short/word operand, 40) --
 // the shape of every description method, "text, return 0". dvmRender shows
 // such a function as its string. It used to cut the head at the NUL alone
-// and show the string whatever followed, which put the return's own bytes
+// and show the string whatever followed, which put the return's bytes
 // on the end of the text as "ãA" (247 functions end `8B 41 xx 40`, and the
 // listing carried the two bytes as Mac Roman letters) and hid the code of
 // the sixty-odd functions that go on after their text -- the scroll's
@@ -504,8 +505,8 @@ function dvmDisassemble(b, start) {
     if (op === 0x40) {
       const owner = stack.pop(); argn.pop();
       if (owner === 0x89 && p + 2 <= b.length) {
-        // A switch's closing 0x40 does not carry ONE target like an if's: it
-        // carries a u16 case count and then that many u16 case targets
+        // A switch's closing 0x40 does not have ONE target like an if's: it
+        // has a u16 case count and then that many u16 case targets
         // (ddasm's OpSwitch/OpCases). This read a single u16 for years and
         // walked into the label array; the archive has exactly two switches
         // (0x0E95, 0x0E96) and delv_dasm_check.mjs is what finally noticed.
@@ -578,7 +579,7 @@ function dvmDisassemble(b, start) {
          (TInterp::DoExpr's word case, VAddrToPtr), so `&Var2` is Var03: an
          iterator's position, kept in the slot after its loop variable. The
          name stays delvmod's, which this listing is compared against, and
-         the note says where it points (grimoire/iterator-slot-v4emzm). */
+         the note shows where it points (grimoire/iterator-slot-v4emzm). */
       else if ((wv & 0xF0000000) >>> 0 === 0x10000000)
         arg += '  // Var' + (wv & 0x0FFFFFFF).toString(16).toUpperCase().padStart(2, '0');
     } else if (spec) {
@@ -598,8 +599,8 @@ function dvmDisassemble(b, start) {
       else if (mn === 'short') v = (u16be(b, p) << 16) >> 16;
       /* An operand of 0x30 to 0x3F stores into argument operand - 0x30
          (TInterp::DoInterpAt, opcode 0x82), which the other views write
-         `Arg01 = ...`; the raw listing keeps delvmod's `set_local 0x31` and
-         says so in a note (grimoire/set-local-sdhb25). */
+         `Arg01 = ...`; the raw listing retains delvmod's `set_local 0x31` and
+         notes it (grimoire/set-local-sdhb25). */
       if (mn === 'set_local' && spec === 1 && b[p] >= 0x30 && b[p] <= 0x3F)
         arg = '0x' + hex(p, spec) + '  // Arg' + (b[p] - 0x30).toString(16).toUpperCase().padStart(2, '0');
       else arg = '0x' + hex(p, spec);
@@ -613,14 +614,14 @@ function dvmDisassemble(b, start) {
       }
     }
     /* [4] and [5] are for the folded views in js/delv-fold.js: how many
-       expression frames this op opens, and the opcode byte, which is what says
+       expression frames this op opens, and the opcode byte, which is what shows
        whether a frameless op is a value or an operator that consumes the
        values before it. Nothing in the raw listing reads them, and every other
        consumer destructures the first four, so appending them changes no text
        and no behaviour -- `decoder snapshot` in the suite is the proof. */
     out.push([at, expect ? 1 : 0, mn, arg, expect, op]);
     for (let k = 0; k < expect; k++) { stack.push(op); argn.push(0); opened = true; }
-    // An empty stack is the VM's own cue that what follows need not be code
+    // An empty stack is the VM's cue that what follows need not be code
     // (Strings Problem page), so probe for an implicit string here too.
     if (!expect && !stack.length) {
       const imp2 = dvmImplicitString(b, p);
@@ -635,7 +636,7 @@ function dvmDisassemble(b, start) {
 }
 
 // Objects are discovered by following references rather than assuming the
-// class table lists them all. An extent runs from an object's offset to the
+// class table has them all. An extent runs from an object's offset to the
 // next discovered offset, so a function stops where real data begins instead
 // of marching into it. This is what took coverage from 67% to 80%.
 // Does this byte stream parse as a Delver VM container for `resid`? A valid
@@ -662,14 +663,14 @@ function dvmPlausibleContainer(b, resid) {
   if (!b || b.length < 4) return false;
   const v = b[0];
   if (v === 0x81) return b[1] < 0x10 && b[2] < 0x30;
-  /* An array or table head used to be accepted on the nibble alone, and that
+  /* An array or table head was once accepted on the nibble alone, and that
      one line was every wrong verdict the structure path reached: 0x90-0xAF is
      32 of the 256 possible first bytes, so one resource in eight of ANY
      keystream output was called a container, and 78 clear graphics resources
      were decrypted because their noise happened to start there. The same
      evidence the dispatch-table arm below demands is available here -- a sane
      entry count and at least one reference back into this resource -- and
-     asking for it takes the false hits over the whole archive to nil while
+     requiring it brings the false hits over the whole archive to nil while
      costing two real plaintexts, which the entropy comparison then settles. */
   if ((v & 0xF0) === 0x90 || (v & 0xF0) === 0xA0) {
     const stride = (v & 0xF0) === 0xA0 ? 6 : 4;
@@ -685,8 +686,8 @@ function dvmPlausibleContainer(b, resid) {
 }
 
 // How many of the `count` entries at `off` are drefs into this same resource?
-// A dref has the top bit set, carries its resource id in bits 16..30 and its
-// offset in the low word; one that names this resource and lands inside it is
+// A dref has the top bit set, has its resource id in bits 16..30 and its
+// offset in the low word; one that points at this resource and lands inside it is
 // the evidence that the bytes really are a container and not something that
 // merely begins with the right nibble.
 function dvmSelfRefs(b, resid, off, stride, count) {
@@ -795,7 +796,7 @@ function dvmDiscover(b, resid) {
         }
       }
       // Lowest first, each against the objects as they stand after the ones
-      // before it. A subroutine target inside a function's own body --
+      // before it. A subroutine target inside a function's body --
       // including one added a moment ago -- is a nested subroutine of that
       // function and stays part of it, as ddasm reads it (Alaric's 0x1802,
       // whose 0x42 came up five events short when it was split out). A
@@ -908,7 +909,7 @@ function dvmRender(arc, b, resid) {
   // dvmStringObjects from regions past a disassembly desync. Listed here so
   // the Decoded pane shows it and, since the search index is built from this
   // function's output, so a search for a line of dialogue lands on the
-  // resource that says it.
+  // resource that has it.
   try {
     const raw = dvmStringObjects(arc, b, resid).filter(e => e.kind === 'raw');
     if (raw.length) {
@@ -920,8 +921,8 @@ function dvmRender(arc, b, resid) {
   return lines.join('\n');
 }
 
-// THE strings in a resource, read from the container rather than guessed at
-// from the raw bytes. This exists because the guessing was demonstrably
+// THE strings in a resource, read from the container rather than inferred
+// from the raw bytes. This exists because the inferring was demonstrably
 // wrong: resource 0x1B01 is `00 9D 81 01 00 "The most interesting..."`, and a
 // Pascal scan lands on the 'T', reads it as a length of 84 (0x54), and emits
 // "he most interesting ... with a glowing tria" -- first letter eaten, cut off
@@ -976,7 +977,7 @@ function dvmStringObjects(arc, b, resid) {
         } else {
           // Most dialogue is not a standalone string object -- it is a
           // `pushc` operand inside a function, which only the disassembler
-          // can find. Harvesting those is what keeps a character's lines
+          // can find. Harvesting those is what saves a character's lines
           // from vanishing when the naive Pascal scan is switched off.
           let r;
           try { r = dvmDisassemble(seg, 3); } catch (e) { r = null; }
@@ -984,7 +985,7 @@ function dvmStringObjects(arc, b, resid) {
             if (op[2] !== 'string' && op[2] !== 'string(implicit)') continue;
             let t;
             try { t = JSON.parse(op[3].replace(/ -> 0x[0-9A-F]{4}$/, '')); } catch (e) { continue; }
-            // The implicit string keeps the NULs ddasm's direct mode reads
+            // The implicit string retains the NULs ddasm's direct mode reads
             // (dvmImplicitString); the head above drops them, and so does this.
             if (op[2] === 'string(implicit)' && t) t = t.replace(/\0/g, '');
             if (t && t.trim() && /[A-Za-z]{2}/.test(t)) {
@@ -1000,7 +1001,7 @@ function dvmStringObjects(arc, b, resid) {
         // Strings Problem page): a string is a maximal run of printable
         // ASCII ended by a non-printing byte, not a length-prefixed record.
         // Runs that read as prose are kept as kind 'raw': weaker provenance,
-        // said out loud, better than ten kilobytes of silence. A couple of
+        // stated plainly, better than ten kilobytes of silence. A couple of
         // printable opcode bytes can glue to a run's front ('@' is the end
         // opcode), so up to three leading non-textual characters are
         // trimmed.
@@ -1089,7 +1090,7 @@ function dvmOutboundRefs(b, resid) {
   return refs;
 }
 
-// A one-line description of what the container actually holds, built from the
+// A one-line description of what the container actually contains, built from the
 // same discovery pass the disassembler uses.
 function dvmShapeSummary(b, resid) {
   try {
@@ -1127,7 +1128,7 @@ function dvmShapeSummary(b, resid) {
    (Human), which is exactly the multiple-inheritance lookup order Pallas
    Athene worked out by asking Naxos, Darius and a commoner about Attis and
    Berossus (forum t1654). Any text left in "*" after those calls is the
-   character's own fallback line.
+   character's fallback line.
 
    Offsets: dvmDisassemble works seg-relative (dvmExtents hands it one object
    at a time) but branch targets are resource-relative, so `target - st`
@@ -1193,7 +1194,7 @@ function dvmConversation(b, resid) {
         pendingSys = { sys: mn.slice(4) };
         e.actions.push(pendingSys);
       } else if (pendingSys && arg && arg.indexOf('  // ') >= 0) {
-        // Create/New leave their meaning on the annotated operand -- carry
+        // Create/New leave their meaning on the annotated operand -- move
         // "aspect 3, proptype 66 — key" onto the action badge.
         pendingSys.note = arg.slice(arg.indexOf('  // ') + 5);
         pendingSys = null;
@@ -1203,7 +1204,7 @@ function dvmConversation(b, resid) {
   if (!sawConv) return null;
   // The inheritance chain: subindex-8 calls inside the "*" entries, in
   // order. Entries, plural -- Halos's script has one catch-all per function,
-  // and only the second carries his House Strymon -> Cademia -> Human chain.
+  // and only the second has his House Strymon -> Cademia -> Human chain.
   // groupsAll additionally sweeps the whole conversation, because a
   // character can reach a generic set from a topic rather than the
   // catch-all: a bartender's drink/food/room topics run through the
