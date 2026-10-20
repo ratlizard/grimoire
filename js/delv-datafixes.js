@@ -1829,6 +1829,34 @@ const DATA_FIXES = [
           return 'record 96, byte 7: the Alive bit set';
       } },
     ] },
+  // The Abydos ghost (0x1121), the vision the flatbread offering calls up
+  // (0x10E7), the wishing fountain (0x1036) and the riddle switch (0x1110)
+  // speak as characters 187, 188, 189 and 191 (TalkParticipant), and the
+  // conversation box named each "Nothing" (seen on the 2019 livestream at
+  // 1:17:45, 1:56:30 and 2:09:00; bugs.md, Found checking the 2019
+  // livestream). TConversation::ShowPortrait names a speaker through
+  // GetCharacterName, which reads the name table (0x0201) only when the
+  // character's flag 7, the name known, is set (byte 8, bit 0x80), and
+  // otherwise gives the tile name of the record's prop type. These records
+  // are empty, prop type 0, whose tile is "Nothing". The Degree Hall door
+  // (190, 0x1114) has the flag and the name "Door", and was always right.
+  // THE CHANGE: flag 7 set on the four, so the name table speaks: "???" for
+  // the ghost, the vision and the switch, which the maintainer chose to keep
+  // (19 October 2026), and "Fountain". Omen (126) shows "Nothing" until his
+  // name is learnt for the same reason, and is left alone: the flag would
+  // name him before he is introduced. A saved game carries its own character
+  // table, so this reaches new games only.
+  { id: 'nobody-speakers', group: 'talk', stage: 'apart', title: 'The Abydos ghost, the vision, the wishing fountain and the riddle switch are no longer called \u201cNothing\u201d when they speak',
+    dataEdits: [
+      { what: 'speakers 187, 188, 189 and 191 known by name', resid: 0xF009, fn: (b) => {
+          for (const n of [187, 188, 189, 191]) {
+            const r = b.subarray(n * 32, n * 32 + 32);
+            if (r.some(x => x !== 0)) throw new Error('record ' + n + ' is not the empty record this fix expects');
+          }
+          for (const n of [187, 188, 189, 191]) b[n * 32 + 8] |= 0x80;
+          return 'records 187, 188, 189 and 191, byte 8: flag 7 set';
+      } },
+    ] },
   // The manuscript on Semius the Golem Hunter (0x021D) has him buying a
   // lyre and "saying something about the 'key to opening being SGD'". The
   // lyre's lock (signal 131, the sewer's secret door to the room where his
