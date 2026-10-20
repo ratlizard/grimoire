@@ -21,10 +21,7 @@
                  as the player would see it
      name        a few words on a separate line over the title, written by
                  the maintainer, as is the title of a fix that has one
-                 (17 October 2026); a fix without one shows its title alone.
-                 None has one on main since 20 October 2026: the names
-                 are kept on the branch `fix-names`, one commit that puts
-                 them back
+                 (17 October 2026); a fix without one shows its title alone
      group       which list the Patches section shows it in (DATA_FIX_GROUPS),
                  which also places the program's fixes (APP_FIX_GROUP) and
                  DATA_RSRC_FIXES below
@@ -241,7 +238,7 @@ const DATA_FIXES = [
     ] },
   // Sleep's magic bonus (0xE93): the guard and the cap both read full
   // health where full magic is meant; both now read full magic.
-  { id: 'sleep-magic', group: 'rules', stage: 'found', title: 'Sleep now restores magic up to full magic, instead of up to full health',
+  { id: 'sleep-magic', group: 'rules', stage: 'found', name: 'Magical mix-up', title: 'Sleep now restores magic up to full magic, instead of up to full health',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a hero with 28 health and 30 of 60 magic slept until midnight in the bed of Land King Hall’s room 2, "You sleep soundly.", and woke with 60 magic, against 45 unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: 30 of 60 magic, the bed of Land King Hall’s room 2, Until Midnight, "You sleep soundly." and 60 of 60',
     edits: [
       { what: 'sleep’s magic cap', resid: 0xE93, at: 0x0248, replaceOp: true, expect: { 0x0248: 'get_field full_health', 0x024E: 'set_field magic' }, code: 'get_field full_magic (0x1F)' },
@@ -250,7 +247,7 @@ const DATA_FIXES = [
   // The bartenders' rumours (0x813): the choice between the town's
   // rumours and the general ones rolled Random(0, 1), which is always 0; it
   // rolls Random(0, 2), so both are heard.
-  { id: 'rumours', group: 'talk', stage: 'found', title: 'Bartenders now able to tell Cythera\u2019s general rumors, not just local ones',
+  { id: 'rumours', group: 'talk', stage: 'found', name: 'A friend of a friend of mine', title: 'Bartenders now able to tell Cythera\u2019s general rumors, not just local ones',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: eight rounds bought from Apis in Cademia; alone and on “All Fixes” one of them drew a rumour of the general list, "They say that a bunch of those old ruins were found down in a swamp to the south." alone, against the town’s list only unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: eight rounds bought from Apis, among them "They say that a bunch of those old ruins were found down in a swamp to the south." and four more of the general list, against the town’s list only in eight rounds unpatched',
     edits: [
       { what: 'the bartenders’ rumours', resid: 0x813, at: 0x02AB, replaceOp: true, expect: { 0x02A8: 'sys Random', 0x02A9: 'byte 0x00', 0x02AB: 'byte 0x01' }, code: 'byte 0x02' },
@@ -272,7 +269,7 @@ const DATA_FIXES = [
   // (0xE0B) and wine (0xE0D) helpers do after the same line. (27 September
   // 2026, found while reading every UseOn that deletes one of its
   // arguments; 0xE0A is the one helper among them that does.)
-  { id: 'water-full-pitcher', group: 'items', stage: 'found', title: 'Water poured into a full pitcher now stops at \u201cThe pitcher is already full.\u201d, instead of going on to \u201cYou can\u2019t use water there...\u201d',
+  { id: 'water-full-pitcher', group: 'items', stage: 'found', name: 'Glass fully full', title: 'Water poured into a full pitcher now stops at \u201cThe pitcher is already full.\u201d, instead of going on to \u201cYou can\u2019t use water there...\u201d',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a pail of water poured on a full pitcher, "The pitcher is already full." alone, against that line and "You can’t use water there..." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "The pitcher is already full." alone',
     edits: [
       { what: 'water into a full pitcher', resid: 0xE0A, at: 0x00EA, expect: { 0x00CD: 'string(implicit) "The pitcher is already full.', 0x00EA: 'branch 0x0121', 0x00ED: 'string(implicit) "The pitcher is now filled with water' },
@@ -286,7 +283,7 @@ const DATA_FIXES = [
   // its water line. The test goes where the goat test's "no" already lands,
   // so the rest of the chain is untouched. (The maintainer's word, 27
   // September 2026.)
-  { id: 'pitcher-in-wine', group: 'items', stage: 'found', title: 'Using an empty pitcher on the wine urn now fills it with wine, instead of showing \u201cThe pitcher is empty.\u201d',
+  { id: 'pitcher-in-wine', group: 'items', stage: 'found', name: 'My cup runneth under', title: 'Using an empty pitcher on the wine urn now fills it with wine, instead of showing \u201cThe pitcher is empty.\u201d',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: an empty pitcher used on the wine urn, "The pitcher is now full of wine." and the pitcher saved holding wine, against "The pitcher is empty." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "The pitcher is now full of wine.", against "The pitcher is empty." unpatched',
     edits: [
       { what: 'a pitcher dipped in wine', resid: 0x10A0, at: 0x01FD,
@@ -306,7 +303,7 @@ const DATA_FIXES = [
   // Sword, Axe and Mace training (0xE87). The melee resolver adds the
   // weapon's skill twice, and both reads take the skill off the shield
   // loop's leftover variable; with the fix each reads it off the weapon (Arg02).
-  { id: 'weapon-skill', group: 'rules', stage: 'community', title: 'Sword, Axe and Mace skill now counts in a fight, instead of counting for nothing',
+  { id: 'weapon-skill', group: 'rules', stage: 'community', name: 'Mall ninja', title: 'Sword, Axe and Mace skill now counts in a fight, instead of counting for nothing',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a hero given a sword in hand and Sword skill 15 by an edit, thirty attacks on Apis, her health set to 255; she is dead within nineteen blows, some of them "ground" and "shredded", against alive at 12 of 255 unpatched with none above "smashed". With the skill at a level the game reads as none, the two fight alike; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the same hero and sword, Apis dead at the sixteenth attack, two blows "ground a woman to dust", against, unpatched there, Apis dead at the twenty-eighth attack and no blow above "smashed"',
     edits: [
       { what: 'weapon skill, damage', resid: 0xE87, at: 0x0096, replaceOp: true, expect: { 0x0096: 'local Var02', 0x0097: 'class_member 0x2A03' }, code: 'arg Arg02' },
@@ -314,7 +311,7 @@ const DATA_FIXES = [
     ] },
   // "Indeed I am." was drawn as the hero's (0x1804): the string is split and
   // Hadrian named between the halves.
-  { id: 'hadrian-indeed', group: 'talk', stage: 'community', title: 'Hadrian now says \u201cIndeed I am.\u201d instead of you replying to yourself',
+  { id: 'hadrian-indeed', group: 'talk', stage: 'community', name: 'Sign of instability', title: 'Hadrian now says \u201cIndeed I am.\u201d instead of you replying to yourself',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "son" to Hadrian, "Indeed I am." drawn beside his portrait, against beside the hero’s, over the topics, unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Indeed I am." beside Hadrian’s portrait',
     edits: [
       { what: '"Indeed I am." is Hadrian’s', resid: 0x1804, at: 0x02A9, to: 0x02E0,
@@ -323,14 +320,14 @@ const DATA_FIXES = [
     ] },
   // Hadrian asks after Hector (0x1804): his "son" topic tested his own alive
   // bit; it tests Hector's.
-  { id: 'hadrian-hector', group: 'talk', stage: 'community', title: 'You can now tell Hadrian that his son Hector has died',
+  { id: 'hadrian-hector', group: 'talk', stage: 'community', name: 'Oh yeah, him', title: 'You can now tell Hadrian that his son Hector has died',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Hector’s flag 0 set and his alive bit cleared by an edit, "son" to Hadrian, "I regret to tell you that Hector has died in my service.", against "Yes, you should be quite proud." unpatched; with Hector alive, that line on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: with Hector dead, "I regret to tell you that Hector has died in my service."',
     edits: [
       { what: 'Hadrian tests Hector', resid: 0x1804, at: 0x0299, replaceOp: true, expect: { 0x0299: 'word Character.Hadrian', 0x029F: 'if_not' }, code: 'word Character.Hector' },
     ] },
   // Aethon told to leave (0x1861): "Maybe it is time for me to catch some
   // rats for myself..." is followed by LeaveParty, as Hector's is.
-  { id: 'aethon-leaves', group: 'talk', stage: 'community', title: 'Aethon actually leaves the party when he says he will',
+  { id: 'aethon-leaves', group: 'talk', stage: 'community', name: 'Lying rat (catcher)', title: 'Aethon actually leaves the party when he says he will',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: Aethon in the party, "leave", "Maybe it is time for me to catch some rats for myself..." and he is saved out of the party, against the same line and still in it unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "leave" drew "Maybe it is time for me to catch some rats for myself...", the conversation ended and he was gone from the party',
     edits: [
       { what: 'Aethon leaves', resid: 0x1861, at: 0x0765, replaceOp: true, expect: { 0x072B: 'string(implicit) "\\"Maybe it is time', 0x0765: 'branch' },
@@ -338,7 +335,7 @@ const DATA_FIXES = [
     ] },
   // Alaric forgets 201 (0x1802): the "hist" topic's test of his flag 2 was
   // the wrong way round; a `not` turns it.
-  { id: 'alaric-201', group: 'talk', stage: 'community', title: 'Alaric no longer re-forgets the year his mother died',
+  { id: 'alaric-201', group: 'talk', stage: 'community', name: 'Oh yeah, her', title: 'Alaric no longer re-forgets the year his mother died',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Alaric’s flag 2 set by an edit, "hist", "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched; with the flag clear, the two the other way round; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "My history, I remember a few parts...", against "There are days I don’t remember what happened the day before..." unpatched',
     edits: [
       { what: 'Alaric remembers 201', resid: 0x1802, at: 0x1F3B, expect: { 0x1F34: 'call_resource 0xF02', 0x1F3B: 'then' }, code: 'not' },
@@ -346,7 +343,7 @@ const DATA_FIXES = [
   // Awakening's blank conversation (0x1A13): the sleeper and the hero are
   // named as speakers before the sleeper's Talk, as the game's Talk
   // command assigns them.
-  { id: 'awakening', group: 'rules', stage: 'community', title: 'You can now talk to someone woken by Awakening, instead of getting a blank conversation',
+  { id: 'awakening', group: 'rules', stage: 'community', name: 'Where\u2019s my coffee', title: 'You can now talk to someone woken by Awakening, instead of getting a blank conversation',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Awaken, given as an ability by an edit, cast on Theano asleep in Cademia, "A person sleeping is awoken." and the conversation opens with her portrait and the hero’s, against a window with neither unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "A person sleeping is awoken." and the conversation opens with both portraits, against a window with neither unpatched',
     edits: [
       { what: 'Awakening shows its speakers’ names', resid: 0x1A13, at: 0x00D7, expect: { 0x00D5: 'sys OpenConversation', 0x00D7: 'method Talk' },
@@ -373,7 +370,7 @@ const DATA_FIXES = [
   // keyword lists that the board reported (0x1828, 0x1829, 0x182A, 0x1818,
   // 0x080F), and two this project found (0x186D Demodocus's "fish, tlep",
   // 0x1878 Sabinate's "form, shap"), which were built in the found stage.
-  { id: 'keyword-spaces', group: 'talk', title: 'Seven keywords no longer require a space preceding them to be recognized',
+  { id: 'keyword-spaces', group: 'talk', name: 'Lost in space', title: 'Seven keywords no longer require a space preceding them to be recognized',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, in part (Crito and Apis of the seven): "crit" to Crito in Odemia drew his innkeeper’s offer, which opens "Yes - are you interested in a", against "My cousin Crito runs the Titan’s Head in Odemia." unpatched, and "apis" to Apis in Cademia the innkeeper’s offer there, against "My cousin Apis runs the Two-Taled Rat in Cademia."; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "crit" to Crito and "apis" to Apis each drew the innkeeper’s offer; the same save and word with no patch installed, 11 October 2026: "crit" drew "My cousin Crito runs the Titan’s Head in Odemia."',
     parts: [
       { stage: 'found', edits: [
@@ -397,7 +394,7 @@ const DATA_FIXES = [
         code: 'call_resource SetCharacterFlag (0xF00)\narg Arg00\nbyte 0x04\nend' },
     ] },
   // The rolling pin vanishing (0x10A3): the dough is deleted, not the pin.
-  { id: 'rolling-pin', group: 'items', stage: 'community', title: 'Kneading now uses up the dough, instead of the rolling pin',
+  { id: 'rolling-pin', group: 'items', stage: 'community', name: 'Damn how hard were you kneading', title: 'Kneading now uses up the dough, instead of the rolling pin',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the rolling pin used on dough without Cooking, "You end up kneading the dough into nothingness.", the dough gone and the pin kept, against the pin gone and the dough left unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the same line, the pin kept and the dough gone, against the pin gone and the dough left unpatched',
     edits: [
       { what: 'the rolling pin', resid: 0x10A3, at: 0x0162, replaceOp: true, expect: { 0x0131: 'string(implicit) "You end up kneading', 0x0161: 'sys Delete', 0x0162: 'arg Arg00' }, code: 'arg Arg01' },
@@ -418,7 +415,7 @@ const DATA_FIXES = [
   // window calls member 23 on the thing under the cursor each time it checks
   // a drop, and the carcass's answer printed the line; the rejection no longer
   // prints.
-  { id: 'carcass', group: 'items', stage: 'community', title: 'Dragging something over a carcass is now quiet, instead of printing \u201cYou can\u2019t stuff the carcass!\u201d at every check',
+  { id: 'carcass', group: 'items', stage: 'community', name: 'Well now I want to', title: 'Dragging something over a carcass is now quiet, instead of printing \u201cYou can\u2019t stuff the carcass!\u201d at every check',
     played: 'Mac OS 8.5, 11 October 2026, the fix alone and “All Fixes”, each installed by Magpie: a carcass in the pack used, so its window opens, and a dagger dragged from the pack into that window; nothing is printed, against "You can’t stuff the carcass!" five times and more unpatched. Not played in the fork',
     edits: [
       { what: 'the carcass', resid: 0x10D2, at: 0x0049, to: 0x0066, expect: { 0x0049: 'string(implicit) "You can\'t stuff the carcass', 0x0066: 'return' }, code: '' },
@@ -441,7 +438,7 @@ const DATA_FIXES = [
   // amulet returns before its charge is taken (a rock still costs one, as
   // shipped). Kept in "All Fixes" and in "Cythera Resurrection Fix" both,
   // which is why the resurrection fix finds its place rather than assuming it.
-  { id: 'nobody-corpse', group: 'rules', stage: 'community', title: 'Raising a corpse that belongs to nobody now does nothing, instead of making the corpse and everything on it vanish',
+  { id: 'nobody-corpse', group: 'rules', stage: 'community', name: 'Dead and blipped', title: 'Raising a corpse that belongs to nobody now does nothing, instead of making the corpse and everything on it vanish',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the Land King Amulet used on a corpse with no owner, "Nothing happens." and the corpse left, against "A cave has been brought back from the brink of death." and the corpse gone unpatched; the spell was not cast; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Nothing happens.", against "A cave has been brought back from the brink of death." unpatched; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie, the spell: Resurrection cast on a corpse with no owner, "Nothing happens." and the corpse left, against the corpse gone and no line unpatched',
     edits: [
       { what: 'the spell, a corpse of nobody', resid: 0x1A2F, at: 0x00D5,
@@ -453,7 +450,7 @@ const DATA_FIXES = [
         code: ['if', 'arg Arg01', 'get_field data1 (0x6)', 'then -> someone',
           'string(implicit) "Nothing happens.\\n"', 'return', 'byte 0x00', 'end', 'someone:'].join('\n') },
     ] },
-  { id: 'thrown-weapon', group: 'rules', stage: 'community', title: 'A thrown dagger or spear that kills is now kept, instead of lost',
+  { id: 'thrown-weapon', group: 'rules', stage: 'community', name: 'Missing missile', title: 'A thrown dagger or spear that kills is now kept, instead of lost',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a dagger put in the hero’s hand by an edit and thrown at Apis two squares off, her health set to 1; she dies and the dagger is saved in the hero’s pack, against saved inside her, a dead character, unpatched. A spear from three squares was "too far away to attack" on both; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the dagger thrown at Apis two squares off, she dies and the dagger is listed in the hero’s pack, against, unpatched there, she dies and the dagger is saved inside her',
     edits: [
       { what: 'a thrown weapon, placed', resid: 0x3042, at: 0x0158, expect: { 0x0150: 'set_field container', 0x0158: 'branch' },
@@ -477,7 +474,7 @@ const DATA_FIXES = [
   // Eteocles's "kesh" (0x1838): the test reads quest flag 4 (Guild
   // membership), as his other five tests do, not quest value 4, which is
   // where Demodocus is and is never 0.
-  { id: 'eteocles-kesh', group: 'talk', stage: 'community', title: 'Eteocles now recognizes if you\u2019re in the Guild when you ask about kesh',
+  { id: 'eteocles-kesh', group: 'talk', stage: 'community', name: 'Guild secrets', title: 'Eteocles now recognizes if you\u2019re in the Guild when you ask about kesh',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, the person brought to the hero by the in-party bit: "kesh" to Eteocles from a hero outside the Guild drew "Youse is awful nosy.", against "Yeah, we heard of da stuff." unpatched; a Guild member’s answer was not tried; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "kesh" to Eteocles, where he stands, drew "Youse is awful nosy."',
     edits: [
       { what: 'Eteocles’s "kesh"', resid: 0x1838, at: 0x01ED, replaceOp: true, expect: { 0x01E4: 'conversation_response "kesh"', 0x01ED: 'sys GetState', 0x01EE: 'byte 0x04' }, code: 'sys GetStateFlag' },
@@ -549,7 +546,7 @@ const DATA_FIXES = [
   // hidden are placed as eggs and hatch as the party comes near: the pass
   // the next waking hour would have run, run immediately. The loop's exit lands
   // on the first, and nothing jumps to the second.
-  { id: 'sleep-reschedule', group: 'world', stage: 'community', title: 'People are now back around the zone after a night\u2019s sleep, instead of missing until a later hour',
+  { id: 'sleep-reschedule', group: 'world', stage: 'community', name: 'Twilight zone', title: 'People are now back around the zone after a night\u2019s sleep, instead of missing until a later hour',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: the hero slept until midnight in Land King Hall, "You sleep soundly."; Alaric, Magpie and Hector are saved as waiting to appear and Hadrian and Emesa as present, against all five hidden unpatched. Read from the save, not seen on a screen; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: after the same sleep the five are saved as in the fork with the fix, against all five hidden unpatched there too. Read from a save copied out of the machine',
     edits: [
       { what: 'the sleepers rescheduled after a night', resid: 0xE93, at: 0x0160,
@@ -570,7 +567,7 @@ const DATA_FIXES = [
   // description is "signals the caster when something steps on it". No map
   // places a rune and no shipped AI script casts one, so every rune is the
   // party's, and the test goes: the line always prints.
-  { id: 'rune-of-warding', group: 'rules', stage: 'community', title: 'A rune of warding now shows a message when something steps on it, instead of vanishing in silence',
+  { id: 'rune-of-warding', group: 'rules', stage: 'community', name: 'You had one job', title: 'A rune of warding now shows a message when something steps on it, instead of vanishing in silence',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the hero cast a rune on the next square and stepped on it, "Something has triggered one of your runes of warding.", against no line unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: a rune put on the next square by an edit and stepped on, the same line, against no line unpatched',
     edits: [
       { what: 'the rune of warding signals', resid: 0x10F5, at: 0x0017, to: 0x0022,
@@ -580,7 +577,7 @@ const DATA_FIXES = [
     ] },
   // Pelagon back in the kesh lab (0xF00B): his schedule's flag-0 pair (off
   // every map) is moved in front of its quest-value pair.
-  { id: 'pelagon-lab', group: 'world', stage: 'community', title: 'Pelagon now stays away from the kesh lab, instead of coming back to it',
+  { id: 'pelagon-lab', group: 'world', stage: 'community', name: 'Begone Pelagon', title: 'Pelagon now stays away from the kesh lab, instead of coming back to it',
     played: 'fork, 68K, 10 October 2026, alone: Pelagon’s flag 0 and quest value 3 at 3 set by edits in a saved Kosha, the clock just before noon so the hour turns as it loads; he is saved off every map, against in the Kosha Grotto at (13,17) unpatched. With his flag clear he is in the Grotto on both. Read from the save, not seen on a screen; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: he is saved off every map, against in the Grotto at (13,17) unpatched. Read from a save copied out of the machine',
     dataEdits: [
       { what: 'Pelagon’s schedule', resid: 0xF00B, fn: (b) => {
@@ -597,7 +594,7 @@ const DATA_FIXES = [
     ] },
   // Only Philinus's panpipes work (0x8108): the two placed sets get Data1 1,
   // the set that can play PHJMD.
-  { id: 'panpipes', group: 'items', stage: 'community', title: 'Every set of panpipes can now play the tune, instead of Philinus\u2019s alone',
+  { id: 'panpipes', group: 'items', stage: 'community', name: 'Piping not', title: 'Every set of panpipes can now play the tune, instead of Philinus\u2019s alone',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the set on the table at (62,24) of Cademia, used, shows the notes P M J H D, against P M J G D unpatched; the tune itself was not played; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the set at (62,24) of Cademia shows P M J H D, its picture drawn as pipes',
     dataEdits: [
       { what: 'the placed panpipes', resid: 0x8108, fn: (b) => {
@@ -617,7 +614,7 @@ const DATA_FIXES = [
   // there (the six classes whose ClassFlags have 0x200). A first try, the
   // door's helper not closing on a thing, could never run: the
   // click does not reach the door.
-  { id: 'door-under-thing', group: 'world', stage: 'community', title: 'A door comes first: using a thing that lies in a doorway works the door, which opens and will not close on it, instead of staying stuck',
+  { id: 'door-under-thing', group: 'world', stage: 'community', name: 'Jamb jam', title: 'A door comes first: using a thing that lies in a doorway works the door, which opens and will not close on it, instead of staying stuck',
     played: 'fork, 68K, and Mac OS 8.5 with each patch installed by Magpie, 12 October 2026, the stock file, the fix alone and every fix: a dagger put by an edit on the square of the oak door at (52,21) of Cademia, the hero south of it, Use on that square three times. Unpatched the pane shows "> Use dagger." three times and the door stays shut. With the fix alone and with every fix the first Use opens the door, the room behind it drawn, and the second and third show "Something is in the doorway." and leave it open. In the fork, with no dagger, three Uses open, shut and open the door on all three files. A potion on the same square, the same day, the fork and Mac OS 8.5: unpatched "Whom should quaff potion?" and the door shut; with the fix alone and with every fix the door opens and the next two Uses show "Something is in the doorway." A potion on open floor prompts for whom, on all three files (fork). The kinds another fix also edits, 13 October 2026, the fork, the three files: a fishing pole, a pitcher and the strange device in the doorway each do what they do elsewhere and leave the door shut unpatched, and open it with the fix alone and with every fix; a fishing pole on open floor shows its line on all three. Mac OS 8.5, the same day, the fishing pole in the doorway, each patch installed by Magpie: its line three times and the door shut unpatched; the door opened and "Something is in the doorway." twice with the fix alone and with every fix',
     // With the Use handed on, a door could be shut on the thing and opened
     // again through it, which is one rule for the player and another for
@@ -690,7 +687,7 @@ const DATA_FIXES = [
   // his Barehand is gone. A pick whose flags have 0x04, the bit a skill
   // or spell has and a thing carried or worn does not, now ends as a
   // failed cast does, "Nothing seems to happen."
-  { id: 'shake-down-skills', group: 'rules', stage: 'community', title: 'Shake Down no longer makes someone drop a skill, which fell as a haystack',
+  { id: 'shake-down-skills', group: 'rules', stage: 'community', name: 'Haymaker', title: 'Shake Down no longer makes someone drop a skill, which fell as a haystack',
     played: 'Mac OS 8.5, 12 October 2026, the fix alone and with every fix, each installed by Magpie: a mid-game save with Meleager holding nothing but his Barehand skill, Shake Down cast on him: "Meleager drops a haystack." and a haystack on his square unpatched; "Nothing seems to happen." twice, and no haystack, with the fix alone and with every fix. That line is also a failed cast\u2019s, and two casts were made each time. Not played in the fork',
     edits: [
       { what: 'Shake Down leaves a skill where it is', resid: 0x1A24, at: 0x0133,
@@ -709,13 +706,13 @@ const DATA_FIXES = [
   // 1, so it draws the desk's tile and has no Use, where a desk's opens it:
   // the desk beside Paris that "is immovable and unusable". Each is given
   // the type whose picture it wears, at that type's first aspect.
-  { id: 'furniture-types', group: 'items', stage: 'community', title: 'Three end tables that were chairs underneath can no longer be carried off, and a desk in Pnyx that was an end table underneath now opens',
+  { id: 'furniture-types', group: 'items', stage: 'community', name: 'Faux furniture', title: 'Three end tables that were chairs underneath can no longer be carried off, and a desk in Pnyx that was an end table underneath now opens',
     played: 'Mac OS 8.5, 12 October 2026, the fix alone and with every fix, each installed by Magpie, a save that had never held Catamarca or Pnyx: Take on the end table at (26,37) of Catamarca, "You can\u2019t take an end table!" and the record on the floor in the save, against "Your deeds stain your soul." and the record carried, unpatched; Use on the desk at (16,51) of Pnyx opens its drawer, against nothing unpatched. Fork, 68K, the same day and the same two, the stock file, the fix alone and every fix: the same lines, and the desk\u2019s window. In a save that already has a zone, that zone\u2019s records stay as they were, so the end table in Land King Hall stayed a chair in a save made there; the hall\u2019s and the second of Catamarca\u2019s were not played',
     dataEdits: [[0x8103, 34, 0x100C, 0x000D, 'the end table in Land King Hall'], [0x8106, 46, 0x100C, 0x000D, 'an end table in Catamarca'],
                 [0x8106, 48, 0x100C, 0x000D, 'another end table in Catamarca'], [0x810C, 321, 0x040D, 0x0011, 'the desk in Pnyx']].map(([resid, rec, was, now, what]) => (
       { what, resid, fn: new Function('b', `const p = ${rec} * 16; if ((b[p + 4] << 8 | b[p + 5]) !== ${was}) throw new Error('record ${rec} is not the type and aspect the page read'); b[p + 4] = ${now >> 8}; b[p + 5] = ${now & 0xFF}; return 'record ${rec} given the type its picture is of';`) })) },
 
-  { id: 'arrow-stacks', group: 'items', stage: 'community', title: 'The magic arrow in Land King Hall now looks like one arrow, instead of a stack, and two stacks in Cademia look right',
+  { id: 'arrow-stacks', group: 'items', stage: 'community', name: 'Lasik', title: 'The magic arrow in Land King Hall now looks like one arrow, instead of a stack, and two stacks in Cademia look right',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the crate at (103,58) of Cademia, opened, shows its arrows with the count 30, against one arrow and no count unpatched; the Land King Hall arrow and the second Cademia stack were not looked at; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the crate at (103,58) of Cademia shows its arrows with the count 30',
     dataEdits: [
       { what: 'the Cademia arrow stacks', resid: 0x8108, fn: (b) => {
@@ -781,7 +778,7 @@ const DATA_FIXES = [
   // the four kilts into record 673, taking it for the dresser: they came out
   // of the tunic and into the cape, as far from reach as before, which
   // showed when the fix was first played.
-  { id: 'kilts', group: 'items', stage: 'community', title: 'The tunics and kilts in a Kosha dresser are now in the dresser, instead of inside a cape and a tunic',
+  { id: 'kilts', group: 'items', stage: 'community', name: 'Fold your laundry', title: 'The tunics and kilts in a Kosha dresser are now in the dresser, instead of inside a cape and a tunic',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the dresser at (48,17) of Kosha, opened, contains a cape, three tunics and four kilts, against the cape alone unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the dresser at (48,17) of Kosha contains a cape, three tunics and four kilts',
     dataEdits: [
       { what: 'the tunics and kilts', resid: 0x810D, fn: (b) => {
@@ -795,7 +792,7 @@ const DATA_FIXES = [
       } },
     ] },
   // The spent staff's light (0xF002): tile 0x88B's light level goes to 0.
-  { id: 'spent-staff', group: 'items', stage: 'community', title: 'A spent staff now gives no light, instead of still giving light',
+  { id: 'spent-staff', group: 'items', stage: 'community', name: 'Switch to battery power', title: 'A spent staff now gives no light, instead of still giving light',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a spent staff equipped at midnight in Omen’s Test leaves the room dim, where unpatched it lit the room as a working staff does; a working staff still lights it; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: a spent staff equipped at midnight in Omen’s Test leaves the room dim, and a working one lights it',
     dataEdits: [
       { what: 'the spent staff’s tile', resid: 0xF002, fn: (b) => {
@@ -827,7 +824,7 @@ const DATA_FIXES = [
   // program fix sleeper-unit (js/delv-appfixes.js) looks up the sleeper's
   // own type instead, and this record is what is left for anything it
   // cannot name (30 September 2026).
-  { id: 'sleeping-units', group: 'world', stage: 'community', title: 'People killed asleep, and the Odemia night guard, now leave a body, instead of turning into some other thing',
+  { id: 'sleeping-units', group: 'world', stage: 'community', name: 'Bed dead', title: 'People killed asleep, and the Odemia night guard, now leave a body, instead of turning into some other thing',
     played: 'fork, PowerPC, 30 September 2026: a sleeping guard killed leaves a man’s body and a night guard a guard’s, where the shipped file left none; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: a sleeper in the Odemia barracks at night, its health set to 1 by an edit, killed; a corpse is left on the bed, against a thing with no name unpatched. Read from a save copied out of the machine. The night guard was not tried there',
     dataEdits: [
       { what: 'units for the sleeping and the night guard', resid: 0xF008, fn: (b) => {
@@ -854,7 +851,7 @@ const DATA_FIXES = [
   // drawn at the hero's, over the row of keywords. The call the day guard's
   // class makes is added. (bugs.md, *The Odemia guards' text overlaps at
   // midnight*.)
-  { id: 'night-guard-talk', group: 'talk', stage: 'community', title: 'The Odemia night guard\u2019s words now appear beside his portrait instead of over the hero\u2019s keywords',
+  { id: 'night-guard-talk', group: 'talk', stage: 'community', name: 'Personal space', title: 'The Odemia night guard\u2019s words now appear beside his portrait instead of over the hero\u2019s keywords',
     played: 'Mac OS 8.5, 11 October 2026, the fix alone and with every fix, each installed by Magpie: at midnight in Odemia, with Ariadne brought home, a night guard greeted, then "job", a word he does not know and "bye"; each line of his is drawn at the top beside a guard\u2019s portrait, against each line drawn over the row of keywords beside the hero\u2019s portrait with no patch installed, the same save and words. The hero, the hour and the quest value were set by an edit. Not played in the fork',
     edits: [
       { what: 'the night guard names who speaks', resid: 0x10E5, at: 0x0017, expect: { 0x0011: 'word Character.Gate_Guard', 0x0017: 'method Talk', 0x0019: 'local Var00' }, code: dataFixTalk('local Var00', 0) },
@@ -864,7 +861,7 @@ const DATA_FIXES = [
   // Data1 is 0; the camp's sign, record 14, has Data1 0 and Data2 15, and
   // entry 15 is "Iron Mines". It is the only sign of the 27 with anything in
   // Data2; the number moves to Data1.
-  { id: 'mining-camp-sign', group: 'world', stage: 'community', title: 'You can now read the Mining Camp\u2019s sign, instead of it showing nothing',
+  { id: 'mining-camp-sign', group: 'world', stage: 'community', name: 'Camp stamp', title: 'You can now read the Mining Camp\u2019s sign, instead of it showing nothing',
     played: 'fork, 28 September 2026: the sign reads Iron Mines; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the sign reads Iron Mines',
     dataEdits: [
       { what: 'the Mining Camp’s sign', resid: 0x8118, fn: (b) => {
@@ -908,7 +905,7 @@ const DATA_FIXES = [
   // retrieved, one too heavy for the caster falls at their feet, and
   // anything else is carried -- flags 0x10, an inventory square, PutInside
   // -- where the shipped spell set flags 9 and lost it.
-  { id: 'fetch', group: 'rules', stage: 'bugfix', by: 'Bryce Schroeder', title: 'Fetch now brings the thing to the caster, instead of losing it',
+  { id: 'fetch', group: 'rules', stage: 'bugfix', by: 'Bryce Schroeder', name: 'Fetcherman Bryce', title: 'Fetch now brings the thing to the caster, instead of losing it',
     played: 'the maintainer, 21 September 2026; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: Fetch cast at a dagger two squares off puts it in the hero’s pack, against the dagger saved on no square and in no pack unpatched',
     edits: [
       { what: 'Fetch', resid: 0x1A28, at: 0x00B2, to: 0x00F3,
@@ -1011,7 +1008,7 @@ const DATA_FIXES = [
   // Fishing (0x1091). His source's one change: the map word the pole reads
   // has the automap's seen bit, which it masks off (word 0x7FFF,
   // bitwise_and) before testing for deep water.
-  { id: 'fishing', group: 'rules', stage: 'bugfix', by: 'Bryce Schroeder', title: 'Fishing now finds deep water on squares already seen, instead of only on unseen ones',
+  { id: 'fishing', group: 'rules', stage: 'bugfix', by: 'Bryce Schroeder', name: 'Fisherman Bryce', title: 'Fishing now finds deep water on squares already seen, instead of only on unseen ones',
     played: 'fork, 3 October 2026: cast at deep water beside (206,40) on the world map, a fish caught, against "You need to cast into deep water." unpatched; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: cast at deep water off (206,40) of the world map, "You fish for a while..." and then "You caught something!"',
     edits: [
       { what: 'fishing', resid: 0x1091, at: 0x00C7, expect: { 0x00C3: 'sys GetMapTile', 0x00C7: 'end' },
@@ -1022,7 +1019,7 @@ const DATA_FIXES = [
   // found in the scripts afterwards: the task scripts cast their item argument into a local and
   // then send the method to the argument, a bare number, which the
   // interpreter ignores. Each sends it to the local.
-  { id: 'aethon-locks', group: 'rules', stage: 'bugfix', title: 'Aethon now picks a lock when told to, instead of ignoring the order',
+  { id: 'aethon-locks', group: 'rules', stage: 'bugfix', name: 'Work the Lock... Please?', title: 'Aethon now picks a lock when told to, instead of ignoring the order',
     played: 'fork, 3 October 2026: Aethon in the party with his lock picks, Pick Lock from his Do menu on a locked oak door, "Work the Lock!" then "It is now unlocked" and the door saved unlocked, against "Work the Lock!" and the door still locked unpatched; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: Pick Lock from Aethon’s Do menu on a locked oak door, his balloon "Work the Lock!", "The lockpick broke." and on the second try "It is now unlocked", against the balloon and the door saved locked unpatched',
     edits: [[0x0C4E, 'Use'], [0x0C4F, 'UseOn'], [0x0C50, 'UseAt']].map(([resid, m]) => ({
       what: 'lock picking ' + m, resid, at: 0x000B, to: 0x000C,
@@ -1032,7 +1029,7 @@ const DATA_FIXES = [
   // block Hector's has for a thing asked about is put in front of it,
   // without Hector's weapon remarks: open the talk, both portraits, the
   // AskAbout helper (0xEB6), and "Looks like ..." when it has nothing.
-  { id: 'aethon-ask-about', group: 'talk', stage: 'bugfix', title: 'Aethon now answers when you Ask About a thing',
+  { id: 'aethon-ask-about', group: 'talk', stage: 'bugfix', name: 'Questionable company', title: 'Aethon now answers when you Ask About a thing',
     played: 'fork, 3 October 2026: Ask About from Aethon\u2019s Do menu on the hero\u2019s oboloi drew "Ah, was there ever anything as noble as money!", against "Nothing" unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: Ask About from Aethon’s Do menu on the hero’s oboloi drew "Ah, was there ever anything as noble as money!"',
     edits: [
       { what: 'Aethon asked about a thing', resid: 0x1861, at: 0x0078,
@@ -1075,7 +1072,7 @@ const DATA_FIXES = [
   // Paris's and Diomede's names (0x1857, 0x182E). Their "name" topics set
   // their own character flag 7, as every other character's does, so the
   // scripts that test it use their names.
-  { id: 'paris-diomede-names', group: 'talk', stage: 'bugfix', title: 'Hero now remembers Paris\u2019s and Diomede\u2019s names once they\u2019ve given them',
+  { id: 'paris-diomede-names', group: 'talk', stage: 'bugfix', name: 'I think it started with a P, no, D', title: 'Hero now remembers Paris\u2019s and Diomede\u2019s names once they\u2019ve given them',
     played: 'fork, 3 October 2026: after "name", Diomede in Cademia and Paris in Pnyx were labelled by name in the conversation, and unpatched they stayed unnamed; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: Diomede is labelled by name after "name"; Paris was not played there',
     edits: [
       { what: 'Paris keeps his name', resid: 0x1857, at: 0x013D,
@@ -1089,7 +1086,7 @@ const DATA_FIXES = [
   // Goat's table, (22,16), are moved to the chair on the table's other side,
   // (23,15), which no schedule uses. Two schedule posts, bytes 5 to 7 of each
   // (x << 12 | y).
-  { id: 'green-goat-chair', group: 'world', stage: 'bugfix', title: 'Darius and Sardis now sit in a chair each at the Green Goat, instead of sharing one',
+  { id: 'green-goat-chair', group: 'world', stage: 'bugfix', name: 'Lap trap', title: 'Darius and Sardis now sit in a chair each at the Green Goat, instead of sharing one',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: the clock set just before five in a saved Catamarca by an edit, so the hour turns as it loads; Sardis is saved at (23,15) and Darius at (22,16), and the two are drawn in a chair each, against both saved at (22,16) and one figure drawn there unpatched; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: Sardis is saved at (23,15) and Darius at (22,16), against both at (22,16) unpatched. Read from a save copied out of the machine',
     dataEdits: [
       { what: 'the chair', resid: 0xF00B, fn: (b) => {
@@ -1140,7 +1137,7 @@ const DATA_FIXES = [
   // then the "s" only when the count is greater than 2, so two books read
   // "two Book" [sic]. Seen in the fork on 30 September 2026, handing in two.
   // The test is greater than 1.
-  { id: 'books-plural', group: 'talk', stage: 'further', title: 'Selinus now thanks the party for \u201ctwo Books\u201d instead of \u201ctwo Book\u201d',
+  { id: 'books-plural', group: 'talk', stage: 'further', name: '1 + 1', title: 'Selinus now thanks the party for \u201ctwo Books\u201d instead of \u201ctwo Book\u201d',
     played: 'fork, PowerPC, 30 September 2026: two books handed in; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: two books handed in, "I see you found two Books - this is good.", against "two Book" unpatched',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'the Books of Wisdom counted as more than one', 0x1851,
@@ -1150,7 +1147,7 @@ const DATA_FIXES = [
   // flag 1 where it tested quest flag 2, which nothing sets. Sabinate sets
   // Timon's flag 1 on meeting him ("It is a living Seldane!"), and Timon's
   // own talk with Larisa reads it for "meeting a real Seldane".
-  { id: 'timon-seldane', group: 'talk', stage: 'further', title: 'Timon now remembers if he\u2019s met a Seldane',
+  { id: 'timon-seldane', group: 'talk', stage: 'further', name: 'Oh yeah, them', title: 'Timon now remembers if he\u2019s met a Seldane',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Timon’s flag 1 and quest value 2 set by edits, "meti" to him at the ruins, "Of course you all know that, we’ve met them, haven’t we...", against "I’d really like to find them someday..." unpatched; with his flag clear, that line on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Of course you all know that, we’ve met them, haven’t we..."; the unpatched line was not reached there',
     plan: (s) => {
       const what = 'Timon has met the Seldane', p = dataPatchPlace(s, what, 0x184A,
@@ -1159,7 +1156,7 @@ const DATA_FIXES = [
     } },
   // Timon fretting about Larisa (the room, 0x1C2D): the second branch tests
   // his flag 3 and set flag 2, so he fretted on every entry; it sets flag 3.
-  { id: 'timon-frets', group: 'talk', stage: 'further', title: 'Timon now frets about Larisa once instead of every time he comes in',
+  { id: 'timon-frets', group: 'talk', stage: 'further', name: 'I\u2019m sure she\u2019s fine', title: 'Timon now frets about Larisa once instead of every time he comes in',
     played: 'Mac OS 8.5, 11 October 2026, the fix alone and “All Fixes”, each installed by Magpie: Timon in the party by an edit, quest value 7 at 3, the hero walked into Larisa’s dwelling in Kosha twice; "Hm - Larisa should be back by now." on the first entry only, against on both unpatched. Not played in the fork',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Timon frets once', 0x1C2D, ['call_resource SetCharacterFlag', 'short 0x004A', 'byte 0x02', 'end', 'return'], 2, 'byte 0x03'),
@@ -1167,7 +1164,7 @@ const DATA_FIXES = [
   // Halos's "stop by my office" (0x183E's helper): `behaviour != 144 and
   // behaviour == 138` is redundant as written, and the line fits only away
   // from the office; the second test is `!=`.
-  { id: 'halos-office', group: 'talk', stage: 'further', title: 'Halos tells you to stop by his office when he\u2019s away from it',
+  { id: 'halos-office', group: 'talk', stage: 'further', name: 'Office hours', title: 'Halos tells you to stop by his office when he\u2019s away from it',
     played: 'fork, 68K, 9 October 2026, alone and on “All Fixes”: at eleven, when his schedule has taken him from his desk, "ake" to Halos once Ake has sent the hero drew "Lady Ake sent you?" and then "But now is not a good time to talk - please, stop by my office during working hours.", against "So, you came all this way to talk" and no such line unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "ake" to Halos at eleven drew "But now is not a good time to talk - please, stop by my office during working hours."',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Halos away from his office', 0x183E,
@@ -1175,14 +1172,14 @@ const DATA_FIXES = [
     ] }) },
   // Thoas's "Please come again" (0x1844): the local it waits on is set once
   // his shop has been opened.
-  { id: 'thoas-farewell', group: 'talk', stage: 'further', title: 'Thoas now says \u201cPlease come again\u201d after you\u2019ve shopped with him',
+  { id: 'thoas-farewell', group: 'talk', stage: 'further', name: 'Please come again', title: 'Thoas now says \u201cPlease come again\u201d after you\u2019ve shopped with him',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "buy", Done, "bye" to Thoas, "Farewell.  Please come again.", against "Farewell." unpatched; with no "buy", "Farewell." on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Farewell.  Please come again." after his shop is closed; the unpatched line was not replayed there',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thoas after his shop', 0x1844, ['conversation_response "buy" ->', 'set_field 0x27'], 1, 'set_local 0x00\nword True\nend'),
     ] }) },
   // Paris and Parium (the family group, 0x0805): "pari" took Parium's answer
   // first, so Paris's could not be given; Parium's is keyed "pariu".
-  { id: 'paris-parium', group: 'talk', stage: 'further', title: 'Paris no longer mistaken for Parium when asked about in conversation',
+  { id: 'paris-parium', group: 'talk', stage: 'further', name: 'Was it Pari-something?', title: 'Paris no longer mistaken for Parium when asked about in conversation',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, the person brought to the hero by the in-party bit: "paris" to Apis drew "Paris is married to my cousin Helen.", against "My cousin Parium runs the Green Goat Tavern and Inn in Catamarca - fine place." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "paris" to Apis drew "Paris is married to my cousin Helen."',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Parium keyed apart from Paris', 0x0805, 'pari', 'pariu', ['string(implicit) "\\"My cousin Parium']),
@@ -1192,7 +1189,7 @@ const DATA_FIXES = [
   // name, eight people had no answer of their own and their dialogue group
   // spoke of them as of someone else, Helen of "my cousin Helen". Each
   // name now reaches the answer they give to "name"; no line is new.
-  { id: 'self-names', group: 'talk', stage: 'further', title: 'Eight people now respond to their name as themselves instead of as someone else',
+  { id: 'self-names', group: 'talk', stage: 'further', name: 'Oh yeah, me', title: 'Eight people now respond to their name as themselves instead of as someone else',
     played: 'fork, 3 October 2026, in part (Milcom and Halos of the eight): "Milcom" to Milcom drew "I am Milcom, technically head of House Atussa." and "Halos" to Halos "I am Halos", against "Milcom was the head of the former House Atussa." and "Halos represents House Strymon in Cademia." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "milcom" to Milcom drew "I am Milcom, technically head of House Atussa." and "halos" to Halos "I am Halos"',
     plan: (s) => ({ edits: [
       ['Milcom', 0x181E, 'name', 'milc', 'I am Milcom'],
@@ -1245,7 +1242,7 @@ const DATA_FIXES = [
   // A highlighted word nobody answers (Loose ends): "Magisterium", in the
   // general group's (0x0801) answers about Pnyx and mages. It now reaches
   // the answer about mages, "Mages are trained at the Magisterium in Pnyx".
-  { id: 'magisterium', group: 'talk', stage: 'further', title: '\u201cMagisterium\u201d now gets the answer about mages',
+  { id: 'magisterium', group: 'talk', stage: 'further', name: 'Do I look like I know what a \u201cmagi\u201d is?', title: '\u201cMagisterium\u201d now gets the answer about mages',
     played: 'fork, 3 October 2026: "Magisterium" to Milcom drew "Mages are trained at the Magisterium in Pnyx", against "I\u2019m sorry, but I don\u2019t understand." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "magisterium" to Milcom drew "Mages are trained at the Magisterium in Pnyx"',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'the mages answer to "Magisterium"', 0x0801, 'mage', 'mage,magi', ['string(implicit) "\\"Mages are trained']),
@@ -1283,7 +1280,7 @@ const DATA_FIXES = [
   // bartenders, Ake, Parium, Crito (three), Apis (three), Paris, Niobe
   // (two), Borus and Sabinate; a `*` after the closing quote, as the game's
   // own lines wait ("Yes, I was a bit puzzled."*).
-  { id: 'lines-run-on', group: 'talk', stage: 'further', title: 'Answers to questions you pose in dialogue no longer disappear too fast to read or run into the next response',
+  { id: 'lines-run-on', group: 'talk', stage: 'further', name: 'You haven\u2019t answered my question', title: 'Answers to questions you pose in dialogue no longer disappear too fast to read or run into the next response',
     played: 'in part: fork, 68K, 10 October 2026, alone and on “All Fixes”: "dice" to Apis with no oboloi, the refusal alone, against the refusal and then "Do you need instructions?" unpatched. The other places are not played; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "dice" to Apis with no oboloi drew the refusal alone',
     plan: (s) => {
       const edits = [];
@@ -1359,7 +1356,7 @@ const DATA_FIXES = [
   // Alcmena; and Ennomus, seen); Cybele, whose second clause branches into
   // the string ".*" for its wait; Mantinea and Itanos, whose description
   // nothing follows; Oeneus, whose one following line begins with a `*`.
-  { id: 'descriptions-wait', group: 'talk', stage: 'further', title: 'Descriptions for 8 characters no longer disappear too fast to read',
+  { id: 'descriptions-wait', group: 'talk', stage: 'further', name: 'You haven\u2019t even looked at me', title: 'Descriptions for 8 characters no longer disappear too fast to read',
     played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Demodocus, Myus, Thersites and Polydamas met for the first time, each description staying with MORE until a click and the greeting following it, against 234 to 305 ms on screen unpatched from the same saves; fork, 68K, the same day, alone and on \u201cAll Fixes\u201d: Demodocus, Alastor and Anisa, each description waiting at the tick where the shipped file shows the greeting alone, and Paris and Niobe on the branch that does not lose it, where the fix adds a click. Not played: the branch of Paris and of Niobe that loses it',
     textEdits: [
       ['Myus', 0x180A, 'with an air of leadership.'],
@@ -1413,12 +1410,12 @@ const DATA_FIXES = [
   // Demodocus's "Would you like to @hear it?" leads to his song, keyed
   // "song,meti", whose "meti" the question itself matches first; it is keyed
   // "song,hear".
-  { id: 'demodocus-song', group: 'talk', stage: 'further', title: 'Demodocus now sings you his song if you ask (nicely)',
+  { id: 'demodocus-song', group: 'talk', stage: 'further', name: 'Do your job, bard', title: 'Demodocus now sings you his song if you ask (nicely)',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "hear" to Demodocus in Land King Hall, "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched; "song" sings on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched',
     plan: (s) => ({ edits: [dataFixRekey(s, 'Demodocus’s song on "hear"', 0x186D, 'song,meti', 'song,hear')] }) },
   // Glaucus's "North Shore @Vineyard" and the family group's answer are
   // keyed "viny", which "vineyard" can never match; "vine".
-  { id: 'glaucus-vineyard', group: 'talk', stage: 'further', title: 'Glaucus the vintner and his family now answer when asked about \u201cvineyard\u201d',
+  { id: 'glaucus-vineyard', group: 'talk', stage: 'further', name: 'What is it you\u2019d say you do here', title: 'Glaucus the vintner and his family now answer when asked about \u201cvineyard\u201d',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "vineyard" to Glaucus at his vineyard, "This years crop looks good, but I don’t know if I’ll be able to make...", against "Excuse me?" unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "This years crop looks good, but I don’t know if I’ll be able to make wine..."; the unpatched line was not replayed there',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Glaucus’s vineyard', 0x1866, 'viny', 'vine'),
@@ -1437,7 +1434,7 @@ const DATA_FIXES = [
   // thing), while the copy's old slot, freed, still reads the spell's
   // type. Directed Nexus is the one spell that changes zone. The scroll's
   // Use, from the cast to its return, and two more locals.
-  { id: 'nexus-scroll', group: 'rules', stage: 'further', title: 'A Directed Nexus scroll now leaves Land King Hall\u2019s things alone, instead of destroying two of them',
+  { id: 'nexus-scroll', group: 'rules', stage: 'further', name: 'Stumbling home drunk', title: 'A Directed Nexus scroll now leaves Land King Hall\u2019s things alone, instead of destroying two of them',
     played: 'fork, 68K, 20 October 2026, alone and on “All Fixes”: read after the party came from Omen’s Test, the hall untouched and the scroll used up, against a table and a passthrough deleted and the scroll kept unpatched; read inside Land King Hall, the hero alone and again with the party’s things there, the scroll used up and nothing else lost, against the scroll kept and, with the party, the hero’s Land King Amulet deleted unpatched. The Mac OS 8.5 pass of 10 October 2026 tested the version from before the patch also checked the scroll’s record',
     plan: (s) => {
       const what = 'the scroll deletes nothing it has left behind', p = dataPatchPlace(s, what, 0x104B,
@@ -1469,7 +1466,7 @@ const DATA_FIXES = [
   // already do. One level inside each thing, in a pair of locals the
   // function did not have (item, then the iterator's slot), which the
   // header is given.
-  { id: 'traps', group: 'rules', stage: 'further', title: 'Detect Traps and Deactivate Trap now find traps inside chests, and armed wires, instead of missing them',
+  { id: 'traps', group: 'rules', stage: 'further', name: 'You had two jobs', title: 'Detect Traps and Deactivate Trap now find traps inside chests, and armed wires, instead of missing them',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a crate with a poison trap inside, Detect Traps cast beside it, "You detect poison trap!", against "You fail to detect anything." unpatched, and Deactivate Trap performed on it, "Poison trap destroyed.", against "There was nothing to deactivate."; a blast trap and a fine wire were not tried; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: Detect Traps beside a crate holding a poison trap, "You detect poison trap!", and Deactivate Trap on it, "Poison trap destroyed."',
     plan: (s) => {
       const TRAP_TEST = v => ['short 0x0160', 'short 0x0161', 'short 0x0163', 'short 0x00E6']
@@ -1514,7 +1511,7 @@ const DATA_FIXES = [
   // walking left. The title describes the pose and not the stop, at the
   // maintainer's word (6 October 2026): the standing frame is a step of the
   // walk too.
-  { id: 'magpie-west', group: 'world', stage: 'further', title: 'Magpie now stands when in standing pose facing west, instead of sitting',
+  { id: 'magpie-west', group: 'world', stage: 'further', name: 'Stool fool', title: 'Magpie now stands when in standing pose facing west, instead of sitting',
     dataEdits: [
       { what: 'Magpie’s west standing frame', resid: 0x8E72, fn: (b) => {
           const col = decompressDCG(b, 32, 512);
@@ -1541,7 +1538,7 @@ const DATA_FIXES = [
   // FindSkill and RecalcSkills use for a skill. Nothing else in the game
   // places or makes a type-213 thing, so with this the mushroom steak cannot
   // be had (the maintainer's choice, 27 September 2026).
-  { id: 'divide-food', group: 'rules', stage: 'further', title: 'Divide Food now leaves Lock Picking alone, instead of eating it (which was the only way to a mushroom steak)',
+  { id: 'divide-food', group: 'rules', stage: 'further', name: 'Impossible burger', title: 'Divide Food now leaves Lock Picking alone, instead of eating it (which was the only way to a mushroom steak)',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the hero with Lock Picking and a flatbread, Aethon in the party, Divide Food cast; the hero keeps Lock Picking, where unpatched the skill is deleted and Aethon is dealt a thing of its type; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: Aethon in the party, Divide Food cast, and the hero’s Abilities still list Lock Picking',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Divide Food leaves skills alone', 0x1AFB,
@@ -1566,7 +1563,7 @@ const DATA_FIXES = [
   // creation's write, which nothing reads once this applies, and the
   // creation's read just after it, which comes before field 0x25 has
   // anything.
-  { id: 'gender', group: 'talk', stage: 'further', title: 'Characters no longer address you using the gender of the hero you created previously (e.g. in February of last year)',
+  { id: 'gender', group: 'talk', stage: 'further', name: 'A boyfriend who looked like a girlfriend', title: 'Characters no longer address you using the gender of the hero you created previously (e.g. in February of last year)',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a heroine (the hero’s figure 33) loaded where no hero had been created, "bye" to Hebe, "Ma’am, one last thing...", against "Sir, one last thing..." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ma’am, one last thing...", against "Sir, one last thing..." unpatched',
     plan: (s) => {
       const edits = [];
@@ -1596,7 +1593,7 @@ const DATA_FIXES = [
   // the step is rejected; the seven squares behind it are reached by nothing
   // else. The square is given the floor tile of the door beside it at (20,18),
   // 210.
-  { id: 'stronghold-door', group: 'world', stage: 'map', title: 'The first Stronghold\u2019s kitchen door now opens onto floor, instead of wall',
+  { id: 'stronghold-door', group: 'world', stage: 'map', name: 'Take away', title: 'The first Stronghold\u2019s kitchen door now opens onto floor, instead of wall',
     played: 'fork, 26 September 2026: through the door into the kitchen; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: through the metal door at (22,18) into the kitchen',
     dataEdits: [
       { what: 'the Stronghold’s kitchen door', resid: 0x801F, fn: (b) => {
@@ -1872,7 +1869,7 @@ const DATA_FIXES = [
   //    the one thing of type 0 a player could Look at. The table is four
   //    bytes shorter; this comes after hydra-name, whose place it finds by
   //    offset, in the stage order.
-  { id: 'nobody-speakers', group: 'talk', stage: 'apart', title: 'The Abydos ghost, the vision, the wishing fountain, the riddle switch and Omen are no longer called \u201cNothing\u201d when they speak',
+  { id: 'nobody-speakers', group: 'talk', stage: 'apart', name: 'Never seen Nothing like it', title: 'The Abydos ghost, the vision, the wishing fountain, the riddle switch and Omen are no longer called \u201cNothing\u201d when they speak',
     dataEdits: [
       { what: 'speakers 187, 188, 189 and 191 known by name', resid: 0xF009, fn: (b) => {
           for (const n of [187, 188, 189, 191]) {
