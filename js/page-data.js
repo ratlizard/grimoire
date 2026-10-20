@@ -15,13 +15,13 @@
 /* ---- The backdrop behind a zone -----------------------------------------------
    Every zone's entry script calls SetLandscapeImage once, with a literal.
    Zero and up is a landscape strip (0x84xx); the negative numbers are the
-   engine's own backdrops, and -1 -- Land King Hall, and only Land King Hall
+   engine's backdrops, and -1 -- Land King Hall, and only Land King Hall
    in the shipped archive -- is the wavy space drawn behind the ethereal
    void, whose tiles are three-quarters transparent. That backdrop is the
    pair 0x8F50/0x8F51, 144x144 each and the only two general graphics in
    that range, alternating. The other negatives (-9, -12, -13, -15, -16) have
-   no image in the archive at all, so they are taken to be solid colours the
-   engine keeps, and nothing is drawn for them. This is a reading of the
+   no image in the archive at all, so they are taken to be solid colours in the
+   engine, and nothing is drawn for them. This is a reading of the
    scripts plus the one image pair that fits, not a documented rule.
 
    CORRECTION, 22 September 2026, from the program: that reading of the
@@ -34,7 +34,7 @@
    transparent void tiles was not read; the key is a coincidence of the one
    zone, not the rule it was taken for.
 
-   READ, 6 October 2026: zoneBackdrop, below, says what the game draws
+   READ, 6 October 2026: zoneBackdrop, below, gives what the game draws
    there, and the key on -1 is gone. */
 function zoneLandscapeArg(level) {
   if (!DERIVED.ZONE_BACKDROPS) DERIVED.ZONE_BACKDROPS = Object.create(null);
@@ -100,8 +100,8 @@ function landscapeSetters() {
   } catch (e) { quiet(e); }
   return (DERIVED.LANDSCAPE_SETTERS = out);
 }
-// What names the script that sets it: the zone for an entry script, the
-// resource's own label otherwise.
+// The name for the script that sets it: the zone for an entry script, the
+// resource's label otherwise.
 function landscapeSetterName(resid) {
   const hex = '0x' + resid.toString(16).toUpperCase();
   const hi = resid >> 8;
@@ -126,7 +126,7 @@ function landscapeZones(resid) {
    Render clears its buffer to the viewer's erase colour, which ChangeZone
    sets to 255, black, and a script can change (SetFillColor). Then it
    walks the zone's records from the last to the first, and for each egg
-   (flags 0x42) of kind 10 whose byte 14 holds a negative number in its
+   (flags 0x42) of kind 10 whose byte 14 has a negative number in its
    low six bits it loads the picture 0x8F00 plus the egg's argument and
    copies it in QuickDraw's transparent mode, centred on the egg's square.
    Only then does it draw the ground, and a ground tile whose attribute
@@ -212,7 +212,7 @@ function paintBackdrop(ctx, backdrop, TS, phase, x0, y0, x1, y1) {
    own structure to the tree above it, and it is the view to start from when
    a subindex is not where you expected. */
 /* THE KEYS, off the program. TMapWindow::KeyRoutine(short) is the map
-   window's key handler, and what the Cheats sheet says about a key is read
+   window's key handler, and what the Cheats sheet states about a key is read
    out of it here rather than kept in a table:
 
    - THE ROLLING WORD. The key's low byte is shifted into a global word
@@ -221,7 +221,7 @@ function paintBackdrop(ctx, backdrop, TS, phase, x0, y0, x1, y1) {
      of comparing 32 bits: the constant is the `cmplwi` operand less the
      `addis` operand shifted up 16. The first such test is the cheat code,
      the others the CD words.
-   - THE GATE. After the code's test the routine takes the address of a
+   - THE GATE. After the code's test the routine computes the address of a
      global record (`addi r, 2, d`), loads one byte of it and tests one bit;
      then it flips a byte (`lbz`, `cntlzw`, `srwi 5`, `stb`, a logical not)
      and prints one of two strings. The flipped byte's base register is the
@@ -381,20 +381,20 @@ function exeStringsOf(name) {
 
 /* THE PREFERENCES RECORD, every use of it in the program. The record is the
    global the key routine's gate tests (its TOC displacement is read there),
-   and every routine that takes its address (`addi r, 2, d`) is scanned for
+   and every routine that computes its address (`addi r, 2, d`) is scanned for
    what it does with it:
 
    - a READ is a `lbz` of one of its bytes followed, within a few
      instructions and on the same register, by an extraction of some of the
      byte's bits -- a rotate-and-mask (`rlwinm`, `clrlwi`, `srwi`) or an
-     `andi.` -- which says which bits the routine wants;
+     `andi.` -- which shows which bits the routine reads;
    - a WRITE is a `stb` into it preceded by an `rlwimi` (bits inserted, with
      the value when it was loaded by `li` just before, or "toggled" when it
      came out of a `cntlzw`) or an `ori`;
    - what CHOOSES a write is the compare tree it sits under (exeCaseValues:
-     a menu item, a dialog item, a slider's position), and the routine's own
+     a menu item, a dialog item, a slider's position), and the routine's
      menu or dialog (the constant it hands GetMenuHandle or GetNewDialog,
-     and the item it hands GetDialogItem), so the page can name the item out
+     and the item it hands GetDialogItem), so the page can label the item out
      of the application's MENU and DITL resources;
    - a Pascal string loaded after reads that initialise a control is that
      control's LABEL, for every read since the previous label.
@@ -426,7 +426,7 @@ function exePrefsAccess() {
     const ops = exeOpsOf(r);
     const holds = new Set();
     const reads = [], labels = [];
-    // The routine's own menu, dialog and dialog items, by the calls' constants.
+    // The routine's menu, dialog and dialog items, by the calls' constants.
     const callArg = (name, reg) => ops.map((o, k) => exeCalls(o, name) ? exeArgOf(ops, k, reg) : null).filter(Boolean);
     const menu = callArg('GetMenuHandle', 3)[0] || null, dialog = callArg('GetNewDialog', 3)[0] || null, items = callArg('GetDialogItem', 4);
     ops.forEach((o, i) => {
@@ -466,7 +466,7 @@ function exePrefsAccess() {
       const dest = d.rd !== undefined ? d.rd : d.mn.startsWith('l') && d.rt !== undefined ? d.rt : undefined;
       if (dest !== undefined && holds.has(dest) && !(d.mn === 'addi' && d.ra === 2)) holds.delete(dest);
     });
-    // Each label names the reads since the one before it, in a routine that
+    // Each label applies to the reads since the one before it, in a routine that
     // builds several controls that way (a dialog), and nowhere else.
     let prev = -1;
     const named = [];
@@ -479,7 +479,7 @@ function exePrefsAccess() {
 
 /* The record as fields: every run of bits some routine reads or writes, with
    who reads it, who writes it and what chooses each write, named from the
-   application's own MENU, DLOG and DITL resources where a menu or a dialog
+   application's MENU, DLOG and DITL resources where a menu or a dialog
    chooses it and from the preferences dialog's labels where a control
    does. */
 function exePrefFields() {
@@ -512,7 +512,7 @@ function exePrefFields() {
    writes the whole record once for each processor class, each word loaded
    from the data section (`addi r, 2, d`, `lwz 0, 0(r)`, `stw 0, 0(record)`),
    and the compare tree above each write, over the answer Gestalt gave less
-   one, says which processors get it. The selectors are the `lis`/`addi`
+   one, shows which processors get it. The selectors are the `lis`/`addi`
    pairs handed to Gestalt. */
 function exePrefDefaults() {
   const acc = exePrefsAccess(); if (!acc) return null;
@@ -607,7 +607,7 @@ function exePrefKeys() {
       }
       if (name === 'SavePrefs' || name === 'LoadPrefs') len = exeArgOf(ops, c.i, 6);
       // An ordinal is a long inside the key's resource, picked by a short:
-      // GetOrdinal(key, index, default) takes the fallback in r6 as well, and
+      // GetOrdinal(key, index, default) is given the fallback in r6 as well, and
       // that fallback is the only statement of a setting's default the
       // program makes.
       let index = null, dflt = null;
@@ -629,13 +629,13 @@ function exePrefKeys() {
    register against constants and branches on the less-than and equal bits,
    sometimes a chain (load, test, branch to the next load and test, body),
    sometimes a binary tree; either way which body a value reaches is what
-   running the compares says. exeCaseValues finds the tree the instruction
+   running the compares shows. exeCaseValues finds the tree the instruction
    at `i` sits under -- the nearest compare before it, the compares,
    branches and reloads of the same register above that, and then back
    along the chain while an earlier identical test branches to this one's
    load -- runs every value from `lo` to `hi` through it, and answers the
-   values that arrive at the body holding `i`, with the tested compare's
-   address, and `all` when every value arrives (nothing chooses it). An
+   values that reach the body holding `i`, with the tested compare's
+   address, and `all` when every value reaches it (nothing chooses it). An
    instruction the compiler put between a compare and its branch that sets
    no flags is stepped over. */
 function exeCaseValues(ops, i, lo, hi) {
@@ -720,9 +720,9 @@ function exePascalAt(op) {
 /* THE FILES BESIDE THE GAME, and the two ways besides Magpie that a patch
    reaches it. Read 1 October 2026 (cythera-workbench's
    doc/engine-patch-list.md has the whole reading and the runs that showed it
-   in the fork and on Mac OS 8.5); the Patches tab's first section says it.
+   in the fork and on Mac OS 8.5); the Patches tab's first section states it.
 
-   - TDelverApp::PostInitMac makes a spec in the application's own folder
+   - TDelverApp::PostInitMac makes a spec in the application's folder
      for the name in one STR resource, and opens it (Cythera Data); then
      for another, opened as a resource file when it is there (Cythera
      Patch). Two GetString calls, each after `li 3, id`; the names are those
@@ -732,10 +732,10 @@ function exePascalAt(op) {
      `cmpwi` after, and opens each name it finds in the same folder as a
      patch archive. The list is in no shipped file, so the resource file of
      the second name is where it would come from.
-   - Then it makes a spec for a name a TOC slot holds (User Custom Data) and
+   - Then it makes a spec for a name in a TOC slot (User Custom Data) and
      opens it, the last file the game loads, with no check of its header.
 
-   Each part is a figure with the instruction that holds it, or null when the
+   Each part is a figure with the instruction it is in, or null when the
    shape is not found, so an edited program drops the sentence rather than
    stating the shipped one. */
 function exePatchFiles() {
@@ -768,7 +768,7 @@ function exePatchFiles() {
         const cmp = exeFind(scen, gi, 140, (d, o) => d.mn === 'cmpwi' && scen[scen.indexOf(o) - 1] && scen[scen.indexOf(o) - 1].d && scen[scen.indexOf(o) - 1].d.rs === reg);
         if (cmp >= 0) bound = exeVal(scen[cmp], scen[cmp].d.imm);
       }
-      // The spec made from a name a TOC slot holds, after the loop.
+      // The spec made from a name in a TOC slot, after the loop.
       for (let i = gi; i < scen.length && !custom; i++) {
         if (!exeCalls(scen[i], 'FSMakeFSSpec')) continue;
         const l = exeFindBack(scen, i, 6, d => d.mn === 'lwz' && d.rt === 5 && d.ra === 2);
@@ -782,8 +782,8 @@ function exePatchFiles() {
 
 /* ---- Data > Cythera (App) > Cheats ---------------------------------------
    Cythera has a cheat mode, and until 5 September 2026 nobody could reach it.
-   The Cutting Room Floor lists a "potential cheat mode" and stops there; this
-   is why it stayed potential, and what is behind it.
+   The Cutting Room Floor has an entry for a "potential cheat mode" and stops
+   there; this is why it stayed potential, and what is behind it.
 
    EVERYTHING ABOUT THE KEYS IS READ OUT OF THE PROGRAM as the sheet opens:
    exeKeyRoutine walks TMapWindow::KeyRoutine for the gate, the cases and the
@@ -817,7 +817,7 @@ const US_OPTION_KEYS = { 0xA9: 'option-g', 0xC6: 'option-j', 0xEF: 'option-shift
 // built from what the case was read to do (`x`, the helpers in
 // renderCheatsSheet). A key the program does not have is not listed.
 const CHEAT_KEY_WORDS = {
-  0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with where you are, prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then ' + x.via('GoToLocation', 'takes you there') + ': anywhere in the game.'],
+  0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with where you are, prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then ' + x.via('GoToLocation', 'moves you there') + ': anywhere in the game.'],
   0xEF: ['Take teleporter', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ', then ' + x.via('TeleportTo', 'sends you') + ' where that teleporter goes.'],
   0xA7: ['Create a prop', x => 'Prompts for ' + x.asks() + ', then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
     'The number is the type plus 1,024 times the aspect: 0x0064 is a spear, and 0x0864 a spear at aspect 2, which has the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
@@ -843,12 +843,13 @@ const CHEAT_KEY_WORDS = {
   0x100: ['Macros', x => 'Keys that type no character run a ' + x.via('PerformMacro', 'macro') + '.']
 };
 
-/* The menu bars the application ships, off its own fork: TApp::ChangeMenuBar
-   builds the bar from MBAR n (deleted) and MBAR n + 1 (inserted), so the
-   menus a player can reach are the ids those two resources list. Every MENU
-   the fork defines that neither names is unreachable; on the shipped copy
-   that is Edit, Audio and Preferences, and add-on 612 is the seven-byte
-   patch that appends them to MBAR 128. Null without the application's fork. */
+/* The menu bars the application ships, off the application's fork:
+   TApp::ChangeMenuBar builds the bar from MBAR n (deleted) and MBAR n + 1
+   (inserted), so the menus a player can reach are the ids those two resources
+   list. Every MENU the fork defines that neither names is unreachable; on the
+   shipped copy that is Edit, Audio and Preferences, and add-on 612 is the
+   seven-byte patch that appends them to MBAR 128. Null without the
+   application's fork. */
 function shippedMenuBars() {
   const fork = window.APP_RSRC;
   if (!fork) return null;
@@ -869,9 +870,9 @@ function shippedMenuBars() {
   return { bars, unlisted };
 }
 
-/* The numbers the jump and teleporter keys ask for, read off the archive. A
+/* The numbers the jump and teleporter keys prompt for, read off the archive. A
    level is the low byte of a map resource id, so the table is every 0x80xx
-   the file holds; a teleporter is an index into 0xF00C, the zoneport table
+   in the file; a teleporter is an index into 0xF00C, the zoneport table
    loadZoneports already reads for the World tab, and the last index with a
    destination in it is the last number that goes anywhere. Above it every
    entry is map 0 at (0,0), which is where the community found BF and above
@@ -908,7 +909,7 @@ function cheatTeleporters() {
    distance to the next header, and that is the test: add it to a header's
    position and you land on the next header, 18 times of 19 on the shipped
    file, where the same test on a real map finds no header at all (the
-   workbench's own control, matching on each map's commonest byte pair,
+   workbench's control, matching on each map's commonest byte pair,
    scored 0 of 101, 0 of 110, 0 of 219 and 0 of 49). Two tests that look
    decisive and are not, so they are not tried again: every word below 256
    is true of six real maps too, and adjacent-tile agreement is 39% here
@@ -944,7 +945,7 @@ function cheatSpriteClasses() {
     try { nm = propDisplayName(pt); } catch (e) { quiet(e); }
     if (nm) seen.set(pt, { pt, name: nm, kind });
   };
-  // The people first, then the monsters: 0xF009 says which classes a named
+  // The people first, then the monsters: 0xF009 records which classes a named
   // character wears, 0xF008 which ones a monster does.
   try { for (const pt of [...characterProptypes()].sort((a, b) => a - b)) add(pt, 'person'); } catch (e) { quiet(e); }
   try { for (const m of parseMonsterStats()) if (!m.blank) add(m.proptype, 'monster'); } catch (e) { quiet(e); }
@@ -1147,7 +1148,7 @@ function renderCheatsSheet() {
       '</tbody></table></div></div>';
   }
 
-  // The numbers the keys ask for, off the file.
+  // The numbers the keys prompt for, off the file.
   const levels = cheatLevels();
   if (levels.length) {
     h += '<div class="mechSec"><h4 class="cheatH4">Levels, for Option-J</h4>' +
@@ -1181,7 +1182,7 @@ function renderCheatsSheet() {
       '<li>Map 0 is ' + heap.w + ' by ' + heap.h + ', with no roof, no exits, ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') + ' and no name. The map window’s title reads Untitled there.</li>' +
       '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory; the program made the map and never filled it in.</li>' +
       '<li>It can be reached by accident, from a bed in Cademia and from beneath Pnyx, ' +
-      'and holds a figure with a guard’s sprite called Nothing, or Omen if killed twice. ' +
+      'and has a figure with a guard’s sprite called Nothing, or Omen if killed twice. ' +
       'That figure is character record 0, which is empty, and is the record option-x writes to. ' +
       actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li></ul></div>';
   }
@@ -1252,19 +1253,19 @@ function renderCheatsSheet() {
    health 0 in the scenario and 25 in a played game -- is the clearest
    statement of what a save actually is.
 
-   THE NAMES ARE BORROWED AND THE SHEET SAYS SO. A save holds no 0x0201, so
+   THE NAMES ARE BORROWED AND THE SHEET STATES IT. A save has no 0x0201, so
    without the scenario opened earlier in the session every row would read
-   "Character 12"; see the comment above SCENARIO_NAMES for why carrying two
+   "Character 12"; see the comment above SCENARIO_NAMES for why having two
    string tables is not the same as holding two archives open. */
 window.SAVE_EDIT_OPEN = null;   // the record whose form is unfolded, kept across a rebuild
 window.SAVE_SHOW_ALL = false;   // slots that are marked but hold nobody
 
 /* The parts of a player file, and what each is, traced through the
-   executable rather than guessed: every one of these is written by a named
-   routine in Cythera's own save path (`TDelverApp::SaveToFile` and what it
-   calls), which is also where the comment above DELV_PLAYER_CLEAR_SUBN gets
-   its rule that none of them is encrypted. Only the ones the open file
-   actually has are listed. */
+   executable rather than assumed: every one of these is written by a named
+   routine in Cythera's save path (`TDelverApp::SaveToFile` and what it calls),
+   which is also the source of the rule, in the comment above
+   DELV_PLAYER_CLEAR_SUBN, that none of them is encrypted. Only the ones the
+   open file actually has are listed. */
 function savedGameParts() {
   const out = [];
   const add = (rid, what) => { if (refExists(rid)) out.push({ rid, what }); };
@@ -1292,17 +1293,17 @@ function savedGameParts() {
    The maintainer asked for every byte of a save labelled. The format was
    nearly all read already (the workbench's save-format.md); what the page
    lacked was a place that shows it byte by byte. saveByteMap() cuts the open
-   save into parts -- the data fork's own structure, each resource, and the
+   save into parts -- the data fork's structure, each resource, and the
    resource fork -- and each part into fields that cover it exactly: an
    offset, a length, what it is, and its value. A field whose meaning is not
    read is still a field, with `unread` set and the reason in its name, so
-   "every byte labelled" is true and the page still says which labels are
+   "every byte labelled" is true and the page still shows which labels are
    only structure. A record (a character, a prop, a monster) is a field
    with `kids` covering it, which the view folds.
 
-   The coverage is the check: saveByteMapGaps() lists every byte of a part
+   The coverage is the check: saveByteMapGaps() returns every byte of a part
    that no leaf field covers or two cover, and utilities/smoke_saves.mjs
-   holds every save on the disk to none. The readings each parser follows
+   requires none for every save on the disk. The readings each parser follows
    are cited in its comment; the addresses are in save-format.md. */
 
 // A field list over one run of bytes, offsets from the part's start.
@@ -1312,7 +1313,7 @@ function byteMapPart(key, title, bytes, extra) {
   return p;
 }
 // A record: a field whose kids cover it, built with the same f(at, len,
-// name, o) but offsets from the record's own start.
+// name, o) but offsets from the record's start.
 function byteMapRecord(p, at, len, name, o) {
   const rec = Object.assign({ at, len, name, kids: [] }, o || {});
   rec.f = (off, n, nm, oo) => { const x = Object.assign({ at: at + off, len: n, name: nm }, oo || {}); rec.kids.push(x); return x; };
@@ -1347,7 +1348,7 @@ function saveByteMapGaps(p) {
   return out;
 }
 // Fill each stretch of [from, to) that no field covers with one field
-// saying what it is: all zero, or bytes the file keeps there without any
+// describing it: all zero, or bytes the file has there without any
 // index pointing to them (an older copy of a resource, in cp1-intro-done a
 // stream beginning with the tag Char).
 function byteMapFillGaps(p, from, to, name) {
@@ -1358,7 +1359,7 @@ function byteMapFillGaps(p, from, to, name) {
   fill(pos, to);
 }
 
-// The 32 bytes of a character record, named as the record form names them
+// The 32 bytes of a character record, named as on the record form
 // (CHAR_GROUPS), with the three flag bytes the form shows as boxes.
 function charRecordLayout() {
   if (charRecordLayout.cache) return charRecordLayout.cache;
@@ -1403,17 +1404,17 @@ function byteMapPropRecord(p, at, name) {
   return rec;
 }
 
-/* The data fork's own structure (delvmod's load_header and load_index):
+/* The data fork's structure (delvmod's load_header and load_index):
    the title at 0 and the player's name at 0x20, each a Pascal string in
-   32 bytes; three single bytes delvmod keeps and does not name, at 0x40,
+   32 bytes; three single bytes delvmod stores without names, at 0x40,
    0x42 and 0x48; the master index's offset and length at 0x80, where the
    index begins with that same pair; then the index's entries, the
-   subindexes', and each resource's bytes, which are parts of their own. */
+   subindexes', and each resource's bytes, which are separate parts. */
 function byteMapDataFork(arc) {
   const b = arc.bytes, p = byteMapPart('file', 'the data fork’s structure: header, indexes and where each resource sits', b);
   p.f(0, 32, 'the scenario’s title, a Pascal string', { value: pstring(b, 0) });
   p.f(0x20, 32, 'the player’s name, a Pascal string', { value: pstring(b, 0x20) });
-  // Halfwords, not the bytes delvmod keeps: OpenScenFile, CheckPlayerFile,
+  // Halfwords, not the bytes delvmod stores: OpenScenFile, CheckPlayerFile,
   // NewGame and InitWorld read them (save-format.md, the header).
   const ver = v => (v >> 8) + '.' + (v & 0xFF);
   p.f(0x40, 2, 'the Delver file format’s version, major and minor; the program opens a file whose major version matches the program’s and whose minor is no higher (SegFileHeader::CompatibleVersions, against 0x1300)', { value: ver(u16be(b, 0x40)) });
@@ -1507,7 +1508,7 @@ function byteMapStream(p) {
         for (let a = 0; a < cnt; a++) {
           const ar = byteMapRecord({ fields: rec.kids, bytes: b }, q + o, 9, 'queued activity ' + a);
           // DoMove switches on the first queued entry's code in place of
-          // the character's own behaviour (byte 22), so a code is a
+          // the character's behaviour (byte 22), so a code is a
           // behaviour; scripts queue them (cbQueueAction, the one caller).
           const beh = b[q + o];
           const said = String(behaviourWordHTML(beh)).replace(/<[^>]+>/g, '');
@@ -1558,7 +1559,7 @@ function byteMapStream(p) {
         r.f(10, 2, 'which pane it shows (+134, TCharacterWindow::ChangePane)', { value: String(u16be(b, q + 10)) });
       }
     }
-    // Anything a block holds past what is read above.
+    // Anything in a block past what is read above.
     if (q < end) leaf(q, end - q, tag === 'Wind' ? 'an open window of a class whose record the page does not read' : 'the rest of the block', { value: byteMapHex(b, q, end - q), unread: true });
     pos += 4 + len;
     if (len < 4) break;
@@ -1706,7 +1707,7 @@ function byteMapJournalPage(p, carry) {
 
 /* The resource fork (Resource Manager format; save-format.md, The resource
    fork): a 16-byte header, a data area of length-prefixed resources, and the
-   map. The resources a save's fork holds: SCEN 128, an alias record to the
+   map. The resources in a save's fork: SCEN 128, an alias record to the
    scenario; pnot 0, the preview note; PICT, the preview picture. */
 function byteMapResourceFork(raw) {
   const p = byteMapPart('rsrc', 'the resource fork: which scenario the save belongs to, and its preview picture', raw);
@@ -1813,7 +1814,7 @@ function saveByteMap() {
     if (rsrc && rsrc.length) parts.push(byteMapResourceFork(new Uint8Array(rsrc)));
     let total = 0, unread = 0;
     for (const p of parts) for (const x of byteMapLeaves(p)) { if (x.part) continue; total += x.len; if (x.unread) unread += x.len; }
-    // The resources' bytes are counted in their own parts, not again in the
+    // The resources' bytes are counted in their parts, not again in the
     // data fork's, where each is one field pointing to its part.
     out = { parts, total, unread, files: arc.bytes.length + (rsrc ? rsrc.length : 0) };
   } catch (e) { quiet(e, 'the save’s byte map'); out = null; }
@@ -1912,7 +1913,7 @@ function renderSaveSheet() {
   // without a save can do here.
   if (!isSave) h += saveMakerHTML();
 
-  // What the file holds.
+  // What is in the file.
   const parts = savedGameParts();
   if (parts.length) {
     h += '<h4 class="saveH4">File Contents</h4><div class="tableScroll"><table class="forkTable cardTable">' +
@@ -1982,8 +1983,8 @@ function toggleSaveShowAll() { window.SAVE_SHOW_ALL = !window.SAVE_SHOW_ALL; ren
    not serve (TActiveMonster::DoTick's move countdown and sub-move counter,
    DoMove's behaviour switch, the unit constructor's alignment), and the
    scripts that read a field (0xE95, the defence helper's stand-in). The
-   form groups them by what they are for, and each says what it is, links
-   to its own byte of 0xF009, and with the application open to the handler
+   form groups them by what they are for, and each describes itself, links
+   to its byte of 0xF009, and with the application open to the handler
    that serves it. What was wrong before: byte 8, called the "state byte"
    and described as movement and orientation, is the character's first
    eight flags (bit 6 is in the party); byte 18, called the "party byte"
@@ -1997,7 +1998,7 @@ function toggleSaveShowAll() { window.SAVE_SHOW_ALL = !window.SAVE_SHOW_ALL; ren
    the selling helper 0xEA9 and stores back what it returns
    (`Arg00.0x27 = 0xEA5(greeting, stock, Arg00.0x27, ...)`). 0xEA5 prices a
    thing at its worth times the factor over ten, starts a factor under 9 at
-   20, and haggling takes it down a tenth at a time; 0xEA9 pays the worth
+   20, and haggling lowers it a tenth at a time; 0xEA9 pays the worth
    times ten over the factor and starts a 0 at 10. One byte serves both, so
    a merchant who has sold at double buys at half. The two starting values
    are the first `set_local 0x32` (the third argument) of each helper. */
@@ -2012,7 +2013,7 @@ function shopPriceRule() {
   return (DERIVED.SHOP_PRICE = out);
 }
 /* The size a created creature was made at, byte 31. A creature from a
-   map's list gets a character record of its own, the first free one from
+   map's list is given a separate character record, the first free one from
    256 on, and TActiveMonster::TActiveMonster(short) draws a percentage,
    stores it in byte 31 and makes the unit's body, reflex, mind and health
    (0xF008 bytes 0, 1, 2 and 5) that percentage of themselves, rounded and
@@ -2020,10 +2021,10 @@ function shopPriceRule() {
    save's Char block (TOC+8562, which only SaveToFile and RestoreModel touch
    besides): 0 to 4 give 10 to 49, 25 to 99, 50 to 149, 100 to 199 and 150
    to 299, anything else 100, and the program starts it at 2, which every
-   save on this disk carries. The 64 created creatures in the playthrough
+   save on this disk has. The 64 created creatures in the playthrough
    saves all match: stats equal to the unit's times byte 31 over 100, byte
    31 from 63 to 135, and none with byte 30, byte 23 or a flat 100 in its
-   place. Named characters (0 to 255) keep their own stats and are not
+   place. Named characters (0 to 255) keep their stats and are not
    given it. The reader finds the `stb` of byte 31 in the constructor, to
    link to. */
 function exeCreatureSize() {
@@ -2141,10 +2142,10 @@ function toggleCharEdit(index) {
    2026: "what are character bits 0-5 and 24-31?"). The program names flags
    6 and 7 and the status flags; the rest mean what the scripts make of
    them, and for the flags of byte 8 that differs by character, each
-   conversation keeping its own notes there. So a flag under 24 lists the
-   places in this character's own script, 0x1800 plus the number, and
-   wherever another script names this character by number; a flag of byte
-   26 belongs to nobody's conversation and lists every script that touches
+   conversation keeping separate notes there. So a flag under 24 shows the
+   places in this character's script, 0x1800 plus the number, and
+   wherever another script refers to this character by number; a flag of byte
+   26 belongs to nobody's conversation and shows every script that touches
    it. One link a script, to the first place, as Loose Ends does. Empty
    when nothing uses the flag for this character. */
 function charFlagUses(index, f) {
@@ -2237,7 +2238,7 @@ function applyCharEditForm(index) {
 // is the three fields anybody opening a save is here to change. Health and
 // magic have a maximum the record states; a full stomach is what the potion
 // that sets nutrition sets it to, read off its script (fullStomach), and
-// left alone when no script says.
+// left alone when no script sets it.
 function healCharacterRecord(index) {
   const rec = loadCharacterTable()[index];
   if (!rec) return;
@@ -2245,7 +2246,7 @@ function healCharacterRecord(index) {
   applyCharacterRecordEdit(index, Object.assign({ health: rec.healthMax, magic: rec.magicMax }, full ? { nutrition: full.v } : {}));
 }
 /* What a full stomach is: the value the potion that sets nutrition sets it
-   to (foodRules, off the potion scripts). A saved game carries no scripts,
+   to (foodRules, off the potion scripts). A saved game has no scripts,
    so the scenario's, read when it was opened, is kept and borrowed, the way
    the character names are. */
 window.SCENARIO_FULL_STOMACH = null;
@@ -2266,7 +2267,7 @@ function fullStomach() {
    becomes the open file, and the forms this sheet already has for a save
    (a record's fields, the quest values and flags, the rooms, the To Do
    list, Give) set the rest. buildNewGameSave in js/delv-archive.js writes
-   the file and says what is in it.
+   the file and describes what is in it.
 
    The hero's starting figures are the creation script's
    (heroCreationRules), and full health is the formula the Mechanics sheet
@@ -2289,7 +2290,7 @@ function fullStomach() {
    The hour is the Char block's clock at SAVE_CLOCK_HOUR units an hour
    (save-format.md; the new game's 0x9000 is nine in the morning by it).
 
-   The point in the story is one of the scenario's own named states: the
+   The point in the story is one of the scenario's named states: the
    resource fork's MSta, three records of 64 bytes named "Base", "Plague
    Cured" and "Olpheltius Murdered". Bytes 32 to 63 are the 32 quest
    values. That is read off the two that are not zero: "Plague Cured" has
@@ -2302,7 +2303,7 @@ function fullStomach() {
 
    Who is with the hero is anyone whose own conversation can call
    JoinParty. Each stands on a square beside him a walker can cross;
-   buildNewGameSave says what their records are given. */
+   buildNewGameSave describes what their records are given. */
 const NEW_GAME_SHIPPED = { clock: 0x9000, day: 1, header4: 0x0800 };
 const SAVE_CLOCK_HOUR = 0x1000;
 /* THE ARCHETYPES (8 October 2026). The creation dialog's nine are named
@@ -2310,7 +2311,7 @@ const SAVE_CLOCK_HOUR = 0x1000;
    `load_far_word` (0x0501 at 0x110, a word pointing at an array of nine
    pointers): body, reflex, mind, then a word a skill, the level above bit
    10 and the skill's prop type below, as an aspect and prop type are
-   packed anywhere. The creation script takes the three stats and leaves
+   packed anywhere. The creation script reads the three stats and leaves
    the archetype in the hero's field 0x20. The skills come later: the
    king's conversation (0x1802) walks the row from its fourth word and
    calls `sys New` for each with a first byte, the hero, the level with a
@@ -2405,7 +2406,7 @@ function saveMakerCompanions() {
   return out;
 }
 /* THE TO DO LIST AS THE STORY (8 October 2026). Past the king's welcome
-   the game keeps no table of how far the story has got: a quest's progress
+   the game has no table of how far the story has got: a quest's progress
    is a number or a flag that the scripts concerned read, 17 of the 32
    values and 10 of the 256 flags in use, none of them named
    (quests-and-todo.md). What the game does name is the To Do list, each
@@ -2447,7 +2448,7 @@ function saveMakerDefaults() {
   const portraits = [];
   for (let rid = 0x8801; rid <= 0x88FF; rid++) if (refExists(rid)) portraits.push(rid);
   if (!portraits.length) return null;
-  // Offered first: one of the hero's own faces. With the program open that
+  // Offered first: one of the hero's faces. With the program open that
   // is the first the creation dialog offers (exeHeroPortraits). Without it,
   // the first of the last unbroken run of portraits the file names for
   // nobody, which is where the hero's faces sit, after the cast's. It was
@@ -2518,7 +2519,7 @@ function saveMakerHTML() {
     '<div class="mkRow"><label class="mkField">Name <input type="text" id="mkName" maxlength="31" value="NewGame01"></label>' +
     '<label class="mkField">Sprite <select id="mkSprite">' + d.cr.sprites.map((s, i) => '<option value="' + i + '">' + svEsc(spriteName(s)) + '</option>').join('') + '</select></label>' +
     '<label class="mkField">Portrait <select id="mkPortrait">' + d.portraits.map(r => '<option value="' + r + '"' + (r === d.portrait ? ' selected' : '') + '>' + svEsc(labelFor(r) || propWordHex(r)) + '</option>').join('') + '</select></label></div>' +
-    // The faces the game's own creation dialog offers, read from the program;
+    // The faces the game's creation dialog offers, read from the program;
     // with no application open there is the list alone.
     (() => { const hp = exeHeroPortraits(), own = hp ? Array.from({ length: hp.perSex.v * 2 }, (_, i) => 0x87FF + hp.first.v + i).filter(r => refExists(r)) : []; return own.length ? '<div class="mkRow mkFaces">' + own.map(r => { const f = characterFace(r - 0x8800 + 1); return f && f.url ? '<img class="mkFace" src="' + f.url + '" alt="' + propWordHex(r) + '" title="' + propWordHex(r) + '" onclick="saveMakerFace(' + r + ')">' : ''; }).join('') + '</div>' : ''; })() +
     (d.archetypes ? '<div class="mkRow"><label class="mkField">Archetype <select id="mkArch" onchange="saveMakerArchetype()"><option value="">None</option>' + d.archetypes.list.map(a => '<option value="' + a.index + '">' + svEsc(a.name) + '</option>').join('') + '</select></label>' +
@@ -2545,7 +2546,7 @@ function saveMakerFace(rid) {
   if (sel) sel.value = String(rid);
   for (const im of document.querySelectorAll('.mkFace')) im.classList.toggle('on', im.title === propWordHex(rid));
 }
-// The archetype chosen: its three stats into the fields, and its skills said.
+// The archetype chosen: its three stats into the fields, and its skills listed.
 function saveMakerArchetype() {
   const d = saveMakerDefaults(), sel = document.getElementById('mkArch'), a = d && d.archetypes && sel && sel.value !== '' ? d.archetypes.list[parseInt(sel.value, 10)] : null;
   const note = document.getElementById('mkArchNote');
@@ -2581,18 +2582,18 @@ function makeSaveFromForm(download) {
 }
 /* MAKE A SCENARIO (8 October 2026): the open scenario with its world
    emptied, one zone of one tile left for the hero to stand in
-   (buildNewScenario, js/delv-archive.js, whose header says what goes and
+   (buildNewScenario, js/delv-archive.js, whose header describes what goes and
    what stays). This is the half that reads and writes code.
 
    The opening is cut from the creation script, the maintainer's choice.
    The first function of 0x1801 sets the hero up and then runs the
    slideshow, from its first `sys SpecialView` to the `end` of `sys
    EndSlideshow`, and returns; those instructions are taken out with
-   dvmRelink, which refuses the cut if anything left points into it. A
+   dvmRelink, which rejects the cut if anything left points into it. A
    script without that shape is written as it stands.
 
-   The zone's entry script is the editor's blank map's, 0x1400, said again
-   with the name asked for: no landscape and no music. Its light is either
+   The zone's entry script is the editor's blank map's, 0x1400, written again
+   with the name chosen: no landscape and no music. Its light is either
    0, which leaves the zone to the clock's daylight, or SCENARIO_LIT. A
    level below zero ignores the clock, and AmbientLight leaves every square
    alone from 160 up (the workbench's GRIMOIRE-NOTES.md, *The ambient
@@ -2605,7 +2606,7 @@ function makeSaveFromForm(download) {
 
    The tile offered first is the one the scenario's maps place most among
    those a walker can cross that 0xF004 names. The square the hero stands
-   on in the file is no guide: in Cythera it holds tile 206, which has no
+   on in the file is no guide: in Cythera it has tile 206, which has no
    name and draws black, and the first file made was a black map. */
 const SCENARIO_LIT = -255;
 function scenarioTileChoices() {
@@ -2623,7 +2624,7 @@ function scenarioTileChoices() {
   return [...by.values()].sort((a, b) => b.count - a.count);
 }
 function scenarioMakerDefaults() {
-  // A saved game's header names its player at 0x20; a scenario's does not.
+  // A saved game's header has its player's name at 0x20; a scenario's does not.
   if (!ARCHIVE || ARCHIVE.bytes[0x20]) return null;
   const hero = loadCharacterTable()[1];
   if (!hero || !hero.zone) return null;
@@ -2647,13 +2648,13 @@ function scenarioOpeningCut() {
 }
 /* A BATTLE AT THE START (8 October 2026, the maintainer's ask). Two lines
    of creatures stand a square apart, three squares north of the hero (or
-   south, where the zone has no room north), each creature hatched from an
-   egg of its own as the game opens. Nothing is staged: each starts at
+   south, where the zone has no room north), each creature hatched from a
+   separate egg as the game opens. Nothing is staged: each starts at
    behaviour 8, which behaviours.md reads as "attack the nearest enemy",
    and whether two creatures are enemies is the program's table over their
    alignments, byte 6 of a creature's 0xF008 record
    (tremor-and-enemies.md): the same alignment, or 0 on either side, is no
-   fight, and such a pair is refused. Four ruffians against four
+   fight, and such a pair is rejected. Four ruffians against four
    wolflizards in the fork had "A wolflizard hit a ruffian" in the message
    pane and corpses in the save within the first minute. The hero is
    alignment 2 and close by, so a side that is not his may turn on him. */
@@ -2688,12 +2689,12 @@ function scenarioBattleEggs(c, width, height, x, y) {
    objects }. Read against the archive on 3 October (the workbench's
    GRIMOIRE-NOTES.md, *Manborough's port read against the game*): a cell's
    first `t` is the map word exactly, and its other entries are the tiles of
-   props that the objects list also carries, so only the first is taken.
+   props that the objects list also has, so only the first is taken.
 
    What an object becomes:
      cythera_prop_NNNN_...   prop type NNNN on its square, turned when
                              `rotated`; a name ending _aK is aspect K, any
-                             other ending aspect 0, since his export keeps
+                             other ending aspect 0, since his export has
                              no aspect number
      a bare name (sword)     the prop type the game calls that, singular or
                              plural, by propDisplayName
@@ -2710,11 +2711,11 @@ function scenarioBattleEggs(c, width, height, x, y) {
                              so it hatches at any hour
      cythera_npc_NNN_...     character NNN of the open file, stood there
                              with its conversation and no schedule
-   A thing's state, what it holds, its document, its lock and whether it
+   A thing's state, what it contains, its document, its lock and whether it
    is lit are data words this does not write; zone ports lead to zones that
    are gone and are dropped. `spawns.player_start` is where the hero
    stands. Returns { name, width, height, tiles, props, eggs, cast, x, y,
-   skipped: [names] }, or throws saying what the file is not. */
+   skipped: [names] }, or throws an error naming what the file is not. */
 function manboroughMap(bytes) {
   let text = null;
   if (looksLikeZip(bytes)) {
@@ -2760,19 +2761,19 @@ function manboroughMap(bytes) {
   return out;
 }
 /* AND OUT AGAIN: the made zone as a scenario his editor's "Import
-   Scenario..." takes (the same day). The zip is the three files his own
+   Scenario..." accepts (the same day). The zip is the three files his own
    export has: scenario.json with an id of letters, digits and underscores
    and Cythera as its base, levels.json naming the one map, and the map.
 
    What can be written is what his format lets a stranger name. The
    ground is every square's map word. The hero's square is player_start.
-   A zone that came from a map of his gets that map's objects back exactly
+   A zone that came from a map of his has that map's objects back exactly
    as they came, cells and all, since they are already in his words. A battle's creatures
    are NOT written: his hatcheries are 113 fixed definitions, one for each
    combination the shipped game has (ruffians come four at a time at 100
    in a hundred, wolflizards never do), and a name outside that list is
    one his editor has no definition for. The art is his player's, whatever
-   the form's Art says. Returns { bytes, name, id, left: [what was left
+   the form's Art is set to. Returns { bytes, name, id, left: [what was left
    out] }, or null where the choices make no zone. */
 function manboroughExport(c) {
   const d = scenarioMakerDefaults();
@@ -2801,17 +2802,17 @@ function manboroughExport(c) {
   return { bytes, name: id, id, left };
 }
 /* The file, from the choices: { name (the zone's title), width, height,
-   tile, x, y, light (the zone's ambient level), opening (true keeps the
+   tile, x, y, light (the zone's ambient level), opening (true retains the
    slideshow), armyA and armyB (two creatures' prop types) with armyCount
    for a battle, badArt (true redraws every picture, redrawDelverArt; with
    fine, as delv-fineart.js draws them, or with pack, from an art pack) }. Null when the open file
-   cannot make one; throws what the assembler or the relinker says. */
+   cannot make one; throws what the assembler or the relinker reports. */
 function newScenarioBytes(c) {
   const d = scenarioMakerDefaults();
   if (!d) return null;
   const int = (v, dflt) => { const n = parseInt(v, 10); return isNaN(n) ? dflt : n; };
   // A map brought in sets the size, the ground, what stands on it and,
-  // where it says, the hero's square; the form's own name still wins.
+  // where it has one, the hero's square; the form's name still overrides it.
   const im = c.map || null;
   const width = im ? im.width : int(c.width, d.width), height = im ? im.height : int(c.height, d.height);
   const name = String(c.name || (im && im.name) || '').trim();
@@ -2831,7 +2832,7 @@ function newScenarioBytes(c) {
 /* THE SAME SCENARIO AS A MAGPIE PATCH (8 October 2026), which is how one
    is played in the browser: the player's Patches panel merges a patch into
    the game it fetched itself, so nothing of the game need be published or
-   carried. A patch holds whole resources and cannot take one away, so it
+   carried. A patch contains whole resources and cannot remove one, so it
    is every resource of the made file that differs from the open file's or
    is new to it, and the zones and conversations the made file dropped
    stay in the patched game, unreached: the hero's zone is replaced, the
@@ -2856,17 +2857,17 @@ function scenarioPatch(c) {
    everybody's enemy (3, the one whose row of the enemy table has no ally)
    is drawn as a beast; anyone else as a person. */
 /* The art pack's side of the redraw (delv-artpack.js): which file each
-   tile and portrait takes. A figure is asked for by its prop's name, any
+   tile and portrait uses. A figure is looked up by its prop's name, any
    other tile by the name 0xF004 gives it; a tile with see-through pixels
    is a thing, one without is ground, floor or wall by whether a walker
    can cross it. A figure's later frames are the one picture turned round
    and dropped a pixel, so a step still shows. A portrait is one of the
    pack's player bodies at twice its size on black, chosen by the
-   resource's number. The pack keeps a player as a bare body with clothes
-   in layers of their own, so the hero and the portraits are dressed from
+   resource's number. The pack stores a player as a bare body with clothes
+   in separate layers, so the hero and the portraits are dressed from
    its legs and body drawers, the pick a hash of the name or the number.
    `pack` is readArtPack's; `report`, when given, is
-   filled with how many names the pack answered. */
+   filled with how many names were found in the pack. */
 function scenarioPackArt(pack, report) {
   const black = badArtIndex(0, 0, 0), bodies = pack.files.filter(f => /^player\/base/.test(f.dir));
   const legs = pack.files.filter(f => f.dir === 'player/legs'), tops = pack.files.filter(f => f.dir === 'player/body');
@@ -2925,7 +2926,7 @@ function applyCharacterRecordEdit(index, fields, rawBytes) {
   if (!raw) { setStatus('This file has no character table.', true); return false; }
   const records = parseDelverCharacterRecords(smartDecrypt(raw, 0xF009).data);
   if (!records[index]) return false;
-  // Bytes no field of the parser carries, written into the record's raw
+  // Bytes no field of the parser covers, written into the record's raw
   // bytes, which the writer lays down before the fields.
   for (const [o, v] of Object.entries(rawBytes || {})) records[index].raw[+o] = v & 0xFF;
   Object.assign(records[index], fields);
@@ -2933,7 +2934,7 @@ function applyCharacterRecordEdit(index, fields, rawBytes) {
   /* A placed character stands in two places in a saved game: this record,
      and prop record `index` of 0xF306, the characters' prop list, which is
      what the game places them from when the file loads. Moved here alone
-     the hero loaded where the prop record said and was saved back there,
+     the hero loaded where the prop record put him and was saved back there,
      the edit gone -- which is how utilities/game_check.mjs first failed,
      19 September 2026, the first time a save this page wrote was put in
      front of the game. So a square edited here moves the prop record too.
@@ -2963,23 +2964,23 @@ function applyCharacterRecordEdit(index, fields, rawBytes) {
      32 value bytes at +16, then 256 flags as eight big-endian longs at +48,
      flag n being bit n & 31 of long n >> 5 counted from the least
      significant (saveQuestState reads them the same way; the writer below
-     is its inverse and the smoke holds the two together).
+     is its inverse and the smoke checks the two against each other).
    - The rooms entered, 0xF00E: a halfword a room, and bit 0 is "entered
      once, description shown" (TGameSys::HeartBeat sets it and runs the
      room's LookAt only while it is clear). Only bit 0 is ever set by the
      game, and the form touches no other.
    - The To Do list, 0x0401: 256 entries of eight bytes. +0 is the struck-off
      byte (TToDo::DoneToDo writes 1 there and nothing else), +2 a halfword
-     TToDo::AddToDo takes from the global at r2 - 5220, which is also the
+     TToDo::AddToDo reads from the global at r2 - 5220, which is also the
      Char block's short at +84 (1 in every save on the disk, and the stamp
-     on the one live entry any of them holds), and +4 the text reference.
+     on the one live entry any of them has), and +4 the text reference.
      An empty slot reads 00 00 00 00 50 00 FF FF. The reference for line n
      is the line-0 word with n in bits 16 to 27, because that is what the
      interpreter's add does to a resource reference: TInterp::DoExpr's
      handler for opcode 0x4A, when the left operand's top nibble is 3 and the
      right one is a plain number, adds the number to the low twelve bits of
-     the high halfword and keeps the tag (0x07F364 on). So a script's
-     `0x021A[0] + 114` is 0x3072021A. Adding to a slot that holds a line
+     the high halfword and preserves the tag (0x07F364 on). So a script's
+     `0x021A[0] + 114` is 0x3072021A. Adding to a slot that has a line
      changes only the reference, as AddToDo does.
    - A thing given to a character: a sixteen-byte record appended to the
      prop list of the zone the character stands in, flags 0x10 and the
@@ -2990,15 +2991,15 @@ function applyCharacterRecordEdit(index, fields, rawBytes) {
      a scroll teaches one. Equipping is not offered: 0x18 on a record the
      character does not wear-check is a state the game never made.
 
-   Two loads were tried in the fork on the same day, which is what decides
-   the gating: a hero moved into a zone the save holds no list for loads,
+   Two loads were tried in the fork on the same day, which is what settles
+   the gating: a hero moved into a zone the save has no list for loads,
    and the game reads the scenario's list for it and writes it into the save
    on the next save; but a thing can only be given where a list exists,
    since there is nothing to append to otherwise. And a save whose Mons
    chunk has lost the hero's entry loads and then halts the game when it
    next saves, so nothing here touches Mons.
 
-   WHAT THE ROWS ARE CALLED. A save carries no scripts, no To Do text and no
+   WHAT THE ROWS ARE CALLED. A save has no scripts, no To Do text and no
    room descriptions, so those are taken from the scenario at the moment a
    save replaces it (keepScenarioSaveWords, called from parseArchiveBytes),
    the way the character names are. Opened with no scenario before it, the
@@ -3028,7 +3029,7 @@ function scenarioSaveWords() {
   rooms.sort((a, b) => a.n - b.n);
   // Every line a script can put in a slot: the pairs the scripts state, and
   // for the one computed site (slot 18, the Books of Wisdom) each line its
-  // count can reach that the text array holds.
+  // count can reach that is in the text array.
   const pairs = new Map();
   for (const a of td.adds) {
     if (!a.slot || !a.line) continue;
@@ -3051,7 +3052,7 @@ function scenarioSaveWords() {
 function keepScenarioSaveWords() {
   try { window.SCENARIO_SAVE_WORDS = scenarioSaveWords(); } catch (e) { quiet(e, 'the scenario’s words for the save forms'); }
   // Each zone's width and height, which a save's map memory is laid out by
-  // and a save does not hold (saveByteMap).
+  // and a save lacks (saveByteMap).
   try {
     const sizes = {};
     for (let n = 0; n < subindexCount(ARCHIVE, 127); n++) {
@@ -3064,7 +3065,7 @@ function keepScenarioSaveWords() {
     window.SCENARIO_MAP_SIZES = sizes;
   } catch (e) { quiet(e, 'the scenario’s map sizes for a save’s byte map'); }
 }
-// The open file's own words when it has scripts, else the kept ones.
+// The open file's words when it has scripts, else the kept ones.
 function saveWords() {
   if (refExists(0x1802) || refExists(0x021A)) {
     try { return scenarioSaveWords(); } catch (e) { quiet(e, 'the open file’s words for the save forms'); }
@@ -3169,15 +3170,15 @@ function roomsEnteredHTML(words) {
       '<td>' + svEsc(r.zones.map(zoneDisplayName).join(', ')) + '</td><td>' + svEsc(r.text) + '</td></tr>').join('') +
     '</tbody></table></div><div class="propEdit"><button class="sv-chip" onclick="applyRoomsForm()">Apply</button></div></details>';
 }
-/* The gremlins a save holds (TGremlin::SaveGremlins): a state for each of
+/* The gremlins in a save (TGremlin::SaveGremlins): a state for each of
    the 256, four bytes apiece in the Grem block of 0x0400, the second two a
    heap reference. 0 hears the party enter and the zone's signals, 1 does
-   not, and 2 is no gremlin. A save keeps the states it was made with --
+   not, and 2 is no gremlin. A save stores the states it was made with --
    LoadGremlins puts them back and nothing checks them against the scenario
    -- so a gremlin added to Cythera Data afterwards is 2 in an older save, and
    switching it to 0 here is what lets that save run it (run in the fork,
    26 September 2026: a save with 2 left the gremlin silent, one with 0 ran
-   it). The table lists every gremlin a save has on or off, and every one
+   it). The table shows every gremlin a save has on or off, and every one
    the scenario opened before it has a script for. */
 function saveGremlinBlock(b) {
   let pos = 0;
@@ -3378,9 +3379,9 @@ function forkEntryOf(resid) {
 /* The step down from a component to the file (the maintainer's chain,
    Scenario, Components, Data, of 20 September 2026, asked of every page on
    16 October 2026). A record already had one, jumpToForkBytes; a script, a
-   picture or a sound had none, its bytes shown only by its own Hex view.
+   picture or a sound had none, its bytes shown only by its Hex view.
    This opens the Data Fork sheet with the resource's subindex ringed and a
-   line saying where in the file it is. FORK_AT holds until the next
+   line giving where in the file it is. FORK_AT stays until the next
    jumpToResource, as LISTING_AT does: the sheet is drawn more than once on
    the way in, so the first draw cannot be the one to clear it. */
 window.FORK_AT = null;
@@ -3472,15 +3473,15 @@ function renderDataForkSheet() {
 }
 
 /* ---- Data > Installer -----------------------------------------------------
-   Every file the installer carries, as the Finder would list them: path,
+   Every file in the installer, as the Finder shows them: path,
    type and creator, both fork sizes. Each row can be read (the text files,
-   inline) or taken away as a MacBinary carrying both forks under its own
-   name -- the form a real Mac wants, and the one the page already writes
+   inline) or taken away as a MacBinary with both forks under the file's
+   name -- the form a real Mac needs, and the one the page already writes
    for an edited archive. The two files the rest of the page is built on are
    marked; opening them again from here is pointless and not offered.
 
    The bytes come out of the installer on demand, through viseExtract, and
-   are not kept: the installer itself is what the page remembers (see
+   are not kept: the installer itself is what the page stores (see
    adoptArchive), and a decoded stream is cached on it for the session. */
 function installerTextOf(entry) {
   const got = viseExtract(window.INSTALLER.archive, entry);
@@ -3531,11 +3532,11 @@ function switchInstaller(name) {
 }
 /* The icon the Finder shows for a file of this type, from the owning
    application's bundle: a BNDL maps local ids to FREF and ICN# resources, each
-   FREF names a file type and a local icon id, and the icon families (icl8,
+   FREF gives a file type and a local icon id, and the icon families (icl8,
    icl4, ICN#) share the ICN# id. Cythera's bundle has four: the application
    (APPL), the data file (DelS), a saved game (DelP) and the scratch file
-   (Temp). A Magpie patch is a DelP too and is told apart by its creator, so
-   the bundle has no icon of its own for one. Anything else gets no icon rather
+   (Temp). A Magpie patch is a DelP too and is distinguished by its creator, so
+   the bundle has no icon for one. Anything else has no icon rather
    than a wrong one. */
 function bundleIconMap(fork, cacheKey) {
   const cache = DERIVED._BUNDLE_ICONS || (DERIVED._BUNDLE_ICONS = {});
@@ -3584,11 +3585,11 @@ function finderIconFor(type) {
 }
 
 /* Magpie's icon for a patch. A Magpie patch is a DelP file with Magpie's
-   creator, Delp, so Cythera's bundle has nothing for one; Magpie's own
+   creator, Delp, so Cythera's bundle has nothing for one; Magpie's
    bundle does, a FREF for DelP whose icon is the Delver document frame with
    a square patched into its corner. Magpie is Glenn Andreas's, not ours to
    ship, and the one copy there is comes inside the Pumpkin Patch archive
-   (614_MagpiePumpkinPatch.sit.hqx). So when an archive opened here holds a
+   (614_MagpiePumpkinPatch.sit.hqx). So when an archive opened here contains a
    program with Magpie's creator, its resource fork is kept, and remembered
    in this browser, which is the only place it goes: from then on the
    Patches tab can wear the icon, when a patch is the file open, without the
@@ -3645,22 +3646,22 @@ function magpieIcon(type) {
 
 /* Two icons that are not the game's, and are not in the game's fork either.
 
-   The installer is a Macintosh file like any other and carries two kinds of
-   icon the tab row can use. Its own application icon is in the fork it
+   The installer is a Macintosh file like any other and has two kinds of
+   icon the tab row can use. Its application icon is in the fork it
    arrived in, through a VIS3 bundle with the same shape as Cythera's; that is
    the VISE mark, and it belongs on the Installer tab, which had been wearing
    a game tile because "the installer is a container rather than a Delver file
    type, so there is no icon of its own to take" -- true of the Delver bundle,
-   and the installer has a bundle of its own.
+   and the installer has a bundle.
 
    The other kind is a folder's custom icon, which on a classic Mac is an
    invisible file called `Icon\r` inside the folder, holding an icon family at
-   id -16455. The installer's catalog carries five of them -- the game folder,
+   id -16455. The installer's catalog has five of them -- the game folder,
    CombatAI, Documentation, Screenshots and Web Site urls -- and CombatAI's is
    a folder with an axe across it, drawn for those files and no others.
 
    Both are null until a file is open, like every other icon from a fork, so
-   each tab keeps the game tile named beside it as the fallback. */
+   each tab retains the game tile named beside it as the fallback. */
 function installerIcon(which) {
   const inst = window.INSTALLER;
   if (!inst) return null;
@@ -3683,7 +3684,7 @@ function installerIcon(which) {
       const e = inst.archive.entries.find(x => x.type === 'APPL' && x.path.slice(-tail.length) === tail);
       if (e) art = installerEntryIcon(e);
     } else {
-      // The folder's own icon file, by the path the catalog gives it. The
+      // The folder's icon file, by the path the catalog gives it. The
       // name ends in a carriage return, which is what makes it invisible.
       // Matched on the tail of the path, not the whole of it: the top folder
       // is named for the release ("Cythera 1.0.4 \u0192"), and all four
@@ -3702,8 +3703,8 @@ function installerIcon(which) {
 
 /* The icon the Finder gives one file of the installer. It comes from the
    bundle of the program that owns the file, which is the file's creator:
-   Cythera's for Cythera's own files, and for another program (Register
-   Cythera) the bundle in that program's own resource fork. Until 3 October
+   Cythera's for its files, and for another program (Register
+   Cythera) the bundle in that program's resource fork. Until 3 October
    2026 every file took Cythera's icon for its type, so Register Cythera,
    being an application, wore Cythera's application icon (the maintainer).
    A file whose program is not in the installer has no icon here, rather
@@ -3716,7 +3717,7 @@ function installerEntryIcon(e) {
   const key = e.creator + '/' + e.type;
   if (key in cache) return cache[key];
   let art = null;
-  // A folder's Icon file holds the folder's own icon, at -16455.
+  // A folder's Icon file has the folder's icon, at -16455.
   if (/\/Icon\r$/.test(e.path)) {
     try { const got = viseExtract(inst.archive, e); if (got.rsrc && got.rsrc.length) art = iconFromFork(openResourceFork(got.rsrc), -16455); } catch (err) { quiet(err, 'a folder\u2019s icon'); }
     return art;
@@ -3898,9 +3899,9 @@ function renderCombatAISheet(which) {
 /* ---- Records: the tables the scenario is built from -----------------------
    A figure on a Scenario page is read out of a table, and a table is a
    component of the scenario in the same way a sprite sheet or a script is:
-   the thing that holds the fact, where the fork is the file that holds the
-   bytes. So the tables have a leaf of their own under Components and a
-   figure's link lands here, on its own record, laid out field by field with
+   the thing the fact belongs to, where the fork is the file the bytes
+   are in. So the tables have a separate leaf under Components and a
+   figure's link lands here, on its record, laid out field by field with
    the byte it came from ringed. The Data Fork is one more step down and
    every record links to it.
 
@@ -3909,9 +3910,9 @@ function renderCombatAISheet(which) {
    script already did -- it lands on the script under Functions -- and the
    record tables were the ones jumping straight to the hex.
 
-   The field maps are read where the file or the program says them.
+   The field maps are read where the file or the program has them.
    0xF008's offsets and field numbers come from GetField's second jump table
-   (exeMonsterFields); its names are this page's, and the page says which
+   (exeMonsterFields); its names are this page's, and the page shows which
    are which. 0xF009's are delvmod's, worked out by diffing saves, with
    nutrition read out of the executable. A prop list's are
    parseDelverPropList's. 0xF000 is one halfword a prop type and needs no
@@ -3976,7 +3977,7 @@ function recordFieldMap(resid) {
   return [];
 }
 
-window.RECORD_AT = null;   // { resid, byte } -- which byte a jump asked for
+window.RECORD_AT = null;   // { resid, byte } -- which byte a jump requested
 function renderRecordsSheet() {
   stopSpriteAnimations();
   const grid = document.getElementById('sheetGrid');
@@ -4016,7 +4017,7 @@ function renderRecordsSheet() {
     '. A figure on a Scenario page opens its record here, and every record links on to its bytes in the file.';
 }
 
-/* One record, field by field, with the byte a jump asked for ringed. The
+/* One record, field by field, with the byte a jump requested ringed. The
    chips at the head are the two directions: up to the thing the record
    describes, down to the same bytes in the Data Fork. */
 function showRecordDetail(resid, byte) {

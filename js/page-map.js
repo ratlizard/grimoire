@@ -41,8 +41,8 @@ function getPropTileList() {
   return arr;
 }
 /* Where a prop type's base tile was read from: 0xF000 is one halfword a
-   prop type, so the figure opens its own two bytes. Every page that prints
-   a base tile uses this. */
+   prop type, so the figure opens that prop type's two bytes. Every page that
+   prints a base tile uses this. */
 function propTileSrc(pt) { return { resid: 0xF000, byte: pt * 2, stride: 2, what: 'the base tile of prop type ' + pt }; }
 function getPropOffsets() {
   if (_propOffXCache && _propOffYCache) return [_propOffXCache, _propOffYCache];
@@ -62,7 +62,7 @@ function getPropOffsets() {
 // 232 -- and it is reachable by nothing: no prop record, no faux prop on any
 // map's terrain and no character record uses that type-and-aspect pair. So
 // whether it means 232 or -24 is unobservable in this archive, and matching
-// the reference implementation beats guessing.
+// the reference implementation is safer than an assumption.
 function propOffsetFor(proptype, aspect, rotated) {
   const [offX, offY] = getPropOffsets();
   const oi = ((proptype & 0x3FF) << 5) + (aspect & 0x1F);
@@ -75,7 +75,7 @@ function propOffsetFor(proptype, aspect, rotated) {
 // 0xF010 gives every TILE an optional prop to draw on top of it: one uint16
 // per tile holding proptype (0x3FF), aspect (bits 10-14) and a rotate bit.
 // delvmod's draw_tile() draws it straight after the tile itself, so it sits
-// under anything the prop list places on the same square. 114 tiles carry one.
+// under anything the prop list places on the same square. 114 tiles have one.
 // This is not decoration that could be left out: Land King Hall's cave mouths
 // are terrain tiles whose faux prop is the "cavern" sprite, so without this
 // the caves had no walls at all, and the world map's trees, shrubs, mountains
@@ -89,13 +89,13 @@ let _fauxPropCache = null;
      pass  flags & mask == value   attributes & mask == value
       0    & 0x9E == 0             & 0x100000 == 0x100000   flat: floors, rugs, blood, runes, mountains
       1    & 0x9E == 0             & 0x100210 == 0x200
-      2    the living, from their own list
+      2    the living, from a separate list
       3    & 0x9E == 0             & 0x100210 == 0
       4    & 0x44 == 4             anything                 records flagged 4 or 0x24
       5    & 0x9E == 0             & 0x10 == 0x10           arches, walls, the tall
 
    so a pass is a layer over the whole map. The attributes are tested a
-   square at a time, against each square's own tile, so a prop of several
+   square at a time, against each square's tile, so a prop of several
    squares can be in two passes: a pillar's foot blocks and its top is tall
    (propPieceList). Within a pass Render walks its list from the end, and the
    list is the faux props then the records in the file's order, so the
@@ -103,13 +103,13 @@ let _fauxPropCache = null;
    September 2026; until then the page drew each prop whole in its corner's
    pass and the records first first, which put Cademia's pool at (61,58)
    over its pillar). This page drew the records in list order
-   and the terrain's own props after them all, which put a carpet over the
+   and the terrain's props after them all, which put a carpet over the
    arch it runs under in Land King Hall (42,18) and the world's mountains
    over the arch into it at (163,20) (the maintainer, 22 September 2026).
    A flat tile with 0x10 is drawn in pass 0 and again in 5, which comes to
    the same pixels as drawing it once in 5. Pass 2's flag is set by a loop
    this reading did not follow; the living are put there because nothing
-   else in the passes takes them; Render's own test for pass 2 can never
+   else in the passes includes them; Render's test for pass 2 can never
    match a prop on its list. TViewer::SetStage also gives every prop a
    layer from the class's flags (the table FillIntfCache builds), and that
    is not a draw order: it picks the one prop a square answers with to a
@@ -138,7 +138,7 @@ function getFauxProps() {
   return (_fauxPropCache = out);
 }
 
-// Draw one prop sprite -- its own tile plus whatever extra squares the tile
+// Draw one prop sprite -- its tile plus whatever extra squares the tile
 // attributes say it spans -- at a map square. Returns the squares it covered.
 function drawPropAt(ctx, TS, gx, gy, tileId, rotated, ox, oy, mw, mh, frame) {
   const scale = TS / 32;
@@ -207,10 +207,10 @@ function tileIsAnimated(tileId) {
   return anim;
 }
 
-/* The game's own tile animation, 0xF001 (23 September 2026). LoadGlobals
+/* The game's tile animation, 0xF001 (23 September 2026). LoadGlobals
    builds eight tables of tile pictures, one for each phase of the clock
    that also cycles the palette (the viewer's byte 0xBA, which
-   TMapWindow::AnimThread steps modulo 8), and points every tile at its own
+   TMapWindow::AnimThread steps modulo 8), and points every tile at its
    picture in all eight; then it reads 0xF001, eight bytes an entry until a
    tile of 0 -- the tile, its first frame, how many frames, and how many
    phases each frame lasts -- and points the tile at frame
@@ -236,7 +236,7 @@ function tileAnimTable() {
   return (DERIVED.TILE_ANIM = out);
 }
 // The picture a tile shows at a phase of the clock. A draw with no phase --
-// a gallery, a still render -- is the tile's own art.
+// a gallery, a still render -- is the tile's art.
 function animatedTile(tileId, frame) {
   if (!frame) return tileId;
   const a = tileAnimTable().get(tileId);
@@ -285,7 +285,7 @@ function getTileCanvas(tileId, transparent, frame, rotated) {
   tileCanvasCache.set(key, c);
   return c;
 }
-// Draw a single terrain tile into its own canvas (used by the composite
+// Draw a single terrain tile into a separate canvas (used by the composite
 // drill-down to show each source fragment).
 function drawTileToCanvas(canvas, tileId, size, rotated) {
   size = size || 32;
@@ -294,7 +294,7 @@ function drawTileToCanvas(canvas, tileId, size, rotated) {
   // No forced fill: index 0 is the engine's real transparent marker (see
   // getTileCanvas), and painting a slab behind it here is what made sprites
   // look like they had a solid black background instead of being cut out.
-  // Callers that want a panel behind the sprite set that via CSS.
+  // Callers that need a panel behind the sprite set that via CSS.
   drawTileAt(ctx, tileId, 0, 0, false, size, 0, rotated);
 }
 
@@ -310,8 +310,8 @@ function drawTileAt(ctx, tileId, px, py, transparent, size, frame, rotated) {
   ctx.drawImage(c, px, py, TS, TS);
 }
 
-// Verified against delvmod's own draw_tile() (the actual game renderer, not
-// a guess): a prop tile whose attribute byte3 bits 0xC0 are set is the
+// Verified against delvmod's draw_tile() (the actual game renderer, not
+// an assumption): a prop tile whose attribute byte3 bits 0xC0 are set is the
 // bottom-right corner of a multi-square sprite. The 2x2 case (0xC0) was
 // WRONG here -- the left piece and the top piece had tile-1 and tile-2
 // swapped, which is exactly what produced the scrambled pillars and the
@@ -346,11 +346,11 @@ function multiTilePieces(tileId, rotated) {
 }
 /* A prop as the engine draws it: square by square, the corner first and
    then the pieces from the tile before it backwards (TViewer::Render). Each
-   square goes in the pass of its own tile, so a pillar's foot is drawn with
-   the things that block and its top with the tall, over a pool beside it
-   whatever the order of the two records (the maintainer, 23 September
-   2026). 107 of the 200 tiles that anchor a prop of more than one square
-   have a piece in another pass than the corner. */
+   square goes in the pass of that square's tile, so a pillar's foot is drawn
+   with the things that block and its top with the tall, over a pool beside it
+   whatever the order of the two records (the maintainer, 23 September 2026).
+   107 of the 200 tiles that anchor a prop of more than one square have a piece
+   in another pass than the corner. */
 function propPieceList(tileId, rotated) {
   const extra = multiTilePieces(tileId, rotated) || [];
   return [{ dx: 0, dy: 0, tile: tileId }].concat(extra.slice().sort((a, b) => b.tile - a.tile));
@@ -387,7 +387,7 @@ function loadSchedules() {
       // `at` is where the entry sits in 0xF00B, so a figure read off it
       // can open the bytes it came from.
       // Bytes 2 and 3 are a condition and its argument (scheduleCondition);
-      // `script` keeps the two as one word for what read it that way.
+      // `script` stores the two as one word for what read it that way.
       entries.push({ hour: raw[p], mode: raw[p+1],
                      script: u16be(raw, p+2), cond: raw[p+2], arg: raw[p+3], level: raw[p+4],
                      x: xy >> 12, y: xy & 0xFFF, at: p });
@@ -400,8 +400,8 @@ function loadSchedules() {
 
 /* A character's day as the game would walk it from the start of a new
    game (24 September 2026). A schedule is a program (scheduleCondition in
-   js/page-rules.js has the format): ScheduleOne takes the segments whose
-   conditions hold, in the file's order, and a stop ends the walk once one
+   js/page-rules.js has the format): ScheduleOne uses the segments whose
+   conditions are true, in the file's order, and a stop ends the walk once one
    has been taken. So the posts drawn on the map are those, under a new
    game's state: every quest value 0 and quest flag clear, and each
    character's flags as their record in 0xF009 starts them -- the table the
@@ -413,8 +413,8 @@ function loadSchedules() {
 /* A save's quest state, read out of its 0x0400 segment: the stream's first
    block is tagged Char, and from the tag the 32 quest values are one byte
    each at +16 and the 256 quest flags eight big-endian longs at +48
-   (save-format.md, *The Char block, in full*). With it, the save's own
-   character table, whose records carry the character flags a schedule may
+   (save-format.md, *The Char block, in full*). With it, the save's
+   character table, whose records have the character flags a schedule may
    test and the party, alive and waiting bytes the hour tests. Null when
    the segment or the tag is not there. */
 function saveQuestState(spec) {
@@ -431,8 +431,8 @@ function saveQuestState(spec) {
 /* The state the day is judged under: the save beside the file, when the
    map's Save mark is on and the save has a Char block; otherwise a new
    game's, which is what every walker of the day drew until 25 September
-   2026. Turning the mark on is what says "the save's day", so the map,
-   the path and the dossier agree on whose day it is. */
+   2026. Turning the mark on is what selects "the save's day", so the map,
+   the path and the dossier match on whose day it is. */
 function scheduleState() {
   const sb = window.SAVE_BESIDE;
   return window.MAP_MARKS && window.MAP_MARKS.save && sb && sb.quest ? sb.quest : null;
@@ -466,7 +466,7 @@ function scheduleHoldsAtStart(e, state) {
    but the head of a block, which runs to its matching stop: ScheduleOne
    (0x006B00 on) skips the whole block when the head's condition fails,
    counting a nested head up and a stop down, and walks into it when the
-   condition holds. Philinus, Timon and Eudoxus open with one. */
+   condition is true. Philinus, Timon and Eudoxus open with one. */
 function scheduleIsHead(e) { return e.level === 0 && e.x === 0 && e.y === 0 && e.cond !== 1; }
 /* Why ScheduleTime would not schedule a character at all, from the record
    as the file has it and the tests read off the routine (exeScheduleWho):
@@ -489,8 +489,8 @@ function scheduleSkipReason(i) {
 
 function scheduleDay(i) {
   const segs = loadSchedules()[i] || [];
-  // A character the hour never schedules stands where the record puts
-  // them all day, as one whose segments never hold does; `why` says which.
+  // A character the hour never schedules stands where the record puts them all
+  // day, as one whose segments are never true does; `why` records which.
   const why = scheduleSkipReason(i);
   if (why) {
     const c = loadCharacterTable()[i];
@@ -509,8 +509,8 @@ function scheduleDay(i) {
     }
     if (ok) out.push(e);
   }
-  // Nothing holds: ScheduleOne moves no one, so the character stands where
-  // the record puts them, which is a post of its own for all day.
+  // No segment is true: ScheduleOne moves no one, so the character stands
+  // where the record puts them, which is a post in itself for all day.
   if (!out.length) {
     const c = loadCharacterTable()[i];
     if (c && c.zone) out.push({ hour: 0, mode: 0x86, cond: 0, arg: 0, script: 0, level: c.zone, x: c.x, y: c.y, at: null, fromRecord: true });
@@ -545,7 +545,7 @@ function loadCharacterTable() {
    Every one of the 512 slots parses, so `loadCharacterTable()[i]` is truthy
    for an empty slot too, and a guard written as that test let the page name
    nobody as somebody: portrait 0x88CD, a flowering bush that no character
-   wears, said "Worn by Character 206" because the sum that finds a
+   wears, read "Worn by Character 206" because the sum that finds a
    character's portrait (0x87FF plus the number) runs backwards to slot 206,
    which is empty. Slots 128 to 255 are never anyone's, and a save stamps the
    hero's zone into 130 to 255, so a slot holding only a zone is empty as
@@ -575,7 +575,7 @@ window.SHOW_CHARACTERS = true;
 window.SHOW_CHAR_NAMES = true;
 window.MAP_HOUR = 12;
 
-// The inhabitants live on their own canvas stacked over the terrain, so moving
+// The inhabitants live on a separate canvas stacked over the terrain, so moving
 // the hour slider only repaints them instead of re-rendering the whole map.
 function buildCharacterLayer() {
   const wrap = document.getElementById('mapCanvasWrap');
@@ -643,7 +643,7 @@ function drawCharacterLayer(lensCtx, lensTS) {
     }
     ctx = ov.getContext('2d');
     ctx.clearRect(0, 0, ov.width, ov.height);
-    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at its own scale
+    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at the layer's scale
   }
   const people = charactersOnLevel(cm.level, window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR);
   deconflictPositions(people);
@@ -653,17 +653,17 @@ function drawCharacterLayer(lensCtx, lensTS) {
     const [pox, poy] = propOffsetFor(c.proptype, c.aspect, 0);
     const dx = -pox * scale, dy = -poy * scale;
     // Large props span several squares, flagged by bits 0xC0 of attribute
-    // byte 3. Characters do NOT: Alaric's frames 0x0710-0x071F all carry
+    // byte 3. Characters do NOT: Alaric's frames 0x0710-0x071F all have
     // byte3 = 0x00, so this call returns null for every character in the
     // game and nothing below it runs. Kept because a modded archive could
     // author a multi-square character, but it is not why characters draw
     // correctly today.
     const nx = (c.nudgeX || 0) * TS, ny = (c.nudgeY || 0) * TS;
-    // Square-aligned, seated or not. A seated figure used to be pushed half
+    // Square-aligned, seated or not. A seated figure was once pushed half
     // a tile down on the theory that the sitting pose sat in the top half of
     // its cell; it does not (Alaric's frame 0x713 inks rows 5-26 of 32), so
     // the shift put Magpie in the square BELOW her chair. The pose already
-    // shows the legs folded; the game draws it on the chair's own square.
+    // shows the legs folded; the game draws it on the chair's square.
     const sy = 0;
     const extra = multiTilePieces(c.tile, 0);
     const cx = c.fx !== undefined ? c.fx : c.x, cy = c.fy !== undefined ? c.fy : c.y;
@@ -733,8 +733,8 @@ const PALETTE_CYCLE_SUBN = new Set([141]);
 function startPaletteAnimation(canvas, W, H, image, transparentIndex) {
   stopPaletteAnimation();
   // Cycling redraws several times a second and each redraw would queue a fresh
-  // reconstruction, so the two are mutually exclusive. Undithering wins while
-  // it is on; turning it off restores the cycle on the next render.
+  // reconstruction, so the two are mutually exclusive. Undithering has priority
+  // while it is on; turning it off restores the cycle on the next render.
   if (unditherOn() && (window.UNDITHER_ALL || String(window.CUR_SUBN) === '135' || window.UNDITHER_PREVIEW !== null)) return;
   if (!PALETTE_CYCLE_SUBN.has(window.CUR_SUBN)) return;
   if (!window.PALETTE_ANIM || !imageUsesAnimatedColors(image)) return;
@@ -756,7 +756,7 @@ let mapAnimFrame = 0;
 function stopMapAnimation() {
   if (mapAnimTimer) { clearInterval(mapAnimTimer); mapAnimTimer = null; }
 }
-/* The squares of a map that are on screen, in its own coordinates, with a
+/* The squares of a map that are on screen, in the map's coordinates, with a
    margin so a small pan does not immediately expose an unrepainted edge.
    Null when the viewport has not been laid out, which means "all of them". */
 function animWindow(cm) {
@@ -778,7 +778,7 @@ function animWindow(cm) {
    the terrain that cycles or steps, the void's backdrop, then whatever
    was drawn over them. It was the body of startMapAnimation's tick, and
    is a function since 6 October 2026 so the World tab can run it on a
-   zone it draws from the zone's own render (atlasAnimateRender), where
+   zone it draws from the zone's render (atlasAnimateRender), where
    Land King Hall's water and fountains stood still. */
 function paintMapAnimFrame(ctx, cm, frame, inWin) {
   const TS = cm.TS;
@@ -801,7 +801,7 @@ function paintMapAnimFrame(ctx, cm, frame, inWin) {
   // with the water instead of being erased by it.
   if (cm.animReplay)
     for (const [t, px, py, tr, sz, rot] of cm.animReplay) {
-      // These carry base-canvas pixels rather than squares, so the window
+      // These are in base-canvas pixels rather than squares, so the window
       // is applied to the square they land on.
       if (!inWin(Math.floor(px / TS), Math.floor(py / TS))) continue;
       drawTileAt(ctx, t, px, py, tr, sz, frame, rot);
@@ -875,10 +875,10 @@ function setMapHourLabel(t) {
     const el = document.getElementById(id);
     if (el) el.textContent = ampm + ':' + String(mnt).padStart(2,'0') + (h < 12 ? ' am' : ' pm');
   }
-  paintZoneStrip();   // the sky over the zone's strip keeps the same clock
+  paintZoneStrip();   // the sky over the zone's strip follows the same clock
 }
 /* The clock has two sets of controls, the Zones view's and the World tab's,
-   and one clock behind them: the hour carries from one tab to the other, and
+   and one clock behind them: the hour is shared by both tabs, and
    a walk started on either is the same walk. Every change goes through the
    setters below, which write both sets, so neither can show a box unticked
    while the day is walking. */
@@ -912,7 +912,7 @@ function setMapWalkSpeed(v) { window.MAP_WALK_SPEED = +v || 1; syncMapTimeContro
 
 // Props block movement too. Terrain-only walkability is why characters walked
 // through walls: in Land King Hall the interior walls are props sitting on
-// passable floor tiles, so 0xF002 alone says the whole interior is open.
+// passable floor tiles, so 0xF002 alone would make the whole interior open.
 DERIVED.PROP_BLOCK = null;
 DERIVED.LIGHT_SOURCES = null;
 function buildLightSources(resid, m) {
@@ -923,12 +923,12 @@ function buildLightSources(resid, m) {
   // Terrain tiles that are themselves lit (braziers baked into the floor).
   for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) {
     const t = mapTileAt(m, x, y);
-    /* 0x10000 is the flicker, and the archive really does carry it. The
+    /* 0x10000 is the flicker, and the archive really does have it. The
        engine tests exactly this bit -- `rlwinm. 0,0,0,15,15`, bit 15 in the
        PowerPC's numbering -- and a light that has it goes through Random to
        choose between the two cones of its level. It varies across the lit
        tiles (0x410001 has it, 0x400001 does not), so which lights gutter and
-       which burn steady is the file's, not a guess made here. */
+       which burn steady is the file's, not an assumption made here. */
     const a = attrs[t] || 0, lvl = a & 0x03;
     if (lvl) list.push({ x, y, lvl, flicker: !!(a & 0x10000) });
   }
@@ -947,7 +947,7 @@ function buildLightSources(resid, m) {
       }
     }
   } catch (e) { quiet(e); }
-  // Whether anything on this map gutters at all decides whether the animation
+  // Whether anything on this map gutters at all settles whether the animation
   // tick has to repaint the lighting layer; on a map of steady lights it
   // would be redrawing an identical picture seven times a second.
   window.LIGHT_FLICKER = list.some(s => s.flicker);
@@ -965,17 +965,17 @@ function buildLightSources(resid, m) {
 
    The rule, read off the branches and then confirmed field by field in a
    running game (six saves warped to chosen squares under the fork's headless
-   runner, the viewer's own fields read out of a RAM dump):
+   runner, the viewer's fields read out of a RAM dump):
 
      v    = value < 0 ? -value : max(value, daylight)
      v    = max(v, sum / 3)          sum = the light sources in the 11x11 view
      base = min(32, v / 5)
 
    Measured: the Volcano's viewer held v = 48 and a base of 9; the Tomb 5 and
-   1; Land King Hall 128 and 25 -- each the absolute value of its own script
+   1; Land King Hall 128 and 25 -- each the absolute value of the zone's script
    operand, and each base exactly min(32, v/5).
 
-   THE OPERAND IS SIGNED, which this file had wrong until the game was asked.
+   THE OPERAND IS SIGNED, which this file had wrong until the game was checked.
    The Tomb writes `byte 0xFB`, and the interpreter sign-extends it: -5, a
    base of 1 of 32, the darkest place in the scenario. Read as 251 it came out
    over the threshold, so the Tomb, the Temple, the Cove and the Kosha Grotto
@@ -1004,7 +1004,7 @@ function zoneAmbientLevel(resid) {
       for (let i = 0; i + 1 < ops.length; i++) {
         if (!/^sys SetAmbientLighting\b/.test(ops[i].text.trim())) continue;
         // dvmNum signs a byte and a short the way the interpreter does, so
-        // the Tomb's 0xFB arrives as -5 and Land King Hall's 0xFF80 as -128.
+        // the Tomb's 0xFB comes out as -5 and Land King Hall's 0xFF80 as -128.
         const v = dvmNum(ops[i + 1]);
         if (v === null) continue;
         out = v;
@@ -1032,15 +1032,15 @@ function ambientBase(level, hour, sum) {
    and, for each lit square in it, adds `1 << (2*level - b)` to a running
    total, where b is 0 within four tiles, 1 within eight and 2 beyond
    (Manhattan). `TViewer::AmbientLight` then uses a third of that total as a
-   floor under the zone's own number, so a bright thing near you lifts the
-   base of the WHOLE level, not just its own surroundings.
+   floor under the zone's number, so a bright thing near you lifts the
+   base of the WHOLE level, not just the thing's surroundings.
 
-   Two things this cannot do, both said rather than hidden. The engine tests a
+   Two things this cannot do, both stated rather than hidden. The engine tests a
    per-square byte before counting a source, and that byte is state a running
-   game keeps: of the 121 squares in view it passed 53 at one measured site
+   game stores: of the 121 squares in view it passed 53 at one measured site
    and 58 at another, it is not passability (the best fit over widths 8..40
    and 600 offsets was 77.7%, at an offset that does not line up), and the
-   archive does not carry it. So every lit square in the window is counted
+   archive does not have it. So every lit square in the window is counted
    here. And the window is centred on the player, so this is what a player
    STANDING ON THIS SQUARE would see, which is why it is reported per square
    and not painted over the map.
@@ -1074,20 +1074,20 @@ function nightAlpha(hour) {
 // --- Map markers -----------------------------------------------------------
 // Now that prop types have names, a prop list can be read as a list of THINGS
 // rather than numbers. Three overlays fall straight out of that:
-//   doors     -- the classes carrying ClassFlags 0x200, which is the bit the
+//   doors     -- the classes with ClassFlags 0x200, which is the bit the
 //                level loader tests to put a door's open or shut aspect back
 //                as the scenario has it when a zone is entered (its lock is
 //                left alone; corrected 1 October 2026, when a run showed a
 //                door left open shut again): the six doors, drawn
 //                with their lock state. A name test until 25 September 2026,
-//                which took the portcullis too; it carries no bit and no
+//                which took the portcullis too; it has no bit and no
 //                lock, and is opened by its lever
 //   secret    -- secret doors, and walls that do not block, which is what a
 //                hidden passage looks like from the tile attributes
-//   chest     -- containers, plus anything carrying a persistence StoreRef,
-//                since those are the props that remember what is inside them
+//   chest     -- containers, plus anything with a persistence StoreRef,
+//                since those are the props whose contents are stored
 // The classification is by name, so it is only as good as the wiki's list and
-// is marked as such in the legend. What is NOT guessed: whether a wall blocks
+// is marked as such in the legend. What is NOT assumed: whether a wall blocks
 // comes from tile attribute byte 3 bit 0x02, straight out of 0xF002.
 window.MAP_MARKS = { doors: false, secret: false, chest: false, exits: false, grid: false, rooms: false, eggs: false, path: false, save: false };
 function toggleMapMarks(kind, on) { window.MAP_MARKS[kind] = on; drawMapMarks(); }
@@ -1126,7 +1126,7 @@ function isWallLikeProp(pt) {
 /* ---------------------------------------------------------------------------
    Ways through, ways out
    ---------------------------------------------------------------------------
-   Two questions are asked of every passage prop, and they are independent:
+   Every passage prop is tested twice, and the two tests are independent:
 
      is it a way OUT of here?   -- a cave mouth, a mineshaft, a stair, a
                                    trapdoor, a ravine you can climb into
@@ -1137,12 +1137,12 @@ function isWallLikeProp(pt) {
    A cave mouth answers yes to the first and no to the second, so it is marked
    as an exit and not as a hidden way, even where the only route to it is
    through a secret door. A tunnel with a crate standing over it answers yes to
-   both, and gets both rings. Ravines ("crack") are in both lists as well: they
+   both, and has both rings. Ravines ("crack") are in both lists as well: they
    go somewhere and they are not obvious, and some of them cannot be entered at
    all until a rope has been fixed to them -- which the archive records as a
    rope prop placed on the square, so those are called out separately.
 --------------------------------------------------------------------------- */
-// A way out is what the class says since 19 September 2026: a Portal
+// A way out is what the class defines since 19 September 2026: a Portal
 // member, a script that changes zone, or a dug way (classTravels). The
 // name list this replaced also named the mousehole, the crack, the loose
 // board and the passages, which are concealed ways THROUGH and never
@@ -1164,12 +1164,13 @@ const ROPE_PROPTYPE = 0x14B;              // "rope" -- 4 records, all on ravines
 function classifyProp(pt, tileId) {
   const nm = (propTypeName(pt) || '').toLowerCase();
   if (/secret/.test(nm) || PASSAGE_PROPS.test(nm)) return 'secret';
-  // A door is a class whose ClassFlags carry 0x200, the file's own word for
-  // it (classCarriesFlag): entering a zone, the loader runs such a door's
-  // method 0, which takes the scenario's aspect back. The name test this replaced took a "doorway", the arch a door
-  // hangs in, out by its spelling and the portcullis in by its name.
+  // A door is a class whose ClassFlags have 0x200, the file's marker for it
+  // (classCarriesFlag): entering a zone, the loader runs such a door's method
+  // 0, which puts the scenario's aspect back. The name test this replaced took
+  // a "doorway", the arch a door hangs in, out by its spelling and the
+  // portcullis in by its name.
   if (classCarriesFlag(pt, 0x200)) return 'doors';
-  // A container is a class with IsContainer (23), the file's own word for
+  // A container is a class with IsContainer (23), the file's marker for
   // it (classHasMember); the name list this replaced marked urns and the
   // bookshelf, which no record is ever inside.
   if (classHasMember(pt, 23)) return 'chest';
@@ -1180,7 +1181,7 @@ function isExitProp(pt, mapResid) {
   if (!classTravels(pt)) return false;
   return mapResid === undefined || mapResid === WORLD_MAP_RESID || !SETTLEMENT_PROPS.test((propTypeName(pt) || '').toLowerCase());
 }
-// Is this prop concealed by its own nature (rather than by something drawn
+// Is this prop concealed by its nature (rather than by something drawn
 // over it, which drawMapMarks works out from the draw stack)?
 function isConcealedProp(pt) { return HIDDEN_PROPS.test((propTypeName(pt) || '').toLowerCase()); }
 
@@ -1189,17 +1190,17 @@ function isConcealedProp(pt) { return HIDDEN_PROPS.test((propTypeName(pt) || '')
    ---------------------------------------------------------------------------
    The world map (0x8001, 256x256) does not contain the towns. It draws each
    one as a pictogram a few squares across -- Cademia is four `small city`
-   props covering 4x4 squares, where Cademia's own map is 128x128 squares of
+   props covering 4x4 squares, where Cademia's map is 128x128 squares of
    streets, houses and interiors. Checked directly before any of this was
    built: sliding every zone map over the world grid at every offset, the best
    tile-for-tile agreement any of them reaches is 44%, and that is the 24x16
    Sitia bridge matching open water and grass. No zone map is embedded in the
    world map, and the pictograms are not their layouts.
 
-   What the archive does carry, exactly, is which pictogram is which town. A
+   What the archive does have, exactly, is which pictogram is which town. A
    prop's data2 is a zoneport index (0xF00C), which resolves to a destination
    map and the square you arrive on -- the same field the cave and mineshaft
-   props already used for `Leads to`. The settlement icons carry it too, and
+   props already used for `Leads to`. The settlement icons have it too, and
    the reading round-trips: of the 26 gateways this finds on the world map,
    19 have a destination whose own edge exits point back at a world zoneport
    within a couple of squares of the icon. Cademia's icon at (171,96)..(173,98)
@@ -1220,7 +1221,7 @@ function isConcealedProp(pt) { return HIDDEN_PROPS.test((propTypeName(pt) || '')
 --------------------------------------------------------------------------- */
 const WORLD_MAP_RESID = 0x8001;
 // The one name list left in this reading, and it scopes rather than
-// decides: the settlement classes are Portal classes like any other, but
+// settles: the settlement classes are Portal classes like any other, but
 // a `ruins` or a `large city` standing on a town map is a building whose
 // Data2 is not a zoneport (see above), so their Data2 is read only on the
 // world map. Which classes are settlements is this page's word; the file
@@ -1231,7 +1232,7 @@ const SETTLEMENT_PROPS = /^(large city|small city|ruins)$/;
 // read from, which is what scopes the settlement icons.
 function propTravelsTo(rec, mapResid) {
   if (!rec || !rec.d2) return null;
-  // Since 19 September 2026 the class decides: a Portal member (58), a
+  // Since 19 September 2026 the class settles it: a Portal member (58), a
   // script that calls ChangeZone, or a Dug class reading its Data3
   // (classTravels), which is the set the application and the scripts
   // actually read Data2 as a zoneport for. The passages the old list also
@@ -1251,7 +1252,7 @@ function propTravelsTo(rec, mapResid) {
    between them. The shipped archive has no such case -- every zoneport here
    yields exactly one cluster -- so this is for a modded archive, and it is
    four lines rather than an assumption that would be silently wrong. Four
-   squares is the reach, which keeps Cademia's four adjacent icons together.
+   squares is the reach, which groups Cademia's four adjacent icons.
 
    The footprint is the squares the icons actually cover, not the squares the
    records name: a multi-square sprite stores only its bottom-right corner
@@ -1335,11 +1336,11 @@ function clusterRecords(recs, reach) {
    something: 19 of the world map's 26 gateways lead to a map with open edges
    -- every town, farm, vineyard, ruin and stronghold -- and the other seven
    are Land King Hall, the Volcano and the caves. The World tab uses that
-   split rather than a list of names, so a modded archive gets the reading its
-   own headers ask for.
+   split rather than a list of names, so a modded archive is read as its
+   headers specify.
 
-   It is what decides whether a place is continuous with the world: an
-   open-edged destination is entered by zooming, keeps the world's own scenery
+   It is what settles whether a place is continuous with the world: an
+   open-edged destination is entered by zooming, has the world's scenery
    around it and is left by zooming back out; a sealed one is entered by a
    click and left by the way back. */
 function mapIsSealed(resid) {
@@ -1358,7 +1359,7 @@ function mapIsSealed(resid) {
   } catch (e) { return true; }
 }
 
-// The gateway whose footprint holds a square, if any.
+// The gateway whose footprint contains a square, if any.
 function gatewayAtSquare(tx, ty) {
   for (const gw of worldGateways())
     if (tx >= gw.x0 && tx <= gw.x1 && ty >= gw.y0 && ty <= gw.y1) return gw;
@@ -1368,10 +1369,10 @@ function gatewayAtSquare(tx, ty) {
 /* ---------------------------------------------------------------------------
    Roofs
    ---------------------------------------------------------------------------
-   A roofed map carries a second tile layer. The header declares its size (two
+   A roofed map has a second tile layer. The header declares its size (two
    uint16 fields that are always equal, hence the sum-and-halve in
    parseDelverMap), and the block itself is 0x40 words per unit -- 64 tiles,
-   which is an 8x8 square. The wiki's Map page gets this far and stops: "The
+   which is an 8x8 square. The wiki's Map page goes this far and stops: "The
    roofs appear to be stored in 8-tile strips. Much is yet to be elucidated."
 
    What was missing is where each square goes, and the answer is in the prop
@@ -1397,7 +1398,7 @@ function gatewayAtSquare(tx, ty) {
    a one-tile overhang, and a second three-row block above it for the ridge.
 
    Still unexplained: the aspect field. It is 0 on 127 of the 298 records and
-   takes 20 other values on the rest, and nothing here depends on it. Whatever
+   has 20 other values on the rest, and nothing here depends on it. Whatever
    it selects, it is not the block.
 --------------------------------------------------------------------------- */
 window.MAP_ROOFS = false;
@@ -1420,7 +1421,7 @@ function mapRoofSections(mapResid) {
    those. They are capped instead: the canvas is smaller and the CSS box stays
    the base's, so the browser scales it. A sprite drawn at 16 and shown at 32
    is softer than one drawn at 32, and that is the right thing to give up
-   here -- the terrain under it is what full resolution was asked for. Below
+   here -- the terrain under it is what full resolution is for. Below
    the cap, which is every ordinary render, this is 1 and nothing changes. */
 const LAYER_MAX_PX = 1.7e7;
 function layerGeom(cm) {
@@ -1458,7 +1459,7 @@ function drawRoofLayer(lensCtx, lensTS) {
     if (!rc) return;
     cm.roofTilesDrawn = 0;
     if (!active) {
-      // Deflate rather than clear: a cleared canvas keeps its backing store,
+      // Deflate rather than clear: a cleared canvas retains its backing store,
       // and on iOS every full-map layer counts against the budget that was
       // crashing the tab. Zero-sized, it costs nothing until toggled back.
       rc.width = 0; rc.height = 0;
@@ -1469,7 +1470,7 @@ function drawRoofLayer(lensCtx, lensTS) {
     rc.style.width = cm.width + 'px'; rc.style.height = cm.height + 'px';
     ctx = rc.getContext('2d');
     ctx.clearRect(0, 0, rc.width, rc.height);
-    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at its own scale
+    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at the layer's scale
   }
   cm.roofTilesDrawn = paintRoofsInto(ctx, TS, cm.m, cm.roofSections);
   if (!lensCtx) scheduleLensPaint();
@@ -1480,14 +1481,14 @@ function drawRoofLayer(lensCtx, lensTS) {
    Split out of drawRoofLayer, which reads window.CUR_MAP: the World tab draws
    the roofs of maps that are not the open one -- every town's miniature on
    the world map is roofed, because a town seen from above is roofs -- and
-   there was no way to ask for that without pretending some other map was
+   there was no way to request that without pretending some other map was
    current. Returns the number of tiles drawn, which is what the roof note
    under the map reports. */
 function paintRoofsInto(ctx, TS, m, sections) {
   if (!m || !m.raw || !sections) return 0;
   let drawn = 0;
-  // In prop-list order, so a later block laid over an earlier one wins -- which
-  // is how the ridge block finishes the roof of Charax's house.
+  // In prop-list order, so a later block laid over an earlier one covers it --
+  // which is how the ridge block finishes the roof of Charax's house.
   for (const sec of sections) {
     const base = m.roofDataOffset + sec.block * 64 * 2;
     if (base + 128 > m.raw.length) continue;
@@ -1519,8 +1520,8 @@ function toggleRoofs(on) {
   }
 }
 
-// Walls are baked into the terrain canvas rather than living on a layer of
-// their own, so switching them re-renders that one canvas in place. The
+// Walls are baked into the terrain canvas rather than living on a separate
+// layer, so switching them re-renders that one canvas in place. The
 // viewport transform, the zoom and every overlay above it are left alone.
 window.MAP_WALLS = true;
 function rerenderMapTerrain() {
@@ -1567,8 +1568,8 @@ function ensureMarkLayer() {
   return mc;
 }
 
-// How much of a tile is opaque, 0..1. Used to tell "a passage with something
-// standing over it" from "a passage in plain sight".
+// How much of a tile is opaque, 0..1. Used to distinguish "a passage with
+// something standing over it" from "a passage in plain sight".
 const _tileFillCache = derivedMap('_tileFillCache');
 function tileOpacity(tileId) {
   if (_tileFillCache.has(tileId)) return _tileFillCache.get(tileId);
@@ -1581,7 +1582,7 @@ function tileOpacity(tileId) {
   return v;
 }
 
-// Every zoneport that lands on this map. A zoneport is the game's own
+// Every zoneport that lands on this map. A zoneport is the game's
 // cross-map link (0xF00C), so these are the squares you arrive on and, being
 // two-way in practice, the squares you leave from: Land King Hall's door out
 // to the world map and the mouths of its tunnels are all here. This replaced
@@ -1604,7 +1605,7 @@ function mapExitSquares(resid) {
 
 // The map header's four edge zoneports. Where one is set you leave the map by
 // walking far enough that way at ANY row or column -- Odemia's four edges all
-// carry zoneport 5, the world map -- so the mark is the whole outermost row or
+// have zoneport 5, the world map -- so the mark is the whole outermost row or
 // column, not a square. Where it is zero the edge is sealed and nothing is
 // drawn. (0x8026, the Sitia bridge, has only east and west set, which is what
 // a bridge is.)
@@ -1627,7 +1628,7 @@ function mapExitEdges(resid, m) {
   return out;
 }
 
-// Squares carrying a rope prop. In the shipped scenario there are four, two in
+// Squares with a rope prop. In the shipped scenario there are four, two in
 // Cademia and two in Kosha, and every one of them sits on a ravine: the rope
 // is what makes that ravine enterable, so a ravine marked here is one you
 // cannot simply walk into.
@@ -1671,7 +1672,7 @@ function drawMapMarks(lensCtx, lensTS) {
     mc.style.width = cm.width + 'px'; mc.style.height = cm.height + 'px';
     ctx = mc.getContext('2d');
     ctx.clearRect(0, 0, mc.width, mc.height);
-    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at its own scale
+    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at the layer's scale
   }
   const colours = { doors: '#ffd166', secret: '#8fd4ff', chest: '#a8e06a', exits: '#ff9ad5', path: '#7ef0c0' };
   // A line on every square's edge, so a coordinate can be counted off the map.
@@ -1689,7 +1690,7 @@ function drawMapMarks(lensCtx, lensTS) {
   // offset so the ring followed the artwork, which is wrong twice over: the
   // offsets are up to 24px on a 32px tile, so the ring sat the best part of a
   // square up and left of the thing it marked, and what a reader wants marked
-  // is the square they would have to stand on, which is the record's own
+  // is the square they would have to stand on, which is the record's
   // coordinate whatever the sprite does above it.
   const ring = (cells, col, dashed) => {
     ctx.save();
@@ -1700,7 +1701,7 @@ function drawMapMarks(lensCtx, lensTS) {
     ctx.restore();
   };
   // A doorway is one record spanning two squares -- the arch is drawn across
-  // both -- and ringing only the record's own square marked half a door: the
+  // both -- and ringing only the record's square marked half a door: the
   // south half of an upright arch, the east half of a flat one, and on Land
   // King Hall's stone doors that read as the wrong square outright. One ring
   // around the union of the record's cells marks the whole opening, still
@@ -1742,7 +1743,7 @@ function drawMapMarks(lensCtx, lensTS) {
      reading was new, which was the wrong place: the world is a picture of an
      island, and a score of outlines tiling a town is clutter at that scale.
      Here one map fills the screen, the outline means something, and it is off
-     until asked for, like every other mark. */
+     until switched on, like every other mark. */
   let roomCount = 0;
   if (M.rooms) {
     ctx.save();
@@ -1779,8 +1780,8 @@ function drawMapMarks(lensCtx, lensTS) {
   /* The eggs of this map: every trigger that is not a room (rooms have their
      own mark and are rectangles), a dotted circle on its square with a
      letter for its kind, counted by kind in the legend. Eggs are drawn
-     nowhere else on a map; the square's panel says what each does
-     (eggDetail). Off until asked for, like every mark (the maintainer,
+     nowhere else on a map; the square's panel shows what each does
+     (eggDetail). Off until switched on, like every mark (the maintainer,
      22 September 2026). */
   const eggCounts = new Map();
   if (M.eggs) {
@@ -1801,7 +1802,8 @@ function drawMapMarks(lensCtx, lensTS) {
   }
 
   // One character's day, as the line they walk (drawSchedulePath in
-  // js/delv-mapview.js, which says why it is the whole day and not the hour).
+  // js/delv-mapview.js, which explains why it is the whole day and not the
+  // hour).
   const drawnPath = M.path ? drawSchedulePath(ctx, TS, cm, colours.path) : null;
   const pathStops = drawnPath ? drawnPath.stops : 0;
   const pathName = drawnPath ? drawnPath.name : '';
@@ -1814,7 +1816,7 @@ function drawMapMarks(lensCtx, lensTS) {
 
   if (M.exits) {
     // The four edge bands: THE zone exits of a map with open edges. The
-    // 0xF00C zoneport squares used to be ringed here too, but those are
+    // 0xF00C zoneport squares were once ringed here too, but those are
     // arrival points -- where the map graph lands you, not a door you can
     // see -- and ringing them scattered isolated pink tiles across rooms.
     // The inspector still explains them when their square is clicked.
@@ -1830,7 +1832,7 @@ function drawMapMarks(lensCtx, lensTS) {
     const ropes_ = ropeSquares(cm.resid);
     const markedOnce = new Set();
     // What is drawn on each square, in draw order, so "hidden behind
-    // something" can be answered without guessing.
+    // something" can be answered without assumptions.
     const stack = new Map();
     for (const op of (cm.drawOps || [])) {
       const k = op.y * 4096 + op.x;
@@ -1841,13 +1843,13 @@ function drawMapMarks(lensCtx, lensTS) {
       const r = d.rec;
       let kind = classifyProp(r.proptype, d.tileId);
       // A wall that does not block is a way through it. Bit 0x02 of attribute
-      // byte 3 is the same blocking flag the map's own walkability test reads.
+      // byte 3 is the same blocking flag the map's walkability test reads.
       if (!kind && isWallProp(r.proptype)) {
         if (!(((attrs[d.tileId] || 0) >> 8) & 0x02)) kind = 'secret';
       }
       if (!kind && r.storeref) kind = 'chest';
       // Something drawn over a passage hides it as surely as a secret door
-      // does, and unlike a secret door nothing in the record says so.
+      // does, and unlike a secret door nothing in the record shows it.
       let buried = false;
       if (kind === 'secret' || isExitProp(r.proptype, cm.resid)) {
         const later = (stack.get(r.y * 4096 + r.x) || []);
@@ -1865,7 +1867,7 @@ function drawMapMarks(lensCtx, lensTS) {
                                              isWallProp(r.proptype));
       const needsRope = ropes_.has(r.x + ',' + r.y);
 
-      // One ring per square per kind, on the record's own square only. A
+      // One ring per square per kind, on the record's square only. A
       // door is doorway + metal door stacked on one square, each spanning
       // two cells: ringing every cell of every record drew four rings for
       // one door, one of them a full square above the opening.
@@ -1916,8 +1918,8 @@ function drawMapMarks(lensCtx, lensTS) {
     }
     // A rope square with no passage prop on it is the commoner case: in
     // Cademia and Kosha the drop itself is terrain and the rope prop is the
-    // only thing in the file that says you can get down there. Ring it as an
-    // exit in its own right rather than letting it go unmarked.
+    // only thing in the file that shows you can get down there. Ring it as an
+    // exit rather than letting it go unmarked.
     if (M.exits || M.secret) {
       for (const k of ropes_) {
         if (ropeDone.has(k)) continue;
@@ -1930,7 +1932,7 @@ function drawMapMarks(lensCtx, lensTS) {
   }
 
   // The ringed instances of one item, put there by showItemOnMap. Keyed to
-  // the map it was asked about, so navigating to another map drops it.
+  // the map it was requested for, so navigating to another map drops it.
   const spots = DERIVED.MAP_ITEM_SPOTS;
   let itemSpots = 0;
   if (spots && spots.resid === cm.resid && spots.cells.length) {
@@ -1969,15 +1971,15 @@ function drawMapMarks(lensCtx, lensTS) {
          deleted record (0xFF) is nowhere (parseDelverPropList's onMap). Until
          28 September 2026 this compared every record's x and y, and a saved
          game writes everything its characters hold into the list of the zone
-         they are in, past the scenario's own records; so a save's inventory
+         they are in, past the scenario's records; so a save's inventory
          was washed green as "placed" at squares made of holder numbers,
          along the map's top rows and off its edge. In the maintainer's own
          save of August 2001 that was 234 records in the Seldane Maayti
          Ruins, none of them on the ground. Now a record that left the floor
          is gone from where it stood, one that reached the floor is placed
          where it lies, and one off the floor in both files is not drawn and
-         is counted when it differs. A zone the save holds no list of keeps
-         the scenario's, as the legend says, so nothing there differs;
+         is counted when it differs. A zone the save has no list of stays
+         as the scenario's, as the legend states, so nothing there differs;
          before, the empty list read as every record gone. */
       if (!sres) B = A;
       const differs = (a, b) => a.flags !== b.flags || a.x !== b.x || a.y !== b.y || a.proptype !== b.proptype ||
@@ -2028,7 +2030,7 @@ function drawMapMarks(lensCtx, lensTS) {
   if (legend) {
     const parts = [];
     /* The swatches are drawn rather than typed. They were a box, a dash and a
-       double dagger, and none of the page's three faces carries the box or the
+       double dagger, and none of the page's three faces has the box or the
        dagger, so they fell through to whatever the device had. The rope one
        is the same three strokes ropeGlyph puts on the map. */
     const BOX = '<span class="legendSwatch box"></span>';
@@ -2135,7 +2137,7 @@ function ensureLightLayer() {
 
    The 25 `Lite` resources in the application's fork have been drawn in the
    fork gallery since v1.24.0 and used for nothing: the map drew a radial
-   gradient of its own, because which cone a light uses was not read. It is
+   separate gradient, because which cone a light uses was not read. It is
    read now, out of TViewer::CalcLighting, and it is the light's level rather
    than its reach:
 
@@ -2147,19 +2149,19 @@ function ensureLightLayer() {
      addi 4,31,126  the resource id: 126 + 2*level + a flag
      bl           the resource is fetched
 
-   So level 1 asks for Lite 128 or 129, level 2 for 130 or 131, level 3 for
+   So level 1 uses Lite 128 or 129, level 2 for 130 or 131, level 3 for
    132 or 133 -- and those six are exactly the first family in the fork, sides
    10, 12, 14, 16, 18 and 22. Level 0 would be 126, which does not exist,
-   which is consistent with the compare above never letting it ask. The
+   which is consistent with the compare above never letting it reach that. The
    remaining nineteen, 140 to 158 at sides 8 to 120, are some other caller's
    and are not reached from here.
 
    The flag added to the doubled level is a flicker. The word is tested at bit
-   15, and a light that carries it calls Random and takes the low bit of the
+   15, and a light that has it calls Random and uses the low bit of the
    result -- so such a light picks between the two cones of its level every
    time the lighting is recomputed, guttering between 10 and 12 squares at
    level 1, 14 and 16 at level 2, 18 and 22 at level 3. Both calls were named
-   from the stubs they go through rather than guessed: the glue at 0xc1f08 is
+   from the stubs they go through rather than assumed: the glue at 0xc1f08 is
    GetResource and the one at 0xc3180 is Random, each resolved through its TOC
    slot to the loader's import table.
 
@@ -2167,7 +2169,7 @@ function ensureLightLayer() {
    -- the flag-0 one -- which is the light at its least generous.
 
    What this changes on screen: the gradient was a radius of 1.1 + 0.85 per
-   level, so roughly 2, 3 and 3.6 squares, where the file says 5, 7 and 9. The
+   level, so roughly 2, 3 and 3.6 squares, where the file gives 5, 7 and 9. The
    falloff is the file's too -- one byte a square, 0 to 32 -- instead of a
    three-stop gradient. With no application open there is no fork to read and
    the gradient stays, which is also what a visitor who opened only the data
@@ -2176,7 +2178,7 @@ function lightCone(lvl, variant) {
   const fork = window.APP_RSRC;
   if (!fork) return null;
   // Keyed on the fork object itself, so opening, swapping or closing an
-  // application drops the cones with it and nothing else has to remember to.
+  // application drops the cones with it and nothing else has to track it.
   if (!window.LIGHT_CONES || window.LIGHT_CONES.fork !== fork)
     window.LIGHT_CONES = { fork, by: {} };
   const by = window.LIGHT_CONES.by;
@@ -2232,11 +2234,11 @@ function drawLighting(lensCtx, lensTS, rect) {
     lc.style.width = cm.width + 'px'; lc.style.height = cm.height + 'px';
     ctx = lc.getContext('2d');
     ctx.clearRect(0, 0, lc.width, lc.height);
-    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at its own scale
+    TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at the layer's scale
     washX = 0; washY = 0; washW = lc.width; washH = lc.height;
   }
   const t = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
-  // The zone's own level where the file gives one, the hand-written curve
+  // The zone's level where the file gives one, the hand-written curve
   // where it does not. 32 is the engine's "no darkening at all".
   const lvl = zoneAmbientLevel(cm.resid);
   const alpha = lvl === null ? nightAlpha(t) : (32 - ambientBase(lvl, t)) / 32;
@@ -2246,7 +2248,7 @@ function drawLighting(lensCtx, lensTS, rect) {
   ctx.fillRect(washX, washY, washW, washH);
   ctx.globalCompositeOperation = 'destination-out';
   for (const s of buildLightSources(cm.resid, cm.m)) {
-    /* The file's own cone, at the file's own falloff, when the application is
+    /* The file's cone, at the file's falloff, when the application is
        open to read it from. A light the engine flickers re-rolls which of its
        two cones it uses here, as the engine re-rolls it on every redraw; the
        palette frame in the animation tick is what repaints it.
@@ -2282,28 +2284,28 @@ function drawLighting(lensCtx, lensTS, rect) {
   if (!lensCtx) scheduleLensPaint();
 }
 
-/* WHERE A PERSON CAN WALK, as the engine decides it (22 September 2026).
+/* WHERE A PERSON CAN WALK, as the engine settles it (22 September 2026).
 
-   TGameSys::CanMove asks TViewer::BuildStageEntry for the square, which is
+   TGameSys::CanMove calls TViewer::BuildStageEntry for the square, which is
    every attribute word on it OR'd together -- the terrain tile, the faux
-   prop the terrain carries, and every prop standing there -- and for a
+   prop on the terrain, and every prop standing there -- and for a
    walker with the flags a person has (GetMonstAttrs | 0x08000000, which is
    what TPathFinder::FindPath passes) the square is closed exactly when that
-   word has 0x200, byte 2's 0x02. Water carries 0x200 as well; the flag that
+   word has 0x200, byte 2's 0x02. Water has 0x200 as well; the flag that
    lets a swimmer or a flyer through is not a person's.
 
    Two things this page got wrong before: it tested the terrain and the
    placed props but not the terrain's faux props (the trees and rocks drawn
    on a square by its tile), and it let a door through only by an aspect
-   test. The engine's door is a prop whose tile carries 0x20000000: when a
-   step into it is refused, TActiveMonster's move (CanPMove) sends the prop
+   test. The engine's door is a prop whose tile has 0x20000000: when a
+   step into it is rejected, TActiveMonster's move (CanPMove) sends the prop
    Use -- method 9 -- and if its tile changes, as an opened door's does, the
    step is tried again. So a door, a curtain or a passthrough is walkable to
    a person unless it is locked, and a locked one is a wall: Use does
    nothing to it. The lock is the record's first data byte on a class that
    answers Lockable (52), as buildKeyLockIndex reads it.
 
-   `blocked` keeps its old shape, a set of square keys, for the callers that
+   `blocked` has its old shape, a set of square keys, for the callers that
    read it; `doors` is every use-to-pass square with its frames. */
 function buildPropBlockers(resid, m) {
   const key = resid + ':' + m.width;
@@ -2338,7 +2340,7 @@ function buildPropBlockers(resid, m) {
         const base = tiles[r.proptype];
         if (base === undefined) continue;
         const t = base + r.aspect;
-        // Every square the prop covers, each by its own tile: a large prop
+        // Every square the prop covers, each by that square's tile: a large prop
         // anchors bottom-right and its pieces are the tiles before it.
         const cells = [[r.x, r.y, t]];
         for (const pc of (multiTilePieces(t, r.rotated) || [])) cells.push([r.x + pc.dx, r.y + pc.dy, pc.tile]);
@@ -2401,7 +2403,7 @@ function drawOpenDoors(ctx, TS, people, doors, W, ox = 0, oy = 0) {
 // 0xF002 byte 2: 0x01 is-water, 0x02 blocks terrestrial movement. Verified
 // against the archive: 1045 blocking tiles name out as snowcaps, ethereal
 // void, Strange Device and creature tiles; 75 water tiles as water/shore.
-// The map object carries offsets, not a decoded tile array.
+// The map object has offsets, not a decoded tile array.
 function mapTileAt(m, x, y) {
   const d = m.raw;
   if (!d) return 0;
@@ -2424,7 +2426,7 @@ function tilePassable(tileId) {
 const pathCache = derivedMap('pathCache');
 /* A route, the way TPathFinder::FindPath finds one (22 September 2026).
 
-   Not A*. The engine keeps a list of candidate squares sorted by one number,
+   Not A*. The engine maintains a list of candidate squares sorted by one number,
    CalcWeight, which is the Manhattan distance from the square to the target
    and nothing else -- no cost of the way already walked -- and always
    expands the nearest. From a candidate it tries the eight directions in the
@@ -2433,7 +2435,7 @@ const pathCache = derivedMap('pathCache');
    AND the two squares beside the corner open, so nobody cuts a corner. A
    square is marked with the direction it was reached from and is never
    reached twice. When the target cannot be reached, the route goes to the
-   nearest square it did reach, which is FindPath's own answer.
+   nearest square it did reach, which is FindPath's answer.
 
    Kept from the engine: the weight, the order, the corners, the fallback.
    Left out: its 31-square window round the view and its hundred-candidate
@@ -2446,7 +2448,7 @@ const pathCache = derivedMap('pathCache');
    Use, which the move sends, opens it for the key's holder. `keys` is the
    set of lock ids the walker carries (keysCarriedBy), or nothing.
 
-   Returns the squares from start to end; `.reached` says whether the end is
+   Returns the squares from start to end; `.reached` records whether the end is
    the target. */
 function findPath(m, x0, y0, x1, y1, keys) {
   const key = ((DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.key) || '?') + ':' +
@@ -2463,7 +2465,7 @@ function findPath(m, x0, y0, x1, y1, keys) {
   const pb = (DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.set) || new Set();
   const goal = y1 * W + x1;
   // The target itself is always enterable: a post can be a chair, a bed or
-  // a counter, and the engine's own check at the end is the move routine's.
+  // a counter, and the engine's check at the end is the move routine's.
   const lk = (DERIVED.PROP_BLOCK && DERIVED.PROP_BLOCK.locked) || new Map();
   const open = (x, y) => {
     if (x < 0 || y < 0 || x >= W || y >= H) return false;
@@ -2525,11 +2527,11 @@ function toggleCharNames(on) { window.SHOW_CHAR_NAMES = on; drawCharacterLayer()
 
    A bark is a line a script puts in a character's talk balloon
    (buildBarkCatalogue has every one). The ones drawn here are the lines a
-   character's own conversation script gives it -- the vendors' cries,
+   character's conversation script gives it -- the vendors' cries,
    Alaric's "Yum", the diners calling for wine -- which is twelve people;
    the shared lines (sleep, hunger, a fight, a theft) are anyone's and wait
-   on what happens, so they are not put on anybody. The game says a line
-   when its script's condition comes round and keeps it up for the tick
+   on what happens, so they are not put on anybody. The game shows a line
+   when its script's condition comes round and leaves it up for the tick
    count TBark::SetBark adds; here each speaker holds one of its lines up
    for that long and then the next, so the map shows what each can say. The
    balloon is the size TBark::TBark makes it and its words the game's face
@@ -2630,7 +2632,7 @@ function drawBarks(ctx, people, TS, ox, oy) {
 // schedule interval walking the A* route to their next post, then stand there.
 // One frame of "walk the day" advances the clock by this much at 1x, matching
 // the interval in startMapAnimation. A walk is timed off it so that at 1x a
-// character advances exactly one square per frame: the route used to be
+// character advances exactly one square per frame: the route was once
 // squeezed into a fixed half-hour regardless of length, so a forty-square walk
 // at 1x teleported the walker a square and a half at a time.
 const MAP_TICK_HOURS = 0.02;
@@ -2701,7 +2703,7 @@ function walkingPosition(entries, t, m, keys) {
    attention on top of the chair they are scheduled to be sitting in.
 
    Which way the chair faces is read off the aspect, and the mapping is no
-   longer read off the artwork -- it is measured, twice, and the two agree.
+   longer read off the artwork -- it is measured, twice, and the two match.
 
    1. Chairs are placed with their backs to walls. Over every prop list in the
       archive, taking only the chairs with exactly one blocking neighbour
@@ -2714,7 +2716,7 @@ function walkingPosition(entries, t, m, keys) {
    2. The wiki's Save Format page prints a saved game taken "standing in
       Alaric's throne room". Alaric's record there is
       `03 02 90 0c 2c 22 ...`: zone 3 (Land King Hall), xy24 02 90 0c =
-      (41, 12) -- which is the throne square in this archive's own prop list --
+      (41, 12) -- which is the throne square in this archive's prop list --
       and the aspect/proptype word 0x2C22, which unpacks to proptype 0x22
       (king) at ASPECT 11. The throne is placed at aspect 0. So aspect 0 seats
       a person in sprite frame 11: row 2, column 3. That single record fixes
@@ -2722,13 +2724,13 @@ function walkingPosition(entries, t, m, keys) {
       row 2 is facing south, and that a chair at aspect 0 faces south -- and
       all three are what this file already computed.
 
-   What the aspect does NOT survive is a seat with fewer than four frames of
-   its own. Prop type 227's block holds two, so `aspect & 3` was inventing a
+   What the aspect does NOT survive is a seat with fewer than four frames.
+   Prop type 227's block has two, so `aspect & 3` was inventing a
    four-way facing out of a two-way field; and prop type 12's block runs on
-   into an end table at frame 4, so an aspect past the chair's own name run is
+   into an end table at frame 4, so an aspect past the chair's name run is
    not a chair aspect at all. Those fall back to the placement itself: a seat
    with exactly one blocking neighbour faces away from it, and one with none is
-   left facing the reader and says so.
+   left facing the reader and is marked so.
 --------------------------------------------------------------------------- */
 // ...but the throne's single frame turned out to be the exception, not the
 // rule. That record proves aspect 0 of a ONE-frame seat means south -- it
@@ -2741,13 +2743,13 @@ function walkingPosition(entries, t, m, keys) {
 // aspect 3 west 33:1. Four-frame chair aspects are simply the sprite facing
 // order, N/E/S/W -- identity, no table needed.
 /* How the program seats a character, read off TViewer::InteractProps on
-   19 September 2026 (exeSeatRule, which holds these constants to the
-   routine when the application is open): a seat is a class with a Chair
-   member, and the sitter's aspect becomes the seat's own aspect times four
+   19 September 2026 (exeSeatRule, which checks these constants against
+   the routine when the application is open): a seat is a class with a Chair
+   member, and the sitter's aspect becomes the seat's aspect times four
    plus three when the Chair word is 0 -- the seat's aspect is the facing
    and column three is the seated pose -- or one of four fixed frames, 3,
    7, 11 and 15, north, east, south and west, when the word is 1 to 4. Only
-   a four-way sprite is seated: the sitter's class must carry 4 as the
+   a four-way sprite is seated: the sitter's class must have 4 as the
    first word of key 55. The throne's word is 3, south, which is the
    frame the wiki's saved game shows Alaric in; the two chairs' words are
    0. `CHAIR_FACING`, a tally of one-frame seats against tables, stood here
@@ -2758,11 +2760,11 @@ function seatChairWord(pt) {
   const f = cls && cls.data.find(x => x.key === 34);
   return f && f.words.length && (f.words[0] & 0xF0000000) === 0 ? (f.words[0] & 0x0FFFFFFF) : null;
 }
-// A seat is a class with a Chair member (34), the file's own word; the
+// A seat is a class with a Chair member (34), the file's marker; the
 // four-entry set this replaced counted prop type 227, which has no class
 // table at all, and so is not a chair to the program either.
 const isSeatProp = pt => classHasMember(pt, 34);
-// How many frames of its own a seat prop has, so an aspect can be told from an
+// How many frames a seat prop has, so an aspect can be distinguished from an
 // index that has run off the end of the chair and into the next thing on the
 // sheet.
 function seatOwnFrames(pt) {
@@ -2809,9 +2811,9 @@ function seatsOnMap(resid, m) {
         const own = seatOwnFrames(r.proptype);
         const word = seatChairWord(r.proptype);
         // The program's rule (see SEAT_FIXED): a Chair word of 1 to 4 is a
-        // fixed facing; a word of 0 takes the seat's aspect, which is a
+        // fixed facing; a word of 0 uses the seat's aspect, which is a
         // facing where the seat has the frames to hold one. An aspect past
-        // the seat's own frames is drawn by the program as whatever frame
+        // the seat's frames is drawn by the program as whatever frame
         // that is, and is left to the placement here.
         const aspectIsFacing = (word >= 1 && word <= 4) || (word === 0 && own >= 4 && r.aspect < own);
         let face = null, why = '';
@@ -2840,8 +2842,8 @@ function seatsOnMap(resid, m) {
                    'and nothing behind it shows which way it faces'; }
         }
         // Two chairs on one square (Cademia's Thuria has one of each class
-        // under her): the one whose aspect is a facing says which way she
-        // sits, and a guess must not overwrite it (9 September 2026).
+        // under her): the one whose aspect is a facing sets which way she
+        // sits, and an inferred facing must not overwrite it (9 September 2026).
         const had = seats.get(r.x + ',' + r.y);
         if (had && had.certain && !aspectIsFacing) continue;
         seats.set(r.x + ',' + r.y, { face, why, proptype: r.proptype, aspect: r.aspect,
@@ -2896,9 +2898,9 @@ function charactersOnLevel(level, hour) {
 }
 /* Nobody walks into a square somebody is standing in (the maintainer,
    22 September 2026). The engine's stage marks the living, so a step into
-   one is refused and the walker tries again next turn. Here the people who
+   one is rejected and the walker tries again next turn. Here the people who
    are standing are placed first; a walker whose square is taken steps back
-   along its own route to the last square that is free, and stands there
+   along its route to the last square that is free, and stands there
    facing the way it was going. Two people scheduled to the same post still
    share it, which deconflictPositions draws side by side. */
 function keepApart(people) {
@@ -2923,14 +2925,14 @@ function keepApart(people) {
 // (the tile names it claims to name are in F004), 0x0202 does not exist
 // either, and the 16xx/17xx keys are not valid resource IDs for Cythera Data
 // at all. That page's conclusion is that 0x0101 is stale debugging symbol
-// data, out of date with the shipped game -- 0x3028 "Draw" names a resource
+// data, out of date with the shipped game -- 0x3028 "Draw" points at a resource
 // that no longer exists, and the 30xx keys do not match the method keys those
 // same methods actually use (UseOn is 0x3004 here but method 0x000A in
 // objects). Treated here as a best-effort naming hint, read from the data
 // rather than hardcoded, and never as authority about what a resource is.
 // The table itself is loadResourceSymbols in js/delv-script.js, built per
 // archive and handed to the disassembler by parseArchiveBytes.
-/* The render, whole, for every caller that wants it now: the zone panel,
+/* The render, whole, for every caller that needs it now: the zone panel,
    the hover card, the PNG export. It runs renderMapVisualSteps to the end,
    so what it draws is exactly what the steps draw. */
 function renderMapVisual(resid, mapData, opts) {
@@ -2953,7 +2955,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
   const m = parseDelverMap(mapData);
   if (m) m.raw = mapData;
   if (!m) return null;
-  // iOS/Safari refuses canvases above roughly 16.7 megapixels (and will
+  // iOS/Safari rejects canvases above roughly 16.7 megapixels (and will
   // tear down the tab when one is then interacted with). A 256x256 world
   // map at the native 32px tile size would be 8192x8192 = 67 MP, which is
   // what crashed the world map. Shrink the per-tile size for large maps so
@@ -2990,7 +2992,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
   // the only child in normal flow; every other layer over it (characters,
   // roofs, marks, lighting), the detail lens, mapSquareFromClient's hit test,
   // clampMapPan and fitMapToView all place tile (tx,ty) at (tx*TS, ty*TS)
-  // from the wrap's own origin. A leftover `10px auto` from when maps were
+  // from the wrap's origin. A leftover `10px auto` from when maps were
   // rendered inline put the terrain -- and only the terrain -- 10px below
   // that origin, since the wrap is absolutely positioned and so does not let
   // the margin collapse out of it. At 1:1 that is a slightly low map; at the
@@ -3006,7 +3008,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
   if (backdrop) paintBackdrop(ctx, backdrop, TS, 0, 0, 0, Math.ceil(canvas.width / TS) - 1, Math.ceil(canvas.height / TS) - 1);
 
   // Draw base terrain tiles. Always opaque -- see drawTileAt comment. Each
-  // one may carry a faux prop (0xF010), drawn immediately on top of it, which
+  // one may have a faux prop (0xF010), drawn immediately on top of it, which
   // is where the cave walls, trees, shrubs and mountains come from.
   const faux = getFauxProps();
   const fauxTiles = getPropTileList();
@@ -3020,7 +3022,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
   // are tiles named "wall" and "window" with nothing underneath -- so the
   // Walls toggle used to leave every town building standing. There is no
   // floor to reveal under a terrain wall; a dark placeholder plus the same
-  // hatching the prop walls get says "solid, drawn through" honestly.
+  // hatching the prop walls have shows "solid, drawn through" honestly.
   const wallTileMemo = new Map();
   const terrainWall = (t) => {
     let v = wallTileMemo.get(t);
@@ -3084,7 +3086,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
   let allRecs = [];
   // Which prop ended up on which square, kept so a click on the map can say
   // what it landed on. The prop list is the richest structured data in the
-  // archive and it used to be drawn and then thrown away.
+  // archive and it was once drawn and then thrown away.
   const drawnProps = [];
   let drawOps = [];
   if (propDataRaw) {
@@ -3105,7 +3107,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
       // non-character props. That divergence has now been measured across all
       // 40 maps and 14,485 prop records:
       //
-      //   * the two rules agree on 14,370 records,
+      //   * the two rules match on 14,370 records,
       //   * 115 are shown here and hidden by delvmod; none goes the other way,
       //     so this rule is a strict superset and can only add people,
       //   * for 111 of those 115, no scheduled character ever stands on or
@@ -3113,17 +3115,17 @@ function* renderMapVisualSteps(resid, mapData, opts) {
       //     thing placing them, and delvmod's rule would empty Land King
       //     Hall's throne room (21 records) and 37 spots in Cademia.
       //
-      // The 115 carry flags 0x08/0x09 (60 records, never scheduled) or
+      // The 115 have flags 0x08/0x09 (60 records, never scheduled) or
       // 0x42/0x44 (55 records, 4 of which do coincide with a schedule and may
       // therefore be drawn twice). utilities/delv_crosscheck.mjs re-measures
       // this every run.
       // ...but flags 0x42 and 0x44 are not people at all. delvmod's
-      // proptypename_with_flags names them EGG and ROOF and refuses to read
+      // proptypename_with_flags labels them EGG and ROOF and does not read
       // their proptype, and it is right to: the 0x44 records are roof-block
       // placements whose "proptype" is a block index (see drawRoofLayer), and
-      // 55 of them happened to have an index that also names a character, so
+      // 55 of them happened to have an index that is also a character's, so
       // this exemption was drawing 28 roofs and 27 eggs as people standing on
-      // the map. Roofs now have their own layer and their own toggle.
+      // the map. Roofs now have a separate layer and toggle.
       if (r.flags === 0x42 || r.flags === 0x44) continue;
       if ((r.flags & 0x58) && !characterProptypes().has(r.proptype)) continue;
       /* What the engine's passes never draw (enginePass): a record with any
@@ -3133,7 +3135,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
          boulders and the stretches of shore, wall and stepping stone a
          script brings in. They were all drawn until 22 September 2026, so a
          raised portcullis stood across its gate. The square's panel still
-         lists them. The living are exempt, as above. */
+         shows them. The living are exempt, as above. */
       if ((r.flags & 0x9E) && (r.flags & 0x44) !== 4 && !characterProptypes().has(r.proptype)) continue;
       if (r.x >= m.width || r.y >= m.height) continue;
       // Interior walls are props, not terrain, on most indoor maps. Hiding
@@ -3144,9 +3146,9 @@ function* renderMapVisualSteps(resid, mapData, opts) {
       if (baseTile === undefined) continue;
       visible.push(r);
     }
-    // Draw order: the records in the order the prop list keeps them, which
+    // Draw order: the records in prop-list order, which
     // is the order delvmod's draw_order() yields and the one the engine
-    // walks; then the faux props the terrain carries, after every record,
+    // walks; then the terrain's faux props, after every record,
     // as the engine adds them to the list at load. It was rows of squares
     // with a priority sort within a square, and faux props before every
     // record, until 9 September 2026, when the maintainer showed two
@@ -3155,11 +3157,11 @@ function* renderMapVisualSteps(resid, mapData, opts) {
     // drawn over the pillar at (62,57), an earlier record. List order and
     // faux-last put both the way he expects. The priority mask
     // (attributes & 0xBFCDFD1C) that ordered a square is not used now.
-    // Since 22 September 2026 that order holds only within one of the
+    // Since 22 September 2026 that order applies only within one of the
     // engine's passes (enginePass, above): the passes are drawn one after
     // another over the whole map.
     /* Since 23 September 2026, as TViewer::Render does it: every square
-       of a prop in the pass of its own tile (propPieceList), and within a
+       of a prop in the pass of that square's tile (propPieceList), and within a
        pass the records LAST FIRST, then the faux props row by row. Render
        walks its list from the end, and the list is the faux props, last
        made first, then the records in the prop array's order, which is the
@@ -3189,7 +3191,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
         ops.push({ x, y, tile: pc.tile, rot, ox, oy, pass: enginePass(pc.tile, 0, false), k: visible.length + j });
       }
     });
-    // Stable, so a prop's own squares keep the corner-first order.
+    // Stable, so a prop's squares stay in corner-first order.
     ops.sort((a, b) => (a.pass - b.pass) || (a.k - b.k));
     let drawn = 0;
     for (const op of ops) {
@@ -3298,12 +3300,12 @@ function* renderMapVisualSteps(resid, mapData, opts) {
    32px tile size: terrain, faux props, the props in their recorded draw
    order, then the same layer painters the full-size layers use (characters,
    roofs, marks, lighting), each taking an optional (ctx, TS) so one body
-   serves both its own canvas and the lens. Memory is a constant ~1-2 MP
+   serves both the layer's canvas and the lens. Memory is a constant ~1-2 MP
    whatever the map size, which is the whole point.
 
    Repaints are debounced off applyMapTransform, so a drag hides the lens and
    the settle repaints it; layer toggles, the hour slider and the selection
-   repaint it through their own draw functions' tails. Walk mode throttles
+   repaint it through the tails of their draw functions. Walk mode throttles
    instead (the ticks never stop, so a debounce would hide it forever).
 --------------------------------------------------------------------------- */
 const IS_IOS_WEBKIT = typeof navigator !== 'undefined' &&
@@ -3319,7 +3321,7 @@ let lensLastPaint = 0;
    the blurry base, so the margin is how far the view can move before the
    base shows through -- and strictly worse for memory, which on iOS is not
    a slider but a cliff: the tab is killed rather than slowed (see
-   renderMapVisual). So it is not a constant. lensGeometry takes the largest
+   renderMapVisual). So it is not a constant. lensGeometry picks the largest
    margin a device-pixel budget can pay for, and the budget is the only place
    a number is hardcoded.
 
@@ -3344,7 +3346,7 @@ function lensGeometry(vw, vh) {
   // sharper than the base canvas it exists to replace.
   while (dpr > 0.5 && vw * vh * dpr * dpr > budget) dpr /= 2;
   // Area is (1 + 2f)^2 times the viewport's, so the largest affordable f
-  // falls straight out of the budget rather than being guessed at.
+  // falls straight out of the budget rather than being assumed.
   const base = Math.max(1, vw * vh * dpr * dpr);
   const f = Math.max(0, Math.min(LENS_MAX_MARGIN, (Math.sqrt(budget / base) - 1) / 2));
   return { dpr, f, mx: Math.round(vw * f), my: Math.round(vh * f) };
@@ -3354,7 +3356,7 @@ function lensGeometry(vw, vh) {
    which is the only condition under which a TS=32 repaint can show anything
    the base cannot.
 
-   This used to be an absolute `screen pixels per tile >= 16`, and that was a
+   This was once an absolute `screen pixels per tile >= 16`, and that was a
    number for one budget rather than a rule. The base's tile size is chosen to
    fit a per-device canvas budget (see renderMapVisual): the 256x256 world map
    comes back at TS=8 on a desktop, where 16 px a tile is exactly 2x and the
@@ -3383,7 +3385,7 @@ function ensureDetailLens() {
     // wider and taller than its containing block on purpose (see the
     // #mapViewport canvas rule in the stylesheet), and #appShell's blanket
     // max-width:100% squashed it for months. An inline declaration outranks
-    // any bare selector, so the geometry below is now the element's own
+    // any bare selector, so the geometry below is now the element's
     // business whatever the sheet later grows.
     // transform-origin:0 0 because the slide below is not always a pure
     // translate any more -- a pinch scales the painted pixels too, and a
@@ -3398,16 +3400,16 @@ function ensureDetailLens() {
   return lens;
 }
 
-/* "Sharpening" -- the badge that says a repaint is on its way.
+/* "Sharpening" -- the badge that shows a repaint is on its way.
 
    The lens repaint is synchronous and, now that the region is as large as the
    budget allows, can take a visible beat on a big map. Worse, the interesting
    case is a pinch: the painted pixels are slid and scaled to stay registered
-   (slideLens), which keeps them in the right place but magnifies them, so the
+   (slideLens), which puts them in the right place but magnifies them, so the
    detail on screen is real but stale until the settle. Without a word from the
    page that reads as the viewer being broken rather than busy.
 
-   Off carries no delay and on carries a small one, so a repaint that lands
+   Off has no delay and on has a small one, so a repaint that lands
    quickly -- the overwhelmingly common case -- never flashes anything. */
 function setLensBusy(on) {
   const vp = document.getElementById('mapViewport');
@@ -3418,8 +3420,8 @@ function setLensBusy(on) {
     el = document.createElement('div');
     el.id = 'mapLensBusy';
     // Deliberately not a live region. This fires on every zoom settle, and a
-    // screen reader would be told "sharpening" over and over while saying
-    // nothing the map itself does not already say.
+    // screen reader would announce "sharpening" over and over, adding
+    // nothing the map itself does not already show.
     el.setAttribute('aria-hidden', 'true');
     el.textContent = 'sharpening\u2026';
     vp.appendChild(el);
@@ -3445,7 +3447,7 @@ function hideDetailLens(free) {
 
 // The pan/zoom state the lens was last painted for, and the margin it was
 // painted with, so the view can move without the painted pixels going stale
-// on screen. Both are needed: the margin is where the lens's own origin sits
+// on screen. Both are needed: the margin is where the lens's origin sits
 // relative to the viewport, and a scale has to be taken about that origin.
 let lensView = { x: 0, y: 0, scale: 0 };
 let lensBox = { mx: 0, my: 0 };
@@ -3464,7 +3466,7 @@ let lensBox = { mx: 0, my: 0 };
    A map point p (in base-canvas pixels) was painted at screen lensView.x +
    p*lensView.scale and belongs at mapView.x + p*mapView.scale. With
    r = mapView.scale / lensView.scale that is new = r*old + (mapView.x -
-   r*lensView.x); the element's own origin sits at screen -mx, which is where
+   r*lensView.x); the element's origin sits at screen -mx, which is where
    the mx*(1-r) term comes from. Stale detail, correctly placed, is a far
    better thing to look at than fresh blur. */
 function slideLens(lens) {
@@ -3495,7 +3497,7 @@ function scheduleLensPaint(delay) {
   if (lens && lens.style.display !== 'none' && lensView.scale) {
     slideLens(lens);
     // Only a zoom is worth a badge. A pan slides true detail at true size and
-    // is not stale in any sense the reader can see, so saying "sharpening"
+    // is not stale in any sense the reader can see, so showing "sharpening"
     // through every drag would be noise; a zoom leaves the pixels magnified
     // until the repaint lands, and that is worth naming.
     setLensBusy(mapView.scale !== lensView.scale);
@@ -3512,7 +3514,7 @@ function scheduleLensPaint(delay) {
 // stored order reproduces the exact same stacking.
 /* `src` is the map to paint, shaped like CUR_MAP -- m, mapData, props,
    allProps, backdrop. It defaults to the open map, which is what the detail
-   lens wants; the World tab passes the world map while a town is open, to
+   lens needs; the World tab passes the world map while a town is open, to
    build the sharp country around it. */
 /* `frame` is the palette frame to draw at, or 0 for the resting colours.
    The panel never needed it -- it animates by repainting single squares over
@@ -3555,12 +3557,12 @@ function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, frame) {
     }
   }
   // The engine's passes, square by square, and within a pass the records
-  // last first and then the terrain's own props: the order the full render
+  // last first and then the terrain's props: the order the full render
   // uses (enginePass and renderMapVisual say why). cm.drawOps is already in
-  // that order, a record's square at a time, each carrying its pass.
+  // that order, a record's square at a time, each with its pass.
   const margin = 4;                       // sprites overhang their square
   /* Six buckets filled in order rather than a sort: this runs on every frame
-     the World tab paints, over thousands of the terrain's own props, and a
+     the World tab paints, over thousands of the terrain's props, and a
      sort there made zooming choppy (23 September 2026). Records go in before
      faux props, so within a pass the order is the full render's. A faux
      tile's pieces and their passes are kept per tile. */
@@ -3624,9 +3626,9 @@ function paintMapBaseRegion(ctx, TS, x0, y0, x1, y1, src, frame) {
 /* The art that has to be put back over an animated square.
 
    Water is opaque, so repainting it erases whatever was drawn on top -- the
-   shoreline, a jetty, a tree overhanging the bank. The base canvas keeps a
+   shoreline, a jetty, a tree overhanging the bank. The base canvas stores a
    list of the exact blits for this (animReplay), but those are recorded at
-   the base's own tile size and the lens paints at 32, so what the lens needs
+   the base's tile size and the lens paints at 32, so what the lens needs
    is the prop records rather than the blits. Worked out once per map. */
 function lensAnimArt(cm) {
   if (cm._lensAnimArt) return cm._lensAnimArt;
@@ -3708,8 +3710,8 @@ function paintDetailLens() {
   const bw = Math.round((vw + 2 * mx) * dpr), bh = Math.round((vh + 2 * my) * dpr);
   // Two separate things, deliberately not one branch. Assigning canvas.width
   // clears the bitmap, so that must only happen when the backing store really
-  // has to change size; the CSS box is free to re-assert and is kept its own
-  // business, because a CSS box that has silently stopped matching the backing
+  // has to change size; the CSS box is free to re-assert and is kept separate,
+  // because a CSS box that has silently stopped matching the backing
   // store is exactly the failure this lens shipped with -- crisp pixels
   // squeezed into the wrong number of them.
   if (lens.width !== bw || lens.height !== bh) { lens.width = bw; lens.height = bh; }
@@ -3741,7 +3743,7 @@ function paintDetailLens() {
   drawRoofLayer(ctx, LENS_TS);
   // Lighting punches its light circles out of its darkness wash with
   // destination-out, which on the shared lens context would erase the map
-  // itself. It gets a scratch canvas with the same transform, composited
+  // itself. It uses a scratch canvas with the same transform, composited
   // back as a normal alpha layer.
   if (window.SHOW_LIGHTING) {
     let scratch = window._lensLightScratch;

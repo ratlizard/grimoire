@@ -74,7 +74,7 @@ window.ATLAS = (() => {
    One function, and that is the point: the miniature's size, the country's
    scale and the landing view were three separate expressions of this same
    transform, two of them disagreed, and the disagreement was the jump on
-   entering a town. There is one answer now and everything asks it.
+   entering a town. There is one answer now and everything uses it.
 
    `s` is world squares per node square; `ox, oy` place node square (0,0) in
    world coordinates. A node point p is therefore at world `ox + p*s`. */
@@ -111,7 +111,7 @@ function gatewayTransform(gw) {
    ground you are standing on. It hid 59 of the archive's 111 passages,
    including three of Pnyx's four stairs, and there is no way to tell from
    the drawing that a ring stands for more than the square it is on. Four
-   rings side by side leading to the same map is what the file says, so it is
+   rings side by side leading to the same map is what the file has, so it is
    what is drawn (the maintainer, 8 September 2026).
 
    The 44 passages whose zoneport lands on the map they are already on are
@@ -129,10 +129,10 @@ function gatewayTransform(gw) {
    So a hidden way is the egg, and the passage drawn on it is its picture.
 
    Each is { x, y, rect, dest, name, kind }: dest is where it lands (for a
-   kind-4 egg the destination map's own entry square is not in the egg, so
-   its centre stands in), and kind names the concealed thing drawn on the
+   kind-4 egg the destination map's entry square is not in the egg, so
+   its centre stands in), and kind is the concealed thing drawn on the
    egg's rectangle (and then `hidden` is set), or failing that whatever is
-   drawn on the egg's own square, or "way". Ways within the same
+   drawn on the egg's square, or "way". Ways within the same
    map -- Pnyx's floors, the slime pits below Cademia -- are kept; the atlas
    leaves them out since they go nowhere else. */
 function mapEggWays(resid) {
@@ -169,7 +169,7 @@ function mapEggWays(resid) {
   return out;
 }
 /* The ravines a travelling prop stands on the edge of. The Harpy Abyss is a
-   line of cracks with no class and no egg; what takes you down is the rock
+   line of cracks with no class and no egg; the way down is the rock
    outcropping on its edge, whose Use -- once the rope's UseOn has tied the
    rope to it, setting its aspect to 1 -- calls ChangeZone through its Data3.
    So every square of a run of cracks (eight-connected) that touches such a
@@ -207,7 +207,7 @@ function ravineWayAt(resid, tx, ty) {
 function mapDescents(resid) {
   const out = [];
   // The eggs' ways to another map first, so a prop that travels to the same
-  // place from the same square (Land King Hall's arch) is not said twice.
+  // place from the same square (Land King Hall's arch) is not listed twice.
   for (const w of mapEggWays(resid)) if (w.dest.resid !== resid) out.push({ dest: w.dest, x: w.x, y: w.y, name: w.name, kind: w.kind, egg: true });
   try {
     const raw = getResourceBytes(ARCHIVE, resid + 0x100);
@@ -240,7 +240,7 @@ function mapDescents(resid) {
    The other 17 say nothing of the kind. Land King Hall, the Sewers, the Iron
    Mine, the Volcano, the Tomb, the Caves, Below Cademia, the Dungeon, the
    Cove: what the archive gives for each is a doorway, not an extent. A stair
-   says where you go in, not where the place reaches, and the Sewers do not
+   shows where you go in, not where the place reaches, and the Sewers do not
    lie under any particular nine squares of Cademia.
 
    So the atlas places what the archive locates and no more. The rest is
@@ -280,11 +280,11 @@ function mapIsLocated(resid) { return !!mapWorldAnchor(resid); }
    nothing on the world map draws, was placed at the square its edge names
    and looked off-centre because that square is not its middle.
 
-   Three things the archive says decide it, and a map must say all three
+   Three things in the archive settle it, and a map must have all three
    to be drawn on the world. Its edge leads to the world (located). Its
-   entry script sets a landscape strip rather than one of the engine's own
+   entry script sets a landscape strip rather than one of the engine's
    backdrops -- a horizon is what the player sees from an outdoor place,
-   and the Temple's script sets -16, a backdrop, which is the file saying
+   and the Temple's script sets -16, a backdrop, which is the file marking it
    "inside". And the world map draws it, with a pictogram that is a place
    rather than a way in: a town, a ruin, a farm; not a cave mouth or a hole,
    which the world draws where something is entered, not where it lies.
@@ -292,7 +292,7 @@ function mapIsLocated(resid) { return !!mapWorldAnchor(resid); }
    Everything else is reached through a mouth, the bridge included: a ring
    on the square the archive does give, and a step. That is what the
    maintainer asked for on 5 September 2026 -- treat it like a tunnel rather
-   than mask the data -- and it is the file's own reading. 17 maps make the
+   than mask the data -- and it is how the file reads. 17 maps make the
    surface; 6 that are located do not: the Temple, Harpy Abyss, the bridge,
    Pnyx upstairs, Tavara without its fortress, and the underground under
    Catamarca. The mouths are named from the editor's list where it has a
@@ -303,7 +303,7 @@ function mapIsLocated(resid) { return !!mapWorldAnchor(resid); }
 // Land King Hall is drawn by an arch, and it is an interior by the file's
 // other two tests as well: its entry script sets a backdrop (-1), and its
 // header's exits do not land on the world. So it is a mouth, named from
-// its own script "Land King Hall", and its hall is entered through it.
+// its script "Land King Hall", and its hall is entered through it.
 const ENTRANCE_PICTOGRAMS = /cave|hole|stair|trapdoor|door|arch|ladder/;
 const surfaceCache = new Map();
 function mapIsSurface(resid) {
@@ -325,7 +325,7 @@ function mapIsSurface(resid) {
    Tavara's island is two maps. The world's pictogram leads to the
    fortress, zone 36, which its script titles Stronghold; zone 37 is the
    island without it, located at the same square by its edge exits and led
-   to by nothing on the world. What joins them is the fortress's own Enter
+   to by nothing on the world. What joins them is the fortress's Enter
    (0x1424): without the hero's flag 28 it prints "As you approach the
    building, it shimmers and then fades." and sends him to zone 37 instead
    (the portal's Use, 0x1001, does the same on the way in). By the rule
@@ -335,7 +335,7 @@ function mapIsSurface(resid) {
    from the island's card, drawn in the fortress's place.
 
    So it is read, not listed: a surface place's zone script whose
-   ChangeZone sends the hero to a map located at the place's own world
+   ChangeZone sends the hero to a map located at the place's world
    square, behind a test of one of the hero's flags, makes that map the
    place's other state. The flag's number is read with where it was read,
    so the card links it to its line; the game's line about it is the
@@ -380,9 +380,9 @@ function mapStates() {
   return (DERIVED.MAP_STATES = out);
 }
 /* What gives the hero a flag while worn: the classes whose Wear sets it,
-   by number or from the item's own Data2, and for the second kind the
-   placed items carrying that number. Names of the item types, for the
-   card; none found is said by saying nothing. */
+   by number or from the item's Data2, and for the second kind the
+   placed items with that number. Names of the item types, for the
+   card; none found adds nothing to it. */
 function flagGivenByWearing(flag) {
   const cache = DERIVED.WORN_FLAGS || (DERIVED.WORN_FLAGS = new Map());
   if (cache.has(flag)) return cache.get(flag);
@@ -416,11 +416,11 @@ function flagGivenByWearing(flag) {
   cache.set(flag, out);
   return out;
 }
-/* Draw a place in its other state, or back. The scene keeps one node per
+/* Draw a place in its other state, or back. The scene has one node per
    place; it is swapped for a copy that draws the other map through the
    same transform (the two are the same size, or the pair is not offered),
    so every cache keyed by map sees a different map and nothing else has
-   to know. */
+   to change. */
 function atlasShowState(resid) {
   const pair = mapStates().get(resid);
   const sc = DERIVED.ATLAS_SCENE;
@@ -466,8 +466,8 @@ function atlasStateCard(resid) {
 
    A gateway's pictogram gives both a position and an extent, and those are
    preferred. A located map with no pictogram -- the bridge, Pnyx upstairs --
-   is placed at the world square its own edge exit names, at the measured
-   median scale, because the archive has said where it is even though nothing
+   is placed at the world square its edge exit gives, at the measured
+   median scale, because the archive gives where it is even though nothing
    on the world map draws it. */
 function surfaceScene() {
   if (DERIVED.ATLAS_SCENE) return DERIVED.ATLAS_SCENE;
@@ -488,16 +488,16 @@ function surfaceScene() {
                  w: t.w, h: t.h, ts: t.ts, name: atlasMapName(gw.destResid) || gw.name, depth: 1,
                  key: 'g' + gw.port });
   }
-  // A located map with no pictogram used to be placed here at the square
+  // A located map with no pictogram was once placed here at the square
   // its edge names, at the median scale. It is a mouth now (atlasMouths):
   // the square is the file's, the extent was ours.
   nodes.sort((a, b) => a.depth - b.depth);
   return (DERIVED.ATLAS_SCENE = { root, nodes, surface: true });
 }
 
-/* A place the archive does not locate, shown on its own.
+/* A place the archive does not locate, shown alone.
 
-   One node, at its own scale, filling the view -- because there is no honest
+   One node, at its native scale, filling the view -- because there is no honest
    answer to where it sits and the right thing is not to imply one. How you
    got here is written in the strip rather than drawn on the ground. */
 const belowScenes = new Map();
@@ -552,8 +552,8 @@ function atlasMapName(resid) {
     }
   }
   // A shared name is never doubled up. With the outside names on (the
-  // default) the editor's one stands in for it; off, the game's own stands,
-  // twice on the map if that is what the game says.
+  // default) the editor's one stands in for it; off, the game's name stands,
+  // twice on the map if that is what the game has.
   if ((atlasNameCounts.get(own) || 0) > 1 && window.SHOW_BUILTIN_LABELS) {
     const ez = editorZoneName(resid);
     if (ez && ez.toLowerCase() !== own.toLowerCase()) return ez;
@@ -566,21 +566,21 @@ function atlasMapName(resid) {
 /* The mouths on a node: the ways from it into somewhere the archive does not
    locate. Drawn as a ring and a name where the node is big enough to see
    them, and that is the whole of the affordance -- a mouth is a connection,
-   so it gets a mark rather than a place. */
+   so it has a mark rather than a place. */
 function atlasMouths(node) {
   if (node._mouths) return node._mouths;
   // On the surface a place's exits to the world are the edge of the place,
   // not rings. Below ground every way out is a ring: down into somewhere
   // deeper, or up -- to the world, to a surface place, or back to the map
-  // you came through -- and the ring says which.
+  // you came through -- and the ring shows which.
   const onSurface = !!(DERIVED.ATLAS_SCENE && DERIVED.ATLAS_SCENE.nodes.includes(node));
   const from = atlasBelowTop();
   const out = mapDescents(node.resid)
     .filter(d => onSurface ? (!mapIsSurface(d.dest.resid) && d.dest.resid !== WORLD_MAP_RESID) : true)
     .map(d => Object.assign({}, d, {
       // A ring that lands on the map you are already standing on is named by
-      // the square it lands on: repeating the map's own name beside every one
-      // of them says nothing, and the square is the fact the file gives.
+      // the square it lands on: repeating the map's name beside every one
+      // of them adds nothing, and the square is the fact the file gives.
       name: d.dest.resid === node.resid ? (d.dest.x + ', ' + d.dest.y)
                                         : (atlasMapName(d.dest.resid) || d.name),
       within: d.dest.resid === node.resid,
@@ -589,19 +589,19 @@ function atlasMouths(node) {
     }));
   // On the world, the maps whose edge leads here but which the world draws
   // nothing for -- the bridge, Pnyx upstairs -- are mouths at that square:
-  // the one thing the file says about where they are.
+  // the one thing the file gives about where they are.
   // This branch renders every below-ground map with a world anchor, to find
   // the square a ring should land on, and the answer is memoised on the node
   // with nothing anywhere to invalidate it. So it is all or nothing: built
   // while the view is moving it would cache a SHORT list of rings for the
   // rest of the session. While busy, hand back what is already built and
-  // remember nothing.
+  // store nothing.
   if (node.resid === WORLD_MAP_RESID && atlasInMotion()) return node._mouths || [];
   if (node.resid === WORLD_MAP_RESID) {
     const have = new Set(out.map(d => d.dest.resid));
     // A map some surface place already leads down into -- the springs under
     // Catamarca, the upstairs of Pnyx -- is that place's ring, not a ring
-    // out on the world at the square its own edge happens to name.
+    // out on the world at the square its edge exit happens to give.
     try {
       const sc = DERIVED.ATLAS_SCENE;
       if (sc) for (const n of sc.nodes) if (n.depth) for (const d of mapDescents(n.resid)) have.add(d.dest.resid);
@@ -637,7 +637,7 @@ function atlasRect(node, view) {
            w: node.w * node.s * view.Z, h: node.h * node.s * view.Z };
 }
 
-// Screen pixels per square of this node's own map -- what decides the
+// Screen pixels per square of this node's map -- what sets the
 // resolution it is worth drawing at, and whether it is worth drawing at all.
 function atlasNodePpt(node, view) { return node.s * view.Z; }
 
@@ -684,7 +684,7 @@ function atlasLandBounds() {
   return (DERIVED.ATLAS_LAND = out);
 }
 
-/* The most a node is worth magnifying: its own art is 32 pixels a square, so
+/* The most a node is worth magnifying: its art is 32 pixels a square, so
    past twice that there is nothing further in the file to show. The zoom
    stops where the deepest thing under the middle of the view runs out.
 
@@ -719,7 +719,7 @@ function atlasMaxZAt(px, py) {
   return best;
 }
 /* How far the view is past the world's art, 0 to 1: 0 up to maxPpt (64 px
-   a world square), 1 from a quarter past it (80). The zoom gets past 64
+   a world square), 1 from a quarter past it (80). The zoom goes past 64
    only over a place (atlasMaxZAt), and there the world would be drawn
    past its art: its one square for the place, blown up to fill the
    screen around it, which on a phone was a field of dark red, and, while
@@ -735,7 +735,7 @@ function atlasMaxZAt(px, py) {
    maintainer found jarring the same night. And not at all while the view
    goes through a hole (atlasHoleAnimateTo): the fall into a cave's mouth
    and the rise out of one zoom far past the world's art on purpose, into
-   the mouth's own sprite, and with the world faded they turned grey well
+   the mouth's sprite, and with the world faded they turned grey well
    before it. */
 function atlasPastArt() {
   if (window._atlasHole) return 0;
@@ -756,10 +756,10 @@ function atlasSliderMaxZ() {
 
    Every frame, from scratch, in one pass. A node is drawn from the smallest
    picture that is at least as big as it needs to be -- the two thumbnail
-   levels, then its whole render, then its own art a window at a time -- and
+   levels, then its whole render, then its native art a window at a time -- and
    fades in over the pictogram it stands on as it becomes large enough to read.
    That fade is the only threshold left in the renderer. */
-/* The numbers that decide how the atlas behaves.
+/* The numbers that set how the atlas behaves.
 
    TEMPORARY in this form: they are constants in spirit and are written here
    as defaults, but every one of them is a "does this feel right on a real
@@ -815,7 +815,7 @@ function paintAtlas() {
     const alpha = !node.depth ? 1 - atlasPastArt()
       : Math.max(0, Math.min(1, (r.w - window.ATLAS_TUNE.nodeFadeFrom) /
                 (window.ATLAS_TUNE.nodeFadeTo - window.ATLAS_TUNE.nodeFadeFrom)));
-    // A town's border reaches the screen's edge, so it is wanted while the
+    // A town's border reaches the screen's edge, so it is needed while the
     // town itself is off screen; only the drawing of the town is culled.
     const border = atlasBorderAlpha(node, r, ppt, alpha);
     const seen = !(r.x + r.w < -40 || r.y + r.h < -40 || r.x > vw + 40 || r.y > vh + 40);
@@ -844,21 +844,21 @@ function paintAtlas() {
   if (atlasTileWant.length) atlasTileSchedule();
 }
 
-/* The people have a canvas of their own, over the scene's.
+/* The people are on a separate canvas, over the scene's.
 
    A walking day moves them thirty times a second, and repainting the whole
    scene that often is what made the zoom choppy before (the handoff's
    caution when this was asked for, 22 September 2026). So a tick of the
    clock repaints this layer alone, from the nodes the last scene paint
    placed (ATLAS_DRAWN); and every scene paint repaints it too, from the same
-   list, so the two never disagree about where a node is. Nothing on it is
-   painted once and moved, which is the rule the scene keeps.
+   list, so the two never differ about where a node is. Nothing on it is
+   painted once and moved, which is the rule the scene follows.
 
-   It sits over the rings and the names, where the people used to be under
+   It sits over the rings and the names, where the people were once under
    them; they are drawn inside a node and the names below it, so the two
    rarely meet. A node drawn over its parent hides the parent's people, as
    it did when both were on one canvas: its rectangle is cut out of this
-   layer, at the node's own opacity, before its people go on. */
+   layer, at the node's opacity, before its people go on. */
 // The device pixels a CSS pixel the scene was last painted at, which the
 // people's layer has to match.
 let atlasDpr = 1;
@@ -906,27 +906,27 @@ function atlasPaintFolk() {
 
    The ladder is the same one the old renderer used and it is kept: two
    thumbnail levels, then the whole render, then -- when even that is being
-   magnified -- the node's own art, in tiles made while the view is still
+   magnified -- the node's native art, in tiles made while the view is still
    (paintAtlasTiles). That last step is what the detail lens was, with the
    difference that it is drawn straight into the scene rather than being a
    second canvas kept in step with a first. */
-/* Where native art starts, as a multiple of a node's own render's tile
+/* Where native art starts, as a multiple of a node's render's tile
    size, counted in device pixels a square: at 1, the moment the render
    would be magnified at all. It was off from 25 to 28 September 2026
    (Infinity), because the one window it was painted into then was the
-   World tab's jerk (paintAtlasTiles says how); `?nativeAt=100` still puts
+   World tab's jerk (paintAtlasTiles explains how); `?nativeAt=100` still puts
    the tab back to the renders alone for a comparison. */
 window.ATLAS_NATIVE_AT = (function () {
   try { const m = /[?&]nativeAt=([0-9.]+)/.exec(location.search || ''); const v = m ? parseFloat(m[1]) : NaN; return v > 0 ? v : 1; }
   catch (e) { quiet(e); return 1; }
 })();
-/* And no native art below the art's own size, in device pixels a square
+/* And no native art below the art's native size, in device pixels a square
    (29 September 2026). Tiles made at the size the screen needs from the
    moment a render was magnified at all meant some thirty small tiles near
    the screen at a middle zoom, made again after every pause; the
    maintainer found `?nativeAt=100`, no tiles at all, smooth on his phone
    where the tiles jerked, and asked for them only to make the closest
-   zoom sharp everywhere. From 32 a square, the art's own, a tile is the
+   zoom sharp everywhere. From 32 a square, the art's native size, a tile is the
    32 px art and covers four times the screen area it did at the old
    first level, so there are a few of them; below it the render is drawn,
    softer, as with no tiles. `?tileFrom=` moves the floor, for a
@@ -939,7 +939,7 @@ function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
   ctx.globalAlpha = alpha;
   ctx.imageSmoothingEnabled = true;
   let ok = false;
-  // Native art, when the node is being magnified past its own render.
+  // Native art, when the node is being magnified past its render.
   const tileTS = atlasTileTS(node, ppt);
   if (tileTS) ok = paintAtlasTiles(ctx, node, r, ppt, tileTS, vw, vh);
   // The roofs come off as the node grows: a town at a distance is roofs,
@@ -947,19 +947,19 @@ function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
   // step from the miniature to the render, at 448 screen pixels across,
   // which the maintainer found the right distance and the wrong manner; so
   // they fade over a band centred on it (atlasRoofT), and a town drawn from
-  // its render or its own art gets its roofed miniature laid over at what
+  // its render or its native art has its roofed miniature laid over at what
   // is left of them.
   const roofT = atlasRoofT(r.w);
   let viaTown = false;
   if (!ok) {
     // A town under 448 px across is drawn from its miniature and its render
-    // is not asked for. It used to be: mapRenderFor was called for every
+    // is not requested. It once was: mapRenderFor was called for every
     // node on screen before the miniature was looked at, and the cache
-    // holds four maps, so with the whole island in view every frame
+    // has room for four maps, so with the whole island in view every frame
     // rendered a dozen towns and threw them away again. That was the
     // judder below 5 px a square, the first thing a visitor sees (the
     // maintainer, 9 September 2026). A town with no miniature yet is
-    // left to the world's own pictogram until the builder makes one.
+    // left to the world's pictogram until the builder makes one.
     const thumb = node.gw && worldThumbs.get(thumbKey(node.resid, THUMB_LEVELS[0], true));
     const past = atlasPastArt() > 0;
     // Nearing the world's art, the render of the place under the middle
@@ -973,15 +973,15 @@ function drawAtlasNode(ctx, node, r, ppt, alpha, vw, vh) {
     } else if (r.w >= 448 || !node.gw || past) {
       // The same judder, one zoom band up (the maintainer, 12 September 2026).
       // The 448 guard above stopped every node on screen being rendered while
-      // the island was in view, but this branch still asked for a full render
-      // per node per frame once nodes grew past it, and the cache keeps two
-      // on iOS and four elsewhere. Three big towns in view at an intermediate
-      // zoom therefore evicted each other every frame and re-rendered every
-      // frame. So while the view is moving take a render only if it is
-      // already cached, and otherwise draw the miniature: setTouching(false)
-      // and the animation's own done() both repaint, so the sharp version
-      // arrives the instant the gesture ends, which is the contract the
-      // device-pixel-ratio drop above already relies on.
+      // the island was in view, but this branch still requested a full render
+      // per node per frame once nodes grew past it, and the cache has room for
+      // two on iOS and four elsewhere. Three big towns in view at an
+      // intermediate zoom therefore evicted each other every frame and
+      // re-rendered every frame. So while the view is moving take a render
+      // only if it is already cached, and otherwise draw the miniature:
+      // setTouching(false) and the animation's done() both repaint, so the
+      // sharp version appears the instant the gesture ends, which is the
+      // contract the device-pixel-ratio drop above already relies on.
       const e = mapRenderIfCheap(node.resid);
       if (e && e.result) { atlasAnimateRender(e.result, r, vw, vh); drawRenderWithMargin(ctx, node, r, e.result.canvas, alpha, roofT); ok = true; }
       else if (thumb) { ok = drawTown(ctx, node.gw, atlasCropRect(node, r), alpha, roofT); viaTown = true; }
@@ -1059,7 +1059,7 @@ function atlasMip(canvas, targetW) {
   for (const l of levels) if (l.width >= targetW) best = l;
   return best;
 }
-/* A zone drawn from its own render, brought to the palette frame.
+/* A zone drawn from its render, brought to the palette frame.
 
    Only the big maps are drawn from tiles, and only tiles were animated
    (paintAtlasTiles), so a zone whose render is already at the art's size,
@@ -1101,12 +1101,12 @@ function drawRenderWithMargin(ctx, node, r, canvas, alpha, roofT) {
 /* The ground the game draws past a town's edge (6 October 2026).
 
    A town's map stops where its grid stops, and the World tab drew the world
-   straight up to it: a town at its own 32 px a square beside world squares
+   straight up to it: a town at its native 32 px a square beside world squares
    standing for thirty-odd of them each, which the maintainer pointed out as
    the mixed sizes. The game never shows that seam. TViewer::SetStage fills
-   the view's squares that fall off the map by repeating the map's own
-   outermost columns and rows: a square left of column 0 takes the column
-   x & (p - 1), one past the last takes ((x - width) & (p - 1)) + width - p,
+   the view's squares that fall off the map by repeating the map's
+   outermost columns and rows: a square left of column 0 uses the column
+   x & (p - 1), one past the last uses ((x - width) & (p - 1)) + width - p,
    and rows likewise with q, so the band repeats the edge p columns (q rows)
    wide, aligned to the map's corners. p and q are bytes 10 and 11 of the map
    header (TGameViewer::SetViewerLocation copies them in beside the width and
@@ -1114,35 +1114,35 @@ function drawRenderWithMargin(ctx, node, r, canvas, alpha, roofT) {
    one is 0 the game puts tile 255 there instead, and nothing is drawn here.
    Only the terrain is repeated: SetStage copies the tile word alone, so a
    placed thing on an edge square stays where it is, and the strips are
-   painted without the records (drawOps), the trees and rocks the terrain
-   carries kept.
+   painted without the records (drawOps), the terrain's trees and rocks
+   kept.
 
-   TViewer::DimOffLevel then darkens every off-map square and the map's own
+   TViewer::DimOffLevel then darkens every off-map square and the map's
    outermost row and column on each side, by taking 3 from each light cell,
    on the 0 to 32 scale drawLighting reads as (32 - level) / 32; that is
-   dimAtlasBorder, drawn after the town so its own edge row is darkened too.
+   dimAtlasBorder, drawn after the town so the town's edge row is darkened too.
 
-   The band runs to the edge of the screen, as the game's own repeat runs
+   The band runs to the edge of the screen, as the game's repeat runs
    to the edge of its view, so the world is never seen beside a town drawn
-   at its own size (the maintainer's word, 6 October 2026). It is drawn
-   exactly when the town's own unbuilt margin is: from the town's render or
+   at its native size (the maintainer's word, 6 October 2026). It is drawn
+   exactly when the town's unbuilt margin is: from the town's render or
    its tiles, not its miniature, at what the roofs have given up
-   (drawWithMargin), so it arrives with the rest of the town's ground.
+   (drawWithMargin), so it appears with the rest of the town's ground.
    Every town's band is drawn before any town, so one town's band never
    covers another town, and the darkening is cut round the other towns.
-   Only a town drawn over the world gets one: a place with gw is an
+   Only a town drawn over the world has one: a place with gw is an
    open-edged destination, the kind you walk out of.
 
-   The strips are made once a render and kept, at the render's own tile
+   The strips are made once a render and kept, at the render's tile
    size, and again at the native art's size once tiles are in use and the
    view is still (atlasWhenStill), so the band sharpens with the town. Each
    is laid as a repeating pattern, scaled to the zoom and anchored at the
-   map's own edge, which is the game's x & (p - 1) alignment: one fill a
-   side and a corner, however many repeats the screen holds. */
+   map's edge, which is the game's x & (p - 1) alignment: one fill a
+   side and a corner, however many repeats fit on the screen. */
 const ATLAS_BORDER_DIM = 3 / 32;
 const atlasBorders = derivedMap('atlasBorders');
 // The opacity a town's border is drawn at, or 0 for none: its margin's,
-// and only while its margin is drawn (drawAtlasNode takes the render or
+// and only while its margin is drawn (drawAtlasNode uses the render or
 // the tiles, not the miniature, once the render is kept).
 function atlasBorderAlpha(node, r, ppt, alpha) {
   if (!node.gw || !node.depth || !zoneMapCache.has(node.resid)) return 0;
@@ -1253,18 +1253,18 @@ function atlasCropRect(node, r) {
            w: (th.x1 - th.x0 + 1) * per, h: (th.y1 - th.y0 + 1) * per };
 }
 
-/* The node's own art, in tiles (28 September 2026).
+/* The node's native art, in tiles (28 September 2026).
 
    The maintainer's word that day: the world map has to be shown at full
    resolution. Its render is 8 px a square, because a 256-square map at the
-   art's own 32 is 67 megapixels and no browser tried keeps that as one
+   art's native 32 is 67 megapixels and no browser tried allows that as one
    canvas, and Cademia's is 16; from 25 September those renders were all the
    tab showed, scaled up to 64 px a square, because the native art before
    them was the jerk. That art was one window, six squares wider than the
    screen on every side, painted square by square inside the paint whenever
    the view left it -- every 60 px of pan at 10 px a square, millions of
    pixels each time -- and painted again whole on every palette frame, since
-   the world's window always holds sea.
+   the world's window always has sea.
 
    The art is now cut into tiles of about ATLAS_TILE_PX pixels a side, made
    at the size the screen needs and kept. Three rules make that the fix
@@ -1272,14 +1272,14 @@ function atlasCropRect(node, r) {
 
    - A paint never paints art. It draws the tiles it has, and where one is
      missing the render, with any kept tile of another size over it; the
-     tiles it wanted go on a list (atlasTileWant) that atlasTileTick works
+     tiles it needs go on a list (atlasTileWant) that atlasTileTick works
      through a few milliseconds a frame, nearest the middle of the screen
      first, once the view has been still for ATLAS_TILE_SETTLE_MS. A
      gesture's frames are the gesture's, as the render's slicing already
      has it (atlasRenderStep).
    - A tile is made at the size a square covers on the screen at rest,
      counted in device pixels and rounded up to the next of
-     ATLAS_TILE_LEVELS: the art's own 32 from 24 device pixels a square up,
+     ATLAS_TILE_LEVELS: the art's native 32 from 24 device pixels a square up,
      and 12, 16 or 24 below that, where a 32 px tile would be shrunk to a
      third and cost nine times the pixels. So what is kept is never much
      more than twice the screen, whatever the zoom, and one set of tiles
@@ -1289,7 +1289,7 @@ function atlasCropRect(node, r) {
 
    Tiles are kept up to ATLAS_TILE_BUDGET device pixels, the least recently
    drawn dropped first and never one the last paint used. A tile is made
-   from the render's own records (drawOps, in the order the full render drew
+   from the render's records (drawOps, in the order the full render drew
    them), so its art is the render's at another size, and a new render, as
    the Walls setting makes, retires the tiles made from the old one. Each is
    painted with four squares of map beyond its edge on every side, the
@@ -1301,12 +1301,12 @@ const ATLAS_TILE_LEVELS = [8, 12, 16, 24, 32];
 const ATLAS_TILE_PX = 512;
 const ATLAS_TILE_SETTLE_MS = 150;
 const ATLAS_TILE_SLICE_MS = 6;
-// 64 MB of tiles, or 24 on iOS, where renderMapVisualSteps says why; and no
-// ring there, since the screen's own tiles are most of that.
+// 64 MB of tiles, or 24 on iOS, where renderMapVisualSteps explains why; and
+// no ring there, since the screen's tiles are most of that.
 const ATLAS_TILE_BUDGET = IS_IOS_WEBKIT ? 6e6 : 16e6;
 const ATLAS_TILE_RING = IS_IOS_WEBKIT ? 0 : 1;
 /* The water. A tile logs every blit it is painted with (drawTileAt's
-   __MAP_BLIT_LOG, which the render's own animation uses), and keeps, for
+   __MAP_BLIT_LOG, which the render's animation uses), and stores, for
    each of its squares that a blit of an animated tile touches, the blits
    that touch that square, in the order they were drawn. A palette frame
    draws those again at the new frame, clipped to the square, which is
@@ -1343,7 +1343,7 @@ const ATLAS_TILE_RING = IS_IOS_WEBKIT ? 0 : 1;
 const ATLAS_TILE_ANIM_SQUARES = 1500;
 const ATLAS_TILE_ANIM_MIN_TS = 24;
 const atlasTiles = new Map();
-const atlasTileNone = new Set();       // tiles that could not be made, not asked for again
+const atlasTileNone = new Set();       // tiles that could not be made, not requested again
 let atlasTilePx = 0;
 let atlasTileWant = [];
 let atlasTileSerial = 0;
@@ -1355,7 +1355,7 @@ function atlasTileSquares(TS) { return Math.max(8, Math.round(ATLAS_TILE_PX / TS
 // what a tile is made for: a finger down paints at one (paintAtlas), and the
 // tiles do not change size because a finger is down.
 function atlasRestDpr() { return Math.min((typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1, 2); }
-// The tile size a node wants at a zoom, or 0 when its render is enough.
+// The tile size a node needs at a zoom, or 0 when its render is enough.
 function atlasTileTS(node, ppt) {
   const want = ppt * atlasRestDpr();
   if (!(want > node.ts * window.ATLAS_NATIVE_AT) || want < window.ATLAS_TILE_FROM) return 0;
@@ -1407,7 +1407,7 @@ function atlasTileAnimIndex(res, C) {
 }
 // The squares of a tile that a palette frame changes, each with the blits
 // that touch it in the order they were drawn, from the log of its painting.
-// A square with no opaque blit of its own filling it is left as painted: a
+// A square with no opaque blit filling it is left as painted: a
 // wall the Walls setting hides is a fill, not a blit, and a square that
 // shows a backdrop through its ground has the backdrop's pattern under it,
 // which is not a blit either.
@@ -1434,7 +1434,7 @@ function atlasTileMoving(log, t) {
 }
 // Whether a tile's water is behind a frame over a range of squares (null
 // for the whole tile). A tile repainted only where it was on screen is at
-// no one frame (-1), and remembers which part is at which.
+// no one frame (-1), and records which part is at which.
 function atlasTileStale(t, frame, clip) {
   if (!t.anim || t.frame === frame) return false;
   if (t.frame !== -1 || !clip || !t.part || t.part.frame !== frame) return true;
@@ -1456,7 +1456,7 @@ function atlasTileAnimate(t, frame, clip) {
     // Black first, as paintMapBaseRegion lays it: the ground is drawn
     // opaque and still leaves the odd pixel of some tiles uncovered.
     g.fillStyle = '#000';
-    // A square nothing else touches is its own blit, which fills it exactly.
+    // A square nothing else touches is a single blit, which fills it exactly.
     if (list.length === 1) {
       const b = list[0];
       g.fillRect(sx * TS, sy * TS, TS, TS);
@@ -1511,7 +1511,7 @@ function atlasTileTick() {
   atlasTilePending = false;
   if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') { atlasTileWant = []; return; }
   if (!atlasTileWant.length) return;
-  // Moving: the paint that ends the gesture lists the tiles again.
+  // Moving: the paint that ends the gesture collects the tiles again.
   if (atlasInMotion()) return;
   const wait = ATLAS_TILE_SETTLE_MS - (Date.now() - atlasMovedAt);
   if (wait > 0) {
@@ -1535,7 +1535,7 @@ function atlasTileTick() {
     if (!t) atlasTileNone.add(key);
   }
   atlasTileEvict();
-  // The paint lists what is still wanted, from wherever the view is now.
+  // The paint collects what is still needed, from wherever the view is now.
   paintAtlas();
 }
 
@@ -1621,22 +1621,23 @@ function paintAtlasTiles(ctx, node, r, ppt, TS, vw, vh) {
 /* The people, on whichever node they are standing on.
 
    charactersOnLevel reads the schedules for one level and is written against
-   window.CUR_MAP -- it asks it for the map, so that walking positions can
+   window.CUR_MAP -- it reads the map from it, so that walking positions can
    follow a road and sitters can find their chair. The atlas has no current
-   map, so it lends it one node at a time: the node's own render stands in
+   map, so it lends it one node at a time: the node's render stands in
    while its people are worked out, and is put back afterwards. That is a
    borrow rather than a design, and it is the one place the atlas leans on the
    panel's assumptions instead of replacing them.
 
    Only worth doing when a square is big enough to hold a person: below that
-   they are smaller than the sprite's own outline and the node is a picture of
+   they are smaller than the sprite's outline and the node is a picture of
    a town rather than a place with anybody in it.
 
    The walls a walker routes round are borrowed the same way. buildPropBlockers
-   keeps one map's (DERIVED.PROP_BLOCK), which is right for the Zones view and
+   stores one map's (DERIVED.PROP_BLOCK), which is right for the Zones view and
    wrong here: with a town and the world on screen during a walking day, each
    tick rebuilt both, a scan of every square and every prop, thirty times a
-   second. So each node keeps its own, lent in with its map and taken back. */
+   second. So each node stores its blockers, lent in with its map and taken
+   back. */
 // Where everyone on a node is at this hour: worked out from the schedules
 // once per node and hour rather than once per frame, since a pan does not
 // move the clock. Dropped with the other derived tables.
@@ -1710,17 +1711,17 @@ function atlasPeople(ctx, node, r, ppt) {
 
 /* The ways through, marked where they are.
 
-   A mouth is a connection rather than a place, so it gets a ring on the
+   A mouth is a connection rather than a place, so it has a ring on the
    square it is on and its name beside it -- not a picture of what is behind
    it, which would be putting an unlocated map on located ground. Only where
    the node is big enough for the ring to mean a square.
 
    One colour for every ring since 9 September 2026 (the maintainer): a
-   way up, down or across is a way, and the name beside it says where. */
+   way up, down or across is a way, and the name beside it shows where. */
 /* The width of a label, measured once per name per face.
 
    measureText is not free and the names do not change: at mid zoom this pass
-   was measuring two dozen of them on every frame of a pan. The key carries
+   was measuring two dozen of them on every frame of a pan. The key includes
    the font as well as the name, because canvasFace reads FACE_STACK_NOW and
    the reader can change the face -- a cache on the name alone would keep the
    old face's widths and mis-size every box behind every label. */
@@ -1752,13 +1753,13 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
      mouths were left out of it then, which is why the tab was still jerky at
      mid zoom: measured on 13 September at 12 px a world square, this pass was
      121 of the frame's 125 canvas operations, some two dozen visible passages
-     each doing beginPath, arc, stroke and a measureText of its own. A stroke
+     each doing beginPath, arc, stroke and a separate measureText. A stroke
      is the call that rasterises, so two dozen of them a frame is the cost.
 
      radius, width and colour are the same for every ring on a node -- they
      come from `per` -- so the state is set once outside the loop, and an arc
-     is preceded by a moveTo to its own start or the path joins it to the one
-     before with a straight line (the note in the egg loop). The labels want
+     is preceded by a moveTo to the arc's start or the path joins it to the one
+     before with a straight line (the note in the egg loop). The labels need
      the ring already stroked under them, so they are collected here and drawn
      in a second pass after the stroke. */
   const labelQueue = [];
@@ -1828,11 +1829,11 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
        Zoomed out the whole pass is gated off by `per`, which is exactly why
        it was smooth there and not here. The state is set once now and
        everything strokes together, which is the same picture for a fraction
-       of the work and knows nothing about which kinds are on the map.
+       of the work and does not depend on which kinds are on the map.
 
-       An arc begins at angle zero, so each ring needs a moveTo to its own
+       An arc begins at angle zero, so each ring needs a moveTo to the ring's
        start or the path joins it to the one before with a straight line.
-       rect() opens its own subpath and needs no such thing. */
+       rect() opens a new subpath and needs no such thing. */
     ctx.save();
     ctx.setLineDash([3, 3]);
     ctx.strokeStyle = 'rgba(220,220,255,.55)';
@@ -1845,8 +1846,8 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
       // world map is a picture of an island: a score of room outlines tiling
       // a town is clutter at this scale, and the maintainer asked for them on
       // the zone view instead, where one map fills the screen and they can be
-      // turned on and off (MAP_MARKS.rooms, drawMapMarks). The World tab keeps
-      // the triggers that act on their own square.
+      // turned on and off (MAP_MARKS.rooms, drawMapMarks). The World tab shows
+      // the triggers that act on a single square.
       if (g.aspect === 8) continue;
       const rad = per * 0.45;
       ctx.moveTo(x + rad, y);
@@ -1861,14 +1862,14 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
 
 // The dotted ring is an egg: a prop record with flags 0x42, which delvmod
 // names EGG, a scripted trigger on a square rather than a thing on it. The
-// card says which kind it is and what the kind's argument means, so the room
+// card shows which kind it is and what the kind's argument means, so the room
 // eggs read as rooms and the zoneports as ways out.
 function atlasEggAt(node, tx, ty, linked) {
   if (!node._eggs) {
     // Flags 0x44 is ROOF, not an egg; see the note in the draw loop above.
-    // The whole prop list is kept beside them: what a hatching egg holds is
-    // not in the egg's own record but in the records that name it as their
-    // container, the way a chest holds what it holds.
+    // The whole prop list is kept beside them: what a hatching egg contains
+    // is not in the egg's record but in the records that point at it as their
+    // container, as with a chest's contents.
     try {
       const e = mapRenderFor(node.resid, true);
       node._allProps = (e && e.result && e.result.allProps) || [];
@@ -1879,7 +1880,7 @@ function atlasEggAt(node, tx, ty, linked) {
   // room is a rectangle rather than a square (eggRect), so a square inside
   // one is in that room even though nothing is on it -- which is most of a
   // room: the archive's room rectangles cover 6,094 squares between them.
-  // Where two rooms overlap, and 39 squares do, the lowest-indexed egg wins,
+  // Where two rooms overlap, and 39 squares do, the lowest-indexed egg is used,
   // because the application's draw loop walks the list backwards and stores
   // CurrentRoom on every match, so the first entry is what is left standing.
   const g = node._eggs.find(g => g.x === tx && g.y === ty);
@@ -1916,16 +1917,16 @@ function atlasPaintSelection(ctx, drawn) {
   ctx.restore();
 }
 /* A ring round every town still wearing its roofs: a tap on one goes in
-   (atlasZoomIntoTown), and the ring says so the way the mouths' rings do. */
+   (atlasZoomIntoTown), and the ring shows it the way the mouths' rings do. */
 /* A town at a distance is ringed: a circle round its whole map, drawn
-   while it still wears its roofs. The circle is also what a tap takes
+   while it still wears its roofs. The circle is also what a tap hits
    (atlasTownAt): until 29 September 2026 a tap went in only inside the
    map's rectangle, which left the circle's rim outside it, and most of a
    small town under a finger, doing nothing (the maintainer: tapping
    anywhere in the circle should take you there). */
 function atlasTownRing(r) { return { cx: r.x + r.w / 2, cy: r.y + r.h / 2, rad: Math.hypot(r.w, r.h) / 2 + 4 }; }
 // The town whose circle a tap falls in, the nearest centre where circles
-// overlap, or null. A small circle takes the same 11 px a ring does.
+// overlap, or null. A small circle is given the same 11 px a ring has.
 function atlasTownAt(px, py) {
   if (atlasBelowTop()) return null;
   let hit = null, hitD = Infinity;
@@ -2012,19 +2013,19 @@ function stopAtlasAnimation() {
 
 /* What is outside the map: the folder it is lying on.
 
-   The first version of this filled it with the world's own border water --
+   The first version of this filled it with the world's border water --
    Cythera is an island and 434 squares of its border are tile 0x8 -- and it
    was a worse idea than it sounds. Painting sea beyond the edge of the map
    asserts that the sea goes on, which is the same class of claim as putting
-   an underground on the world: the file says what is inside the 256x256 grid
-   and nothing whatever about what is outside it. The manila of the folder
-   says the honest thing, which is that the map stops here.
+   an underground on the world: the file covers what is inside the 256x256
+   grid and nothing whatever outside it. The manila of the folder
+   shows the honest thing, which is that the map stops here.
 
    So the canvas is simply cleared, and what shows through is the sheet the
    World tab is drawn on. */
 /* The ground under everything: black below ground, and on the surface the
    sea. The world map is a rectangle and Cythera is an island in it, so
-   outside the rectangle the view is filled with the world's own water tile,
+   outside the rectangle the view is filled with the world's water tile,
    laid on the world's grid at the current zoom, and the map's edge stops
    being an edge. The tile is whichever tile is commonest along the world's
    border, read off the rendered map, so it is the file's sea and not ours. */
@@ -2074,11 +2075,11 @@ function hideAtlasHover() {
 /* Opening the tab on the atlas.
 
    Two elements, and they are the whole of the handover: the sheet steps aside
-   and the atlas panel takes its place in the folder. Nothing belonging to the
-   map panel is touched, so there is nothing to give back -- which is the
+   and the atlas panel moves into its place in the folder. Nothing belonging to
+   the map panel is touched, so there is nothing to give back -- which is the
    point. Sharing that panel produced every regression the World tab has had:
-   first CUR_MAP, then the panel's own elements, then the class that unframed
-   the sheet. */
+   first CUR_MAP, then the panel's elements, then the class that unframed the
+   sheet. */
 function renderAtlasView() {
   stopAllViewActivity();
   try { document.body.classList.add('worldTab'); } catch (e) { quiet(e); }
@@ -2090,7 +2091,7 @@ function renderAtlasView() {
   ensureAtlasCanvas();
   setupAtlasInteraction();
   renderAtlasBar();
-  // The selection bar under the zoom row says so until a square is picked.
+  // The selection bar under the zoom row shows that until a square is picked.
   const insp = document.getElementById('atlasInspect');
   if (insp && !insp.innerHTML) atlasInspectShow('<span class="inspDim">Nothing selected. Tap a square to see what is on it.</span>');
   const start = () => {
@@ -2178,7 +2179,7 @@ function atlasEnterHintAtFit() {
   hint.classList.add('inGap');
   atlasEnterHintShow();
 }
-// `done`: a circle was taken, so the hint is not wanted this visit.
+// `done`: a circle was taken, so the hint is not needed this visit.
 function atlasEnterHintHide(done) {
   if (done) _atlasEnterShown = true;
   if (_atlasEnterTimer) { clearTimeout(_atlasEnterTimer); _atlasEnterTimer = null; }
@@ -2194,7 +2195,7 @@ function atlasZoomHintHide() {
 /* The map and its zoom row fill the screen below the tabs, whatever the
    screen (the maintainer, 2 October 2026: the whole world and the zoom bar
    on the screen when the page opens). The sheet's 78vh, and a phone's
-   100svh less a guess at the chrome above, either ran the zoom row off the
+   100svh less an estimate of the chrome above, either ran the zoom row off the
    bottom or left a gap, because what sits above the map differs by screen.
    So it is measured: the viewport's top in the page, the zoom row's height
    and the gap between them, taken from the window's height. Set inline,
@@ -2264,14 +2265,14 @@ function atlasInspectClose() {
 
 /* The map the whole screen.
 
-   Where the browser lets an element go full screen (desktop browsers,
-   Chrome on Android) the panel is asked to; where it does not -- Safari and
-   every other browser on an iPhone allow it only for video -- the panel is
+   Where the browser lets an element go full screen (desktop browsers, Chrome
+   on Android) the page requests it for the panel; where it does not -- Safari
+   and every other browser on an iPhone allow it only for video -- the panel is
    pinned over the page instead (body.atlasFull), which is as full as the OS
-   permits there: the address bar stays. Either way the panel keeps its
-   zoom row and inspector under the viewport, and paints at the new size
-   through the same resize check paintAtlas already makes. Escape leaves
-   the pinned mode, as it does the real one. */
+   permits there: the address bar stays. Either way the panel retains its zoom
+   row and inspector under the viewport, and paints at the new size through the
+   same resize check paintAtlas already makes. Escape leaves the pinned mode,
+   as it does the real one. */
 function atlasIsFull() {
   return !!(document.fullscreenElement || document.webkitFullscreenElement) ||
          document.body.classList.contains('atlasFull');
@@ -2298,7 +2299,7 @@ function atlasToggleFull() {
     if (!asked) document.body.classList.add('atlasFull');
   }
   atlasAfterFullChange();                  // the pinned mode is immediate
-  setTimeout(atlasAfterFullChange, 60);    // the real one arrives on its own event
+  setTimeout(atlasAfterFullChange, 60);    // the real one comes on a separate event
 }
 function atlasAfterFullChange() {
   const b = document.getElementById('atlasFullBtn');
@@ -2351,16 +2352,17 @@ function ensureAtlasCanvas() {
                        'max-width:none; max-height:none;';
     vp.appendChild(cv);
   }
-  // renderMapResource hides it when Regions takes the panel back.
+  // renderMapResource hides it when Regions reclaims the panel.
   cv.style.display = '';
   return cv;
 }
 
 /* What is under a point on screen: the deepest node covering it, and the
-   square of that node's own map.
+   square of that node's map.
 
-   Deepest wins, which is the whole of "which place am I in" -- there is no
-   state to consult, and no way for it to be out of step with what is drawn. */
+   The deepest is used, which is the whole of "which place am I in" -- there is
+   no state to consult, and no way for it to be out of step with what is drawn.
+   */
 function atlasAt(px, py) {
   const sc = atlasScene();
   if (!sc) return null;
@@ -2449,7 +2451,7 @@ function atlasAscend() {
    a pause. For a day a zoom that ended on a hole went through it; that was
    too eager even judged at the end, so now a gesture only moves the view,
    and a ring is taken by tapping it. The bookkeeping stays because it costs
-   nothing and a later idea may want it. */
+   nothing and a later idea may need it. */
 const atlasGesture = { active: false, z0: null, timer: null, rise: false };
 // The last moment the reader moved the world. A background render (a
 // miniature, a kept place, the map beside a ring) waits until the world has
@@ -2461,11 +2463,11 @@ function atlasMarkBusy() { atlasMovedAt = Date.now(); atlasBusyUntil = atlasMove
 function atlasSettled() { return !atlasInMotion() && Date.now() - atlasMovedAt >= ATLAS_TILE_SETTLE_MS; }
 function atlasIsBusy() { return !!(atlasView.touching || window._atlasAnimating || Date.now() < atlasBusyUntil); }
 /* Moving *now*, which is a different question from the one above and must
-   stay one. atlasIsBusy carries a 500 ms tail after a gesture so that
+   stay one. atlasIsBusy has a 500 ms tail after a gesture so that
    background work never lands in the middle of a pan; that is right for
-   deciding when to start work and wrong for deciding what to draw, because
+   timing when to start work and wrong for choosing what to draw, because
    it would leave the map coarse for half a second after it had already come
-   to rest -- which is exactly when the sharp paint is wanted. Told apart
+   to rest -- which is exactly when the sharp paint is needed. Separated
    after the first attempt at the judder fix used atlasIsBusy for both and
    the smoke reported the world's rings and Odemia's people missing: the
    checks pan and zoom, which marks busy, and then assert inside that
@@ -2513,7 +2515,7 @@ function atlasGestureTouch() {
    opens out from the blank middle of the hole, settling at half the
    magnification you went in at -- so the hole is there, and smaller, and a
    zoom in would have to mean it again. animMs of nought is a cut, which is
-   also what a browser without animation frames gets. */
+   also what a browser without animation frames has. */
 // curve: 'in' accelerates all the way (the fall, which should still be
 // gathering speed as the black closes over), 'out' starts fast and settles
 // (a place opening from nothing).
@@ -2588,7 +2590,7 @@ function atlasCrossWithin(m, node) {
         window.ATLAS_TUNE.animMs, () => { atlasFadeTo(0); atlasSyncZoomLabel(); paintAtlas(); }, 'out');
     }, 'in');
 }
-/* Up through a ring: the place shrinks to nothing around the ring's own
+/* Up through a ring: the place shrinks to nothing around the ring's
    square, then the map the ring leads to opens from the blank middle of the
    square you come out on. Back to the map you came through, the zoom is half
    what you went in at; to anywhere else, a zoom that shows the place. */
@@ -2641,7 +2643,7 @@ function atlasFallInto(m, node) {
    wide enough on screen for its roofs to be off (atlasRoofT: none left from
    540 px across), or as close as the art goes, whichever is nearer. No
    fade, since nothing is left behind; the zoom row and the slider follow. */
-// The zone in its own panel, centred on the square and the square selected.
+// The zone in the Zones panel, centred on the square and the square selected.
 // The schedules and the atlas card call this name; it is showSquareOnMap.
 function atlasOpenSquare(resid, tx, ty) { showSquareOnMap(resid, tx, ty); }
 /* From a zone's page to the World tab, on that zone: a place on the surface
@@ -2688,7 +2690,7 @@ function atlasZoomIntoTown(node) {
   atlasEnterHintHide(true);
   // The town's render is made during the fly-in, not after it (the
   // maintainer, 17 October 2026: Cademia blurred for over a second after a
-  // tap on Android). atlasRenderTick holds off while the view moves, for a
+  // tap on Android). atlasRenderTick waits while the view moves, for a
   // finger's sake; a fly-in is no finger, so the town it flies to is let
   // through (window._atlasFlyTo). With Cademia's render dropped, in the
   // probe at a quarter speed it had landed and then taken 420 ms more.
@@ -2797,7 +2799,7 @@ function atlasClampView() {
 
 /* A fling, and a double tap (the maintainer, 17 October 2026).
 
-   A drag let go while still moving carries on and slows, the way a map on
+   A drag let go while still moving continues and slows, the way a map on
    a phone does: the speed over the last tenth of a second of the drag,
    losing 0.4% a millisecond (about a quarter of a second to halve, some
    250 px of travel from 1 px/ms), through atlasPanBy, so the island's
@@ -2857,15 +2859,15 @@ function atlasPanBy(dx, dy) {
   schedulePaintAtlas();
 }
 
-/* One paint a frame, however many events ask for it.
+/* One paint a frame, however many events request it.
 
    A finger moving across an iPhone reports its position sixty to a hundred
    and twenty times a second, and every report used to paint the whole scene
    before the next was read, so the drawing fell behind the finger and the
-   map juddered. A move now changes the three view numbers and asks for a
-   paint; the first ask in a frame schedules one and the rest are absorbed,
+   map juddered. A move now changes the three view numbers and requests a
+   paint; the first request in a frame schedules one and the rest are absorbed,
    so the scene is drawn once per frame at wherever the finger is by then.
-   Every synchronous caller -- the checks, the fit, a thumbnail arriving --
+   Every synchronous caller -- the checks, the fit, a thumbnail loading --
    still calls paintAtlas itself. */
 let atlasPaintPending = false;
 function schedulePaintAtlas() {
@@ -2912,7 +2914,7 @@ function atlasZoomFromSlider() {
 
    This renderer navigates and names; walls, roofs, marks, walk-the-day,
    lighting, the export and the prop editor are the panel's job and stay in
-   Entities > Regions untouched. The card here says what is on the square and
+   Entities > Regions untouched. The card here shows what is on the square and
    offers to open that map there. */
 window.ATLAS_SEL = null;
 // The pick under a finger held down and moving (the maintainer, 17
@@ -2948,17 +2950,17 @@ function atlasInspect(px, py) {
     if (tileId) parts.push('<div class="inspCard"><b>' + svEsc(terrain || 'terrain') + '</b> ' +
       '<span class="inspDim">tile 0x' + tileId.toString(16).toUpperCase() + '</span>' +
       (refExists(0x8E00 + (tileId >> 4)) ? '<div class="inspActs">' + svLink('Open ' + (terrain || 'the tile') + ' in Tilesets', 'jumpToResource(' + (0x8E00 + (tileId >> 4)) + ')') + '</div>' : '') + '</div>');
-    // The inspector can hold links, so this asks for them; eggDetail escapes
-    // its own text. The hover card cannot (pointer-events:none) and takes
+    // The inspector can hold links, so this requests them; eggDetail escapes
+    // its text. The hover card cannot (pointer-events:none) and uses
     // the plain form.
     const egg = atlasEggAt(node, tx, ty, true);
     if (egg) parts.push('<div class="inspCard"><b>egg</b> <span class="inspDim">' + egg + '</span></div>');
-    /* The ways through this square, each with the step that takes it. The
+    /* The ways through this square, each with the step that goes through it. The
        rings were the only ways the tab offered: a secret passage's egg, a
-       crack of a ravine or a prop that travels said what it was here and
+       crack of a ravine or a prop that travels showed what it was here and
        led nowhere, where the Zones view's card has had a Go to (the
        maintainer, 6 October 2026: "need to be able to go through hidden
-       ways eg. Harpy Abyss rope cracks"). atlasGoWay takes the same step
+       ways eg. Harpy Abyss rope cracks"). atlasGoWay makes the same step
        a ring does, or moves the view for a way within the one map. */
     window.ATLAS_SEL_NODE = node;
     {
@@ -2985,7 +2987,7 @@ function atlasInspect(px, py) {
       let says = '';
       try { says = propTextByData1(pt, p.rec.d1) || ''; } catch (err) { says = ''; }
       const item = (function () { try { return isInventoryItem(pt); } catch (err) { return false; } })();
-      // A container opens as the game shows it: its own window with what is
+      // A container opens as the game shows it: a window with what is
       // inside, the view the Zones panel has had (the maintainer, 22
       // September 2026). Hung in place once the card is in the document.
       const contents = containerContents(p.rec, e.result.allProps || []);
@@ -3043,13 +3045,13 @@ function atlasGoWay(resid, x, y) {
   atlasFallInto(m, node);
 }
 
-/* What a sign says: the text a prop's Data1 picks. The sign classes' Examine
+/* What a sign reads: the text a prop's Data1 picks. The sign classes' Examine
    hands a helper `word 0x0218[0] + Data1`, a far word into the string store
    0x0218 offset by the byte, so the sign at (105,103) on the world map
    with Data1 16 shows the sixteenth string there. Read off the class
    listing by that shape rather than typed per class, so any class that
-   picks a text the same way -- the plaque, a poster -- gets its line, and
-   a modded archive its own. The store is an array of drefs into itself
+   picks a text the same way -- the plaque, a poster -- has its line read,
+   and a modded archive its text. The store is an array of drefs into itself
    (0x82, then the offset), which dvmDataValue leaves raw, hence the small
    reader beside it. */
 const _propTextShape = new Map();
@@ -3079,7 +3081,7 @@ function dvmFarString(resid, k) {
   return decodeMacRoman(d.subarray(off, e)).trim();
 }
 
-// Pointer handling, kept apart from the panel's so neither has to know about
+// Pointer handling, kept apart from the panel's so neither depends on
 // the other. Wired once, on the same viewport.
 function setupAtlasInteraction() {
   const vp = document.getElementById('atlasViewport');
@@ -3093,9 +3095,9 @@ function setupAtlasInteraction() {
   // last finger was picked and its card raised. A gesture that ever had two
   // fingers on the glass is a pinch, however little either of them moved.
   let pinchDist = 0, pinchZ = 0, moved = 0, multi = false;
-  // On a touch screen a tap raises the card and a press-and-hold keeps it
+  // On a touch screen a tap raises the card and a press-and-hold leaves it
   // under the moving finger: there is no pointer resting over anything, so
-  // both gestures ask the question a resting mouse asks. Sliding is a pan.
+  // both gestures do what a resting mouse does. Sliding is a pan.
   // The hold neither pans nor opens the inspector; the tap does both.
   let holdTimer = null, peeking = false;
   // The drag's last positions, for a fling's speed; the last tap, for a
@@ -3237,8 +3239,9 @@ function setupAtlasInteraction() {
 
    `asked` is the difference between a mouse passing over and a finger that
    tapped or held. A passing pointer stays quiet over bare ground -- a card
-   over every blade of grass is noise -- and speaks only where there is
-   somebody or something; a finger has asked, and gets the ground too. */
+   over every blade of grass is noise -- and shows a card only where there
+   is somebody or something; a tap or hold sets `asked`, and the card then
+   shows the ground too. */
 function squareCard(level, e, tx, ty, placeName, asked) {
   let people = [];
   try {
@@ -3268,9 +3271,9 @@ function squareCard(level, e, tx, ty, placeName, asked) {
 
 /* A character's face, for the card and the inspector: the portrait where
    there is one -- 0x8800 + index - 1, the same join the dossier makes -- and
-   the sprite where there is not. A selected character used to be shown by
-   the sprite alone, which names a class ("a man") where the face names the
-   person. Decoded once per character and kept as a canvas and as a data
+   the sprite where there is not. A selected character was once shown by the
+   sprite alone, which identifies a class ("a man") where the face identifies
+   the person. Decoded once per character and kept as a canvas and as a data
    URL, since the inspector's cards are strings. Dropped with the derived
    tables. */
 const _faceCache = new Map();
@@ -3319,7 +3322,7 @@ function atlasHover(clientX, clientY, asked) {
   if (key === atlasHoverKey && el.style.display !== 'none') { placeHoverCard(el, vp, px, py, asked); return; }
   atlasHoverKey = key;
   // A town still under its roofs is one thing under the pointer, not a
-  // square of it: the card names it and says a tap goes in.
+  // square of it: the card names it and states that a tap goes in.
   if (hit.node.depth && hit.r.w < 540 && !atlasBelowTop()) {
     el.innerHTML = '<div><span class="hvName">' + svEsc(hit.node.name) + '</span><span class="hvWhat">tap to go in</span></div>';
     el.style.display = 'flex';
@@ -3328,8 +3331,8 @@ function atlasHover(clientX, clientY, asked) {
   }
   const e = mapRenderFor(hit.node.resid, true);
   const card = squareCard(hit.node.resid & 0xFF, e, hit.tx, hit.ty, hit.node.name, asked);
-  // A tapped card can be tapped back, so it takes the LINKED form; one that
-  // is merely following the pointer cannot be clicked and takes the plain
+  // A tapped card can be tapped back, so it uses the LINKED form; one that
+  // is merely following the pointer cannot be clicked and uses the plain
   // one. hvPinned is what turns pointer-events on.
   const egg = atlasEggAt(hit.node, hit.tx, hit.ty, !!asked);
   if (!card && !egg) { el.style.display = 'none'; return; }
@@ -3346,19 +3349,19 @@ function downloadMapPNG() {
   if (!canvas || !cm) return;
   const name = currentResid ? ('cythera_map_0x' + currentResid.toString(16).toUpperCase() + '.png') : 'cythera_map.png';
   // The screen canvas is budgeted (TS=8 for the world map), and the file
-  // used to be that same reduced bitmap. The file is rendered again at the
+  // was once that same reduced bitmap. The file is rendered again at the
   // native 32px tile where the whole map fits in one canvas Chrome and
   // Safari will still encode (about 16.7 MP), and at 16px above that -- the
   // 256x256 world map, which at 32px would be 67 MP -- so that it is at
-  // worst twice as sharp as the screen and never fails silently. iOS keeps
-  // the screen size: it tears the tab down for canvases this large. Every
-  // layer painter takes a context and a tile size, which is what the detail
+  // worst twice as sharp as the screen and never fails silently. On iOS
+  // the screen size stays: it tears the tab down for canvases this large. Every
+  // layer painter is given a context and a tile size, which is what the detail
   // lens needed too, so the flattening is the same code at another size.
   let out, ctx, TS = cm.TS;
   // Native first, even for the 256x256 world map (8192 square, 67 MP, which
-  // desktop Chrome and Firefox encode); if the browser refuses the canvas
+  // desktop Chrome and Firefox encode); if the browser rejects the canvas
   // -- getContext comes back null, or the render throws -- try half that.
-  // iOS keeps the screen size: it tears the tab down for canvases this size.
+  // On iOS the screen size stays: it tears the tab down for canvases this size.
   let wantTS = IS_IOS_WEBKIT ? cm.TS : 32;
   // On iOS the full-size file is written a strip at a time instead (above):
   // no whole-map canvas, so no tab torn down, and the native 32 px a square.
@@ -3400,7 +3403,7 @@ function downloadMapPNG() {
   }
   // No palette indices to hand over: this is several layers composited with
   // alpha, and the lighting layer in particular produces colours that are not
-  // in the CLUT at all. So it takes the RGBA path and gets its metadata
+  // in the CLUT at all. So it goes the RGBA way and has its metadata
   // stripped rather than a PLTE.
   triggerPNGDownload(out, name);
 }
