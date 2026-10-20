@@ -1360,7 +1360,9 @@ function renderHeroSprite() {
   const mine = heroState(fig.key);
 
   // Whose sprite: the hero and the heroine by their frame 0, anyone else
-  // from the list.
+  // from the list. Each group of controls is titled and ruled off, so the
+  // sprite list and the body list below it read as two separate choices.
+  host.appendChild(el('div', 'partsTitle heroTitle', 'Sprite'));
   const pick = el('div', 'heroPicks');
   for (const f of heroes) {
     const b = el('button', 'heroPick' + (f.key === fig.key ? ' on' : ''));
@@ -1424,14 +1426,14 @@ function renderHeroSprite() {
   if (HERO_SPRITES.some(d => d.key === fig.key)) {
     const bodies = heroBodies(fig.pt);
     if (bodies.length) {
+      host.appendChild(el('div', 'partsTitle heroTitle', 'Body'));
       const row = el('div', 'heroPart');
-      row.appendChild(el('span', 'heroPartName', 'body'));
       const sel = document.createElement('select');
       sel.id = 'heroBody'; sel.className = 'heroSelect';
       sel.setAttribute('aria-label', 'body');
-      const own = document.createElement('option');
-      own.value = ''; own.textContent = 'the ' + fig.cls.label + '’s own';
-      sel.appendChild(own);
+      const asIs = document.createElement('option');
+      asIs.value = ''; asIs.textContent = fig.cls.label;
+      sel.appendChild(asIs);
       for (const k of bodies) {
         const o = document.createElement('option');
         o.value = String(k.pt);
@@ -1447,6 +1449,7 @@ function renderHeroSprite() {
 
   // The parts, where the hand-made table applies.
   if (fig.def) {
+    host.appendChild(el('div', 'partsTitle heroTitle', 'Color by part'));
     const rows = el('div', 'heroParts');
     for (const p of fig.def.parts)
       rows.appendChild(swatchRow(p.label, null, mine.parts[p.key], heroSwatchesFor(p.key),
@@ -1455,7 +1458,7 @@ function renderHeroSprite() {
   }
 
   // Colour by colour, for every figure.
-  host.appendChild(el('div', 'partsTitle', 'Color by color'));
+  host.appendChild(el('div', 'partsTitle heroTitle', 'Color by color'));
   const shadeRows = el('div', 'heroParts');
   fig.shades.parts.forEach((p, pi) => {
     const lead = heroShadeThumb(fig, pi);
