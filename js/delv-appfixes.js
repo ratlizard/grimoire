@@ -296,7 +296,7 @@ const APP_FIXES = [
   // height for a page (0x402C8), so a click in the track moved 10 rows of 9;
   // the plus 4 goes in there too, in place of an extsh of the quotient that
   // a row count cannot need, since the halfword store uses the low half.
-  { id: 'menu-scroll', kind: 'fix', name: 'Almost there', title: 'Long lists of dialogue choices (like Where Is\u2026) now scroll to the last entry instead of stopping two short',
+  { id: 'menu-scroll', kind: 'fix', title: 'Long lists of dialogue choices (like Where Is\u2026) now scroll to the last entry instead of stopping two short',
     played: 'fork, PowerPC, 30 September 2026: Pnyx’s list reaches Kosha, Cademia’s its last; a page’s length read, not seen',
     bug: '"Where Is" lists stop short',
     sites: [
@@ -543,7 +543,7 @@ const APP_FIXES = [
   // to be nonzero) and the loop's test reads it. If the allocation fails the
   // shipped array is built with its 20, as before. r25 is free until
   // 0x96AAC sets it.
-  { id: 'menu-items', kind: 'fix', name: 'TL;DR', title: 'Long lists of dialogue choices (like Where Is\u2026) now show up to 64 entries instead of stopping at 20',
+  { id: 'menu-items', kind: 'fix', title: 'Long lists of dialogue choices (like Where Is\u2026) now show up to 64 entries instead of stopping at 20',
     played: 'fork, PowerPC, 30 September 2026: Antenor offers Cademia’s 21, with menu-scroll',
     bug: '"Where Is" lists stop short',
     sites: [
