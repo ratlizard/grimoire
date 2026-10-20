@@ -142,7 +142,12 @@ function landscapeZones(resid) {
    floor and one at -11 at three eighths of it. A page that draws a whole
    map at once has no party to measure from, and draws each swirl where
    it stands when the party is on its square. A depth of zero or more is
-   drawn after the ground by a second loop; no shipped egg has one.
+   drawn after the ground by a second loop; no shipped egg has one. Both
+   ends were seen in the fork on 20 October 2026 (Land King Hall's void
+   room, the party at (58,32)): egg 978 given +3 drew its swirl over the
+   north wall, 120 pixels above the party for three squares; egg 979 given
+   -24, three squares south, drew its swirl north of the party, at 34 - 48
+   = -14 pixels a square.
 
    Until this was read the page keyed the backdrop on SetLandscapeImage's
    -1, tiled 0x8F50 across the map as a pattern, and showed it under every

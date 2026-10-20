@@ -849,6 +849,24 @@ try {
   else console.log('  draw order: Cademia\'s pillar top over its pool, a square at a time, and within a pass the later record first');
 } catch (e) { fail('draw order', e); }
 
+/* A record's own nudge, byte 14 (20 October 2026, propRecordLift). Land
+   King Hall's bust at (8,32), record 984, has 7 there and the pillar on the
+   same square, record 987, has 3, which TViewer::Render makes 28 and 12
+   pixels up and to the left on top of each one's type offset; the page drew
+   both at the type's offset alone until then. The control is the hall's
+   archway, record 0, whose byte 14 is 0 and which keeps its type's offset. */
+try {
+  const ops = ctx.renderMapUncached(0x8003).result.drawOps;
+  const op = i => ops.find(o => o.d && o.d.rec && o.d.rec.index === i);
+  const want = (o, add) => { const [x, y] = ctx.propOffsetFor(o.d.rec.proptype, o.d.rec.aspect, o.d.rec.rotated); return o.ox === x + add && o.oy === y + add; };
+  const bust = op(984), pillar = op(987), arch = op(0);
+  if (!bust || !pillar || !arch) fail('record nudge', 'record 984, 987 or 0 of Land King Hall is not drawn');
+  else if (!want(bust, 28)) fail('record nudge', `the bust is drawn at offset ${bust.ox},${bust.oy}, not its type's plus 28`);
+  else if (!want(pillar, 12)) fail('record nudge', `the pillar is drawn at offset ${pillar.ox},${pillar.oy}, not its type's plus 12`);
+  else if (!want(arch, 0)) fail('record nudge', `the archway is drawn at ${arch.ox},${arch.oy}, not its type's offset`);
+  else console.log('  record nudge: Land King Hall\'s bust and pillar at (8,32) sit 28 and 12 pixels up and left of their types\' offsets, as byte 14 says; the archway at its type\'s');
+} catch (e) { fail('record nudge', e); }
+
 /* The game's tile animation, 0xF001 (23 September 2026, tileAnimTable). The
    fountain in Cademia at (48,30) is tile 0x386, which the table runs through
    0x386..0x389 a phase a frame. It stands on a floor that does not cycle, so

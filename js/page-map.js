@@ -70,6 +70,19 @@ function propOffsetFor(proptype, aspect, rotated) {
   if (rotated) { const t = ox; ox = oy; oy = t; }
   return [ox, oy];
 }
+// A prop record's own nudge on top of its type's offset: the low six bits of
+// byte 14, signed, which TViewer::Render multiplies by four and adds to both
+// draw offsets (field 16; byteMapPropRecord in page-data.js). Designers used
+// it to sit a thing right on the screen: 291 records in the shipped file,
+// posts at -1, busts lifted onto their pedestals at +2 to +7, Pnyx
+// Upstairs's beams at -5. A positive number moves the sprite up and to the
+// left, as a larger offset does: seen in the fork on 20 October 2026, a tree
+// in Catamarca given 4 drawn 16 pixels up and 16 left. The one roof record
+// with a nudge (Catamarca's 616) draws the same with it and without, so the
+// roof layer does not take it; roofs and eggs are not drawn through here.
+function propRecordLift(r) {
+  return ((((r.u >> 8) & 0x3F) << 26) >> 26) * 4;
+}
 
 // --- Faux props ------------------------------------------------------------
 // 0xF010 gives every TILE an optional prop to draw on top of it: one uint16
@@ -3173,7 +3186,8 @@ function* renderMapVisualSteps(resid, mapData, opts) {
     visible.forEach((r, i) => {
       const tileId = propTiles[r.proptype] + r.aspect;
       const alive = living.has(r.proptype);
-      const [ox, oy] = propOffsetFor(r.proptype, r.aspect, r.rotated);
+      const [tox, toy] = propOffsetFor(r.proptype, r.aspect, r.rotated), lift = propRecordLift(r);
+      const ox = tox + lift, oy = toy + lift;
       const d = { rec: r, tileId, cells: [], propResid, pass: enginePass(tileId, r.flags, alive), i };
       for (const pc of propPieceList(tileId, r.rotated)) {
         const x = r.x + pc.dx, y = r.y + pc.dy;
@@ -3686,8 +3700,8 @@ function repaintLensAnim(frame) {
   for (const d of lensAnimArt(cm)) {
     const r = d.rec;
     if (r.x < x0 - 4 || r.x > x1 + 4 || r.y < y0 - 4 || r.y > y1 + 4) continue;
-    const [ox, oy] = propOffsetFor(r.proptype, r.aspect, r.rotated);
-    drawPropAt(ctx, LENS_TS, r.x, r.y, d.tileId, r.rotated, ox, oy, cm.m.width, cm.m.height, frame);
+    const [tox, toy] = propOffsetFor(r.proptype, r.aspect, r.rotated), lift = propRecordLift(r);
+    drawPropAt(ctx, LENS_TS, r.x, r.y, d.tileId, r.rotated, tox + lift, toy + lift, cm.m.width, cm.m.height, frame);
   }
 }
 
