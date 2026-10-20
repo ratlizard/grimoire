@@ -673,6 +673,33 @@ const APP_FIXES = [
   // names under the portraits lie inside the same rectangle: fitted to 84
   // pixels about x 64 they end by 107 with their outline and are not
   // reached; drawn up to 104 pixels by the name-fit fix they can reach 116,
+  // In TConversation::WriteJournal, the click that writes a line of the
+  // conversation to the journal. A spoken line (this+82, NUL put at its
+  // length, 1106(30)) goes to TJournal::SaidToJournal with its speaker, and
+  // the description under it (this+1108, its length at 2132(30)) to
+  // AddToJournal; both hand the text to MakeEntry, which writes it to the
+  // journal's pages as it is. In a conversation "@" marks the next word to
+  // be drawn highlighted (TTextContext's constructor tests for it, as
+  // TTextOut::LDEFDraw does in the message pane), and TJournalList::LDEFDraw
+  // has no such test, so the "@" is still in a journaled line: "the famous
+  // bard @Demodocus", Bryaxis's line in the 2013 MyshPlays video (workbench
+  // doc/mysh-2013-video.md). Each call goes through the cave now, which
+  // copies the text into a frame of the cave without the "@"s (1,040 bytes;
+  // either text is at most 1,024 before its NUL) and makes the same call on
+  // the copy. The conversation's text is not changed, so it still draws
+  // highlighted, and a note the player types (MakeNote) is not touched.
+  { id: 'journal-at', kind: 'fix', title: 'A line written to the journal no longer shows the “@” that highlights a word in conversation',
+    bug: 'The journal shows the “@” that marks a highlighted word',
+    sites: [
+      { at: 0x3C7E0, was: [0x4803CC61], asm: ['bl @spoken            ; was bl SaidToJournal'] },
+      { at: 0x3C800, was: [0x4803CBE1], asm: ['bl @plain             ; was bl AddToJournal'] }],
+    cave: ['spoken:', 'mflr 0', 'stw 0, 8(1)', 'stwu 1, -1104(1)', 'addi 6, 1, 64', 'bl @strip             ; r4, the text, to 64(1)',
+           'addi 4, 1, 64', 'bl @SaidToJournal__8TJournalFsPc', 'lwz 0, 1112(1)', 'addi 1, 1, 1104', 'mtlr 0', 'blr',
+           'plain:', 'mflr 0', 'stw 0, 8(1)', 'stwu 1, -1104(1)', 'mr 4, 3', 'addi 6, 1, 64', 'bl @strip',
+           'addi 3, 1, 64', 'bl @AddToJournal__8TJournalFPc', 'lwz 0, 1112(1)', 'addi 1, 1, 1104', 'mtlr 0', 'blr',
+           'strip:', 'lbz 7, 0(4)', 'addi 4, 4, 1', 'cmpwi 7, 64            ; "@"', 'beq @strip', 'stb 7, 0(6)', 'addi 6, 6, 1',
+           'cmpwi 7, 0', 'bne @strip', 'blr'] },
+
   // and the shipped clear from 115 already took that tip, so the three
   // pixels more cost such a name what lies between 112 and 115 whenever the
   // speech is cleared without the portraits being drawn again. The copy to
@@ -824,6 +851,6 @@ const APP_FIX_GROUP = {
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
   'corpse-light': 'rules', 'spell-glow': 'rules',
-  'menu-scroll': 'talk', 'menu-items': 'talk', 'name-fit': 'talk', 'speech-clear': 'talk',
+  'menu-scroll': 'talk', 'menu-items': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk',
 };
 function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }
