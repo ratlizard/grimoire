@@ -8,13 +8,13 @@
 //   CHECK_JOBS=1 node utilities/check_all.mjs   (one at a time, as it ran until 18 September 2026)
 //
 // The checks run several at a time, up to CHECK_JOBS of them (four unless
-// told otherwise: each is a Node process holding the whole page, and this
-// is an 8 GB machine). Every check is its own process writing to its own
+// set otherwise: each is a Node process holding the whole page, and this
+// is an 8 GB machine). Every check is a separate process writing to a separate
 // temp directory, so the only order that matters is written down as `after`
 // on the checks that read what another one unpacks; the table is printed in
 // the list's order whatever order they finished in.
 //
-// There are fifteen harnesses across three pages, each with its own argument
+// There are fifteen harnesses across three pages, each with a separate argument
 // list, spread across three handoff documents. Nobody runs all of them by hand
 // every time, and it showed: two coverage gaps in decoder_snapshot.mjs went
 // unnoticed because a change was verified with the two checks that seemed
@@ -42,8 +42,8 @@ const DATA_RSRC = `${TMP}/Cythera Data.rsrc`;
 const APP_RSRC = `${TMP}/Cythera.rsrc`;
 
 // ---- finding the inputs ----------------------------------------------------
-// These used to be fixed paths under sources/, a scratch directory that is not
-// in the repository, so every fresh checkout had to be told to symlink res/
+// These were once fixed paths under sources/, a scratch directory that is not
+// in the repository, so every fresh checkout had to symlink res/ by hand
 // into it before anything could run -- and a run that skipped that step
 // reported most of its checks as "skip", which reads like a clean result. The
 // copies in reference/ are the same files under slightly different names,
@@ -64,10 +64,10 @@ function firstExisting(...paths) {
 // `ENOENT ... delvmod/delv/archive.py` -- which reads like a regression in
 // the viewer and is not one. (That is exactly what a Claude Code session
 // sees, since the web sessions clone each repository flat and the forks
-// arrive as siblings rather than as a submodule.) Probing the marker walks
+// sit as siblings rather than as a submodule.) Probing the marker walks
 // past the empty directory to the checkout that actually has the file, and
-// when there is none it returns the marker's own path, so the row skips and
-// names the file it wanted instead of running and blowing up.
+// when there is none it returns the marker's path, so the row skips and
+// gives the file it needed instead of running and blowing up.
 //
 // Every candidate is resolved against ROOT rather than the invoking
 // directory, because process.chdir(ROOT) happens further down: a run started
@@ -83,7 +83,7 @@ const HQX = firstExisting('reference/game/Cythera Data.hqx',
 const APP_HQX = firstExisting('reference/game/Cythera.hqx',
   'reference/Cythera.hqx', 'sources/Cythera.hqx');
 // With neither .hqx the forks come from the installer, through fetch_game.mjs:
-// a different copy of the same game, which one pinned value tells apart
+// a different copy of the same game, which one pinned value distinguishes
 // (`expectFetched` below).
 const FETCHED_FORKS = !existsSync(resolve(ROOT, HQX)) && !existsSync(resolve(ROOT, APP_HQX));
 // The 1.0.4 installer as Bryce Schroeder serves it (www.bryce.pw/Cythera.bin),
@@ -91,7 +91,7 @@ const FETCHED_FORKS = !existsSync(resolve(ROOT, HQX)) && !existsSync(resolve(ROO
 // fetches by default, and what vise_check.mjs opens.
 // The last candidate is where fetch_game.mjs caches the archive it downloads,
 // so a checkout without the game runs this check too rather than skipping it:
-// vise_check.mjs takes a .sit as readily as a .bin, since sniffViseInstaller
+// vise_check.mjs accepts a .sit as readily as a .bin, since sniffViseInstaller
 // opens both. It resolves to that path whether or not the file is there yet --
 // `want` is tested after the setup step has had its chance to create it.
 const VISE_BIN = firstExisting('reference/game/installers/Cythera.bin',
@@ -124,17 +124,17 @@ const PEF_SYMBOLS = firstHolding('cythera_symbols.txt', process.env.WORKBENCH, '
 // The reader was src/disk_image/hfs.rs until upstream's refactor of
 // 27 September 2026 moved it under src/systems/macintosh/. This line looked
 // for the old path alone, so from the fork's next rebase until 13 October the
-// suite found no checkout, hfs_check ran its structural half and said "0
+// suite found no checkout, hfs_check ran its structural half and printed "0
 // round-tripped", and the row read ok: it had no expected line to miss. Both
-// paths are looked for now, and the round trip is a row of its own with an
+// paths are looked for now, and the round trip is a separate row with an
 // expected line, skipped by name when the fork's example is not there.
 const HFS_READER = ['src/systems/macintosh/disk_image/hfs.rs', 'src/disk_image/hfs.rs'];
 const SYSLESS = [process.env.SYSTEMLESS, 'wolflizard', '../wolflizard', 'systemless', '../systemless']
   .find(p => p && HFS_READER.some(m => existsSync(resolve(ROOT, p, m)))) || '../systemless';
-// LLVM's PowerPC disassembler, which ppc_check.mjs holds js/mac-ppc.js to.
+// LLVM's PowerPC disassembler, which ppc_check.mjs checks js/mac-ppc.js against.
 // Nothing here installs it: Homebrew's llvm formula has it, as does a Linux
 // distribution's llvm package, and $LLVM_MC overrides. Without it that one
-// check skips and says so.
+// check skips and states it.
 function findLlvmMc() {
   if (process.env.LLVM_MC) return process.env.LLVM_MC;
   try { const p = execSync('command -v llvm-mc', {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim(); if (p) return p; } catch (e) { /* not on the path */ }
@@ -148,7 +148,7 @@ function findLlvmMc() {
 const LLVM_MC = findLlvmMc();
 // A Chrome or Chromium, for browser_check.mjs: the one check that runs the
 // page in a browser rather than in node:vm. $CHROME, the PATH, then the
-// Mac's Applications folder; without one that row skips and says so.
+// Mac's Applications folder; without one that row skips and states it.
 function findChrome() {
   if (process.env.CHROME && existsSync(process.env.CHROME)) return process.env.CHROME;
   for (const name of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']) {
@@ -174,7 +174,7 @@ const COLLECTION = 'reference/community/guides-site/dialogue/Dialogue';
 // the rest of the smoke test runs as before.
 const SAVE = `${TMP}/cythera_addons/606_CheaterSavedGame/I.M.Cheater`;
 const GFX_REF = `${TMP}/gfx_ref.json`;
-// QuickTime 3's Windows installer, which holds the instruments the tunes
+// QuickTime 3's Windows installer, which contains the instruments the tunes
 // were played through: archive.org's copy, through /cors/ like the page
 // fetches it, 7 MB once and cached here (ensureQuickTime).
 const QT_EXE = `${TMP}/QUICKTIM.EXE`;
@@ -187,7 +187,7 @@ const ART_PACK_URL = 'https://opengameart.org/sites/default/files/Dungeon%20Craw
 // `m68k-patched/README.md` in the workspace), and the registered licence,
 // without which the shareware notice swallows the first click. A front's
 // `..` is the front, so the workspace is one more level up. Without any of
-// the three the row skips and says so.
+// the three the row skips and states it.
 const KIT = firstHolding('work/pristine/.systemless', process.env.PLAYKIT, '../playthrough-2026-09-08', '../../../playthrough-2026-09-08');
 const GAME_BIN = firstExisting(process.env.SYSTEMLESS_BIN, '../m68k-patched/systemless', '../../../m68k-patched/systemless');
 const LICENCE = firstExisting('reference/game/installed-folders/Cythera License (registered).data',
@@ -201,7 +201,7 @@ function say(s) { process.stdout.write(s + '\n'); }
 // ---- setup -----------------------------------------------------------------
 // The local copies first: extracting a .hqx that is already on disk costs a
 // second and needs no network. When one is not there, fall back to fetching
-// the installer from archive.org and reading it with the page's own two
+// the installer from archive.org and reading it with the page's two
 // tiers -- see utilities/fetch_game.mjs for why, and for what that does and
 // does not prove. $NO_FETCH skips the fallback for anyone who wants the old
 // behaviour of skipping instead.
@@ -260,20 +260,20 @@ function ensureGraphicsRef() {
 }
 
 // ---- the checks ------------------------------------------------------------
-// `want` lists the files that must exist for a check to be meaningful; if one
-// is missing the check is skipped and said to be skipped, rather than failing
+// `want` has the files that must exist for a check to be meaningful; if one
+// is missing the check is skipped and reported as skipped, rather than failing
 // in a way that looks like a real problem.
 const CHECKS = [
   {page: 'viewer', name: 'static', cmd: ['utilities/verify_viewer.mjs', 'index.html']},
   /* js/mac-*.js against ratlizard/mac-files, which they are copies of: beside
-     this checkout, at ~/e-z-g-cythera/mac-files, or where MAC_FILES says. */
+     this checkout, at ~/e-z-g-cythera/mac-files, or where MAC_FILES points. */
   {page: 'viewer', name: 'copies', cmd: ['utilities/copies_check.mjs'],
    grep: /\d+ mac-\* files, \d+ identical/},
-  /* Is every function the page declares reached by anything? `static` asks the
+  /* Is every function the page declares reached by anything? `static` tests the
      opposite question -- whether every name the JS calls is declared -- and a
      feature shipped on 14 September 2026 that did not run, because its reader
      was written and never called. Every check passed. This one would not have.
-     It carries a baseline of the twenty-two already unreached, which cannot
+     It has a baseline of the twenty-two already unreached, which cannot
      rot, and a negative control on every run. */
   {page: 'viewer', name: 'unreached code',
    cmd: ['utilities/reach_check.mjs', 'index.html'],
@@ -316,7 +316,7 @@ const CHECKS = [
    grep: /all comparisons passed/},
   // ddasm's Disassembler RUN against dvmDisassemble, decode event by decode
   // event, over every script in the archive -- the walk check that
-  // delv_crosscheck's table comparison never was. It spawns its own Python
+  // delv_crosscheck's table comparison never was. It spawns a separate Python
   // reference (delv_dasm_ref.py), so delvmod and the archive are all it needs.
   {page: 'viewer', name: 'delvmod disassembly', want: [DATA, DELV],
    cmd: ['utilities/delv_dasm_check.mjs', 'index.html', DELV, DATA],
@@ -330,8 +330,8 @@ const CHECKS = [
    grep: /\d+ characters, [\d,]+ topics.*/},
   {page: 'viewer', name: 'archive loading', want: [HQX, DATA, DATA_RSRC, APP_HQX],
    cmd: ['utilities/loader_test.mjs', 'index.html', HQX, DATA, DATA_RSRC, APP_HQX, VISE_BIN]},
-  // The installer: js/mac-vise.js against the catalog's own CRC for every
-  // file, and against the BinHex copies for the two files the suite knows.
+  // The installer: js/mac-vise.js against the catalog's CRC for every
+  // file, and against the BinHex copies for the two files the suite has.
   {page: 'viewer', name: 'installer', want: [VISE_BIN],
    cmd: ['utilities/vise_check.mjs', VISE_BIN, DATA, DATA_RSRC, APP_DATA, APP_RSRC, INSTALLED_SIT],
    grep: /\d+ files, \d+ extracted, \d+ CRC mismatches/},
@@ -341,12 +341,12 @@ const CHECKS = [
   /* Is the folded script view a faithful reorganisation of the disassembly?
      It rests on an arity table that is written down in no source anywhere --
      not delvmod, not the wiki -- so the check measures it three ways and has
-     a control of its own. See the harness header. */
+     a separate control. See the harness header. */
   /* Can the page write what it reads? js/delv-asm.js assembles one
      instruction a line and relinks a resource around a splice; the check
      assembles every instruction in the archive back to its bytes, relinks
      every resource with a header four bytes on and reads it back from
-     outside, and makes the relinker forget one kind of target to prove the
+     outside, and makes the relinker drop one kind of target to prove the
      reading back can fail. See the harness header. */
   {page: 'viewer', name: 'script writing',
    cmd: ['utilities/asm_check.mjs', 'index.html', DATA],
@@ -369,7 +369,7 @@ const CHECKS = [
    grep: /structured \d+ of \d+[^\n]*/},
   /* And does the Read view say everything the recovered tree does? Every
      call, every test and every string of every function, held to the
-     function's own ops; three controls in the harness header. */
+     function's ops; three controls in the harness header. */
   {page: 'viewer', name: 'code read aloud',
    cmd: ['utilities/read_check.mjs', 'index.html', DATA],
    want: [DATA],
@@ -380,7 +380,7 @@ const CHECKS = [
   /* Applying a Magpie patch -- the one add-on system Cythera has. The merge
      re-serializes the whole 5.6 MB archive, so what this asserts is that
      nothing moved except the resources the patch names; the writer itself has
-     its own oracle in delv_write_check.mjs. It used to skip without `unar`,
+     a separate oracle in delv_write_check.mjs. It once skipped without `unar`,
      which extracted the patch out of its StuffIt archive; the page does that
      itself since method 13 landed, so getting the patch out of the .hqx is
      part of what this proves now. */
@@ -390,7 +390,7 @@ const CHECKS = [
   /* The game's fixes (js/delv-datafixes.js, js/delv-datapatch.js), which the
      Patches section offers one by one: every fix alone, the text with each
      option and each spelling, every fix together in both spellings, a fix
-     applied twice refused by name, and the community's typo list against
+     applied twice rejected by name, and the community's typo list against
      the collection it was read out of, when the collection is here. The
      patched file with every fix is pinned: a change to any fix moves it, and
      the value moves in the same commit. `--full` adds each fix left out,
@@ -401,8 +401,8 @@ const CHECKS = [
   /* Cythera Data in Spanish (js/delv-translate.js with the table
      js/delv-es.js), both forks: the table covers every piece and has no
      stale entry, every script still disassembles, the keyword lists are the
-     ones the table asked for, and every highlighted word, clicked, reaches
-     the answer its English word did; Argos's family widths carry the added
+     ones the table requested, and every highlighted word, clicked, reaches
+     the answer its English word did; Argos's family widths have the added
      letters, the Geneva strikes measure as Geneva does; and the program in
      Spanish: every load of its strings reaching the Spanish, its resources'
      shapes, and the names' articles. The two forks'
@@ -415,7 +415,7 @@ const CHECKS = [
    expect: '509 of 513 highlighted words answer as in English; 0 pieces untranslated; SPANISH 2ca82cf4; the program 232 loads in Spanish',
    expectFetched: '509 of 513 highlighted words answer as in English; 0 pieces untranslated; SPANISH a0a34b80; the program 232 loads in Spanish'},
   /* The two StuffIt compressions this page decompresses, 13 and 15, against
-     The Unarchiver's own `unar` -- which is the implementation both are ports
+     The Unarchiver's `unar` -- which is the implementation both are ports
      of, so this is a decoder held to its source rather than to a snapshot.
      Every method-13 and method-15 fork in the reference corpus goes both ways
      and has to come back byte for byte, and the 1.0.4 installer's resource
@@ -427,18 +427,18 @@ const CHECKS = [
    grep: /\d+ of \d+ compressed fork\(s\) in \d+ archive\(s\)[^\n]*/},
   /* StuffIt X (js/mac-stuffitx.js), a port of The Unarchiver's: every fork
      of the three add-ons that are StuffIt X against `unar`, which is its
-     source, so the archive's own CRC-32s are what is independent; the
+     source, so the archive's CRC-32s are what is independent; the
      English dictionary against the CRC-32 and count XADMaster states; the
      three saved games opened through extractDelverArchive; and a byte
-     changed and a method not read, refused. Without `unar` or the add-ons
+     changed and a method not read, rejected. Without `unar` or the add-ons
      the archive parts skip. */
   {page: 'viewer', name: 'stuffit x',
    cmd: ['utilities/sitx_check.mjs', 'index.html', 'reference'],
    grep: /\d+ StuffIt X fork\(s\) read back byte identical/},
   /* Compact Pro (js/mac-compactpro.js), a port of The Unarchiver's: every
      fork of the Cythera Makeover kit, the one add-on that is Compact Pro,
-     against `unar`, and the archive's own CRC-32s; extractDelverArchive
-     reading it; a byte changed in a fork and in the catalog, refused.
+     against `unar`, and the archive's CRC-32s; extractDelverArchive
+     reading it; a byte changed in a fork and in the catalog, rejected.
      Without `unar` or the add-on the archive parts skip. */
   {page: 'viewer', name: 'compact pro',
    cmd: ['utilities/cpt_check.mjs', 'index.html', 'reference'],
@@ -451,14 +451,14 @@ const CHECKS = [
    grep: /\d+ zip entries read back byte identical/},
   /* What Ambrosia changed between the four releases, which is only askable
      since all four installers open. A finding rather than a property, so it
-     is pinned: 1.0.3 and 1.0.4 carry the same data file byte for byte, and a
+     is pinned: 1.0.3 and 1.0.4 have the same data file byte for byte, and a
      decoder change that altered what counts as the same resource would move
      these numbers without moving any snapshot. */
   {page: 'viewer', name: 'between releases', want: [VISE_ALL],
    cmd: ['utilities/releases_check.mjs', 'index.html', VISE_ALL ? dirname(VISE_ALL) : 'reference/game/installers'],
    grep: /[^\n]*resources changed/},
   /* The undither, scored against a known original. It needs no archive: the
-     sources are synthetic and the forward process is the page's own
+     sources are synthetic and the forward process is the page's
      ditherizer, so this is the one check here that measures a decoder against
      the thing it is trying to recover rather than against another decoder or
      against yesterday's output. */
@@ -466,9 +466,9 @@ const CHECKS = [
    cmd: ['utilities/undither_check.mjs', 'index.html'],
    grep: /measured is [\d.]+% better overall for [\d.]+% at edges/},
   /* ...and the half that check cannot see. Its sources are synthetic and
-     entirely dithered, so it says nothing about a picture that is dither in
+     entirely dithered, so it shows nothing about a picture that is dither in
      one part and pixel art in another -- which is every portrait in the game.
-     This one holds the frame exactly and requires the face inside it to still
+     This one checks the frame exactly and requires the face inside it to still
      be reduced, from the real archive, because the evidence for which is
      which is the corpus itself. */
   {page: 'viewer', name: 'portrait frame lock', want: [DATA],
@@ -482,7 +482,7 @@ const CHECKS = [
      nothing at all, and a closed form draws a plausible curve whatever it
      computes. It needs no archive, no delvmod and no network, so unlike
      almost everything here it never skips. */
-  /* The resource-fork WRITER against the two forks Apple's own Resource
+  /* The resource-fork WRITER against the two forks Apple's Resource
      Manager wrote in 1999 and this repository happens to hold: read each,
      hand it straight back, require the bytes identical. No specification was
      trusted for it -- four orders and five as-found fields were each found by
@@ -500,7 +500,7 @@ const CHECKS = [
   /* js/mac-ppc.js against LLVM's PowerPC disassembler, word for word: the
      application's code section when it is there, every branch-field
      combination, and 300,000 generated words. A word read differently, or
-     read here when LLVM refuses it, fails; one LLVM alone reads is counted. */
+     read here when LLVM rejects it, fails; one LLVM alone reads is counted. */
   {page: 'viewer', name: 'powerpc decoder', want: [LLVM_MC],
    cmd: ['utilities/ppc_check.mjs', 'js/mac-ppc.js', 'js/mac-pef.js', LLVM_MC, APP_DATA],
    grep: /[\d,]+ words read the same[^;]*/},
@@ -510,7 +510,7 @@ const CHECKS = [
      llvm-mc when it is there, the program patched with every fix and with
      each alone and held to the old one outside what the fixes name, the
      68K half (js/delv-app68k.js) held byte for byte to what the workbench
-     builds, and the refusals. Without llvm-mc the lines are held to the
+     builds, and the rejections. Without llvm-mc the lines are held to the
      decoder alone. */
   {page: 'viewer', name: 'application patch', want: [APP_DATA, APP_RSRC],
    cmd: ['utilities/app_patch_check.mjs', APP_DATA, APP_RSRC, LLVM_MC],
@@ -521,7 +521,7 @@ const CHECKS = [
   /* The version number against what is deployed. Nothing read GRIMOIRE_VERSION
      until 14 September 2026, so a missed bump failed nothing and one was
      missed. It skips outside a git checkout or without a baseline ref, and
-     carries its own negative control over every verdict. */
+     has a separate negative control over every verdict. */
   {page: 'viewer', name: 'version',
    cmd: ['utilities/version_check.mjs', 'index.html'],
    grep: /version [\d.]+[^\n]*/},
@@ -529,7 +529,7 @@ const CHECKS = [
      loads with no console error and the last script ran (a load-order fault
      is what stops it, and the node:vm harnesses run the scripts as one
      string, so none of them can see one); the archive opens through the
-     page's own ?src= path and the world comes up; canvas.html loads clean,
+     page's ?src= path and the world comes up; canvas.html loads clean,
      which is that page's only check. Quiet failures are counted from the
      console (?loud=1). Skips without a Chrome. */
   {page: 'viewer', name: 'browser', want: [CHROME],
@@ -546,7 +546,7 @@ const CHECKS = [
   /* Where the Scenario tab's links lead (link_census.mjs): every page of it
      and every character, unit, item and prop type page, each link followed.
      Fails on one that goes from a Scenario page straight to the data file's
-     bytes, skipping the component that holds them, and on a component page
+     bytes, skipping the component they belong to, and on a component page
      it lands on with no link on down to the bytes -- the maintainer's
      Scenario, Components, Data. Before 16 October 2026 a dossier's Record
      chip and a unit's Stats table chip did the first, 253 links, and every
@@ -556,9 +556,9 @@ const CHECKS = [
    cmd: ['utilities/link_census.mjs', 'index.html', DATA],
    grep: /scenario links: [^\n]*/},
   /* Bad input: every real input corrupted a fixed number of ways from a
-     fixed seed and handed to the page's own entry point, each case in a
+     fixed seed and handed to the page's entry point, each case in a
      worker under a deadline. A decoder may return or throw; it may not
-     fail to stop or take the process down. Carries a control that loops on
+     fail to stop or take the process down. Has a control that loops on
      purpose and must be reported as a hang. */
   {page: 'viewer', name: 'bad input', want: [DATA], slow: true,
    cmd: ['utilities/fuzz_check.mjs', 'index.html', DATA, DATA_RSRC, HQX, VISE_BIN, VISE_ALL,
@@ -566,7 +566,7 @@ const CHECKS = [
    grep: /fuzz: [^\n]*/},
   /* The game accepts what the site writes: a save edited through the page's
      own writer is seeded as the player file, the fork runs Cythera headless
-     to open it and save it again, and the file the game wrote must carry
+     to open it and save it again, and the file the game wrote must have
      the edit; the unedited seed is the control. The one oracle the writers
      had lacked -- delvmod is not the game. About forty seconds. */
   {page: 'viewer', name: 'in the game', want: [KIT, GAME_BIN, LICENCE], slow: true, alone: true,
@@ -575,11 +575,11 @@ const CHECKS = [
   {page: 'viewer', name: 'zip export', want: [DATA], slow: true,
    cmd: ['utilities/export_test.mjs', 'index.html', DATA, EXPORTS], zips: EXPORTS},
 
-  // The classic-Mac resource decoders used to be a page of their own
+  // The classic-Mac resource decoders were once a separate page
   // (resource_fork_browser.html) with three checks against it. The page is
   // gone -- it was more general-purpose than this repository -- and the
   // decoders are js/mac-rsrc-types.js, read by index.html. The snapshot
-  // moved with them and its hash did not change, which is what says nothing
+  // moved with them and its hash did not change, which is what shows nothing
   // was lost on the way; the two UI checks it had are now the fork sections
   // of viewer_smoke.mjs.
   /* The bitmap-font writer against the two strikes Ambrosia shipped. The
@@ -587,13 +587,13 @@ const CHECKS = [
      font correctly proves nothing about them; writing the shipped bytes back
      exactly does. Then the other direction, nfntToTrueType: the outlines it
      writes are read back out of the glyf table and filled by winding number
-     over the strike's own pixel grid, and every pixel must agree. Carries a
+     over the strike's pixel grid, and every pixel must match. Has a
      negative control per font in each direction. */
   {page: 'viewer', name: 'bitmap font write', want: [DATA_RSRC],
    cmd: ['utilities/nfnt_write_check.mjs', 'index.html', DATA_RSRC],
    grep: /\d+ of \d+ strikes written as TrueType[^\n]*/},
   // Patches > Behind the Scenes: each fix written into the fork, read back
-  // from MacBinary, everything else unchanged, a second run refused.
+  // from MacBinary, everything else unchanged, a second run rejected.
   {page: 'viewer', name: 'behind the scenes', want: [DATA_RSRC],
    cmd: ['utilities/backstage_check.mjs', 'index.html', DATA_RSRC],
    grep: /\d+ fix, \d+ strings, written and read back[^\n]*/},
@@ -612,7 +612,7 @@ const CHECKS = [
    expect: 'QuickTime 3: 21 files unpacked, the controls refused; 235 instruments, 1544 key ranges, every sample found; every part of 11 tunes has an instrument; the theme 98.1 s, TUNE f04b2a97a124'},
   /* A tune written and a MIDI file made into one (qtmaWrite, midiToQtma),
      held to the shipped tunes: their headers rebuilt byte for byte, and
-     each back from its own MIDI file. The harness's header has the rest. */
+     each back from its MIDI file. The harness's header has the rest. */
   {page: 'viewer', name: 'midi import', want: [DATA],
    cmd: ['utilities/midi_import_check.mjs', 'index.html', DATA],
    grep: /midi import: [^\n]*/,
@@ -623,7 +623,7 @@ const CHECKS = [
 
   // The HFS disk-image writer index.html exports with: structural here, and
   // in the row after it every volume round-tripped through systemless's
-  // reader, which wants the fork's checkout beside this one and is slow only
+  // reader, which needs the fork's checkout beside this one and is slow only
   // the first time, when it has to build the reader's example binary. Two
   // rows so that a missing or unfound fork is a skip the table names; as one
   // row without an expected line it read ok with nothing round-tripped.
@@ -642,15 +642,15 @@ const CHECKS = [
 // ---- run -------------------------------------------------------------------
 say(`\n  Cythera checks — ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`);
 await ensureForks();
-/* The argument names a page or one check. One check by name was added on
+/* The argument is a page or one check. One check by name was added on
    16 October 2026: "re-run a failing one on its own" was the advice under
    every failure, and the only way to take it was to copy the check's argument
    list out of this file by hand, which the game check's eight arguments made
    a chore. Named alone, the check's whole output is printed under the table,
-   since the row keeps one line of it. */
+   since the row shows one line of it. */
 const byName = only && CHECKS.some(c => c.name === only);
 const chosen = check => !only || (byName ? check.name === only : check.page === only);
-// A name that matches nothing used to run nothing and print "A clean run is
+// A name that matches nothing once ran nothing and print "A clean run is
 // 0 ok", which reads as a pass.
 if (!CHECKS.some(chosen)) {
   say(`  No page or check is called "${only}". Pages: ${[...new Set(CHECKS.map(c => c.page))].join(', ')}.`);
@@ -663,9 +663,9 @@ const rows = new Array(CHECKS.length);
 const outputs = new Array(CHECKS.length);
 let failed = 0, skipped = 0;
 
-// What one check's run decides: the row, and whether it counts as failed.
+// What one check's run settles: the row, and whether it counts as failed.
 // Written for one process at a time and unchanged by running several: each
-// check is its own child process, and nothing here is shared between them
+// check is a separate child process, and nothing here is shared between them
 // but the table.
 function judge(check, ok, out, secs) {
   let note = '';
@@ -673,20 +673,20 @@ function judge(check, ok, out, secs) {
   /* A SNAPSHOT THAT MOVES MUST MOVE ITS RECORDED VALUE WITH IT.
    *
    * The two snapshot checks report a hash rather than a verdict, so that a
-   * deliberate change to what a decoder outputs can be told from an accident.
+   * deliberate change to what a decoder outputs can be distinguished from an accident.
    * That only works if somebody reads the number, and on 15 September 2026
    * nobody did: the signed-byte fix to the zone lighting moved the decoder
    * snapshot, the value went unrecorded, and the stale one then read as
    * evidence of an accident to the next session that looked. Five fronts
    * landed in between without noticing.
    *
-   * So the expected value lives HERE, in the file that decides pass and fail,
+   * So the expected value lives HERE, in the file that settles pass and fail,
    * and a mismatch is a failure. Moving a decoder now costs one line in the
    * same commit, which is the point: the record cannot drift from the code
-   * because the suite will not go green until they agree.
+   * because the suite will not go green until they match.
    *
    * It is deliberately NOT read out of `grimoire/CLAUDE.md`, which is where
-   * the values used to be written down. Until 19 September 2026 that file
+   * the values were once written down. Until 19 September 2026 that file
    * was untracked and absent from every front -- and a front is where all
    * the work happens, which would have made the guard skip in the one place
    * it is needed. The guide points at this line instead. */
@@ -694,12 +694,12 @@ function judge(check, ok, out, secs) {
      reference/ has no .hqx, has the same data forks as reference/'s copy and
      different resource forks (the .hqx files came from an installed copy).
      A check whose pinned value covers the resource forks whole, as the Spanish
-     translation's hash does, carries a second value for that copy. */
+     translation's hash does, has a second value for that copy. */
   const expected = (FETCHED_FORKS && check.expectFetched) || check.expect;
   if (ok && expected && note !== expected) {
     ok = false;
     /* The row truncates a note at 96 characters, and the half worth reading is
-       what to do about it, so the name is left out -- the row already carries
+       what to do about it, so the name is left out -- the row already has
        it -- and both hashes and the instruction fit. */
     const got = (note || '(nothing)').replace(/^SNAPSHOT /, ''), want = expected.replace(/^SNAPSHOT /, '');
     out += `\nFAIL: got ${got}, want ${want}; if deliberate, move it in check_all.mjs`;
@@ -734,9 +734,9 @@ function runCheck(check, i) {
 
 // The pool: up to JOBS checks at once, taken in the list's order, a check
 // waiting for the ones it names in `after` to be done (finished, failed or
-// skipped alike). Rows land at the check's own index, so the table reads in
+// skipped alike). Rows land at the check's index, so the table reads in
 // the list's order whatever order the processes finished in; one line per
-// finish says which are still running when the table is a while coming.
+// finish shows which are still running when the table is a while coming.
 //
 // A check marked `alone` starts only when nothing else is running, and
 // nothing else starts while it runs. The game check is the one: it runs the
@@ -805,7 +805,7 @@ if (byName) {
   const i = CHECKS.findIndex(c => c.name === only);
   if (outputs[i] != null) say('\n' + outputs[i].trimEnd());
 } else if (failed) {
-  say('  Re-run a failing one on its own to see its full output:');
+  say('  Re-run a failing one alone to see its full output:');
   for (const r of rows) if (r[2] === 'FAIL') say(`    node utilities/check_all.mjs '${r[1]}'`);
 }
 process.exit(failed ? 1 : 0);

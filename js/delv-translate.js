@@ -9,7 +9,7 @@
    reach. Begun 29 September 2026 at the maintainer's word, "a full Spanish
    localization option for Cythera, starting with Cythera Data".
 
-   WHY BOTH FORKS. A Magpie patch carries data-fork resources and nothing
+   WHY BOTH FORKS. A Magpie patch contains data-fork resources and nothing
    else (GRIMOIRE-NOTES, "A Magpie patch reaches the data fork"), and three
    things a translation needs are in the resource fork: the conversation
    font, `sfnt` 7289 Argos A Nouveau, which has no accented letters; the
@@ -21,45 +21,45 @@
    WHY CONTROL CODES. Script text is seven-bit: a byte of 0x80 up is an
    opcode wherever the interpreter reads text, so "á" cannot be its Mac Roman
    byte. The text drawer passes a control byte to QuickDraw, and QuickDraw's
-   TrueType scaler draws it by the font's cmap, so the patched Argos carries
+   TrueType scaler draws it by the font's cmap, so the patched Argos has
    the accented letters at codes 0x01 to 0x13 (less the tab, the line feed
    and the return). That was proved on Mac OS 8.5 in Infinite Mac on 24 and
    25 September 2026 with the opening of the game; the proof images and
    scripts are beside the other images in cythera-reference
    (`cythera_infinitemac_es-opening*.dsk`, `spanish-opening*-proof.mjs`,
    `mkfont-es3-proof.py`), and GRIMOIRE-NOTES has the account under
-   `grimoire/fixable-bugs-1adxav`. What the proofs settled and this keeps:
+   `grimoire/fixable-bugs-1adxav`. What the proofs settled and this retains:
    a highlighted word ends at its first accent (the application's "@" scan
-   takes A to Z and a to z only), so a highlighted word is written without
+   accepts A to Z and a to z only), so a highlighted word is written without
    one until the program's highlighter is patched; a byte of 0x80 up in a
    keyword list is fatal, not merely unmatched (the list is read by the same
    seven-bit scanner, and every entry after the byte is misread), so no
-   keyword carries one; and a typed accent can only be met by a stem cut
+   keyword has one; and a typed accent can only be met by a stem cut
    before it.
 
    WHAT A TABLE IS KEYED BY. Each piece of text by its resource and a hash of
    its English bytes, never by the English itself, so that the table, which
-   is public in this repository, holds no text of the game's: the builder
+   is public in this repository, has no text of the game's: the builder
    reads the English out of the visitor's own file, hashes it, and looks the
-   hash up. A piece the table does not know is left in English and reported,
+   hash up. A piece that is not in the table is left in English and reported,
    which is also what happens to a release whose text differs from the one
    the table was written against. Two pieces with the same English in one
-   resource take one translation; `text['*']` holds what is the same in
+   resource take one translation; `text['*']` has what is the same in
    every resource ("Farewell.", "Cancel").
 
    WHAT A PIECE IS. The runs `dvmTextSites` finds, which is every place a
-   script keeps text: a direct run of text in code (delvmod's direct mode,
+   script has text: a direct run of text in code (delvmod's direct mode,
    dvmImplicitString), a NUL-terminated string operand, a prompt, a string in
    a `data` block or a serialized array, and a string object. A run is cut
    wherever an offset in the resource lands inside it, because the compiler
    shares the tails of strings ("A text run split where a jump lands in it",
-   v1.183.0): the jump lands on the tail, so the tail is its own piece, and
+   v1.183.0): the jump lands on the tail, so the tail is a separate piece, and
    its translation has to read after either head.
 
    THE SPLICE. Every piece of a resource is replaced at once
    (dataPatchReplaceMany): the resource's offsets are read once, every place
    is spliced, each offset moves by the places before what it points at, a
-   `data` block's size word takes the change inside it, and the result is
+   `data` block's size word absorbs the change inside it, and the result is
    read back and compared, as js/delv-datapatch.js does for one text edit.
    One edit at a time through that applier would read every site of a
    resource twice per piece, which for five thousand pieces is most of a
@@ -67,7 +67,7 @@
 
 /* ---- where the text is ---------------------------------------------------- */
 
-// Every place a script resource keeps text, and every keyword list.
+// Every place a script resource has text, and every keyword list.
 // text: [{ at, len, text, kind, fn, split }], `text` the bytes as a string
 // (every byte below 0x80, since script text is seven-bit, and kept with any
 // NUL inside it); keys: [{ at, len, words, fn }].
@@ -139,7 +139,7 @@ function translateHash(text) {
   for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i) & 0xFF; h = Math.imul(h, 0x01000193) >>> 0; }
   return h.toString(16).padStart(8, '0');
 }
-// A resource's own entry first, then what is the same everywhere.
+// A resource's entry first, then what is the same everywhere.
 function translateLookup(T, section, resid, hash) {
   const sec = T[section];
   if (!sec) return undefined;
@@ -150,7 +150,7 @@ function translateLookup(T, section, resid, hash) {
 
 /* ---- the encoding ---------------------------------------------------------- */
 
-// The accented letters at the control codes the patched Argos carries them
+// The accented letters at the control codes the patched Argos has them
 // at: the proofs' map, unchanged, since that is the one seen on a screen.
 const TRANSLATE_CODES = { 'á': 0x01, 'é': 0x02, 'í': 0x03, 'ó': 0x04, 'ú': 0x05, 'ñ': 0x06, 'ü': 0x07, '¿': 0x08,
   '¡': 0x0B, 'Á': 0x0C, 'É': 0x0E, 'Í': 0x0F, 'Ó': 0x10, 'Ú': 0x11, 'Ñ': 0x12, 'Ü': 0x13 };
@@ -168,13 +168,13 @@ function translateEncode(s) {
 
 /* ---- keyword lists --------------------------------------------------------- */
 
-// A keyword list with its translation's stems added after its own. The
+// A keyword list with its translation's stems added after the list's. The
 // interpreter copies each keyword to the next comma and compares it with the
-// start of what was said ("A keyword that needs a space typed first",
+// start of what was shown ("A keyword that needs a space typed first",
 // v1.101.0), so a stem is a prefix: "nomb" answers "nombre". The English
 // stays, so nothing that answered before stops answering; the stems for a
-// word come from the resource's own entry, then from what is the same
-// everywhere. `*` (the fallback answer) takes nothing.
+// word come from the resource's entry, then from what is the same
+// everywhere. `*` (the fallback answer) is given nothing.
 function translateKeywordList(words, T, resid) {
   if (words === '*') return null;
   const have = words.split(','), add = [];
@@ -186,10 +186,10 @@ function translateKeywordList(words, T, resid) {
     for (const stem of String(s).split(',')) if (stem && have.indexOf(stem) < 0 && add.indexOf(stem) < 0) add.push(stem);
   }
   if (!add.length) return null;
-  // A stem may carry a lower-case accent, as its control code: what a click
-  // on a button or a highlighted word says is the script's own text, codes
+  // A stem may have a lower-case accent, as its control code: what a click
+  // on a button or a highlighted word sends is the script's text, codes
   // and all, so "d\x04nd" answers a button labelled "Dónde" where "dond"
-  // would not. It never carries a byte of 0x80 up, which is fatal in a list.
+  // would not. It never has a byte of 0x80 up, which is fatal in a list.
   const enc = add.map(stem => translateEncode(stem));
   for (const stem of enc) if (!/^[a-z \x01-\x07]+$/.test(stem)) throw new Error('a keyword stem may hold lower-case letters, their accents and spaces only, not ' + JSON.stringify(stem));
   return words + ',' + enc.join(',');
@@ -204,14 +204,14 @@ function translatePlaces(b, resid, T, report) {
   const places = [];
   const seen = new Set();
   for (const u of text) {
-    // A prompt is never text to translate: mygetch shows the program's own
+    // A prompt is never text to translate: mygetch shows the program's
     // two buttons for "yn" and hands back 'y' or 'n' for the keyword lists
     // after it to match, and any other prompt a button per letter, so the
     // letters are what the script tests (TConversation::mygetch).
     if (u.kind === 'prompt') continue;
     const h = translateHash(u.text);
     // A piece without two letters in a row is punctuation and stays, unless
-    // the resource's own entry names it: "Ah, there " + "s" + "he is!" makes
+    // the resource's entry names it: "Ah, there " + "s" + "he is!" makes
     // "she" of a one-letter piece, which Spanish has to empty.
     const ownEntry = T.text && T.text[resid.toString(16).toUpperCase().padStart(4, '0')];
     if (!translateWants(u.text) && !(ownEntry && ownEntry[h] !== undefined)) continue;
@@ -220,11 +220,11 @@ function translatePlaces(b, resid, T, report) {
     report.done++;
     seen.add(h);
     // '=' is a piece that is the same in the translation, a name alone
-    // ("Pnyx", "Kosha") most often: said, so that it is not reported missing.
+    // ("Pnyx", "Kosha") most often: listed, so that it is not reported missing.
     if (es === '=') continue;
     const enc = translateEncode(es);
     // A NUL inside a piece is part of how the script reads it (a zone's name
-    // ends with one where it is read as a C string); a translation keeps
+    // ends with one where it is read as a C string); a translation retains
     // every one, and at the end if the English ends with one.
     const nuls = t => (t.match(/\0/g) || []).length;
     if (nuls(enc) !== nuls(u.text) || (u.text.endsWith('\0') !== enc.endsWith('\0')))
@@ -246,8 +246,8 @@ function translatePlaces(b, resid, T, report) {
 // places: a site past a place moves by the change in length of every place
 // that ends at or before what it points at, so a jump to the start of a
 // piece stays at the start of its translation; a site pointing inside a
-// piece replaced is refused, since there is nowhere in the translation for
-// it to go; a `data` block's size word takes the change of every place
+// piece replaced is rejected, since there is nowhere in the translation for
+// it to go; a `data` block's size word absorbs the change of every place
 // inside it. The resource is read back and every site compared with where
 // it should be, and anything that does not come out exact throws.
 function dataPatchReplaceMany(s, resid, places, what) {
@@ -337,25 +337,25 @@ function translateNameTable(b, T, report) {
 
 // The tile names, 0xF004: { u16 last tile of the run, NUL-terminated name
 // code } records in file order, then a 0x7FFF catch-all and zero padding
-// (loadTerrainNames). A name code may carry its plural after a backslash,
-// "arrow\s", "obol\s/oi" (delverNameCode), and a translation writes its own
+// (loadTerrainNames). A name code may have its plural after a backslash,
+// "arrow\s", "obol\s/oi" (delverNameCode), and a translation writes its
 // in the same notation. Nothing points into the table, so it is written out
 // again with the padding kept.
 /* A name's article, where the program is translated too (T.program): the
-   program says a thing with one of four formats its tile's attribute word
+   program words a thing with one of four formats its tile's attribute word
    chooses (bits 22 and 23 of its word in 0xF002: none, "a", "an", "the"),
-   and Spanish needs the noun's gender as well, which the program does not
-   know. So the article goes into the name, and the program's four formats
+   and Spanish needs the noun's gender as well, which is not in the
+   program. So the article goes into the name, and the program's four formats
    all become "%s" (the maintainer's choice, 29 September 2026). Each name
    in T.tileGenders (by the hash of its English) is m, f, fa (a feminine
-   noun that takes el and un, as hacha), mp or fp (said in the plural
-   only); the English class of each of its tiles says which article, none,
-   indefinite (a, an) or definite (the). A record names a run of tiles, up
+   noun that takes el and un, as hacha), mp or fp (used in the plural
+   only); the English class of each of its tiles sets which article, none,
+   indefinite (a, an) or definite (the). A record covers a run of tiles, up
    to its id, and where the tiles of a run differ in class the run is split
-   into records, one a stretch of one class, so every tile keeps the
+   into records, one a stretch of one class, so every tile retains the
    article English gives it.
 
-   The article is said in the singular only. The program's name code
+   The article is used in the singular only. The program's name code
    (SingPlur) prints text after a slash for one, after a backslash for more
    than one, and a space ends either and is printed in both, so the
    article's space would begin the plural too: it is TRANSLATE_NBSP
@@ -440,9 +440,9 @@ function translateWriteStrList(list) {
 }
 
 // The data file's resource fork: its STR# strings by hash, as Mac Roman
-// (a resource-fork string is not script text, so an accent is its own byte
+// (a resource-fork string is not script text, so an accent is a separate byte
 // there); a TxSt given a new face or size; and the conversation face with
-// the letters the translation needs (T.font says which, and how).
+// the letters the translation needs (T.font gives which, and how).
 function translateResourceFork(rsrc, T, report, log) {
   const spec = resourceForkSpec(openResourceFork(rsrc));
   let changed = false, widths = null, sfntId = null;
@@ -464,7 +464,7 @@ function translateResourceFork(rsrc, T, report, log) {
       if (n) { r.data = translateWriteStrList(next); changed = true; log.push('STR# ' + r.id + ': ' + n + ' of ' + list.length + ' strings'); }
     } else if (r.type === 'TxSt' && T.styles && T.styles[r.id]) {
       // Size (a byte), the style bits (a byte), the face's name (a Pascal
-      // string): TMPL 128 in the same fork says so.
+      // string): TMPL 128 in the same fork shows it.
       const want = T.styles[r.id];
       const size = want.size !== undefined ? want.size : r.data[0], style = want.style !== undefined ? want.style : r.data[1];
       const name = encodeMacRoman(want.font !== undefined ? want.font : decodeMacRoman(r.data.subarray(3, 3 + r.data[2])));
@@ -488,14 +488,14 @@ function translateResourceFork(rsrc, T, report, log) {
 }
 
 /* The family width table of the conversation face. Argos A Nouveau's FOND
-   (1046) has one and its flags clear, so the Font Manager takes a
+   (1046) has one and its flags clear, so the Font Manager uses a
    character's width from it, and the letters added to the sfnt had none
    there: every accented letter measured nothing while it drew as wide as
    its glyph, so a line with accents was measured short and ran past the
    right edge of the conversation box ("Perdona, qu" under the pause
    button, the maintainer's screenshot of 29 September 2026). A width is
-   a fraction of an em in 4.12 fixed point; every table the FOND holds
-   (one per style) takes it. */
+   a fraction of an em in 4.12 fixed point; every table in the FOND
+   (one per style) uses it. */
 function translateFamilyWidths(spec, sfntId, widths) {
   for (const r of spec.resources) {
     if (r.type !== 'FOND' || r.data.length < 54) continue;
@@ -521,14 +521,14 @@ function translateFamilyWidths(spec, sfntId, widths) {
 /* The styles drawn in Geneva, with its accented letters. The message pane
    (TxSt 132 "Text", Geneva 10), the labels and the stats (130 and 131,
    Geneva 9) name their face, and Geneva has no glyph at the control codes
-   the script text carries its accents at, so those styles drew a box for
+   the script text has its accents at, so those styles drew a box for
    every accent. Setting them in Argos, as the first build did, put the
    conversation face where the game has none (the maintainer: "Argos is
    being used where it shouldn't be"), and Argos has no ">", which the
    message line's "> Talk to " begins with.
 
-   So a family of their own, "Geneva ES", goes into the data file's fork
-   and the styles are set in it at their own sizes. Geneva is Apple's and
+   So a separate family, "Geneva ES", goes into the data file's fork
+   and the styles are set in it at their sizes. Geneva is Apple's and
    cannot be here, so its strikes are made from js/mac-geneva.js: the
    letters of Kelsey Higham's Geneva 9, drawn at both sizes, at the widths
    of Apple's Geneva 9 and 10 (GENEVA_METRICS, Kurrajong's), so every
@@ -536,13 +536,13 @@ function translateFamilyWidths(spec, sfntId, widths) {
    10-point strike is Geneva 10's frame and widths with the 9-point
    letters, the maintainer's choice on 29 September 2026 after a 10-point
    drawing derived by adding a row was judged illegible. An accented letter
-   is its plain letter with a mark over it, both from the font, and takes
-   its plain letter's width and place, as Apple's do; the font's own
+   is its plain letter with a mark over it, both from the font, and has
+   its plain letter's width and place, as Apple's do; the font's
    accented letters are not used, being drawn on other bodies (its "á" is a
    single-storey a under the accent). A lowercase mark is what the font
    draws two rows and more above the x-height in é, ñ and ü, a capital's
    what it draws above the cap height in É, Ñ and Ü, each kept where it
-   sits against its own letter's centre; í is the i without its dot. Every
+   sits against its letter's centre; í is the i without its dot. Every
    other code draws what the font draws there, at the font's width.
 
    The Resource Manager finds a font in the data file's fork as it finds
@@ -559,13 +559,13 @@ function translateGenevaStrike(size) {
   // Printable ASCII at Geneva's widths. A letter sits at Geneva 9's left
   // bearing, and where this size's width differs from Geneva 9's the
   // difference is shared between its two sides: the letters are drawn for
-  // Geneva 9's spacing, and Geneva 10's own bearings, which place its wider
+  // Geneva 9's spacing, and Geneva 10's bearings, which place its wider
   // letters, put all of W's two extra pixels after it ("W elcome", the
   // maintainer, 29 September 2026). An odd pixel goes to the left where
   // Geneva 10 moves the letter right of where Geneva 9 has it (the figures
   // and the straight-stemmed letters), otherwise to the right, so "1.0.3"
-  // keeps its stops against the figures. Where Geneva 10 is the narrower (A,
-  // the colon, the backslash) this gives its own bearing.
+  // retains its stops against the figures. Where Geneva 10 is the narrower (A,
+  // the colon, the backslash) this gives its bearing.
   const M9 = GENEVA_METRICS[9];
   for (let c = 0x20; c < 0x7F; c++) {
     const g = out[c] || { px: [], adv: 0 }, i = c - 0x20, extra = M.adv[i] - M9.adv[i];
@@ -594,7 +594,7 @@ function translateGenevaStrike(size) {
     'ó': put(out[at('o')], 'acute'), 'ú': put(out[at('u')], 'acute'), 'ñ': put(out[at('n')], 'tilde'), 'ü': put(out[at('u')], 'dier'),
     'Á': put(out[at('A')], 'Acute'), 'É': put(out[at('E')], 'Acute'), 'Í': put(out[at('I')], 'Acute'), 'Ó': put(out[at('O')], 'Acute'),
     'Ú': put(out[at('U')], 'Acute'), 'Ñ': put(out[at('N')], 'Tilde'), 'Ü': put(out[at('U')], 'Dier') };
-  // ¿ and ¡ are the font's own, at the width of ? and ! and moved to their bearing.
+  // ¿ and ¡ are the font's, at the width of ? and ! and moved to their bearing.
   for (const [ch, base] of [['¿', '?'], ['¡', '!']]) {
     const g = own(mr(ch)), b = out[at(base)], x0 = Math.min(...g.px.map(q => q[0])), bx = Math.min(...b.px.map(q => q[0]));
     made[ch] = { px: g.px.map(([x, y]) => [x + bx - x0, y]), adv: b.adv };
@@ -629,32 +629,32 @@ function translateAddStrikes(spec, S, log) {
   }
 }
 
-/* ---- the program's own text ------------------------------------------------ */
+/* ---- the program's text ---------------------------------------------------- */
 
 /* The application's resources in another language: its menus, its dialogs'
    buttons and words, its windows', dialogs' and controls' titles, its
    string lists, and its TEXT with their style runs. Keyed as the data file
    is, by the resource and the FNV-1a hash of the English bytes (here the
-   resource's own Mac Roman bytes, so a curly quote hashes as the byte the
-   file holds), in T.program under the resource type and the id in four hex
-   digits: `T.program.MENU['0081'][hash]`. `=` keeps a piece as it is. The
-   Spanish is Mac Roman in the file, so an accent is its own byte: the system
-   fonts the menus and dialogs draw in carry them, and so do the game's own
+   resource's Mac Roman bytes, so a curly quote hashes as the byte the
+   file has), in T.program under the resource type and the id in four hex
+   digits: `T.program.MENU['0081'][hash]`. `=` leaves a piece as it is. The
+   Spanish is Mac Roman in the file, so an accent is a separate byte: the system
+   fonts the menus and dialogs draw in have them, and so do the game's
    faces, Argos at the bytes and Geneva ES at the bytes and the codes.
 
-   A dialog's title is not shown (the dialogs are drawn by the program's own
+   A dialog's title is not shown (the dialogs are drawn by the program's
    routine) and is read as its keys, `DelverDialogerRoutine`: groups
    separated by semicolons, one a dialog item from the first, a key pressing
-   the item whose group holds it. So a dialog's title is translated as the
+   the item whose group contains it. So a dialog's title is translated as the
    keys of its translated buttons, the English letters kept where they do
    not clash.
 
    A TEXT with a `styl` of the same id is written as a list of pieces, one a
    style run in order, and the runs' offsets are counted again from them; a
-   list of another length is refused. What the table does not reach is
+   list of another length is rejected. What the table does not reach is
    reported, save the resources T.program.keep names (the combat-AI
    language, whose keywords a player's strategy files are written in; the
-   file names the program opens files by; the CD driver's names). */
+   names of the files the program opens; the CD driver's names). */
 function translateProgramResources(rsrc, T, report, log) {
   const P = T.program || {};
   const spec = resourceForkSpec(openResourceFork(rsrc));
@@ -740,13 +740,13 @@ function translateProgramResources(rsrc, T, report, log) {
    T.program.C (a C string) or T.program.P (a Pascal string): the
    translation, `=` to keep it, or, for a C string the program also points
    into (a tail it shares with another), a list of pieces, one from each
-   place it is pointed at. What the table does not name is reported, as the
-   data file's pieces are. A C string and its translation carry the same
+   place it is pointed at. What is not in the table is reported, as the
+   data file's pieces are. A C string and its translation have the same
    printf conversions in the same order, since the program formats with
-   them; one that does not is refused. The strings are written by the
+   them; one that does not is rejected. The strings are written by the
    program patcher (applyAppFixes, js/delv-apppatch.js), in place where the
    translation fits and moved to the end of the code where it does not,
-   PowerPC only: the 68K program keeps its own copies. */
+   PowerPC only: the 68K program has separate copies. */
 function translateProgram(data, rsrc, T, fixes) {
   const report = { done: 0, keys: 0, missing: [], unused: [] }, log = [];
   const P = T.program || {};
@@ -773,7 +773,7 @@ function translateProgram(data, rsrc, T, fixes) {
   }
   const fix = { id: 'translation-' + (T.lang || 'xx'), kind: 'text', title: 'The program in ' + (T.name || T.lang), cstrings };
   // Program fixes chosen with it are applied in the same pass, since the
-  // patcher refuses a program it has grown already.
+  // patcher rejects a program it has grown already.
   const r = applyAppFixes({ data, rsrc: rsrcOut }, [fix].concat(fixes || []));
   const rec = r.applied[0], moved = (rec.strings || []).filter(x => x.place === 'moved').length;
   log.push('the program\'s strings: ' + cstrings.length + ' translated, ' + moved + ' of them moved to the end of the code, which grew by ' + r.grownBy + ' bytes');
@@ -815,17 +815,17 @@ function translateCytheraData(data, rsrc, T, opts) {
 /* ---- the letters Spanish needs, in Argos A Nouveau -------------------------- */
 
 /* The acute on the ten vowels, the tilde on n and N, the diaeresis on u and
-   U, and the inverted marks, each one flat outline made of the font's own
+   U, and the inverted marks, each one flat outline made of the font's
    letter and a mark drawn here, mapped at the control codes of
    TRANSLATE_CODES and at their Mac Roman bytes too (a resource-fork string,
-   such as the conversation window's buttons, carries the real byte). The
+   such as the conversation window's buttons, has the real byte). The
    shapes and every proportion are mkfont-es3-proof.py's, the one seen on
    Mac OS 8.5: an acute of the straight quote scaled down was barely visible,
    so it is a drawn wedge; the i loses its dot, the contour that sits
-   highest, before it takes the acute; ¿ and ¡ are ? and ! turned half a
+   highest, before it is given the acute; ¿ and ¡ are ? and ! turned half a
    circle and sunk a fifth of an em, or less where that would take them
-   below the face's own g. A mark is drawn clockwise, as TrueType
-   wants an outer contour, though a mark that overlaps nothing fills either
+   below the face's g. A mark is drawn clockwise, as TrueType
+   needs an outer contour, though a mark that overlaps nothing fills either
    way. */
 const TRANSLATE_MACROMAN = { 'á': 0x87, 'é': 0x8E, 'í': 0x92, 'ó': 0x97, 'ú': 0x9C, 'ñ': 0x96, 'ü': 0x9F, '¿': 0xC0,
   '¡': 0xC1, 'Á': 0xE7, 'É': 0x83, 'Í': 0xEA, 'Ó': 0xEE, 'Ú': 0xF2, 'Ñ': 0x84, 'Ü': 0x86 };
@@ -891,7 +891,7 @@ function translateSpanishGlyphs(sfnt) {
   const codes = {};
   order.forEach((ch, i) => { codes[TRANSLATE_CODES[ch]] = i; codes[TRANSLATE_MACROMAN[ch]] = i; });
   // The no-break space the tile names join an article to its noun with
-  // (TRANSLATE_NBSP) draws as the font's own space.
+  // (TRANSLATE_NBSP) draws as the font's space.
   const space = cmap[mac + 6 + 0x20];
   const got = sfntWithGlyphs(sfnt, order.map(ch => made[ch]), codes, { [TRANSLATE_NBSP]: space });
   // Each added letter's width as a fraction of the em, at both its codes,

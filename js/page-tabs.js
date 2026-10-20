@@ -23,7 +23,7 @@
 // positives, because Delver bytecode is full of byte pairs that look like
 // atoms. (Scanning the whole archive for 0x0301 this way turns up 50 "hits",
 // every one of them a coincidence inside sound samples and portraits.) So
-// references are read only from positions the container format says hold an
+// references are read only from positions where the container format puts an
 // atom: array elements, table values, and the operands of `word` (0x43) and
 // `call_resource` (0x9F) inside disassembled code.
 const XREF_SKIP_SUBN = new Set([127, 128, 131, 135, 137, 141, 142, 143, 144, 239]);
@@ -70,15 +70,15 @@ function buildXrefIndex() {
 }
 
 // --- Script view -----------------------------------------------------------
-// A resource used to arrive as one undifferentiated wall of text: class header,
+// A resource once came as one undifferentiated wall of text: class header,
 // cross-references, disassembly, extracted strings and a hex dump, all in the
-// same <pre>. It was impossible to tell what had been read from the file, what
+// same <pre>. It was impossible to see what had been read from the file, what
 // had been inferred, and what any of it was for. Everything below exists to
 // separate those: what this resource IS, how it was read, who uses it, and
 // only then the code.
 //
-// Descriptions are the wiki's own words where it has any, and say so plainly
-// where it does not. Guessing a purpose would be worse than admitting none.
+// Descriptions are the wiki's words where it has any, and state plainly
+// where it does not. An invented purpose would be worse than admitting none.
 const SUBINDEX_PURPOSE = {
   0:   ['Symbol table', 'One resource, 0x0101, holding names for numbered things. They are the developers’ names and do not always match the game as released, so they are a hint rather than the truth.'],
   1:   ['Data lists and the game’s writing', 'Lists of things: character names, and the global values the symbol table in subindex 0 names. It is also where Cythera’s in-game writing is: the bookshelf histories and bestiaries, the prophecies, the scrolls and letters, the signs, the gravestones and the ring inscriptions. Each passage is one entry in a list, and a thing in the world picks its entry with the number in its Data1. The Mechanics page covers them under The game’s own writing.'],
@@ -145,7 +145,7 @@ function jumpToResource(resid) {
 
 /* A link from one thing to a related thing, everywhere the site draws one.
 
-   These used to be monospace chips with the hex id first -- "0x8801
+   These were once monospace chips with the hex id first -- "0x8801
    Portrait" -- which read as code rather than as a way to the thing. A
    relation chip reads the other way round: the icon of the tab the target
    lives under, then what it is called, then what it is, and the hex id as
@@ -167,9 +167,9 @@ function relIconURL(spec) {
 function relChip(o) {
   const hex = o.resid !== undefined ? '0x' + o.resid.toString(16).toUpperCase().padStart(4, '0') : '';
   const onclick = o.js || ('jumpToResource(' + o.resid + ')');
-  // A chip shows the thing's own picture when the caller has one (a sprite, a
+  // A chip shows the thing's picture when the caller has one (a sprite, a
   // face); the icon of the tab it leads to went on 2 October 2026, at the
-  // maintainer's word, as one more picture beside every link that said nothing.
+  // maintainer's word, as one more picture beside every link that meant nothing.
   const icon = o.icon || '';
   return '<button class="relChip" onclick="' + onclick + '"' +
     (o.title ? ' title="' + svEsc(o.title) + '"' : '') + '>' +
@@ -183,7 +183,7 @@ function relChip(o) {
 
 // What a resource is, in a word or two, for the second line of a chip:
 // "portrait", "zone script", "tile sheet". The gallery names are plural
-// and long; these are the same things said the way a caption says them.
+// and long; these are the same things worded the way a caption words them.
 const RESOURCE_KIND = { 0: 'symbols', 1: 'text', 2: 'store', 3: 'combat AI', 4: 'archetype table',
   7: 'group dialogue', 8: 'AI hook', 9: 'effect', 10: 'stub', 11: 'helper', 12: 'helper', 13: 'helper',
   14: 'helper', 15: 'object text', 16: 'object script', 19: 'zone script', 20: 'sub-zone script',
@@ -214,13 +214,13 @@ function svChip(resid, note, js) {
    Until 22 September 2026 this was a five-part essay -- the id large, the
    subindex's purpose, a grid of facts, "How this was read" in five steps and
    "How to read the decoded view" -- and none of it was ever on a screen:
-   the stylesheet said `#scriptView { display:none }` and this function set
+   the stylesheet had `#scriptView { display:none }` and this function set
    the inline display to '', which hands the element back to that rule. The
    stub-driven checks saw it built, since the stub reads no stylesheet. The
-   purpose line repeated the gallery's own caption just above it, the steps
+   purpose line repeated the gallery's caption just above it, the steps
    described the loader rather than this resource, and the legend named
    mnemonics (push_byte, call_method) the listing does not print; so what
-   came back is the part that says something about this one resource. */
+   came back is the part that shows something about this one resource. */
 function buildScriptView(o) {
   const host = document.getElementById('scriptView');
   if (!host) return;
@@ -242,7 +242,7 @@ function buildScriptView(o) {
      names, all below the code rather than above it (the maintainer, 23
      September 2026): the code is what the page is for, and a helper named by
      a hundred scripts pushed it a screen down on a phone. updateUsagePanel
-     leaves #artUsage empty for a script so the rows are not said twice. */
+     leaves #artUsage empty for a script so the rows are not shown twice. */
   const refs = document.getElementById('scriptRefs');
   if (!refs) return;
   let outs = [];
@@ -264,7 +264,7 @@ function buildScriptView(o) {
 // only when one resource actually names another. It is not how Cythera links
 // most behaviour together. Checked against this archive: all eight eating and
 // potion effect scripts in subindex 9 have ZERO inbound references -- nothing
-// anywhere holds their ids. Yet 0x0A06 plainly runs an effect ("You feel
+// anywhere has their ids. Yet 0x0A06 plainly runs an effect ("You feel
 // cooler.") and calls StatusEffect. The engine reaches these by method
 // dispatch, not by id.
 //
@@ -274,7 +274,7 @@ function buildScriptView(o) {
 // player sees. Searching the decoded scripts for that shared vocabulary is
 // what answers questions of the form "under what circumstances can one take
 // fire damage" -- the answer is the set of resources that talk about fire and
-// about damage, which is something no reference graph will tell you.
+// about damage, which is something no reference graph will show.
 DERIVED.SCRIPT_TEXT = null;
 
 function buildScriptTextIndex() {
@@ -327,7 +327,7 @@ function queueSearch() {
 }
 
 /* ---------------------------------------------------------------------------
-   Asking a question, answered from the tables the page already holds.
+   Asking a question, answered from the tables the page already has.
 
    The search finds text. A question is not a text search: "who teaches axe"
    is not a hunt for the word "axe", it is the training table filtered by
@@ -339,7 +339,7 @@ function queueSearch() {
 
    No model is involved and none is needed: every one of these is a filter.
    The same shapes are what a model would have to be handed anyway, so this
-   is the retrieval half built first and on its own.
+   is the retrieval half built first and by itself.
 --------------------------------------------------------------------------- */
 const ASK_SHAPES = [
   { id: 'teaches', re: /^(?:who|where can i|where do i)\s+(?:can\s+)?(?:teach(?:es)?|learn|train(?:s|ed)?(?:\s+in)?)\s+(?:me\s+)?(.+?)\??$/i,
@@ -544,13 +544,13 @@ function runSearch() {
     } catch (e) { host.innerHTML = '<div class="sv-warn">Not a valid pattern.</div>'; return; }
     const index = buildScriptTextIndex();
     // Names first: a prop type, a character, a zone, a tile or a resource
-    // called what was typed. "desk" used to return six scripts and never the
+    // called what was typed. "desk" once returned six scripts and never the
     // desk, because only script text was searched.
     let things = '';
     try { things = namedThingsMatching(re); } catch (e) { things = ''; }
     const hits = [];
     for (const entry of index) {
-      // Each hit keeps the offset of its line, read the way listingLineFor
+      // Each hit records the offset of its line, read the way listingLineFor
       // reads the raw listing -- the object's base from its header, the line's
       // own from its gutter -- so the hit can open the script ringed there.
       const lines = entry.text.split('\n');
@@ -560,7 +560,7 @@ function runSearch() {
         const h = /^(?:function )?obj_([0-9A-F]{4})\b/.exec(ln);
         if (h) base = parseInt(h[1], 16);
         const g = base >= 0 && /^  ([0-9A-F]{4})  /.exec(ln);
-        // The index keeps delvmod's names and the listing shows the
+        // The index stores delvmod's names and the listing shows the
         // program's (dvmShowSyscalls), so a line is found by either and
         // printed as it is shown.
         const shown = dvmShowSyscalls(ln, true);
@@ -637,7 +637,7 @@ function namedThingsMatching(re) {
 
 // --- Linked view -----------------------------------------------------------
 // The disassembly is honest but unreadable as a description of behaviour:
-// `call_resource 0x1806` tells you an address, not that the script is starting
+// `call_resource 0x1806` gives an address, not that the script is starting
 // Hector's conversation. Every piece needed to say so is already loaded --
 // labels, the character table, the cross-reference index -- it was just never
 // joined up at the point where a reference is printed.
@@ -646,7 +646,7 @@ function namedThingsMatching(re) {
 // that resolve to something real, and leaves everything it cannot prove
 // exactly as the raw view shows it. Numeric constants stay numeric constants:
 // a byte pushed before `sys PlaySound` is usually computed at runtime, so
-// guessing a sound name for it would be fiction.
+// inventing a sound name for it would be fiction.
 window.LAST_DECODED = null;
 
 function refDescription(rid) {
@@ -659,7 +659,7 @@ function refDescription(rid) {
   if (subn === 127 || subn === 19) return lbl ? 'the ' + lbl + ' zone' : 'a zone';
   if (lbl) return lbl;
   // Unnamed library routines are the most-called things in the archive, and
-  // how heavily they are shared says more than any name would.
+  // how heavily they are shared shows more than any name would.
   try {
     const ins = (buildXrefIndex().inbound[rid] || []).length;
     if (ins > 3) return (purpose ? purpose[0].toLowerCase() : 'routine') +
@@ -728,7 +728,7 @@ function renderLinked(text, resid, raw) {
   h = h.replace(/\bref 0x([0-9A-Fa-f]{4}):0x([0-9A-Fa-f]{4})/g, (m, r, off) => {
     const rid = parseInt(r, 16);
     // Most refs point back into the same resource. Linking those to where you
-    // already are, and captioning them with this resource's own category, was
+    // already are, and captioning them with this resource's category, was
     // pure noise -- they read as an offset instead.
     if (rid === resid) return '<span class="refself">+0x' + off + ' (here)</span>';
     return 'ref ' + refLink(rid) + ':0x' + off;
@@ -737,7 +737,7 @@ function renderLinked(text, resid, raw) {
     (m, hx) => 'Resource ' + refLink(parseInt(hx, 16)));
   return h;
 }
-// What a link in the folded views says on hover, since those have no room
+// What a link in the folded views shows on hover, since those have no room
 // for the note the raw listing prints after one.
 function refTitle(rid) {
   const hex = '0x' + rid.toString(16).toUpperCase().padStart(4, '0');
@@ -746,9 +746,9 @@ function refTitle(rid) {
 }
 
 /* Which of a script's views is showing: its words ('text'), its code
-   ('code', in whichever listing SCRIPT_FOLD says) or its bytes ('hex').
+   ('code', in whichever listing SCRIPT_FOLD selects) or its bytes ('hex').
 
-   It holds from one script to the next until the reader changes it, which is
+   It stays from one script to the next until the reader changes it, which is
    the maintainer's rule of 23 September 2026: before that every resource
    chose afresh, so reading the Hex of one AI action and pressing Next showed
    the code of the next. There are two memories, not one, because a script
@@ -775,7 +775,7 @@ function paintDecodedPane() {
      stood over no pane at all, the listing hidden behind a separate button.
      Linking is always on now, since it only annotates, and a script's
      readable strings are its Text; so the row is words, code three ways,
-     bytes. Everything else keeps the tab bar. */
+     bytes. Everything else has the tab bar. */
   const ls = document.getElementById('listingSwitch');
   const tabs = document.getElementById('viewTabs');
   const dlg = document.getElementById('dlgWrap');
@@ -789,8 +789,8 @@ function paintDecodedPane() {
   const hasText = !!(dlg && dlg.innerHTML);
   let which = window.SCRIPT_PANE;
   if (which === 'read') {
-    // The Read view: the functions said as sentences (dvmReadRender), worked
-    // out when first asked for and kept with the decode.
+    // The Read view: the functions written as sentences (dvmReadRender), worked
+    // out when first requested and kept with the decode.
     if (d.read === undefined) { try { d.read = d.resData ? dvmReadRender(ARCHIVE, d.resData, d.resid) : null; } catch (e) { quiet(e, 'the Read view'); d.read = null; } }
     if (!d.read || !d.read.length) which = 'code';
   }
@@ -829,11 +829,11 @@ function paintDecodedPane() {
 /* The Read view's HTML: each function's name and arguments, then its
    sentences as nested lists, each with the offset its statement has in the
    listings' gutter, so a "go to L0042" can be found and any line checked
-   against the code. A prose object is said as what it holds. */
+   against the code. A prose object is written as what it contains. */
 function readViewHtml(fns) {
   const hex4 = v => v.toString(16).toUpperCase().padStart(4, '0');
   // A prompt as the player types it and as the game stores it, as the
-  // conversation view says it (convIntendedFor).
+  // conversation view words it (convIntendedFor).
   const prompt = kw => kw === '*' ? 'When asked about anything else:' : 'When asked about ' + String(kw).split(',').map(k => {
     const w = typeof convIntendedFor === 'function' ? convIntendedFor(k) : [];
     return (w[0] || k).toUpperCase() + ' (' + k + ')';
@@ -852,12 +852,12 @@ function readViewHtml(fns) {
 
 /* A branch in a listing is a link to where it goes. In the structured and
    folded listings a target is a label, `goto L0042` or a switch's
-   `-> L0015, L0019`, and the label's own line (`L0042:`) is left alone; in the
+   `-> L0015, L0019`, and the label's line (`L0042:`) is left alone; in the
    raw one it is `then -> 0x0094`. Both are offsets into the resource, which is
    what the ring counts in (listingLineFor), so a tap rings the statement at
    the target and scrolls to it without leaving the page.
 
-   A `break` or `continue` in the structured listing names no label, so where
+   A `break` or `continue` in the structured listing has no label, so where
    it goes comes from the renderer (`exits`, by the offset in its gutter) and
    the word itself is the link: a break rings the statement after its loop, a
    continue the place the loop goes round. */
@@ -892,7 +892,7 @@ function ringListingAt(at) {
    gallery under Components > Graphics, and a detail view can point from one
    to the other.
 
-   A leaf names the galleries it holds by the <select>'s own values, which
+   A leaf gives its galleries by the <select>'s values, which
    stays the single source of truth for what is open; the tabs only choose.
    A leaf with several galleries shows them as a chip row under the tabs. The
    values every gallery had before are all still here, so no deep link broke.
@@ -924,7 +924,7 @@ const TAB_TREE = [
   { id: 'world', label: 'World', tile: 0x267, values: ['WORLD'] },   // the map of Cythera, the second of the two map tiles (the maintainer's pick, 9 September 2026)
   // The top row's three folders open when selected: chest, crate and book
   // each have a closed and an open frame, and `tileOpen` is the second.
-  { id: 'entities', label: 'Scenario', tile: 0x285, tileOpen: 0x284, children: [      // the large chest. Scenario is Delver's own word for the game's content, the SCEN the editor writes; the label was Entities, then Game, on 9 September 2026
+  { id: 'entities', label: 'Scenario', tile: 0x285, tileOpen: 0x284, children: [      // the large chest. Scenario is Delver's word for the game's content, the SCEN the editor writes; the label was Entities, then Game, on 9 September 2026
       /* The order is the maintainer's, 20 September 2026: the places first,
          then who is in them, then what is in them -- units, the things
          carried, every prop type, and the placed scenery assembled. */
@@ -945,7 +945,7 @@ const TAB_TREE = [
          It was one sheet of twenty-five folding sections under six headings
          until 14 September 2026, when the maintainer asked for a tab each and
          gave the order. The headings were already MECH_GROUPS, so a group
-         became a tab rather than a new idea: the group carries the tab's
+         became a tab rather than a new idea: the group has the tab's
          value and tile beside its title, and renderMechanicsSheet shows one
          group at a time. Nothing about a section changed -- the ids are the
          link targets and are untouched, which is what lets mechLink keep
@@ -962,22 +962,22 @@ const TAB_TREE = [
          egg does, what calls what, and the places the file does not add up.
          It was the seventh group on the Mechanics sheet.
 
-         Cheats is its second value rather than a tab of its own (it was under
-         Data > Cythera (App) until 14 September 2026). A leaf may carry
+         Cheats is its second value rather than a separate tab (it was under
+         Data > Cythera (App) until 14 September 2026). A leaf may have
          several values and syncTabsTo draws a chip for each, which is how
-         Misc holds three galleries -- so the tab is one tab with one icon,
+         Misc has three galleries -- so the tab is one tab with one icon,
          as asked, and the #c=CHEATS deep link still lands. */
       { id: 'hackery', label: 'Hackery', tile: 0x207, values: ['HACKERY', 'CHEATS'] } ] },   // the hatchet, the picture no class owns, the maintainer's pick, 16 September 2026; it was the strange device (0x266), which Puzzles wears now
   { id: 'components', label: 'Components', tile: 0x301, tileOpen: 0x300, children: [  // the crate
       { id: 'text', label: 'Text', tile: 0x4D5, children: [                                   // graffiti, the maintainer's pick, 16 September 2026; it was the tombstone's second frame (0x3AE)
           { id: 'labels',   label: 'Labels',   tile: 0x4B0, values: ['STRINGS'] },                          // a poster; the forks' string lists
-          // The dialogue box's own frame tile, which is what the program's
+          // The dialogue box's frame tile, which is what the program's
           // FrameBox draws round every bordered window -- so the tab wears the
           // thing a conversation is actually presented in, rather than a
           // picture of somebody talking (the maintainer, 13 September 2026;
           // it was the beggar 0x66B, and the fountain 0x389 before that).
           { id: 'dialogue', label: 'Dialogue', tile: 0x19D, values: ['23', '7'] },
-          // Writings is the game's OWN writing, which is subindex 1: the
+          // Writings is the game's writing, which is subindex 1: the
           // bookshelf histories and bestiaries, the prophecies, the scrolls
           // and letters, the signs, the gravestones and the ring
           // inscriptions, each an array a prop indexes with its Data1. It
@@ -993,15 +993,15 @@ const TAB_TREE = [
           // every script that sets one (buildBarkCatalogue).
           { id: 'barks',    label: 'Barks',    tile: 0x185, values: ['BARKS'] } ] },                          // the maintainer's pick, 8 September; it was the bell (0x488)
       // A schedule is something a character is MADE OF -- where they are at
-      // each hour -- rather than a thing in the scenario of its own, so it
+      // each hour -- rather than a separate thing in the scenario, so it
       // belongs here beside the other components a dossier chips into
       // (the maintainer, 13 September 2026). It was under Scenario.
       { id: 'schedules', label: 'Schedules', tile: 0x803, values: ['SCHEDULES'] },                           // the hourglass
       /* The tables a scenario is assembled from -- a unit's statistics, a
          character's record, the prop-tile table, every zone's prop list --
          are components in the same way a sprite sheet or a script is: the
-         thing that holds the fact, where the fork is the file that holds
-         the bytes. A figure on a Scenario page lands here on its own
+         thing the fact belongs to, where the fork is the file the bytes are
+         in. A figure on a Scenario page lands here on its
          record and the record links on to the fork (the maintainer,
          20 September 2026). */
       { id: 'records', label: 'Records', tile: 0x265, values: ['RECORDS'] },                                 // the magic map, the maintainer's pick, 27 September 2026; it was the tome (0x227)
@@ -1011,29 +1011,29 @@ const TAB_TREE = [
           // Sprites by prop type are the same tiles viewed by what wears them:
           // the components of what Scenario > Scenery shows whole, which is
           // why they are here and not there (the maintainer, 20 September
-          // 2026, after a day with a Props tab of its own).
+          // 2026, after a day with a separate Props tab).
           { id: 'tilesets',   label: 'Tilesets',   tile: 0x0D5, values: ['141', 'PROPS'] },    // the quartered blue floor
           // Misc is the archive's general graphics and, since 8 September
           // 2026, the whole screens in the resource fork beside them (the
           // title, the main menu and its parts, the DELVER stone, the paper
-          // doll), which had a tab of their own until then.
+          // doll), which had a separate tab until then.
           // 137 is the icons a skill or a spell wears, one 32x16 per class in
           // subindex 25. It was the one gallery in the archive that no tab
           // claimed (13 September 2026), so a chip pointing at a skill's icon
           // opened a gallery with no tab lit. It sits here rather than in a
-          // leaf of its own because naming and tiling a new tab is the
+          // separate leaf because naming and tiling a new tab is the
           // maintainer's call; an Icons leaf beside Portraits is the
           // alternative if this reads wrongly.
           { id: 'misc',       label: 'Misc',       tile: 0x2F1, values: ['142', '137', 'SCREENS'] } ] },  // the urn, second frame
       { id: 'audio', label: 'Audio', tile: 0x215, children: [                                 // the strange rod
           { id: 'music', label: 'Music', tile: 0x2BD, values: ['143'] },                                // a lute
-          { id: 'sfx',   label: 'SFX',   tile: 0x1B2, values: ['144', 'APPSND'] } ] },                  // the explosion, sheet 0x8E1B; the application's own sounds beside the file's
+          { id: 'sfx',   label: 'SFX',   tile: 0x1B2, values: ['144', 'APPSND'] } ] },                  // the explosion, sheet 0x8E1B; the application's sounds beside the file's
       { id: 'functions', label: 'Functions', tile: 0x3CB, children: [                         // a lever: pull it and something happens (prop 187)
           { id: 'actors',  label: 'Actions', tile: 0x572, values: ['47', '24', '3', '8', '25'] },   // the skill and spell classes (25) are here too, so a link to one has a tab                  // the fighter mid-swing: something that acts (prop 116)
           { id: 'objects', label: 'Objects', tile: 0x28B, values: ['16', '15'] },                             // a key: a thing that is used (prop 66)
           // The zone entry scripts, the sub-zone scripts, and the room
           // scripts that used to sit under Writings: 0x1Bxx and 0x1Cxx are
-          // rooms 1 to 511 and 0x1Exx is room 800, all of them a place's own
+          // rooms 1 to 511 and 0x1Exx is room 800, all of them a place's
           // script, which is what this tab is for.
           { id: 'places',  label: 'Places',  tile: 0x4A0, values: ['19', '20', '26', '27', '29'] },   // a signpost
           { id: 'effects', label: 'Effects', tile: 0x183, values: ['9'] },                              // the distiller's flasks: eating and potion effects (prop 233)
@@ -1044,7 +1044,7 @@ const TAB_TREE = [
   { id: 'data', label: 'Data', tile: 0x262, tileOpen: 0x263, last: 'cytheradata', children: [   // paper, and paper written on when open: the maintainer's pick, 16 September 2026; it was the red book (0x242, 0x243)
       /* The Data tabs wear the icons of the files themselves where the file
          has one (the maintainer, 14 September 2026). `finder` is the Finder
-         type whose icon the application's bundle carries, `crsr` a colour
+         type whose icon is in the application's bundle, `crsr` a colour
          cursor id in its resource fork; the tile beside each stays as the
          fallback, because the row is drawn long before any application is
          open and most visits never open one.
@@ -1054,9 +1054,9 @@ const TAB_TREE = [
          files are TEXT, which the bundle gives no icon at all -- the smoke
          pins that -- and the installer is a container rather than a Delver
          file type. Neither is a dead end once the installer is the thing
-         asked: it is a Macintosh application with a VIS3 bundle of its own,
-         and the folders inside it carry their own `Icon\r` files. */
-      // The VISE mark, out of the installer's own bundle; the DELVER stone,
+         asked: it is a Macintosh application with a VIS3 bundle,
+         and the folders inside it have `Icon\r` files. */
+      // The VISE mark, out of the installer's bundle; the DELVER stone,
       // the engine's badge, is what stands there before a file is open.
       { id: 'installer', label: 'Installer', tile: 0x80F, installed: 'vise', values: ['INSTALLER'] },
       { id: 'cytheradata', label: 'Cythera Data', tile: 0x282, finder: 'DelS', children: [    // a sack
@@ -1072,17 +1072,17 @@ const TAB_TREE = [
           //
           // Cheats was a third tab here until 14 September 2026 and is a value
           // of Hackery now, at the maintainer's word. It had to be removed
-          // rather than merely added there: TAB_LEAF_FOR keeps the FIRST leaf
+          // rather than merely added there: TAB_LEAF_FOR records the FIRST leaf
           // to claim a value, so leaving both would have bound CHEATS to
           // whichever came first in the tree and lit the wrong branch.
           { id: 'apprsrc', label: 'Resource Fork', tile: 0x238, crsr: 259, values: ['APPRSRC'] } ] },
       // The sheet of paper was chosen from 0xF004's name table rather than by
       // looking at a sheet of candidates, which is how every other icon here
       // was picked -- so it was the one to check on a screen. With the
-      // application open the tab wears the Finder's own icon for a saved game
+      // application open the tab shows the Finder's icon for a saved game
       // instead, and the tile is only what stands in before that.
       { id: 'savegame', label: 'Saved Game', tile: 0x263, finder: 'DelP', values: ['SAVEGAME'] },
-      // The game's settings file, a tab of its own since 27 September 2026
+      // The game's settings file, a separate tab since 27 September 2026
       // (it was a section of Tools). Its type is `pref`, and the bundle has
       // no icon for that: the Finder drew its generic preferences icon out of
       // the System. It wore the scratch file's `Temp` icon for an hour, and
@@ -1097,7 +1097,7 @@ const TAB_TREE = [
       // (the maintainer, 17 October 2026), and the ring, prop 307, before
       // an installer is open.
       { id: 'license', label: 'License', tile: 0x221, installed: 'app:Register Cythera', values: ['LICENSE'] },
-      // The folder's own icon, a folder with an axe across it, drawn in 1999
+      // The folder's icon, a folder with an axe across it, drawn in 1999
       // for these files and no others; the rolling pin stands in before a
       // file is open.
       { id: 'combatai', label: 'Combat AI', tile: 0x2D1, installed: 'CombatAI', wip: true, children: [
@@ -1159,8 +1159,8 @@ function syncInstallerTabs() {
 }
 
 // Every node learns its parent and depth, and every category value learns
-// which leaf holds it. A value in two leaves would make the tabs ambiguous,
-// so the first wins and the tree is written not to do that.
+// which leaf it is in. A value in two leaves would make the tabs ambiguous,
+// so the first is used and the tree is written not to do that.
 const TAB_BY_ID = new Map();
 const TAB_LEAF_FOR = new Map();
 (function indexTabTree(nodes, parent) {
@@ -1183,18 +1183,18 @@ function tabTrail(node) {
 
 // `spec` is either {tile} -- an exact tile id -- or {icon} -- a prop type,
 // whose fullest early frame is used.
-/* The application's own art for a tab: the Finder icon its bundle gives a file
+/* The application's art for a tab: the Finder icon its bundle gives a file
    type, or a colour cursor out of its resource fork. Null until the
    application is open, which is most of the time -- the tab row is drawn at
-   startup and the fork arrives later, if at all -- so every caller falls back
+   startup and the fork loads later, if at all -- so every caller falls back
    to the game tile named beside it. loadApplicationFork calls syncTabsTo once
    APP_RSRC is set, and that is what redraws the row with the real icons.
 
    Both go through rsrcArtifacts rather than the decoders directly, so a tab
-   icon and the same resource in the fork gallery can never disagree. */
+   icon and the same resource in the fork gallery can never differ. */
 function navIconFromFork(spec) {
   if (!spec || typeof spec !== 'object') return null;
-  // The installer's own icons come from the installer, which is open before
+  // The installer's icons come from the installer, which is open before
   // the application's fork is and sometimes instead of it.
   if (spec.installed) { try { const a = installerIcon(spec.installed); if (a) return a; } catch (e) { quiet(e); } }
   // Magpie's, remembered from a Magpie archive opened here, with or without
@@ -1267,14 +1267,14 @@ function renderTabRow(row, nodes, selectedId) {
     b.setAttribute('role', 'tab');
     b.setAttribute('aria-selected', n.id === selectedId ? 'true' : 'false');
     if (n.wip) b.title = 'Not yet linked to the rest; shows the raw view where there is one';
-    // The whole icon spec, not just the tile: a Data tab may name the file
+    // The whole icon spec, not just the tile: a Data tab may give the file
     // type or the cursor its picture comes from, with the tile as the
     // fallback for before the application is open.
     b.appendChild(navIconCanvas({ tile: (n.id === selectedId && n.tileOpen) ? n.tileOpen : n.tile, finder: n.finder, crsr: n.crsr, installed: n.installed, magpie: n.magpie }, 18));
     const t = document.createElement('span');
     t.textContent = n.label;
     b.appendChild(t);
-    // The count of edits, on the tab that holds Build a Patch's Patch
+    // The count of edits, on the tab with Build a Patch's Patch
     // Generator (it was on the Changes tab).
     if (n.id === 'tools') {
       const k = document.createElement('span');
@@ -1320,7 +1320,7 @@ function buildTabShell() {
   syncTabsTo(document.getElementById('categorySelect').value);
 }
 
-// Draw the rows and the chip row for the leaf that holds `v`, without
+// Draw the rows and the chip row for the leaf with `v`, without
 // changing what is open. pickCategory is this plus the change; parseArchiveBytes
 // is this alone, because it renders the gallery itself a moment later and the
 // gallery is the expensive part.
@@ -1330,7 +1330,7 @@ function syncTabsTo(v) {
   const leaf = TAB_LEAF_FOR.get(v);
   const path = [];
   for (let n = leaf; n; n = n.parent) path.unshift(n);
-  // Each branch remembers the tab it was on, so coming back to Components
+  // Each branch records the tab it was on, so coming back to Components
   // lands where you left it rather than on Text every time.
   for (let i = 0; i + 1 < path.length; i++) path[i].last = path[i + 1].id;
   if (leaf) leaf.lastValue = v;
@@ -1342,13 +1342,13 @@ function syncTabsTo(v) {
   const sel = document.getElementById('categorySelect');
   const have = new Set(Array.from(sel.options).map(o => o.value));
   // CHANGES lights Tools and has no chip: it opens the Patch Generator's
-  // Your Patch, which that page's own chip reaches (19 October 2026).
+  // Your Patch, which that page's chip reaches (19 October 2026).
   const vals = leaf ? leaf.values.filter(x => have.has(x) && x !== 'CHANGES') : [];
   const sub = document.getElementById('navSub');
   if (sub) {
-    /* A chip says the section's name and, smaller, its id range; the whole
+    /* A chip shows the section's name and, smaller, its id range; the whole
        label is its title. "Character Action Scripts (0x30xx)" put five chips
-       one to a line on a phone; the word Scripts says nothing where every
+       one to a line on a phone; the word Scripts means nothing where every
        section is scripts, and the range is for the reader who wants it
        (the maintainer, 23 September 2026). */
     const chipLabel = x => {
@@ -1361,7 +1361,7 @@ function syncTabsTo(v) {
       '<button class="navChip' + (x === v ? ' active' : '') + '" data-v="' + x +
       '" title="' + svEsc(optionLabel(x)) + '" onclick="pickCategory(\'' + x + '\')">' + chipLabel(x) + '</button>').join('') : '';
   }
-  // One line under the sections saying what the open one holds.
+  // One line under the sections describing what the open one contains.
   const note = document.getElementById('navSubNote');
   if (note) {
     const purpose = vals.length > 1 && SUBINDEX_PURPOSE[+v] ? SUBINDEX_PURPOSE[+v][1] : '';
@@ -1418,7 +1418,7 @@ function searchFor(q) {
 /* A count in a sentence that opens the things it counted, when no search
    query finds exactly them ("127 characters have alignment 0"). The caller
    hands over the chips, one per thing; the link opens the search panel on
-   that list, titled with the sentence's own words. Kept by title and size,
+   that list, titled with the sentence's words. Kept by title and size,
    so a sheet drawn again reuses its entry rather than adding one. */
 window.COUNT_LISTS = window.COUNT_LISTS || [];
 function countLink(label, title, chips) {

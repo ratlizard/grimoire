@@ -3,7 +3,7 @@
 // the roofs, walls and marks, the frame runs, the gallery filter, the map
 // landing and the deep links. These followed the galleries loop in the one
 // file until 18 September 2026 and were most of that part's time, so they
-// run on their own from a fresh boot (smoke_boot.mjs). Run alone with
+// run separately from a fresh boot (smoke_boot.mjs). Run alone with
 //   node utilities/viewer_smoke.mjs index.html "$TMPDIR/Cythera Data.data" "" <installers .sit> <saved game> views
 import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsrcPath, rsrcFork, missingIds,
          El, REGISTRY, catSel, optionSource, CATEGORY_VALUES, body, documentStub, rafQueue, drainRaf, sandbox,
@@ -22,7 +22,7 @@ for (const [name, call] of [
 }
 
 // The item browser reads a class script per prop type and joins it to the prop
-// lists; "the gallery rendered" says nothing about whether it found anything.
+// lists; "the gallery rendered" shows nothing about whether it found anything.
 try {
   ctx.showCategory('ITEMS');
   const list = ctx.inventoryItemList ? ctx.inventoryItemList() : null;
@@ -30,7 +30,7 @@ try {
   else {
     const weighed = list.filter(i => i.weight !== null).length;
     const placed = list.filter(i => i.instances > 0).length;
-    if (!weighed) fail('items', 'not one item carries a weight — is parseItemClass finding the table?');
+    if (!weighed) fail('items', 'not one item has a weight — is parseItemClass finding the table?');
     else if (!placed) fail('items', 'no item is placed anywhere — is buildItemIndex reading the prop lists?');
     else console.log(`  items: ${list.length} classes, ${weighed} with a weight, ${placed} placed in the world`);
     // The containment reading is what makes "placed" mean anything.
@@ -40,7 +40,7 @@ try {
     // The aspect rule, v1.31.0: art no class owns is read off the file --
     // named, drawn, no class's base, no class's state, in no prop list --
     // and the flail is the one the maintainer found by hand (mace at
-    // aspect 8, spear at aspect 2, tile 0x208). A mace's own page says so
+    // aspect 8, spear at aspect 2, tile 0x208). A mace's page states this
     // with the cheat's word for it.
     const orphans = ctx.orphanItemArt();
     const flail = orphans.find(o => o.name === 'flail');
@@ -49,29 +49,29 @@ try {
     const mace = list.find(i => i.name === 'mace');
     if (!flail || flail.tile !== 0x208 || !flail.reach.some(r => r.pt === 94 && r.aspect === 8 && r.word === 0x205E) || !flail.reach.some(r => r.pt === 100 && r.aspect === 2))
       fail('items', 'the flail is not read as art no class owns, reached by mace 8 and spear 2: ' + JSON.stringify(flail));
-    // The swing is the class's own list, read off its script: the mace plays
-    // three tiles of its own, the spear its own tile three times, and the
+    // The swing is the class's list, read off its script: the mace plays
+    // three tiles from its class, the spear its tile three times, and the
     // rolling pin, with no list, the outcome routine's default pair.
     else if (JSON.stringify((ctx.weaponSwingFrames(94) || {}).tiles) !== '[2211,2212,2213]' || !(ctx.weaponSwingFrames(94) || {}).own)
-      fail('items', 'the mace’s swing is not read as its own 0x8A3-0x8A5: ' + JSON.stringify(ctx.weaponSwingFrames(94)));
+      fail('items', 'the mace’s swing is not read as its 0x8A3-0x8A5: ' + JSON.stringify(ctx.weaponSwingFrames(94)));
     else if (JSON.stringify((ctx.weaponSwingFrames(100) || {}).tiles) !== '[518,518,518]')
-      fail('items', 'the spear’s swing is not its own tile three times: ' + JSON.stringify(ctx.weaponSwingFrames(100)));
+      fail('items', 'the spear’s swing is not its tile three times: ' + JSON.stringify(ctx.weaponSwingFrames(100)));
     else if (JSON.stringify((ctx.weaponSwingFrames(163) || {}).tiles) !== '[436,437]' || (ctx.weaponSwingFrames(163) || {}).own !== false)
       fail('items', 'the rolling pin does not fall back to the outcome routine’s default: ' + JSON.stringify(ctx.weaponSwingFrames(163)));
     else if (orphans.some(o => o.name === 'bread' || o.name === 'lit torch' || o.name === 'closed shutters'))
       fail('items', 'a placed variant or a scripted state is listed as an orphan: ' + orphans.map(o => o.name).join(', '));
     else if (!/Unused Art/.test(ihtml) || !/flail/.test(ihtml) || !/no item uses/.test(ihtml))
-      fail('items', 'the Items sheet does not list the art no class owns: ' + REGISTRY.get('output').textContent);
+      fail('items', 'the Items sheet does not show the art no class owns: ' + REGISTRY.get('output').textContent);
     else {
       ctx.showItemDetail(mace ? mace.pt : 94);
       const dhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
       if (!/0x205E/.test(dhtml) || !/flail/.test(dhtml) || !/plus 1,024 for each step of aspect/.test(dhtml)) fail('items', 'the mace’s page does not state the aspect rule with the flail and its word');
-      else console.log(`  items: ${orphans.length} pictures no class owns, the flail among them at mace 8 / spear 2; the mace’s page says 0x205E`);
+      else console.log(`  items: ${orphans.length} pictures no class owns, the flail among them at mace 8 / spear 2; the mace’s page gives 0x205E`);
       // The prop record block, v1.33.0: the rail's 32 slots, the readout at an
       // aspect, the other classes that reach the tile with the aspect each
       // needs, and the two bytes' meaning -- Data1 read off the outcome
       // routine as the enchantment, the sword classes' Examine lines found
-      // by their test, and the one placed sword that carries one.
+      // by their test, and the one placed sword that has one.
       const walk = el => (el.innerHTML || '') + (el.textContent || '') + (el.children || []).map(walk).join('');
       const pw = ctx.propWordRules();
       const st = ctx.__peek('DERIVED.PROP_WORD');
@@ -94,7 +94,7 @@ try {
           ctx.propWordData(1, '7');
           html = walk(REGISTRY.get('sheetGrid'));
           if (!/Data1 is the enchantment/.test(html) || !/counts as magical/.test(html) || !/then <b[^>]*>7<\/b> for Data1 \(in decimal\)/.test(html))
-            fail('items', 'the mace at Data1 7 does not say the byte is its enchantment and what the cheat asks for');
+            fail('items', 'the mace at Data1 7 does not show the byte as its enchantment and what the cheat prompts for');
           else {
             ctx.showItemDetail(95); ctx.propWordData(1, '3');
             html = walk(REGISTRY.get('sheetGrid'));
@@ -102,8 +102,8 @@ try {
             else if (!/never reads its aspect<\/b>: at any aspect it is the same dagger in every figure/.test(html)) fail('items', 'the dagger’s page does not say its class never reads the aspect');
             else if ((function () { ctx.renderItemSheet(); const h = walk(REGISTRY.get('sheetGrid')); return !/Weapons &amp; Armor<\/span><span class="groupNote">Anything used in a fight/.test(h) || !/Containers<\/span><span class="groupNote">Anything that contains other things/.test(h) || !/Carried Goods<\/span><span class="groupNote">Everything else you can pick up/.test(h); })()) fail('items', 'the Items dividers do not say what puts an item under each');
             else if ((function () { ctx.showItemDetail(213); ctx.propWordSet(1); const h = walk(REGISTRY.get('sheetGrid')); return !/reads its aspect<\/b> \(2 places\)/.test(h) || !/Eaten, it feeds <b[^>]*>\+8<\/b> and the eater says “Yetch!”/.test(h); })()) fail('items', 'the mushroom steak at aspect 1 does not show its class reads the aspect, what the dried jellyfish feeds and what the eater says');
-            else if ((function () { ctx.showItemDetail(0x1F); ctx.propWordSet(4); const h = walk(REGISTRY.get('sheetGrid')); return !/Drunk, it is the <b[^>]*>Antidote Potion<\/b>: clears Poisoned/.test(h); })()) fail('items', 'the potion at aspect 4 does not name the Antidote');
-            else console.log(`  items: the word block reads the mace at 8 as 0x205E the flail, the spear reaches it at 2; Data1 is the enchantment (${pw.scripts} scripts read the bytes, ${pw.readers.length} classes), one placed sword carries 7`);
+            else if ((function () { ctx.showItemDetail(0x1F); ctx.propWordSet(4); const h = walk(REGISTRY.get('sheetGrid')); return !/Drunk, it is the <b[^>]*>Antidote Potion<\/b>: clears Poisoned/.test(h); })()) fail('items', 'the potion at aspect 4 does not show the Antidote');
+            else console.log(`  items: the word block reads the mace at 8 as 0x205E the flail, the spear reaches it at 2; Data1 is the enchantment (${pw.scripts} scripts read the bytes, ${pw.readers.length} classes), one placed sword has 7`);
           }
         }
       }
@@ -155,12 +155,12 @@ if (!rsrcFork) {
       // The gallery, and a detail view reachable by URL.
       ctx.showCategory('RSRC');
       const galleryText = REGISTRY.get('output').textContent || '';
-      if (!/Resource fork: /.test(galleryText)) fail('resource fork', 'gallery said: ' + galleryText.slice(0, 80));
+      if (!/Resource fork: /.test(galleryText)) fail('resource fork', 'gallery showed: ' + galleryText.slice(0, 80));
       /* The displacement filters (25 September 2026): seven FILT resources
          read as a period, a colour set and frames of offsets, each joined to
          the tiles 0xF016 names for it. FILT 128 is the water: six frames,
          stepped every tick, 28 colours, on the 72 water and shore tiles;
-         FILT 132 is on no tile. The sheet carries a card each. */
+         FILT 132 is on no tile. The sheet has a card each. */
       const filters = ctx.rsrcDisplacementFilters();
       const f128 = filters.find(f => f.entry.id === 128), f132 = filters.find(f => f.entry.id === 132);
       const sheetHtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
@@ -168,7 +168,7 @@ if (!rsrcFork) {
       else if (!f128 || f128.period !== 0 || f128.frames !== 6 || f128.mask.length !== 28 || f128.tiles.length !== 72 || !f128.tiles.every(t => /^(water|shore)$/.test(ctx.terrainNameFor(t) || '')))
         fail('displacement filters', 'FILT 128 is not the water filter: ' + JSON.stringify(f128 && [f128.period, f128.frames, f128.mask.length, f128.tiles.length]));
       else if (!f132 || f132.tiles.length !== 0 || f132.period !== 1 || f132.frames !== 8) fail('displacement filters', 'FILT 132 is not the unused eight-frame filter: ' + JSON.stringify(f132 && [f132.period, f132.frames, f132.tiles.length]));
-      else if (!/Displacement filters/.test(sheetHtml) || !/shore ×64/.test(sheetHtml) || (sheetHtml.match(/FILT \d+/g) || []).length < 7) fail('displacement filters', 'the sheet does not carry a card for each filter with its tiles');
+      else if (!/Displacement filters/.test(sheetHtml) || !/shore ×64/.test(sheetHtml) || (sheetHtml.match(/FILT \d+/g) || []).length < 7) fail('displacement filters', 'the sheet does not have a card for each filter with its tiles');
       else console.log(`  displacement filters: 7 read; 128 ripples ${f128.tiles.length} water and shore tiles over ${f128.mask.length} colours in ${f128.frames} frames, 132 is on no tile, and the sheet shows each`);
       const stamp = list.find(i => i.type === 'eSTM');
       ctx.location.hash = `#c=RSRC&d=rsrc:eSTM:${stamp.entry.id}`;
@@ -195,14 +195,14 @@ if (!rsrcFork) {
                        `${undecoded} with no decoder for their type`);
       ctx.showCategory('MACRSRC');
       const macText = REGISTRY.get('output').textContent || '';
-      if (!/resource fork: /.test(macText)) fail('mac resources', 'gallery said: ' + macText.slice(0, 80));
+      if (!/resource fork: /.test(macText)) fail('mac resources', 'gallery showed: ' + macText.slice(0, 80));
       // Grouped by kind: a heading per kind that has members, in the
       // table's order, and every type in the fork accounted for.
       const heads = (REGISTRY.get('sheetGrid').children || []).filter(c => c.className === 'propHead').map(c => c.textContent);
       if (heads.length < 5) fail('mac resources', 'the fork gallery is not grouped by kind: ' + heads.join(' / '));
       else console.log('  mac resources: grouped as ' + heads.map(h => h.split(' (')[0]).join(', '));
-      // The page's own face, from the file: sfntToTrueType has run on the
-      // fork's sfnt and produced a font with the table a browser insists on.
+      // The page's face, from the file: sfntToTrueType has run on the
+      // fork's sfnt and produced a font with the table a browser requires.
       const ttf = ctx.GAME_FONT_TTF;
       if (!ttf || !ttf.length) fail('game font', 'no TrueType was made from the fork: ' + ctx.GAME_FONT_STATE);
       else {
@@ -218,7 +218,7 @@ if (!rsrcFork) {
         if (!tags.includes('OS/2') || !tags.includes('glyf') || !sorted || !unicode) fail('game font', 'tables ' + tags.join(' ') + (unicode ? '' : ', no Unicode cmap'));
         else console.log(`  game font: ${ttf.length} bytes, ${n} tables in order, OS/2 and a Unicode cmap added`);
       }
-      // The editor's zone list, out of STR# 135, names the maps the scripts
+      // The editor's zone list, out of STR# 135, gives names to the maps the scripts
       // only describe -- and by the map number, not the list index.
       const ez = ctx.loadEditorZoneNames();
       if (ez[3] !== 'LKH' || !/Tomb/.test(ez[25] || '') || ez[1] !== 'World')
@@ -230,7 +230,7 @@ if (!rsrcFork) {
         ctx.showCategory(v);
         const cells = (REGISTRY.get('sheetGrid').children || []).filter(c => c.className === 'cell').length;
         const txt = REGISTRY.get('output').textContent || '';
-        if (!cells || !/Cythera Data/.test(txt)) fail('fork view ' + v, cells + ' cells; said: ' + txt.slice(0, 90));
+        if (!cells || !/Cythera Data/.test(txt)) fail('fork view ' + v, cells + ' cells; showed: ' + txt.slice(0, 90));
       }
       const pict = ctx.macRsrcList(fork).find(i => i.type === 'PICT');
       ctx.location.hash = `#c=MACRSRC&d=macrsrc:PICT:${pict.entry.id}`;
@@ -294,7 +294,7 @@ try {
   ctx.toggleWalls(true);
 } catch (e) { fail('walls', e); }
 
-// Map marks: rings sit on the record's own square, exits include the open
+// Map marks: rings sit on the record's square, exits include the open
 // edges the map header declares, and a rope square is found where there is one.
 try {
   ctx.showCategory('127');
@@ -336,12 +336,12 @@ try {
   ctx.inspectMapSquare(41, 12);
   ctx.clearMapInspector();
   if (ctx.MAP_SEL) fail('map selection', 'closing the inspector left the selection behind');
-  if (ctx.MAP_SEL_MEMORY[0x8003]) fail('map selection', 'closing the inspector did not forget the square');
+  if (ctx.MAP_SEL_MEMORY[0x8003]) fail('map selection', 'closing the inspector did not clear the square');
   console.log('  map selection: set, remembered across a map switch, and cleared on close');
 } catch (e) { fail('map selection', e); }
 
 // A frame block ends at the next prop type's base tile in the sheet (the
-// prop-tile table's own boundary, since 20 September 2026), not at the
+// prop-tile table's boundary, since 20 September 2026), not at the
 // sheet's end: prop 0x141 is four crystal balls, and the board, the staves
 // and the paintings after them on the sheet are other prop types' frames.
 // Until then the block ran to the sheet's end and this pinned the four runs
@@ -356,15 +356,15 @@ try {
     fail('frame runs', `0x141 came out as ${names}`);
   const own = ctx.framesSharingName(base, ctx.spriteFrameInfo(0, 0x141).present);
   // The hydra's arms (0x116) run over two sheets: the arm class's block is
-  // the eight arms' four frames each, and the body's (0x117) is its own.
+  // the eight arms' four frames each, and the body's (0x117) is separate.
   const arms = ctx.spriteFrameInfo(0, 0x116), body = ctx.spriteFrameInfo(0, 0x117);
   if (ctx.spriteBlockSize(0x116) !== 32 || arms.present.length !== 32) fail('frame blocks', 'the hydra’s arm class owns ' + ctx.spriteBlockSize(0x116) + ' frames, ' + arms.present.length + ' present, not 32');
   else if (ctx.spriteBlockSize(0x117) > 16) fail('frame blocks', 'the hydra’s body class runs past its sheet');
   // And the program is read for it once. Until 27 September 2026 every
-  // prop type's frame count asked exeMonsterKinds of every other prop type
+  // prop type's frame count called exeMonsterKinds for every other prop type
   // and the program was read again each time: the Props tab drew in half a
   // minute here and in about as long on the maintainer's phone. With the
-  // arm table and the program's own answers dropped, drawing Props must
+  // arm table and the program's answers dropped, drawing Props must
   // read CreateMonster exactly once: none would mean the path was not
   // taken, and more that something stopped keeping the answer.
   {
@@ -378,10 +378,10 @@ try {
     else if (reads !== 1) fail('frame blocks', 'drawing Props read the monster kinds off the program ' + reads + ' times, not once');
     else console.log('  frame blocks: the hydra’s arm class owns 32 frames and its body 16 or fewer, and Props reads the monster kinds off the program once');
   }
-  if (own.length !== 4) fail('frame runs', `0x141 claimed ${own.length} frames of its own`);
+  if (own.length !== 4) fail('frame runs', `0x141 claimed ${own.length} frames`);
   const cols = ctx.distinguishingColours(base, own);
   if (!cols || new Set([...cols.values()]).size < 3)
-    fail('frame runs', 'the four crystal balls were not told apart by colour');
+    fail('frame runs', 'the four crystal balls were not distinguished by colour');
   console.log(`  frame runs: 0x141 -> ${names}; balls are ${[...cols.values()].join(', ')}`);
 } catch (e) { fail('frame runs', e); }
 
@@ -423,10 +423,10 @@ try {
       if (html.includes('Dossier')) withPeople++;
     }
   }
-  // v1.45.0: a link that names a coordinate lands on it -- centred, ringed,
+  // v1.45.0: a link that points at a coordinate lands on it -- centred, ringed,
   // and zoomed to a legible square -- once the map has settled, whichever
   // path opened it. The stub queues animation frames without running them,
-  // so the opener's stamp never arrives here and the landing takes the
+  // so the opener's stamp never comes here and the landing follows the
   // fallback wait, which is the case a map opened by another path is in.
   {
     ctx.showSquareOnMap(0x8001, 10, 12);
@@ -438,8 +438,8 @@ try {
     else console.log(`  map landing: 0x8001 (10,12) ringed at ${Math.round(sc * cm.TS)} px a square`);
   }
   // v1.48.0: a grid on the Zones tab, drawn on the mark layer.
-  // The mark layer is drawn for the landing's ring whatever the grid says,
-  // so the check counts the grid's own line starts: a square edge per row
+  // The mark layer is drawn for the landing's ring whatever the grid shows,
+  // so the check counts the grid's line starts: a square edge per row
   // and column when it is on, none of them when it is off.
   {
     const cm = ctx.__peek('window.CUR_MAP');
@@ -456,11 +456,11 @@ try {
     else console.log('  map grid: ' + (on - off) + ' line starts over ' + Math.round(cm.width / cm.TS) + 'x' + Math.round(cm.height / cm.TS) + ' squares, none with it off');
   }
   if (!mapsWithProps) fail('map inspector', 'no map reported any props');
-  else if (named !== probes) fail('map inspector', `${probes - named} of ${probes} squares did not name their prop`);
+  else if (named !== probes) fail('map inspector', `${probes - named} of ${probes} squares did not show their prop`);
   else console.log(`  map inspector: ${probes} prop squares on ${mapsWithProps} maps, all named`);
 
   // Characters stand where their schedule puts them, which is not where the
-  // prop list puts anything, so they need their own probe.
+  // prop list puts anything, so they need a separate probe.
   let peopleProbes = 0, peopleNamed = 0, peopleFaced = 0;
   for (const [resid] of maps) {
     ctx.openResource(resid);
@@ -506,7 +506,7 @@ try {
     const d = ctx.DETAIL_VIEW;
     if (!d || d.kind !== 'char' || d.id !== 3) fail('deep link', 'dossier state is ' + JSON.stringify(d));
   }
-  // Arriving on a link: the archive load itself must honour the hash the page
+  // Landing on a link: the archive load itself must honour the hash the page
   // was opened with, not the default category it renders on the way in.
   ctx.location.hash = '#c=144&r=9103';
   ctx.parseArchiveBytes(archive, 'Cythera Data (arrived on a link)', { via: 'data fork' });
@@ -543,7 +543,7 @@ try {
   const first = (ctx.CUR_RESIDS || [])[0];
   if (!first) fail('listing toggle', 'no resource in a script category to open');
   else {
-    /* Hide it first and require opening a script to reveal it. The markup says
+    /* Hide it first and require opening a script to reveal it. The markup has
        `display:none` but the DOM stub does not parse an inline style attribute,
        so a fresh element reads as `''` and a test for `'none'` can never fire --
        which it did not: deleting the line in paintDecodedPane that shows the
@@ -580,10 +580,10 @@ try {
       if (raw === structured) fail('listing toggle', 'the structured listing is identical to the raw one');
 
       /* And it must be out of sight for a resource that is not a script, or it
-         is a control over nothing. Effective visibility, not its own `display`:
+         is a control over nothing. Effective visibility, not its `display`:
          a tile sheet hides the whole `#textPreview` around it, which is how the
          `Show as` switch beside it has always gone away, and asserting the inner
-         element's own style reported a fault that was not one. */
+         element's style reported a fault that was not one. */
       ctx.showCategory('141');
       const tile = (ctx.CUR_RESIDS || [])[0];
       if (tile) {
@@ -602,7 +602,7 @@ try {
  *
  *   - Leaving the World for a numbered gallery gives the panel back. The
  *     category change drew the gallery without passing setMode, which is
- *     where the atlas used to be put away, so the tab lit and the world stayed
+ *     where the atlas was once put away, so the tab lit and the world stayed
  *     on screen. The sentinel is set here because the stub reads no stylesheet
  *     and no inline style attribute: without it `display` is '' whatever the
  *     page does, and the assertion could not fail.
@@ -626,10 +626,10 @@ try {
   const shown = id => ctx.document.getElementById(id).style.display !== 'none';
   ctx.setScriptFold(false);
   ctx.showCategory('25');                        // Functions > Actions, the skills and spells
-  ctx.openResource(0x1A13);                      // Awaken, which has words of its own
+  ctx.openResource(0x1A13);                      // Awaken, which has words to show
   if (!shown('textContent') || shown('dlgWrap'))
     fail('script page', 'a script under Functions does not open on its code');
-  if (shown('viewTabs')) fail('script page', 'a script shows the Decoded / Strings / Hex bar beside its own row');
+  if (shown('viewTabs')) fail('script page', 'a script shows the Decoded / Strings / Hex bar beside its row');
   if (!ctx.document.getElementById('dlgWrap').innerHTML) fail('script page', 'Awaken has no Text to switch to');
   ctx.setScriptPane('text');
   if (shown('textContent') || !shown('dlgWrap')) fail('script page', 'the Text button does not show the words');
@@ -655,9 +655,9 @@ try {
   ctx.jumpToResource(0x1A13);
   if (!/>CastSpell<\/a>/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the structured listing does not link a named call (CastSpell)');
-  /* The view holds from one script to the next until changed (23 September
+  /* The view stays from one script to the next until changed (23 September
      2026), and separately where scripts are read for their words: Hex chosen
-     among the Functions carries to the next AI action and not to a
+     among the Functions carries over to the next AI action and not to a
      conversation, which opens on its words. */
   ctx.jumpToResource(0x180B);
   ctx.setScriptPane('text');       // a choice made under Text, which Structured above changed
@@ -708,8 +708,8 @@ try {
   /* A number the file or the page can name is named in a comment at the end of
      its line: a sound, with a link to it; a To Do line, read in the array
      AddQuest points into (Ake, 0x1820, has slot 10 show line 114, which is
-     the scenario's own slip); a status flag. And a negative byte is printed as the
-     negative number it is, as the raw listing's note says. */
+     the scenario's slip); a status flag. And a negative byte is printed as the
+     negative number it is, as the raw listing's note shows. */
   ctx.jumpToResource(0x1A00);
   const t1A00 = ctx.document.getElementById('textContent').innerHTML;
   if (!/PlaySound\(48, [^\n]*\/\/ sound 48[^\n]*jumpToResource\(37168\)/.test(t1A00))
@@ -736,7 +736,7 @@ try {
   /* A member read is named (`class_member 0x3400` is Lockable's first word),
      a resource that is one function is headed with the name its callers use,
      and not linked to itself, and a helper the raw listing leaves as an id is
-     called by its id, as a link: 0x98C calls 0xF13. The page's own name for
+     called by its id, as a link: 0x98C calls 0xF13. The page's name for
      that helper (IsMet) was written by hand, and these listings name nothing
      the game's files do not (the maintainer's rule of 22 September 2026). */
   ctx.jumpToResource(0xE49);
@@ -772,7 +772,7 @@ try {
   } else fail('script page', 'a search hit for EquipmentIterator is not a link to its line');
 
   /* A gallery read for its code is a list of rows: name, id, and what the
-     code calls. The row keeps .lbl and .resid, which the filter reads. */
+     code calls. The row has .lbl and .resid, which the filter reads. */
   ctx.showCategory('8');
   const grid = ctx.document.getElementById('sheetGrid');
   const rows = grid.children.filter ? grid.children.filter(c => /scriptRow/.test(c.className)) : [];
@@ -855,7 +855,7 @@ try {
    only the table makes its square one the animation repaints (Land King
    Hall's fountains stand in water and cannot show that); drawn at phase 2 it
    is 0x388. The control is the same draw with no phase, which a gallery
-   makes: the tile's own art. */
+   makes: the tile's art. */
 try {
   const tab = ctx.tileAnimTable(), f = tab.get(0x386);
   const r = ctx.renderMapUncached(0x8008).result;
@@ -898,9 +898,9 @@ try {
   else console.log('  barks: ' + by.size + ' characters speak their own lines; ' + ctx.characterName(vendor[0]) + ' says "' + one[0] + '", character ' + silent + ' nothing');
 } catch (e) { fail('barks', e); }
 
-/* The letter a key wears (itemLetter). The class's member 40 bit 0x04 says
+/* The letter a key wears (itemLetter). The class's member 40 bit 0x04 sets
    it can wear one, and byte 6 of the record which: 'A' plus the byte. The
-   keys in the scenario wear letters and each key ring label says its own;
+   keys in the scenario wear letters and each key ring label shows its letter;
    a record of a class without the bit wears none, whatever its byte 6. */
 try {
   const { keys } = ctx.buildKeyLockIndex();
@@ -908,19 +908,19 @@ try {
   const k = lettered[0];
   const n = k ? (k.rec.d3 >> 8) & 0xFF : 0;
   const plain = Object.assign({}, k ? k.rec : {}, { proptype: 1 });
-  if (!ctx.classWearsLetter(66)) fail('key letters', 'the key class does not carry member 40 bit 0x04');
+  if (!ctx.classWearsLetter(66)) fail('key letters', 'the key class does not have member 40 bit 0x04');
   else if (lettered.length < keys.length / 2) fail('key letters', 'only ' + lettered.length + ' of ' + keys.length + ' keys wear a letter');
   else if (ctx.itemLetter(k.rec) !== String.fromCharCode(65 + n)) fail('key letters', 'a key with byte 6 = ' + n + ' wears ' + ctx.itemLetter(k.rec));
-  else if (!ctx.keyLabel(k).includes(' ' + ctx.itemLetter(k.rec) + ' ')) fail('key letters', 'the key ring says ' + ctx.keyLabel(k));
+  else if (!ctx.keyLabel(k).includes(' ' + ctx.itemLetter(k.rec) + ' ')) fail('key letters', 'the key ring reads ' + ctx.keyLabel(k));
   else if (ctx.classWearsLetter(1) || ctx.itemLetter(plain)) fail('key letters', 'prop type 1 wears a letter');
   else console.log('  key letters: ' + lettered.length + ' of ' + keys.length + ' keys wear one, ' +
                    [...new Set(lettered.map(x => ctx.itemLetter(x.rec)))].sort().join(''));
 } catch (e) { fail('key letters', e); }
 
 /* The Read view (dvmReadRender, readViewHtml): a script's functions as
-   sentences in the script page's own pane, and the listings back when
+   sentences in the script page's pane, and the listings back when
    Structured is chosen. Awaken (0x1A13) clears flag 22 on its target and
-   prints that it is awoken; both must be said. */
+   prints that it is awoken; both must be written. */
 try {
   ctx.jumpToResource(0x1A13);
   ctx.setScriptPane('read');
@@ -929,9 +929,9 @@ try {
   ctx.setScriptFold('structured');
   const back = REGISTRY.get('textContent').innerHTML;
   if (!on || !/readList/.test(read)) fail('read view', 'the Read view did not show on a script');
-  else if (!/Remove ability the target, 22/i.test(read) || !/is awoken/.test(read)) fail('read view', 'Awaken\'s UseOn is not said: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 200));
-  // A method's first argument is the thing it belongs to, said "it"; a
-  // behaviour the game's own Look text names is said with that word; and
+  else if (!/Remove ability the target, 22/i.test(read) || !/is awoken/.test(read)) fail('read view', 'Awaken\'s UseOn is not written: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 200));
+  // A method's first argument is the thing it belongs to, written "it"; a
+  // behaviour the game's Look text names is written with that word; and
   // each function heads with what it does.
   else if (!/UseOn\(it, the target\)/.test(read) || !/145 \(sleeping\)/.test(read) || !/readSum">Cast spell FX, play sound, remove ability/i.test(read))
     fail('read view', 'Awaken is not read with "it", the behaviour\'s word or its summary: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 300));
@@ -941,9 +941,9 @@ try {
   // assignment to Arg01 in the listing and to the target in the Read view.
   else if (!/Arg01 = Character\(Arg01\)/.test(back.replace(/<[^>]+>/g, '')) || !/set the target to the target as character/i.test(read.replace(/<[^>]+>/g, '')))
     fail('read view', 'an assignment to an argument is not spelt as one: ' + (/set [^<]{0,80}as character/.exec(read) || [read.slice(read.indexOf('awoken'), read.indexOf('awoken') + 400)])[0]);
-  else console.log('  read view: Awaken said in sentences, "it" for what the method belongs to, 145 as sleeping by the game\'s own Look text, a summary at its head; Structured brings the listing back');
+  else console.log('  read view: Awaken written in sentences, "it" for what the method belongs to, 145 as sleeping by the game\'s Look text, a summary at its head; Structured brings the listing back');
 } catch (e) { fail('read view', e); }
-/* A conversation read in full: Aethon's Talk says each answer under the
+/* A conversation read in full: Aethon's Talk shows each answer under the
    prompt as the player types it and as the game stores it, and the test
    inside an answer as a clause; a UseOn's second argument is the target. */
 try {
@@ -968,7 +968,7 @@ try {
    findPath, keepApart). Cademia's portcullis at (52,35) is flagged 0x80 --
    raised -- so the engine neither draws it nor stops at it; the page did
    both, and Naxos could not reach the hall behind it. The control is the
-   same leg with the 0x80 record counted: it does not arrive. */
+   same leg with the 0x80 record counted: it does not reach the end. */
 try {
   const e = ctx.renderMapUncached(0x8008), m = e.result.m, W = m.width;
   ctx.CUR_MAP = { resid: 0x8008, level: 8, m };
@@ -996,11 +996,11 @@ try {
   const two = [{ walking: false, x: 5, y: 5 }, { walking: true, x: 5, y: 5, pi: 2, dir: 1, base: 0, path: [[3, 5], [4, 5], [5, 5]] }];
   ctx.keepApart(two);
   if (crossed) fail('walking', crossed + ' squares of Cademia\'s routes are blocked ones');
-  else if (reached < legs * 0.9) fail('walking', 'only ' + reached + ' of ' + legs + ' of Cademia\'s legs arrive');
+  else if (reached < legs * 0.9) fail('walking', 'only ' + reached + ' of ' + legs + ' of Cademia\'s legs get there');
   else if (port) fail('walking', 'the raised portcullis at (52,35) is drawn');
   else if (!naxos.reached || shut.reached) fail('walking', 'Naxos\'s way to the hall does not turn on the portcullis: open ' + naxos.reached + ', shut ' + shut.reached);
   else if (two[1].x !== 4) fail('walking', 'a walker stepped onto a square somebody stands on');
-  else console.log('  walking: ' + reached + ' of ' + legs + ' of Cademia\'s legs arrive, none through a blocked square; the raised portcullis is not drawn and not in the way; a walker waits behind someone standing');
+  else console.log('  walking: ' + reached + ' of ' + legs + ' of Cademia\'s legs get there, none through a blocked square; the raised portcullis is not drawn and not in the way; a walker waits behind someone standing');
 } catch (e) { fail('walking', e); }
 
 /* Hidden ways, 23 September 2026 (mapEggWays, ravineWayAt). A secret or
@@ -1021,7 +1021,7 @@ try {
 
 /* What characters carry, 23 September 2026 (carriedByCharacter): Deiphobus
    (14) carries a mace, a cloak, a leather helmet, a cuirass and a round
-   shield in the shipped file, and his dossier says so. Alaric carries
+   shield in the shipped file, and his dossier shows it. Alaric carries
    nothing, which is the control. */
 try {
   const names = ctx.carriedByCharacter(14).map(it => ctx.propDisplayName(it.pt, ctx.getPropTileList()[it.pt] + it.aspect));
@@ -1030,9 +1030,9 @@ try {
   // text and not markup; both are gathered.
   const html = (function all(el) { return (el.innerHTML || '') + ' ' + ((el.children || []).length ? '' : (el.textContent || '')) + ' ' + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!names.includes('mace') || !names.includes('round shield')) fail('carries', 'Deiphobus does not carry his mace and shield: ' + JSON.stringify(names));
-  else if (!/Equipped|Carried/.test(html) || !/mace/.test(html)) fail('carries', 'his dossier does not say what he wears and carries');
+  else if (!/Equipped|Carried/.test(html) || !/mace/.test(html)) fail('carries', 'his dossier does not show what he wears and carries');
   else if (ctx.carriedByCharacter(14).some(it => it.equipped) !== /Equipped/.test(html)) fail('carries', 'his dossier’s Equipped group does not follow whether he has anything equipped');
   else if (ctx.carriedByCharacter(14).some(it => !it.equipped) !== /Carried/.test(html)) fail('carries', 'his dossier’s Carried group does not follow whether he carries anything unequipped');
   else if (ctx.carriedByCharacter(2).length) fail('carries', 'Alaric carries something');
-  else console.log('  carries: Deiphobus\'s dossier lists ' + names.join(', ') + '; Alaric carries nothing');
+  else console.log('  carries: Deiphobus\'s dossier shows ' + names.join(', ') + '; Alaric carries nothing');
 } catch (e) { fail('carries', e); }

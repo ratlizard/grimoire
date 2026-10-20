@@ -15,7 +15,7 @@
 /* ---------------------------------------------------------------------------
    Getting the archive open
    ---------------------------------------------------------------------------
-   There used to be exactly one way in: fetch one hardcoded raw.githubusercontent
+   There was once exactly one way in: fetch one hardcoded raw.githubusercontent
    URL. No network meant no app, and the file that ships beside this one --
    `sources/Cythera Data.hqx` -- could not be opened by hand either, because a
    BinHex file is ASCII and the ASCII went straight into parseArchiveBytes.
@@ -32,7 +32,7 @@
 --------------------------------------------------------------------------- */
 
 // Every derived table is keyed to the archive that is open, so loading a
-// different (or modded) Cythera Data has to drop the lot. The list used to be
+// different (or modded) Cythera Data has to drop the lot. The list was once
 // written out inline in parseArchiveBytes and had drifted: nine caches were
 // missing from it, including the tile bitmaps, the character table and the
 // schedules -- so a second archive was drawn with the first one's sprites and
@@ -75,8 +75,8 @@ function resetDerivedCaches() {
   window.SAVE_BESIDE = null;
   window.CUR_MAP = null;
   // Not a memoisation, but keyed to the open file all the same: which
-  // resources this session has edited. applyResourceEdit carries it across
-  // its own rebuild by hand; any other arrival here is a different archive
+  // resources this session has edited. applyResourceEdit copies it across
+  // its rebuild by hand; anything else loaded here is a different archive
   // and the dirty list must not outlive the bytes it described.
   window.EDITED_RESIDS = new Set();
   /* The tables js/delv-*.js build from the archive -- the portrait corpus
@@ -119,7 +119,7 @@ function setStatus(msg, failed) {
 }
 
 // --- Remembering the archive between visits --------------------------------
-// IndexedDB is refused on some file:// origins, so every call degrades to a
+// IndexedDB is blocked on some file:// origins, so every call degrades to a
 // no-op rather than blocking the load.
 const ARCHIVE_DB = 'cythera-viewer', ARCHIVE_STORE = 'archive', ARCHIVE_KEY = 'current';
 /* A second object store, 'handoff', is created alongside the archive's. It
@@ -134,7 +134,7 @@ function idbOpen() {
     catch (e) { reject(e); return; }
     // Version 1 had only the archive store, and a visitor who has been here
     // before is still on it. Creating each store only when it is absent means
-    // an upgrade from either version arrives at the same shape.
+    // an upgrade from either version ends at the same shape.
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(ARCHIVE_STORE)) db.createObjectStore(ARCHIVE_STORE);
@@ -197,16 +197,16 @@ let lastArchiveError = '';
 // the documentation and the screenshots -- listed under Data › Installer.
 // js/mac-vise.js opens it and extractDelverArchive picks the 'DelS' file
 // out; the extracted Cythera Data is byte-identical to the .hqx the page
-// used to want (vise_check.mjs proves it on every run), so nothing
+// once needed (vise_check.mjs proves it on every run), so nothing
 // downstream changed.
 //
-// The repository still carries no copy of the game -- Cythera is Ambrosia
+// The repository still has no copy of the game -- Cythera is Ambrosia
 // Software / Glenn Andreas's, and what is on disk lives under reference/,
 // gitignored. These URLs are other people's hosting, tried in order:
 //
 //   1. archive.org's copy (tucows_205568_Cythera), a StuffIt 5 archive with
 //      the installer's data fork stored uncompressed, which mac-stuffit.js
-//      takes out. Through archive.org's /cors/ path, not /download/: the
+//      extracts. Through archive.org's /cors/ path, not /download/: the
 //      same bytes, but that path answers with Access-Control-Allow-Origin
 //      and the other does not. This is the one that works from
 //      ratlizard.github.io today.
@@ -215,7 +215,7 @@ let lastArchiveError = '';
 //      discards the response; it is kept for the day it does, and it is the
 //      right file to download by hand and drop on the page.
 //
-// If both fail the page asks for the file, naming the first URL.
+// If both fail the page prompts for the file, naming the first URL.
 //   0. Before either: archive.org's "Cythera installers" item, one StuffIt 5
 //      archive holding the 1.0.1, 1.0.2, 1.0.3 and 1.0.4 installers side by
 //      side, every data fork stored. Four times the download (28 MB) and
@@ -229,9 +229,9 @@ const REMOTE_ARCHIVE_URLS = [
 const DEFAULT_ARCHIVE_URL = REMOTE_ARCHIVE_URLS[0];
 // Relative first: served from the repo the real thing is right there, and a
 // local copy beats downloading the same bytes. Under file:// these all fail
-// instantly (the browser refuses cross-file fetches) and the list costs
+// instantly (the browser blocks cross-file fetches) and the list costs
 // nothing. The bare "Cythera Data" names stay last for anyone who has a data
-// fork of their own lying beside the page; they open, minus the resource fork.
+// fork beside them next to the page; they open, minus the resource fork.
 const LOCAL_ARCHIVE_CANDIDATES = [
   'reference/game/installers/Cythera installers (archive.org).sit',
   'Cythera.bin', 'reference/game/installers/Cythera.bin',
@@ -240,9 +240,9 @@ const LOCAL_ARCHIVE_CANDIDATES = [
   'Cythera Data', 'reference/Cythera Data', 'res/Cythera Data'
 ];
 
-// One stud in the top-left corner holds everything about the data file:
-// where it came from, how to open another, how to forget the remembered copy,
-// and whether this tool's own names are shown. Those used to be a status line
+// One stud in the top-left corner has everything about the data file:
+// where it came from, how to open another, how to clear the stored copy,
+// and whether this tool's labels are shown. Those were once a status line
 // at the top, a hairline link in the bottom-right corner and a link that only
 // appeared when the archive happened to be cached.
 function openArchiveMenu(on) {
@@ -274,7 +274,7 @@ function toggleCredits() {
   const on = !c.classList.contains('open');
   closeTopPanels();
   c.classList.toggle('open', on);
-  /* The panel is as wide as the page allows and right-aligned, so on its own
+  /* The panel is as wide as the page allows and right-aligned, so by itself
      it reads as hanging off the right edge rather than off the word that
      opened it. The caret is put under the middle of that word, measured, so
      the word stays where it is and the panel points at it. */
@@ -304,7 +304,7 @@ document.addEventListener('click', e => {
   closeTopPanels();
 });
 
-/* Open another of the Delver archives the same zip or StuffIt file holds,
+/* Open another of the Delver archives in the same zip or StuffIt file,
    from the bytes kept when the file was opened; the Settings menu's chips
    call this. The same shape as switchInstaller. */
 function switchContained(name) {
@@ -322,10 +322,10 @@ function adoptArchive(raw, sourceName, opts) {
   try { found = extractDelverArchive(raw, { pick: opts.pick }); }
   catch (err) { lastArchiveError = err.message; return false; }
   // The container carried both forks; the resource fork is the second one, and
-  // it used to be decoded and then dropped on the floor.
+  // it was once decoded and then dropped on the floor.
   const rsrc = (opts.rsrc && opts.rsrc.length) ? opts.rsrc
              : (found.forks && found.forks.rsrc && found.forks.rsrc.length ? found.forks.rsrc : null);
-  // The container also said what the file IS -- its Finder name, type and
+  // The container also recorded what the file IS -- its Finder name, type and
   // creator. Kept so an edited archive can be re-wrapped as MacBinary with
   // the same identity it arrived under.
   const finder = found.forks
@@ -334,7 +334,7 @@ function adoptArchive(raw, sourceName, opts) {
   // An installer brought the whole game. Keep it (Data › Installer lists
   // every file and hands any of them back), open the application's resource
   // fork straight out of it rather than fetching Cythera.hqx later, and call
-  // the archive by its own name: the exports are named after ARCHIVE_SOURCE_
+  // the archive by its name: the exports are named after ARCHIVE_SOURCE_
   // NAME, and "Cythera.bin (edited)" would be the wrong file for a Mac.
   // `raw` is kept so that a file holding several installers can be opened
   // at another version without fetching again (switchInstaller).
@@ -347,10 +347,10 @@ function adoptArchive(raw, sourceName, opts) {
     ? Object.assign({ sourceName, raw, url: opts.url || null }, found.container) : null;
   if (found.installer) sourceName = found.forks.name || sourceName;
   // opts first, then what the unwrap found. The other way round, a remembered
-  // installer -- stored with `rsrc: null` because the installer carries its
+  // installer -- stored with `rsrc: null` because the installer has its
   // own fork -- had that null override the fork just taken out of it, so the
   // first visit had a resource fork and every return visit did not: Data ›
-  // Data Fork said "no resource fork came with it" and the fork gallery was
+  // Data Fork showed "no resource fork came with it" and the fork gallery was
   // empty, for the same bytes that had worked the day before.
   /* A MAGPIE PATCH IS A DELVER ARCHIVE AS MUCH AS THE SCENARIO IS, and one
      dropped here opened AS the archive: the galleries came up holding the
@@ -358,7 +358,7 @@ function adoptArchive(raw, sourceName, opts) {
      section that can describe a patch and merge it never saw the file. There
      is no order in which that is what was meant -- a patch is read against
      the file whose resources it replaces -- so with a game already open it
-     goes to that section instead. With none open it still opens on its own,
+     goes to that section instead. With none open it still opens by itself,
      which is the only way to look inside a patch before applying it. */
   if (ARCHIVE && delverArchivePatchPeek(found.bytes) &&
       patchesOpenBytes(found.bytes, (found.forks && found.forks.name) || sourceName)) {
@@ -386,7 +386,7 @@ function adoptArchive(raw, sourceName, opts) {
     }
   }
   if (opts.store) {
-    // The installer is remembered as it arrived, so that the next visit gets
+    // The installer is stored as it came, so that the next visit has
     // every file back; anything else is remembered as its forks, as before.
     const rec = found.installer
       ? { name: window.INSTALLER.sourceName, bytes: raw, via: found.via, rsrc: null, pick: found.installer.picked }
@@ -420,8 +420,8 @@ async function ingestArchiveFile(f) {
   if (!adoptArchive(raw, f.name, { store: true })) archiveLoadFailed([f.name + ': ' + lastArchiveError]);
 }
 
-// The output line under the tabs says "Load the file to begin..." until a
-// file is known; once one is on its way it says "Loading…" instead. It then
+// The output line under the tabs reads "Load the file to begin..." until a
+// file is known; once one is on its way it reads "Loading…" instead. It then
 // gives the browser a frame to paint the word: parsing a file blocks the
 // page for a second or more, and a note set on the same task as the parse
 // is never seen. That is what happened to the remembered copy, which went
@@ -448,7 +448,7 @@ function loadArchive() {
 // The gate: shown until one of its buttons is pressed; resolves with which.
 let landingGateResolve = null;
 function landingGate() {
-  // A harness that walks the load path has no one to click: it says its
+  // A harness that walks the load path has no one to click: it gives its
   // answer in advance and the gate steps aside.
   if (window.LANDING_GATE_ANSWER) return Promise.resolve(window.LANDING_GATE_ANSWER);
   const g = document.getElementById('landingGate');
@@ -477,15 +477,15 @@ async function loadDefaultArchive() {
         if (adoptArchive(bytes, rec.name || 'remembered archive',
                          { cached: true, savedAt: rec.savedAt, rsrc: rec.rsrc || null, pick: rec.pick, source: rec.source })) return;
       }
-    } catch (e) { /* no IndexedDB here; carry on to the network */ }
+    } catch (e) { /* no IndexedDB here; go on to the network */ }
   }
 
   // No remembered copy and no file of the visitor's: before the network,
-  // the gate. It says what is about to be downloaded and how big it is,
+  // the gate. It shows what is about to be downloaded and how big it is,
   // and it cannot be passed without a click. Chosen by the maintainer on
   // 6 September 2026 over a banner that would have started the download
   // anyway. A copy served beside the page (LOCAL_ARCHIVE_CANDIDATES) is
-  // not a download worth asking about, so the gate only stands when the
+  // not a download worth a prompt, so the gate only stands when the
   // page would go to the network.
   const failures = [];
   const tryUrl = async u => {
@@ -517,7 +517,7 @@ function installArchiveDropTarget() {
   // finger held on the map started a drag of the canvas instead, which is
   // what the press-and-hold hover needed. So there is no drop target on a
   // device with no fine pointer, and a drag that starts inside either map
-  // viewport is refused everywhere.
+  // viewport is rejected everywhere.
   for (const id of ['atlasViewport', 'mapViewport']) {
     const el = document.getElementById(id);
     if (el) el.addEventListener('dragstart', e => e.preventDefault());
@@ -539,7 +539,7 @@ function installArchiveDropTarget() {
    ---------------------------------------------------------------------------
    Every view was previously unaddressable: reload, and you were back at the
    first gallery with no way to say "look at 0x8D02" to anyone else. The URL
-   now carries the category and, in detail view, the resource:
+   now has the category and, in detail view, the resource:
 
        …/index.html#c=135&r=8801  (Alaric's portrait)
        …/index.html#8801          (bare id, subindex inferred)
@@ -582,7 +582,7 @@ function markDetailView(kind, id) {
   // The gallery's furniture -- the filter box, the sort, the export -- is
   // for the gallery, and it stayed up over every detail view, so on a
   // phone the thing tapped began about 900px down. updateGalleryTools
-  // reads DETAIL_VIEW and takes it down.
+  // reads DETAIL_VIEW and removes it.
   try { updateGalleryTools(); } catch (e) { quiet(e); }
 }
 
@@ -601,10 +601,10 @@ function markDetailView(kind, id) {
 window.VIEW_TRAIL = [];
 let _navBack = false;
 
-/* The trail is kept for the browser's own back and forward (the hashchange
+/* The trail is kept for the browser's back and forward (the hashchange
    listener pops and pushes it); the in-page "Back to <the last page>"
    button that used to draw it went on 20 September 2026, the maintainer's
-   call: the tabs and each view's own "All <this>" go up, and the browser
+   call: the tabs and each view's "All <this>" go up, and the browser
    goes back. */
 
 function syncDeepLink() {
@@ -625,7 +625,7 @@ function syncDeepLink() {
   if (r != null) h += '&r=' + r.toString(16).toUpperCase();
   if (h === location.hash) return;
   // The view being left is the one to come back to -- every view, a gallery
-  // included. Galleries used to be left out ("the gallery button already
+  // included. Galleries were once left out ("the gallery button already
   // goes there"), which is why going item -> Characters gallery -> a person
   // and pressing back landed on the item: the gallery had never been
   // recorded.
@@ -639,10 +639,10 @@ function syncDeepLink() {
   // that started it does the scrolling once the page is back.
   if (!_navBack) viewScrollOnNav(location.hash, h, false);
   _hashWrite = true;
-  // Every view gets a real HISTORY entry, so the browser's own back and
+  // Every view has a real HISTORY entry, so the browser's back and
   // forward buttons walk the interface: popping an entry changes the hash,
   // the hashchange listener re-applies the deep link, and the guard flag
-  // keeps this function's own writes from being mistaken for navigation.
+  // stops this function's writes being mistaken for navigation.
   // The forward button re-applies the hash the same way.
   try {
     if (!_navBack && location.hash) history.pushState({ v: ++_histDepth }, '', h);
@@ -664,9 +664,9 @@ let _histDepth = 0;
    of view passes through syncDeepLink:
 
    - the view being left has its offset remembered against its address;
-   - back and forward return to the offset the arriving address was left
+   - back and forward return to the offset the address being loaded was left
      at;
-   - a detail page going up to its own gallery returns to where the
+   - a detail page going up to its gallery returns to where the
      gallery was left;
    - Previous and Next within a gallery keep the page where it is, so the
      buttons stay under the pointer;
@@ -674,15 +674,15 @@ let _histDepth = 0;
 
    A link that rings a line (jumpToScriptAt, jumpToExeAt, a Mechanics
    section) scrolls to it some tens of milliseconds later and so still
-   has the last word. Back and forward arrive through the hashchange
+   has the last word. Back and forward come through the hashchange
    listener, the address already changed, which calls this itself; and
-   the browser's own restoring of the offset is switched off there, since
+   the browser's restoring of the offset is switched off there, since
    it restores before the view it restores for has been drawn. */
 const VIEW_SCROLL = new Map();
 /* The offset a view was last seen at, kept as the page scrolls. The view
    being left cannot be measured when its address changes: a link that
    crosses tabs has drawn the next gallery by then and the page has
-   already moved. Scroll events arrive a frame later than the scroll, so
+   already moved. Scroll events come a frame later than the scroll, so
    one caused by the new view's drawing has not been delivered while the
    navigation that drew it is still running. */
 let _viewScrollLive = { hash: '', y: 0 };
@@ -707,7 +707,7 @@ function viewScrollOnNav(from, to, back) {
   /* After the view has drawn. A gallery is not its full height until its
      cells have been laid out, and a scroll past the end stops short, so a
      return to an offset is tried again for up to a second, until it
-     holds, another view opens or the visitor touches the page. */
+     sticks, another view opens or the visitor touches the page. */
   const nav = ++_viewScrollNav;
   const go = tries => {
     if (nav !== _viewScrollNav) return;
@@ -726,7 +726,7 @@ function parseDeepLink() {
     if (i > 0) q[part.slice(0, i)] = decodeURIComponent(part.slice(i + 1));
   }
   if (!q.c && !q.r && /^(0x)?[0-9a-f]{3,4}$/i.test(h)) q.r = h.replace(/^0x/i, '');
-  /* A link made before the Mechanics sheet became seven tabs names the whole
+  /* A link made before the Mechanics sheet became seven tabs points at the whole
      sheet, and no tab stands for the whole sheet, so it drew everything with
      the tab row blank. It opens the first tab instead. This is done here, to
      the link, and not in showCategory: the smoke's pins read the whole-sheet
@@ -738,7 +738,7 @@ function parseDeepLink() {
 // Point the tabs, the chip row and the hidden <select> at one category.
 // Everything used to go through the <select> alone, so a jump from a
 // cross-reference left the nav highlighting whatever you were looking at
-// before -- the UI said "Graphics" while the gallery showed dialogue.
+// before -- the UI read "Graphics" while the gallery showed dialogue.
 // pickCategory does all three now, so this is only the "is it a category?"
 // check in front of it.
 function showCategory(v) {
@@ -791,7 +791,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   /* The archive exactly as it arrived, before any edit rebuilt it. A patch
      describes byte positions in the file the player already has, and an edit
      relays the whole archive -- the rebuild of the shipped Cythera Data is
-     12,542 bytes shorter -- so after one edit `ARCHIVE.bytes` no longer agrees
+     12,542 bytes shorter -- so after one edit `ARCHIVE.bytes` no longer matches
      with anyone's installed copy. Every patch is computed against this. */
   if (meta.via !== 'edit') window.PRISTINE_BYTES = bytes;
   // What Build a Patch's Apply to Site Data wrote (basketBase) belongs to
@@ -806,15 +806,15 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   // Kept so a font swap can be undone without re-opening the archive.
   if (meta.via !== 'edit') { window.ARCHIVE_ORIGINAL_RSRC = window.CYTHERA_RSRC_RAW; window.FONT_SWAP = null; }
   // The pstring at 0x20 is what delvmod calls `player_name`; the scenario
-  // leaves it empty and every saved game in the community's add-ons carries
-  // the name the file was saved under. It is what tells a saved game from
+  // leaves it empty and every saved game in the community's add-ons has
+  // the name the file was saved under. It is what distinguishes a saved game from
   // the scenario here, since nothing else in the header does.
   const savedAs = (bytes[0x20] >= 1 && bytes[0x20] <= 31) ? pstring(bytes, 0x20) : '';
   // meta.finder is absent on a rebuild (via:'edit'), a cached load and a bare
-  // .data file. A rebuild keeps what the container said, since it is the same
-  // file; a bare file gets the identity its header supports -- a saved game
-  // is 'DelP' under its own name, anything else the type/creator the real
-  // file ships with, which the refusal message in extractDelverArchive also
+  // .data file. A rebuild retains what the container recorded, since it is the same
+  // file; a bare file is given the identity its header supports -- a saved game
+  // is 'DelP' under its name, anything else the type/creator the real
+  // file ships with, which the rejection message in extractDelverArchive also
   // states. Deriving it on every bare open rather than only the first is
   // deliberate: a save dropped after Cythera Data must not be exported as
   // "Cythera Data", and the reverse held too.
@@ -826,7 +826,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   const arrivedOn = parseDeepLink();   // before anything can overwrite it
   /* And where the visitor is actually standing, read the same three ways
      syncDeepLink writes that hash. The hash is normally the same answer, but
-     it is not always there to read: an origin that refuses
+     it is not always there to read: an origin that blocks
      history.replaceState leaves it empty (some file:// ones do, and the test
      stub is another), and an edit's rebuild must go back to the open view
      whether or not the URL happens to record it. */
@@ -846,7 +846,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     if (!arc) throw new Error('no master index; the (offset,length) pair at 0x80 does not describe one');
     // The file that was open stays open, whole, until the new one has parsed:
     // a failure above leaves the page on the archive it had. A save replacing
-    // the scenario takes the scenario's words for its forms first, while the
+    // the scenario uses the scenario's words for its forms first, while the
     // scenario is still what every reader reads (keepScenarioSaveWords).
     if (savedAs && meta.via !== 'edit' && ARCHIVE && ARCHIVE.bytes && !(ARCHIVE.bytes[0x20] >= 1 && ARCHIVE.bytes[0x20] <= 31))
       keepScenarioSaveWords();
@@ -885,7 +885,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
           ? ' (' + window.INSTALLER.installers.length + ' versions in the file)' : '') : '') +
       (window.CONTAINED ? ' (' + window.CONTAINED.entries.length + ' archives in the file)' : '') +
       (meta.cached ? ' (remembered from ' + new Date(meta.savedAt || Date.now()).toLocaleDateString() + ') ' : ' ')));
-    // The other archives the same file holds, each a chip that opens it.
+    // The other archives in the same file, each a chip that opens it.
     {
       const row = document.getElementById('containedRow');
       if (row) row.innerHTML = '';
@@ -917,12 +917,12 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     // hash. Without the explicit pick this would open on whatever option
     // happens to come first in the hidden <select>, which is a detail of the
     // markup and not a decision. The world, when the file has one; a saved
-    // game has no world map -- it holds only what play changed -- and the
+    // game has no world map -- it has only what play changed -- and the
     // atlas over it would be a zoom slider over nothing, so such a file
     // opens on the Data Fork sheet, which lists what it does hold and where
     // each part is shown.
     const hasWorld = !!getResourceBytes(ARCHIVE, WORLD_MAP_RESID);
-    /* An EDIT's rebuild is the same file arriving again, and the visitor is
+    /* An EDIT's rebuild is the same file loaded again, and the visitor is
        standing somewhere in it -- mid-stroke on a map, usually. Opening the
        world first and letting applyDeepLink walk back from it was both wrong
        and expensive: `showCategory('WORLD')` builds the whole atlas scene,
@@ -931,12 +931,12 @@ function parseArchiveBytes(bytes, sourceName, meta) {
        edit costing a moment and costing a second; in the UI smoke, where the
        stub draws everything the slow way, it was 27 seconds an edit.
        Where the hash -- or, when there is none, the open view itself --
-       says where we are, go straight there. */
+       shows where we are, go straight there. */
     const backTo = arrivedOn || (meta && meta.via === 'edit' ? standingOn : null);
     const restoring = !!(meta && meta.via === 'edit' && backTo && (backTo.c || backTo.r));
-    /* A saved game opens on its own sheet. It has no world map, so the atlas
+    /* A saved game opens on a separate sheet. It has no world map, so the atlas
        over it would be a zoom slider over nothing, and the Data Fork sheet --
-       where such a file landed until now -- lists six subindexes and says
+       where such a file landed until now -- shows six subindexes and states
        nothing about any of them. The Saved Game sheet reads the one that
        matters. */
     const landOn = hasWorld ? 'WORLD' : (savedAs && getResourceBytes(ARCHIVE, 0xF009) ? 'SAVEGAME' : 'DATAFORK');
@@ -946,7 +946,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     // is the same hash -- names nothing in a file that has no world.
     let landed = false;
     if (!(backTo && backTo.c === 'WORLD' && !hasWorld)) landed = applyDeepLink(backTo);
-    // If the hash did not take us back after all, redraw where we already
+    // If the hash did not lead back after all, redraw where we already
     // are rather than leaving the previous archive's view on screen.
     if (restoring && !landed) onCategoryChange();
   } catch(err) { out.textContent = 'Archive error: ' + err.message; setStatus('The page could not load the archive: ' + err.message, true); }
@@ -964,7 +964,7 @@ function onCategoryChangeImpl() {
   // category change while a detail view was open just re-rendered a
   // different resource inside that same detail view instead of returning.
   currentMode = 'sheet';
-  // A detail view that wanted one wide column set the grid to block; a
+  // A detail view that needed one wide column set the grid to block; a
   // change of category comes here without passing setMode, so the grid
   // was staying one cell a row for every gallery after (9 September 2026).
   clearSheetGridLayout();
@@ -995,7 +995,7 @@ function onCategoryChangeImpl() {
   }
   // The two resource forks are two tabs and one gallery: which fork it shows
   // is RSRC_SOURCE, which the tab sets. The application's fork is fetched on
-  // first use; loadApplicationFork re-renders the sheet when it arrives.
+  // first use; loadApplicationFork re-renders the sheet when it loads.
   if (rawval === 'MACRSRC' || rawval === 'APPRSRC') {
     window.RSRC_SOURCE = rawval === 'APPRSRC' ? 'app' : 'data';
     window.CUR_SUBN = 'MACRSRC';
@@ -1017,7 +1017,7 @@ function onCategoryChangeImpl() {
   // The Rules tab draws the combat vocabulary out of the application's fork
   // even without the installer; fetch the fork if it is not here yet.
   if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
-  // The Data tab's own views: not subindexes, no resources to list.
+  // The Data tab's views: not subindexes, no resources to list.
   if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' || rawval === 'SKILLS' || rawval === 'SPELLS' || rawval === 'SCHEDULES' ||
       rawval === 'SAVEGAME' || rawval === 'PREFS' || rawval === 'LICENSE' || rawval === 'PATCHES' || rawval === 'CHEATS' || rawval === 'RECORDS' || MECH_GROUP_BY_VALUE[rawval] ||
       rawval === 'WORLD' || PLACEHOLDER_TABS[rawval]) {
@@ -1104,7 +1104,7 @@ function onCategoryChangeImpl() {
 
 // Someone who has asked their system for less motion should not be handed a
 // page where a dozen sprites walk on the spot and the lava cycles. Every
-// animation here still has its own toggle; this only changes what they start
+// animation here still has a separate toggle; this only changes what they start
 // as, and drawing is unaffected -- a still frame is drawn either way.
 const PREFERS_REDUCED_MOTION = (() => {
   try { return matchMedia('(prefers-reduced-motion: reduce)').matches; }
@@ -1223,14 +1223,14 @@ function applyZoom() {
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
   // A landscape's box is as tall as the strip, not half the screen, and the
-  // strip over the sky below it takes the same zoom.
+  // strip over the sky below it is given the same zoom.
   const strip = window.CUR_SUBN === 131;
   vp.style.height = strip ? Math.min(h + 4, Math.round((window.innerHeight || 800) * 0.52)) + 'px' : '';
   const sky = strip ? document.querySelector('#stripSky canvas') : null;
   if (sky) sky.style.width = (sky.width * z) + 'px';
   vp.scrollLeft = Math.max(0, cx * w - vp.clientWidth / 2);
   vp.scrollTop  = Math.max(0, cy * h - vp.clientHeight / 2);
-  // A gold frame says the picture runs past the edges.
+  // A gold frame shows the picture runs past the edges.
   if (vp.classList) vp.classList.toggle('cropped', vp.clientWidth > 40 && (w > vp.clientWidth + 1 || h > vp.clientHeight + 1));
 }
 
