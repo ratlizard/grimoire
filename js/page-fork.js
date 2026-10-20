@@ -13,7 +13,7 @@
    the page after the last of these. File 3 of 14. */
 
 /* ---------------------------------------------------------------------------
-   Swapping the game's own font.
+   Swapping the game's font.
 
    The first thing this page does that changes how the GAME looks rather than
    reporting on it, and the last thing on the feature list that was waiting on
@@ -23,13 +23,13 @@
    The game draws its text with `sfnt` 7289, which `FOND` 1046 names
    "ArgosANouveau". Replacing the sfnt's bytes and leaving both ids alone
    leaves every reference in the file pointing at the same place, so the game
-   asks for the same family and gets different outlines. The incoming font is
+   requests the same family and receives different outlines. The incoming font is
    put through trueTypeToSfnt first, which is what gives it the Mac Roman
    character map the game addresses glyphs by; without that the game draws
    nothing at all.
 
    The new fork replaces window.CYTHERA_RSRC_RAW, which is what the disk image
-   and the MacBinary export already carry, so the swapped font leaves the page
+   and the MacBinary export already include, so the swapped font leaves the page
    by the paths that were already there. Nothing is written to disk here and
    the archive on the server is untouched: this is the copy in the browser.
 --------------------------------------------------------------------------- */
@@ -61,7 +61,7 @@ function swapGameFont(bytes, filename) {
                        from: target.id, bytes: made.bytes.length, was: bytes.length };
   // The page is set in the game's font, so it now shows the new one: the
   // preview is the whole site, which is as close to seeing it in the game as
-  // a browser gets.
+  // a browser comes.
   try { installGameFont(); } catch (e) { quiet(e); }
   try { installDialogueBox(); } catch (e) { quiet(e); }
   return window.FONT_SWAP;
@@ -127,7 +127,7 @@ function undoFontSwap() {
    The game's outline font can be swapped since v1.22.0; the other face in the
    file could not be touched. Seldane is a bitmap font, not an outline one:
    FOND 128 names NFNT 25740 at 12 point and NFNT 25746 at 18, each a single
-   wide bit image with a location table saying where each letter starts in it.
+   wide bit image with a location table giving where each letter starts in it.
    The resource-fork writer has been able to put a resource back since
    6 September, so what was missing was only the font half, and the evidence
    that it is right is in utilities/nfnt_write_check.mjs: both shipped strikes
@@ -137,9 +137,9 @@ function undoFontSwap() {
    on the panel: each glyph the strike already has an image for is drawn from
    the chosen font with its capitals as tall as the strike's letters and its
    feet where theirs are (strikeFit), thresholded to one bit, and packed back
-   in with the face's own advance and overhang (rebuildStrike). Fed the
-   strike's own TrueType it gives the strike back, which browser_check.mjs
-   holds. A glyph the strike has no image for
+   in with the face's advance and overhang (rebuildStrike). Fed the
+   strike's TrueType it gives the strike back, which browser_check.mjs
+   checks. A glyph the strike has no image for
    stays without one -- the strike draws 24 letters, with no L and no O
    (at 18 point each has an entry one pixel wide and empty), and its 25th
    image is the missing-character box, carried through as it is; inventing
@@ -163,7 +163,7 @@ function rasteriseGlyph(ch, family, px, height, ascent) {
   // the ink from the leftmost of the pen and its first inked column to its
   // last inked column, and `left` is where that starts against the pen,
   // which is what an NFNT's offset records (Seldane's R starts one column
-  // left of it). The advance is the face's own, which may be wider than
+  // left of it). The advance is the face's, which may be wider than
   // the ink.
   const pad = Math.ceil(px) + 4;
   const c = document.createElement('canvas');
@@ -206,7 +206,7 @@ function copyStrikeGlyph(spec, i) {
   return { rows, width: w };
 }
 /* How big to draw the chosen face, and where its baseline goes, read off the
-   strike's own letters and the face's own capital. Until 26 September 2026
+   strike's letters and the face's capital. Until 26 September 2026
    the face was drawn with its em at the cell less the descent (12 and 18
    px) on the strike's nominal baseline, and that is wrong twice over for
    Seldane: its letters fill the whole cell, descent rows included (14 and
@@ -219,9 +219,9 @@ function copyStrikeGlyph(spec, i) {
    sweep). So the size is the letters' median height over the height of
    the face's capital H per pixel, measured by the canvas, and the baseline
    is set so that the H's foot lands on the letters' median foot. A face
-   whose H draws nothing falls back to the old sizing. The panel's own
+   whose H draws nothing falls back to the old sizing. The panel's
    TrueType of a strike, fed back in, gives the strike back pixel for pixel
-   (browser_check.mjs holds that). */
+   (browser_check.mjs checks that). */
 function strikeFit(spec, family) {
   const n = spec.nGlyphs, heights = [], feet = [];
   for (let i = 0; i < n - 1; i++) {
@@ -238,7 +238,7 @@ function strikeFit(spec, family) {
   const ctx = c.getContext('2d');
   if (!ctx || !ctx.measureText) return old;
   ctx.font = '100px "' + family + '"';
-  // The H's whole ink, above the baseline and below it: Seldane's own letters
+  // The H's whole ink, above the baseline and below it: Seldane's letters
   // hang two rows under theirs, so a face made from the strike (the panel's
   // own TrueType export) would be sized wrong by its ascent alone.
   const m = ctx.measureText('H');
@@ -250,11 +250,11 @@ function strikeFit(spec, family) {
 }
 function rebuildStrike(spec, family) {
   const n = spec.nGlyphs;
-  // Which codes carry an image today. The last index is the missing symbol.
+  // Which codes have an image today. The last index is the missing symbol.
   const had = [];
   for (let i = 0; i < n; i++) had.push(spec.loc[i + 1] - spec.loc[i] > 0);
   const fit = strikeFit(spec, family);
-  // Each entry is either drawn from the face (`g`, with its own left and
+  // Each entry is either drawn from the face (`g`, with its left and
   // advance) or carried through as it stands: its image, if it has one,
   // and its offset/width word. Carried through are the missing symbol, and
   // every code that has a width and no image -- the tab and the return
@@ -275,7 +275,7 @@ function rebuildStrike(spec, family) {
      kernMax plus the offset. Both strikes have kernMax -1 and an offset of 1
      on an ordinary letter, and every drawn letter was written with offset 0,
      so each came out one column left of its pen. kernMax is lowered if a
-     drawn letter overhangs further left than the strike's own, and the
+     drawn letter overhangs further left than the strike's, and the
      entries carried through keep their place by the same amount. */
   let kernMax = spec.kernMax;
   for (const e of entries) if (e.g && e.g.left < kernMax) kernMax = e.g.left;
@@ -352,14 +352,14 @@ function undoStrikeSwap() {
    The swap above puts a modern face into the game's bitmap font. This is the
    other direction and it leaves the file alone: the strike as a TrueType,
    saved to disk, for a phone or a word processor to set Seldane in.
-   `nfntToTrueType` does the work and says how; here is only the naming.
+   `nfntToTrueType` does the work and explains how; here is only the naming.
 
    A font per strike, not one font for both, because the two strikes are two
    designs and not two sizes of one -- which is what Cythera Guides concluded
    too, distributing Seldane Medium and Seldane Large as separate suitcases.
    The name comes from the family record, so it is "Seldane 12" and "Seldane
    18" for this file and the right thing for any other Delver archive whose
-   FOND names its strikes. */
+   FOND gives names to its strikes. */
 function strikeFamilyOf(id) {
   const fork = window.CYTHERA_RSRC;
   const fonds = (fork && fork.resourcesByType && fork.resourcesByType['FOND']) || [];
@@ -444,7 +444,7 @@ function strikeSwapPanel() {
      global is the one CreateGlobals fills with GetCTable(n). The data file's
      clut n gives the colour: 0x0000 0x0000 0xA800, rgb(0,0,168), so the box
      is a 50% dither of that blue over whatever is under it.
-   - FrameBox, which TBorderWDEF::DrawUnhilited calls for every bordered
+   - FrameBox, which TBorderWDEF::DrawUnhilited calls on every bordered
      window: SubTilePat(tile, rect) cuts pixel patterns out of a game tile
      through rects built with SetRect -- a top band (left, 0, right, h), a
      side band (0, top, w, bottom) and their mirrors -- and FillCRect fills
@@ -452,7 +452,7 @@ function strikeSwapPanel() {
 
    exeDialogueBox reads the tile, the two band sizes, the colour table's id
    and the colour's offset; this sets --boxBlue and the border-image on
-   .tabSheet from them and the open file, and leaves the stylesheet's own
+   .tabSheet from them and the open file, and leaves the stylesheet's
    look (the res/ frame, the blue it was drawn with) when the application
    or the file lacks any part. */
 function exeDialogueBox() {
@@ -464,7 +464,7 @@ function exeDialogueBox() {
     .map(k => ({ l: exeArgOf(fb, k, 4), t: exeArgOf(fb, k, 5), r: exeArgOf(fb, k, 6), b: exeArgOf(fb, k, 7) }))
     .filter(x => x.l && x.t && x.r && x.b);
   const top = rects.find(x => x.t.v === 0 && x.l.v > 0), side = rects.find(x => x.l.v === 0 && x.t.v > 0);
-  // The colour: the first load at an offset from a handle a TOC slot holds,
+  // The colour: the first load at an offset from a handle in a TOC slot,
   // before RGBForeColor.
   const bb = exeOpsNamed('TInteraction::MyCopyBitsBevel');
   const fore = bb.findIndex(o => exeCalls(o, 'RGBForeColor'));
@@ -498,12 +498,12 @@ window.DIALOGUE_BOX = null;
    rather than a placeholder. What the program alone supplies is the band
    widths and which colour table entry the blue is.
 
-   They are not typed-in guesses of the kind this page refuses elsewhere: the
+   They are not typed-in figures of the kind this page avoids elsewhere: the
    installer check reads all four back out of the executable and fails if any
    differs, so they cannot drift from what the program does. THE BLUE IS MEANT
    TO BE CHANGED BY HAND -- it is the one figure here a reader might want
    different, and it is the last fallback, used only when the open file's
-   colour table does not carry one. */
+   colour table does not have one. */
 const DLG_BOX_DEFAULTS = { tile: 0x19D, top: 4, side: 8, clut: 256, offset: 18, blue: [0, 0, 168] };
 
 function installDialogueBox() {
@@ -519,7 +519,7 @@ function installDialogueBox() {
   let style = document.getElementById('gameBoxStyle');
   if (!style) { style = document.createElement('style'); style.id = 'gameBoxStyle'; document.head.appendChild(style); }
   /* The blue runs whatever is open: the stylesheet is already showing the
-     default, and this replaces it only when the file carries its own. The
+     default, and this replaces it only when the file has one. The
      frame gates itself further down, because its tile has to come out of an
      archive and resolveTileImage answers with nothing when there is none. */
   let rule = '';
@@ -531,7 +531,7 @@ function installDialogueBox() {
       if (n > 1 && d.length >= o + 6) out.blue = [d[o], d[o + 2], d[o + 4]];
     }
   } catch (e) { out.blue = null; }
-  // The open file's colour where it carries one, the documented default
+  // The open file's colour where it has one, the documented default
   // where it does not -- and the default is the figure the program gives,
   // which the installer check reads back out of the executable.
   if (!out.blue) { out.blue = D.blue.slice(); out.blueFromDefault = true; }
@@ -540,7 +540,7 @@ function installDialogueBox() {
   /* The frame is drawn whether or not the program is open, because the tile
      is in the ARCHIVE -- 0x19D is sheet 0x8E19, slot 13. Only the band
      widths came from the program, and those have a default too, so a
-     data-only session gets the game's real frame rather than a placeholder. */
+     data-only session has the game's real frame rather than a placeholder. */
   let im = null;
   try { im = resolveTileImage(tile); } catch (e) { im = null; }
   if (!im || im.length !== 1024) return;
@@ -561,9 +561,9 @@ function installDialogueBox() {
 }
 
 /* Which face the page is set in. Three sources and one rule: the reader's
-   choice wins, and without one the game's own face is used when an open file
+   choice comes first, and without one the game's face is used when an open file
    has given us one and Chicago Kare when it has not. Every stack ends in the
-   system sans because Chicago Kare does not carry a handful of the marks this
+   system sans because Chicago Kare does not have a handful of the marks this
    page uses, and those should fall through to what stood beside Chicago on a
    real Macintosh rather than to a serif.
 
@@ -582,7 +582,7 @@ const FACE_STACKS = {
 };
 // The text face, which is Geneva only where the reader has expressed no
 // preference: an explicit choice is a choice about the page, not about one
-// role in it, so it takes both variables.
+// role in it, so it is given both variables.
 const TEXT_STACK = "'Geneva9', 'Carthage', " + FACE_FALLBACK;
 function storedFace() {
   let stored = null;
@@ -612,21 +612,21 @@ function setFaceChoice(v) {
   try { localStorage.setItem('cythera.face', v); } catch (e) { quiet(e); }
   setFace();
 }
-/* Canvas takes a font string rather than a stack, so the face in use has to be
+/* Canvas accepts a font string rather than a stack, so the face in use has to be
    read back out of the custom property. Guarded, and not only for tidiness: a
-   canvas label is drawn from a paint loop, so anything thrown here takes the
+   canvas label is drawn from a paint loop, so anything thrown here brings down the
    map with it, and getComputedStyle is exactly the sort of thing a harness or
    an old browser stubs without getPropertyValue. */
 function canvasFace(px) {
   // Read from the variable setFace() publishes, never from the document. The
-  // first version of this asked getComputedStyle for --face, which is a style
+  // first version of this called getComputedStyle for --face, which is a style
   // flush, and both callers run inside paintAtlas: that put two forced
   // recalculations into every frame of every pan and zoom of the World tab,
   // and the map went jerky within an hour of shipping. The stack is a string
-  // this file already knows; there is nothing to ask the document for.
+  // this file already has; there is nothing to request from the document.
   return px + 'px ' + (window.FACE_STACK_NOW || FACE_STACKS[window.FACE_IN_USE] || FACE_STACKS.chicago);
 }
-// Settle the face at load, not only when a font arrives: the stylesheet's own
+// Settle the face at load, not only when a font loads: the stylesheet's
 // default covers the first paint, but a reader who chose Chicago or this
 // device's face last time would otherwise have that choice ignored until a
 // file opened, and the radio would show nothing checked.
@@ -644,7 +644,7 @@ function installGameFont() {
   if (typeof FontFace === 'undefined' || !document.fonts) { window.GAME_FONT_STATE = 'this browser cannot load a font from bytes'; return; }
   try {
     // A second face under the same family name would not replace the first,
-    // so a re-install after a font swap takes the old one out first.
+    // so a re-install after a font swap removes the old one first.
     try { if (window.GAME_FONT_FACE) document.fonts.delete(window.GAME_FONT_FACE); } catch (e) { quiet(e); }
     window.GAME_FONT_FACE = null;
     const face = new FontFace('ArgosGame', ttf.buffer.slice(ttf.byteOffset, ttf.byteOffset + ttf.byteLength));
@@ -666,16 +666,16 @@ const RSRC_DELVER_TYPES = {
 };
 
 /* ---- the displacement filters -----------------------------------------------
-   Read on 25 September 2026, off the program rather than guessed: the seven
+   Read on 25 September 2026, off the program rather than assumed: the seven
    FILT resources are the game's, not the editor's. LoadGlobals reads the
    archive's 0xF016 into a byte a tile and calls LoadDisplacementFilters,
-   which fetches FILT 0 to 255 and keeps each one's first byte, a period, its
+   which fetches FILT 0 to 255 and stores each one's first byte, a period, its
    32 bytes at +4, a bit a palette index, and its body at +36. The tile
    copiers (TViewer::CopyTile, TCopyTile and MaskAnyTile) run
    DisplacementFilterTile over a tile whose 0xF016 byte is nonzero, unless
    the preferences byte turns filters off: for each of the 1,024 pixels, one
    whose colour has its bit in the mask is fetched from the source tile at
-   the signed offset the current frame holds for that pixel, the rest copied
+   the signed offset the current frame has for that pixel, the rest copied
    as they are. AdvanceDisplacementFilters steps every filter's frame by 1,024
    bytes each tick, or every other when the period is 1, and back to the
    first past the end. So a filter is a period, a set of colours, and frames
@@ -720,12 +720,12 @@ function drawFilterFrame(canvas, f, frame, px) {
   return canvas;
 }
 
-/* A stamp declares its own dimensions. A brush is sixteen entries, and they
-   are a four by four table rather than a run: every brush in the file holds
+/* A stamp declares its dimensions. A brush is sixteen entries, and they
+   are a four by four table rather than a run: every brush in the file has
    exactly sixteen, and in the ones whose four corners of the diagonal are
    zero the other twelve are the twelve tiles of one sheet -- one terrain
    meeting another, with the diagonal empty because a terrain meeting itself
-   needs no transition. The wall brushes carry a tile on the diagonal too and
+   needs no transition. The wall brushes have a tile on the diagonal too and
    have eight distinct tiles rather than twelve. Five of them (the beaches,
    the sand edge, Better Caves, Cave Ridge) point at composite tiles, ids
    above 0x1000, which is the composition table rather than a sheet.
@@ -741,9 +741,9 @@ function rsrcTilePattern(type, data) {
     const n = Math.min(w * h, Math.floor((data.length - 4) / 2));
     const tiles = [];
     for (let i = 0; i < n; i++) tiles.push(u16be(data, 4 + i * 2));
-    // ID 128 is 164 bytes where the others are 132, so it carries 32 bytes this
+    // ID 128 is 164 bytes where the others are 132, so it has 32 bytes this
     // reading does not account for. The 8x8 grid it declares is complete, so
-    // the extra is reported rather than guessed at.
+    // the extra is reported rather than inferred.
     return { tiles, cols: w, rows: h, extraBytes: data.length - 4 - w * h * 2 };
   }
   const n = Math.floor(data.length / 2);
@@ -793,7 +793,7 @@ function rsrcInventory() {
     // the fork this way costs nothing.
     let size = 0;
     for (const e of fork.resourcesByType[t.type] || []) {
-      try { size += fork.sizeOf(t.type, e); } catch (err) { /* a bad entry costs its own size */ }
+      try { size += fork.sizeOf(t.type, e); } catch (err) { /* a bad entry costs its size */ }
     }
     bytes += size;
     const row = { type: t.type, count: t.count, bytes: size };
@@ -991,14 +991,14 @@ function showRsrcDetail(type, id) {
    that uses them.
 
    It reads two forks. "Cythera Data" is the one already open, and the
-   application's own fork is fetched on demand: 339 resources across 52 types,
+   application's fork is fetched on demand: 339 resources across 52 types,
    which is where the game's icons, dialogs, menus, sounds and cursors live.
    Neither is the game archive -- nothing here decrypts or disassembles.
 --------------------------------------------------------------------------- */
 window.RSRC_SOURCE = 'data';        // 'data' = Cythera Data, 'app' = the application
 window.APP_RSRC = null;             // the application's fork, once fetched
 window.APP_DATA = null;             // and its data fork, the PEF executable, from the same container
-window.APP_PEF = null;              // parsePEF over it, with the routines, once asked for
+window.APP_PEF = null;              // parsePEF over it, with the routines, once requested
 window.APP_RSRC_STATE = '';         // '', 'loading', or an error to show
 
 function rsrcViewFork() {
@@ -1007,12 +1007,12 @@ function rsrcViewFork() {
 
 // When the archive came in through the installer, adoptArchive has already
 // opened the application's fork out of it and this is never reached. The
-// rest is for an archive opened on its own: the application ships as
-// Cythera.hqx, extractDelverArchive() refuses it on purpose -- it is not a
-// Delver archive -- so this unwraps the container itself and keeps only the
+// rest is for an archive opened alone: the application ships as
+// Cythera.hqx, extractDelverArchive() rejects it on purpose -- it is not a
+// Delver archive -- so this unwraps the container itself and retains only the
 // resource fork.
 // Local candidates by default -- the application is not in the repository --
-// but `?app=<url>` names a remote copy, the same way `?src=` does for the
+// but `?app=<url>` points at a remote copy, the same way `?src=` does for the
 // data archive. The published preview passes both, pointing at the owner's
 // own hosted copies, which is what lets the application's 339 resources
 // (its icons, dialogs, PICTs, cursors) be browsed from a phone.
@@ -1053,12 +1053,12 @@ async function loadApplicationFork() {
 }
 
 // What can this resource become? exportArtifacts() is the one list, so the
-// gallery, the detail view and the download buttons cannot disagree about
+// gallery, the detail view and the download buttons cannot differ about
 // which types are decodable.
 const _rsrcArtifactCache = new Map();
 /* Keyed by the fork as well as the resource: the application's fork, the
-   data file's, and any other (the installer's own, Register Cythera's,
-   Magpie's) a number of its own. Until 17 October 2026 every fork but the
+   data file's, and any other (the installer's, Register Cythera's,
+   Magpie's) a separate number. Until 17 October 2026 every fork but the
    application's shared 'd:', so Register Cythera's icon 128 came back as
    the VISE installer's, drawn first under the same key. */
 const _rsrcForkKeys = new WeakMap();
@@ -1088,7 +1088,7 @@ function rsrcTypeLabel(type) {
          (typeof RSRC_DELVER_TYPES !== 'undefined' && RSRC_DELVER_TYPES[type]) || '';
 }
 
-// Which fork this gallery shows used to be a pair of buttons at the top of
+// Which fork this gallery shows was once a pair of buttons at the top of
 // it; it is the pair of Resource Fork tabs now, one under Cythera Data and one
 // under Cythera, and the category (MACRSRC / APPRSRC) sets RSRC_SOURCE.
 // One string list out of a fork, or null when the fork or the list is absent.
@@ -1099,7 +1099,7 @@ function forkStringList(fork, id) {
   try { return decodeSTRList(fork.dataOf('STR#', entry)); } catch (e) { return null; }
 }
 
-// Which views re-render when the application's fork arrives, or the filter
+// Which views re-render when the application's fork loads, or the filter
 // changes: everything drawn from a fork rather than the archive.
 function rerenderForkView() {
   const v = window.CUR_SUBN;
@@ -1236,7 +1236,7 @@ function renderMacRsrcSheet() {
 }
 
 function showMacRsrcDetail(type, id, source) {
-  // A view over both forks names the fork in the link; a one-fork view keeps
+  // A view over both forks gives the fork in the link; a one-fork view retains
   // the older `TYPE:id` form, so saved links to it still open.
   const both = FORK_VIEWS[window.CUR_SUBN] && FORK_VIEWS[window.CUR_SUBN].source === 'both';
   if (source) window.RSRC_SOURCE = source === 'app' ? 'app' : 'data';
@@ -1365,7 +1365,7 @@ function renderCharacterSheet() {
     // Front-facing walk cycle (frames 0-3), overlapping the portrait's
     // bottom-right corner rather than cropping either one.
     // The walker orbits the OUTSIDE of the portrait, so the portrait needs a
-    // margin of empty space around it to walk on. Frame counts used to be
+    // margin of empty space around it to walk on. Frame counts were once
     // printed above the portrait; they belong on the detail page, not here.
     wrap.style.position = 'relative';
     const inner = document.createElement('div');
@@ -1391,8 +1391,8 @@ function renderCharacterSheet() {
     const sub = document.createElement('div');
     sub.className = 'resid';
     // "Lv 0 - Nowhere" was two facts invented about characters that record
-    // neither. Show only what the archive actually holds, and nothing at all
-    // when it holds neither.
+    // neither. Show only what is actually in the archive, and nothing at all
+    // when it has neither.
     const bits = [];
     if (d.rec.level) bits.push('Lv ' + d.rec.level);
     if (d.rec.zone) bits.push(d.homeZone);
@@ -1435,7 +1435,7 @@ function showCharacterOnMap(i) {
   });
 }
 
-// Join only the fields that carry a value, and emit nothing at all if none of
+// Join only the fields that have a value, and emit nothing at all if none of
 // them do, so an empty row never appears.
 // A third element is where the figure was read from, and the figure opens
 // it (srcNum). A pair with none prints plain, as it did.
@@ -1450,11 +1450,11 @@ function showCharacterDetail(i) {
   markDetailView('char', i);
   // A single wide panel dropped into the gallery's multi-column grid was
   // being squeezed into one ~100px track, which wrapped every button's label
-  // onto its own line and made the whole panel look squashed to the left.
+  // onto a separate line and made the whole panel look squashed to the left.
   document.getElementById('sheetGrid').style.display = 'block';
   const d = characterDossier(i);
-  // A link can name a character this archive does not have -- a saved game
-  // holds only what play changed, and a shared link outlives the file it was
+  // A link can point at a character this archive does not have -- a saved game
+  // has only what play changed, and a shared link outlives the file it was
   // made from. Say so rather than throwing on the way to the first field.
   if (!d) {
     const g = document.getElementById('sheetGrid');
@@ -1467,7 +1467,7 @@ function showCharacterDetail(i) {
     const note = document.createElement('div');
     note.className = 'sv-warn';
     // A slot the table has and nobody fills is a different answer from a
-    // number past the table: saying "a saved game contains only what play
+    // number past the table: stating "a saved game contains only what play
     // has changed" of slot 206 sent a reader looking for a person.
     const slot = loadCharacterTable()[i];
     note.textContent = slot
@@ -1521,7 +1521,7 @@ function showCharacterDetail(i) {
 
   const r = d.rec;
   // Every figure below opens the byte of 0xF009 it was read from. The
-  // record is 32 bytes and the index is the character's own.
+  // record is 32 bytes and the index is the character's.
   const cSrc = (off, what) => ({ resid: 0xF009, byte: r.index * 32 + off, stride: 32, what });
   const info = document.createElement('div');
   info.style.cssText = 'font-size:0.875rem;line-height:1.7';
@@ -1532,14 +1532,14 @@ function showCharacterDetail(i) {
     // A zero in this table nearly always means "no value recorded", not
     // "zero of it" -- printing "XP 0 Training 0 Magic 0/0" for a farmhand
     // invented three facts about them. Absent fields are simply left out, and
-    // a character with no placement gets no location line at all.
+    // a character with no placement has no location line at all.
     statLine([['Level', r.level, cSrc(19, 'level')], ['XP', r.xp, cSrc(12, 'experience, two bytes')],
               ['Training', r.training, cSrc(28, 'training points')]]) +
     statLine([['Body', r.body, cSrc(9, 'body')], ['Reflex', r.reflex, cSrc(10, 'reflex')],
               ['Mind', r.mind, cSrc(11, 'mind')]]) +
     statLine([['Health', r.healthMax ? srcNum(cSrc(14, 'health'), String(r.health)) + '/' + srcNum(cSrc(15, 'health at full'), String(r.healthMax)) : 0],
               ['Magic', r.magicMax ? srcNum(cSrc(16, 'magic'), String(r.magic)) + '/' + srcNum(cSrc(17, 'magic at full'), String(r.magicMax)) : 0]]) +
-    // Byte 25, the alignment, named by the combat AI's own groups
+    // Byte 25, the alignment, named by the combat AI's groups
     // (exeAlignmentNames). Zero is a value here, neutral, so it is shown.
     (r.proptype ? '<b>Alignment</b> ' + alignmentHTML(r.raw[25], cSrc(25, 'the alignment')) + '<br>' : '') +
     /* Dead when the alive bit, the lowest of the status halfword at byte 6,
@@ -1564,14 +1564,14 @@ function showCharacterDetail(i) {
   panel.appendChild(info);
   // What this person is assembled from, each chip a jump to the component
   // under Components. The dossier used to draw the portrait and the sprite
-  // sheet without ever saying which resources they were.
+  // sheet without ever showing which resources they were.
   const parts = document.createElement('div');
   parts.innerHTML = linksFold(partsStrip('Made of', characterParts(i, d)) + characterSays(i));
   panel.appendChild(parts);
   /* What they wear and what they carry, as two headed groups of pictures
      with their names (the maintainer, 6 October 2026: the one Carries row
-     was tiny text, apart from the things it named, and said "equipped" in
-     a grey word after a name). What a carried container holds is listed
+     was tiny text, apart from the things it named, and showed "equipped" in
+     a grey word after a name). What a carried container contains is listed
      under it. In the open and not folded with the parts: it is the
      character, not a link to something else. */
   {
@@ -1612,13 +1612,13 @@ function showCharacterDetail(i) {
 
 /* The hero's portrait: where the one in play comes from. exePortraitChoice
    in js/page-rules.js reads the slot arithmetic and the two ids out of the
-   program, so with no application open the card says where the figures
-   come from and shows none. What the file holds at those ids is the file's
+   program, so with no application open the card gives where the figures
+   come from and shows none. What the file has at those ids is the file's
    own evidence: twelve in the shipped scenario. How many the dialog offers
    is the picker list's rows times its columns, and which it draws is its
    LDEFDraw's stride (exePortraitsOffered); the rest of the run, six copies
    of one blank face, are counted off the file as never displayed, and
-   drawn dimmed. A saved game holds the chosen one as its 0x8800 and none
+   drawn dimmed. A saved game has the chosen one as its 0x8800 and none
    of the twelve. */
 function heroPortraitCard() {
   const card = document.createElement('div');
@@ -1700,7 +1700,7 @@ function renderCompositeSheet() {
     cell.appendChild(residDiv);
     const lblDiv = document.createElement('div');
     lblDiv.className = 'lbl';
-    // "16 stitched fragments" was identical on every tile and said nothing.
+    // "16 stitched fragments" was identical on every tile and meant nothing.
     // Name the tile from the terrain table (0xF004) where we can.
     const tname = compositeTileName(tileId);
     lblDiv.textContent = tname || 'unnamed';
@@ -1766,14 +1766,14 @@ function leaveAtlas() {
 
 function setModeImpl(m) {
   stopAllViewActivity();
-  /* Give the panel back before anything decides what to put in it.
+  /* Give the panel back before anything sets what to put in it.
 
      The atlas borrows this panel and hides the furniture it does not use; the
      restore has to happen here rather than inside renderMapResource, because
-     by then the caller has already set its own display values and putting the
+     by then the caller has already set its display values and putting the
      saved ones back overwrites them -- which showed up as the resource nav
      vanishing from Entities > Regions after a visit to the World tab. First,
-     then whatever this view wants. */
+     then whatever this view needs. */
   // Coming back from the atlas: the sheet returns and the atlas panel goes.
   if (window.CUR_SUBN !== 'WORLD') leaveAtlas();
   window.DETAIL_VIEW = null;   // a detail view is what we are leaving
@@ -1806,7 +1806,7 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'CHEATS') { renderCheatsSheet(); return; }
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
   // A link to the Changes tab, which was a section of the Patch Generator
-  // from 17 to 19 October 2026, opens Your Patch, which carries the edits.
+  // from 17 to 19 October 2026, opens Your Patch, which has the edits.
   if (window.CUR_SUBN === 'CHANGES') { renderPatchesSheet(); setTimeout(() => { const pb = document.getElementById('patchBar'); if (pb && pb.scrollIntoView) pb.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
   // One tab per group of the rules sheet, and Hackery, all one renderer.

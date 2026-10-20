@@ -1,6 +1,6 @@
 // smoke_rules.mjs -- one part of the UI smoke: the rules sheets: mechanics, damage, aim, cures and grants, the to-do and the eggs, the library, loose ends and puzzles, the face, the world tab's marks, zone landscapes, talk, the file figures, cheats and preferences.
 // Cut out of viewer_smoke.mjs on 18 September 2026 at a point where the open
-// file changes, so it runs from a fresh boot (smoke_boot.mjs) as its own
+// file changes, so it runs from a fresh boot (smoke_boot.mjs) as a separate
 // process. Run alone with
 //   node utilities/viewer_smoke.mjs index.html "$TMPDIR/Cythera Data.data" "" <installers .sit> <saved game> rules
 // and with the other parts by naming them; with none named the runner drives
@@ -19,22 +19,22 @@ try {
   const dice = ctx.diceGame();
   const mechSecs = (function count(el) { return (el.className === 'mechSec' ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
   const mechFolds = (function count(el) { return ((el.tagName || '').toUpperCase() === 'DETAILS' && el.className === 'mechSec' ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
-  // Skills and Spells: each one a card, read off its own script.
+  // Skills and Spells: each one a card, read off its script.
   ctx.showCategory('SKILLS');
   const skhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const skills = ctx.skillCatalogue();
   const sword = skills.find(x => x.name === 'Sword'), gambling = skills.find(x => x.name === 'Gambling'), attack = skills.find(x => x.name === 'Attack');
   if (!(sword && sword.teachers.some(t => t.who === 4) && sword.weapons.length && /\[aptitude \/ ability\] to use a sword/.test(sword.description))) fail('skills', 'Sword is not a unit: ' + JSON.stringify(sword && [sword.description, sword.teachers, sword.weapons.length]));
-  else if (!(gambling && gambling.askedBy.includes(0x812) && gambling.lessons.length >= 2)) fail('skills', 'Gambling does not say the dice game asks about it, or has no lessons: ' + JSON.stringify(gambling && [gambling.askedBy, gambling.lessons]));
+  else if (!(gambling && gambling.askedBy.includes(0x812) && gambling.lessons.length >= 2)) fail('skills', 'Gambling does not show that the dice game tests it, or has no lessons: ' + JSON.stringify(gambling && [gambling.askedBy, gambling.lessons]));
   else if (!(attack && /\[aptitude \/ training\]/.test(attack.description))) fail('skills', 'the inline alternative was not read: ' + (attack && attack.description));
   else if (!/openCharacter\(4\)/.test(skhtml) || !/Thievery/.test(skhtml) || !/Regroup/.test(skhtml)) fail('skills', 'the Skills sheet does not show the teacher chip, Thievery, or the commands');
   else {
-    // Since v1.30.0 a card is a <details> with the game's own 32x16 icon
+    // Since v1.30.0 a card is a <details> with the game's 32x16 icon
     // (subindex 137, icon n for class 0x1A00|n) in its summary where the
     // file has one -- twelve of the skills do, every spell does -- and a
     // teacher is cited by portrait, not sprite.
     // Counted by `skillCard`, not `mechSec`: since 13 September 2026 the
-    // sheet also carries the moved "what each skill is asked about" card,
+    // sheet also has the moved "what each skill is asked about" card,
     // which is a bare mechSec, and counting those would make this the number
     // of skills plus one for as long as anything else is ever added here.
     const folds = (function count(el) { return ((el.tagName || '').toUpperCase() === 'DETAILS' && /\bskillCard\b/.test(el.className || '') ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
@@ -96,14 +96,14 @@ try {
     else if (!(fm2.box && fm2.box.x0 >= 7 && fm2.box.y0 >= 7 && fm2.box.x1 <= 56 && fm2.box.y1 <= 56 && fm2.hole[32 * 64 + 32])) fail('dither', 'the hole of 0x887E cuts into the braid: ' + JSON.stringify(fm2.box));
     else if (!(tones.includes(3) && tones.includes(11) && tones.includes(255) && !tones.includes(0) && tones.length < 30)) fail('dither', 'the Seldane ramp is not the portraits’ blues and cyans with black: ' + JSON.stringify(tones));
     else if (falls || used !== tones.length) fail('dither', 'a grey gradient on the Seldane ramp does not climb through every step: ' + falls + ' falls, ' + used + ' of ' + tones.length + ' steps');
-    else console.log('  dither: frame 0x88A2 holds a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' picture, 0x887E keeps its braid outside ring 7, the Seldane ramp is ' + tones.length + ' steps and a gradient climbs through all of them');
+    else console.log('  dither: frame 0x88A2 has a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' picture, 0x887E has its braid outside ring 7, the Seldane ramp is ' + tones.length + ' steps and a gradient climbs through all of them');
   }
   // The frames the portraits share (sharedPortraitFrames), as the ditherizer
   // offers them: the grape frame is exactly Ariethous's, Dares's and
   // Diomede's, the guards' is all nine, the white field of the fountain and
   // the door is no frame and not offered, nor are the three the list names
-  // with a rule of their own; and a shared frame's hole takes the middle of
-  // the picture with the frame, the portrait's own pixels, kept around it.
+  // with a separate rule; and a shared frame's hole is the middle of
+  // the picture with the frame, the portrait's pixels, kept around it.
   // Not a box inset from the edge: the grape frame is open at its sides and
   // its hole runs to within a pixel of them.
   {
@@ -116,16 +116,16 @@ try {
     for (let i = 0; i < 4096; i++) if (!fm.hole[i]) { frameN++; if (fm.frame[i] === own[i]) kept++; }
     if (!grapes || grapes.members.join() !== [0x8811, 0x882C, 0x882D].join()) fail('frames', 'the grape frame is not exactly 0x8811, 0x882C and 0x882D: ' + JSON.stringify(grapes && grapes.members));
     else if (!guards || guards.members.length !== 9) fail('frames', 'the guards\u2019 frame is not all nine: ' + JSON.stringify(guards && guards.members));
-    else if (has(0x88BC) || has(0x88A2) || has(0x88F2)) fail('frames', 'a white field or a frame with its own rule is offered as a shared frame');
+    else if (has(0x88BC) || has(0x88A2) || has(0x88F2)) fail('frames', 'a white field or a frame with a separate rule is offered as a shared frame');
     else if (!has(0x887E)) fail('frames', 'Ur-Sylph\u2019s family frame is not offered');
     else if (!(fm.box && fm.hole[32 * 64 + 32] && fm.box.x1 - fm.box.x0 > 30 && fm.box.y1 - fm.box.y0 > 30 && frameN >= 1500 && kept === frameN)) fail('frames', 'the grape frame\u2019s hole or frame is wrong: ' + JSON.stringify(fm.box) + ', ' + kept + ' of ' + frameN);
-    else console.log('  frames: ' + offered.length + ' shared frames offered, the grapes\u2019 of three portraits and the guards\u2019 of nine, the white field left out; the grape frame keeps ' + frameN + ' pixels round a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' hole');
+    else console.log('  frames: ' + offered.length + ' shared frames offered, the grapes\u2019 of three portraits and the guards\u2019 of nine, the white field left out; the grape frame has ' + frameN + ' pixels round a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' hole');
   }
   // A frame of items (itemFramePixels). The axe at the corners lands where
   // Meleager's frame has it, every pixel of the top two. The edges, with an
   // L four wide and three high between plain corners so that nothing
   // overlaps: the L as drawn at the top, the sides the top turned (the
-  // whole frame is its own transpose), the bottom the top flipped and the
+  // whole frame is self-transposing), the bottom the top flipped and the
   // right side the left mirrored.
   {
     const A = ctx.__peek('ARCHIVE'), items = ctx.ditherItemTiles(), axe = items.find(t => t.name === 'axe');
@@ -180,7 +180,7 @@ try {
       const back = fork.dataOf('sfnt', e);
       // it must read back as a font, and out again for a browser
       const tt = ctx.sfntToTrueType(back);
-      // and it must carry a Mac Roman subtable, which is the whole point
+      // and it must have a Mac Roman subtable, which is the whole point
       const c = (function () { const n = ((back[4] << 8) | back[5]); for (let i = 0; i < n; i++) { const p = 12 + i * 16; if (String.fromCharCode(back[p], back[p + 1], back[p + 2], back[p + 3]) === 'cmap') return back.subarray((back[p + 8] << 24 >>> 0) + (back[p + 9] << 16) + (back[p + 10] << 8) + back[p + 11]); } return null; })();
       const macSub = c && (function () { const n = (c[2] << 8) | c[3]; for (let i = 0; i < n; i++) { const p = 4 + i * 8; if (((c[p] << 8) | c[p + 1]) === 1) return true; } return false; })();
       if (!(r.mapped > 60 && back.length > 1000 && tt.length > 1000 && macSub)) fail('font swap', path + ': ' + JSON.stringify([r.mapped, back.length, tt.length, macSub]));
@@ -191,8 +191,8 @@ try {
     let refused = '';
     try { ctx.trueTypeToSfnt(new Uint8Array([0x4F, 0x54, 0x54, 0x4F, 0, 1, 0, 0, 0, 0, 0, 0])); } catch (e) { refused = e.message; }
     if (!peek('window.CYTHERA_RSRC')) fail('font swap', 'no resource fork to swap a font into');
-    else if (!/PostScript/.test(refused)) fail('font swap', 'an .otf was not refused with a reason: ' + refused);
-    else if (!tried) console.log('  font swap: no test font on this machine, only the refusal checked');
+    else if (!/PostScript/.test(refused)) fail('font swap', 'an .otf was not rejected with a reason: ' + refused);
+    else if (!tried) console.log('  font swap: no test font on this machine, only the rejection checked');
     else console.log('  font swap: ' + tried + ' font(s) put in the fork and taken back out, each with a Mac Roman map');
   }
   // Questions, answered from the tables rather than by searching the text.
@@ -216,9 +216,9 @@ try {
     let gifRefused = '';
     try { ctx.encodeGIF(2, 2, [], {}); } catch (e) { gifRefused = e.message; }
     if (threw) fail('guards', 'a character the file does not have threw: ' + threw);
-    else if (!said) fail('guards', 'a character the file does not have said nothing');
-    else if (!/at least one frame/.test(gifRefused)) fail('guards', 'an empty GIF was not refused: ' + gifRefused);
-    else console.log('  guards: a link to a character that is not there says so, and an empty GIF is refused');
+    else if (!said) fail('guards', 'a character the file does not have showed nothing');
+    else if (!/at least one frame/.test(gifRefused)) fail('guards', 'an empty GIF was not rejected: ' + gifRefused);
+    else console.log('  guards: a link to a character that is not there shows it, and an empty GIF is rejected');
     ctx.showCharacterDetail(2);
   }
   // The engine's light cones, listed and unread until now.
@@ -242,7 +242,7 @@ try {
   }
   ctx.showCategory('BARKS');
   const bhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-  if (!/Hot Kabobs!/.test(bhtml) || !/openCharacter\(2\)/.test(bhtml)) fail('barks', 'the Barks tab does not list the lines with their speakers');
+  if (!/Hot Kabobs!/.test(bhtml) || !/openCharacter\(2\)/.test(bhtml)) fail('barks', 'the Barks tab does not show the lines with their speakers');
   ctx.showCharacterDetail(2);
   const dossier = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/Says/.test(dossier) || !/Yum/.test(dossier)) fail('barks', 'Alaric’s dossier does not say “Yum”');
@@ -255,7 +255,7 @@ try {
   else if (!/win (?:<button[^>]*>)?2(?:<\/button>)? oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
   // The spells card moved to the Spells sheet on 13 September 2026; sphtml
   // is that sheet, captured above.
-  else if (!/resist non-magical weapons: [^<]*lich/.test(sphtml)) fail('mechanics', 'the spells card does not name the monsters immune to non-magical damage')
+  else if (!/resist non-magical weapons: [^<]*lich/.test(sphtml)) fail('mechanics', 'the spells card does not show the monsters immune to non-magical damage')
   else if (!/Prop Records: Type, Aspect, Data1 and Data2/.test(html) || !/Data1 on a melee weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/pass it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
   else if (mechSecs < 15) fail('mechanics', `the sections are missing: ${mechSecs} sections`);
   // No application in this run, so none of its figures: the clock, the
@@ -272,18 +272,18 @@ try {
     fail('mechanics', 'the dice constants were not read off the script with their offsets: ' + JSON.stringify(dice && dice.bytes));
   else if (!/What to edit/.test(html) || !/0x0506/.test(html) || !/a match pays nothing/.test(html) || !/every game you play with the skill is a match/.test(html))
     fail('mechanics', 'the dice section does not say what to edit');
-  else if (!ctx.gearTable().some(r => r.name === 'axe' && r.damage === 22 && r.skill === 'Axe') || !ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2) || !ctx.gearTable().some(r => r.name === 'bow' && r.ammoClass === 1 && r.reach === 5)) fail('mechanics', 'the gear table does not name the axe’s damage and skill, the spear’s reach, or the bow’s ammunition and range');
+  else if (!ctx.gearTable().some(r => r.name === 'axe' && r.damage === 22 && r.skill === 'Axe') || !ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2) || !ctx.gearTable().some(r => r.name === 'bow' && r.ammoClass === 1 && r.reach === 5)) fail('mechanics', 'the gear table does not show the axe’s damage and skill, the spear’s reach, or the bow’s ammunition and range');
   else if (!(ctx.combatRules() && ctx.combatRules().d30 && ctx.combatRules().parry && ctx.combatRules().words.length >= 8)) fail('mechanics', 'the combat rules were not read: ' + JSON.stringify(ctx.combatRules()));
   /* The weapon-skill term in 0xE87 reads the shield loop's local, which the
      loop always leaves at None, so it adds nothing (17 September 2026, traced
      through the interpreter). Both terms, the margin's and the damage's, and
      both at a `local` read: a reader that matched the intended `arg Arg02`
      would find none, and one that matched any EAC call would find the shield
-     loop's own Shield-skill call as well and count three. */
+     loop's Shield-skill call as well and count three. */
   else if (!ctx.combatRules().skillOffLoop || ctx.combatRules().skillOffLoop.length !== 2 || ctx.combatRules().skillOffLoop.some(s => s.resid !== 0xE87)) fail('mechanics', 'the resolver reading the weapon skill off the shield loop was not found as two terms: ' + JSON.stringify(ctx.combatRules().skillOffLoop));
   // The attack routine (0x3042): every clause the sheet states is a pattern
   // over the listing, so each is required here, and the two throw figures
-  // must come off the spear's own class rather than a typed table.
+  // must come off the spear's class rather than a typed table.
   else if (!(function () { const ar = ctx.attackRules(); return ar && ar.squared && ar.lessOne && ar.reach && ar.range && ar.launcher && ar.meleeFirst && ar.beyondAdjacent && ar.flies && ar.lodges && ar.drops && ar.bodyRoll && ar.reflexRoll && ar.scale && ar.scale.sub === 12 && ar.scale.div === 4 && ar.bodyAddVal && ar.bodyAddVal.v === 1 && ar.ammoSpent; })()) fail('mechanics', 'the attack routine was not read: ' + JSON.stringify(ctx.attackRules()));
   else if (!/knight’s move/.test(html) || !/hits or meets a parry/.test(html) || !/body less (?:<button[^>]*>)?12(?:<\/button>)? over (?:<button[^>]*>)?4(?:<\/button>)?/.test(html) || !/uses up one piece of ammunition per shot/.test(html)) fail('mechanics', 'the attack rules are not on the sheet');
   else if (!ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2 && r.thrownDamage === 10 && r.thrownRange === 4) || !ctx.gearTable().some(r => r.name === 'mystic spear' && r.reach === 1 && r.thrownDamage === 25 && r.thrownRange === 8) || !ctx.gearTable().some(r => r.name === 'sword' && r.thrownDamage === null)) fail('mechanics', 'the throw figures were not read off the spear classes');
@@ -291,14 +291,14 @@ try {
   else if ((function () { const fx = ctx.spellEffects(); const sp = ctx.spellRules().spells; const by = n => fx.get((sp.find(x => x.name === n) || {}).resid); const fb = by('Fireball'), ds = by('Death Strike'), lh = by('Lesser Healing'), tr = by('Tremor'); return !(fb && fb.damage[0] && fb.damage[0].amount.base === 25 && fb.damage[0].amount.rolls[0][1] === 10 && fb.damage[0].type === 8 && /target square/.test(fb.damage[0].who)) || !(ds && ds.damage[0].amount.base === 200) || !(lh && lh.heals[0] && /health \+ 5 \+ a random number from 1 to 4/.test(lh.heals[0].text)) || !(tr && tr.damage[0].amount.rolls.length === 2 && tr.damage[0].who === 'every enemy'); })()) fail('mechanics', 'the spell effects were misread: ' + JSON.stringify([...ctx.spellEffects()].slice(0, 3)))
   else if (!(ctx.sleepRules() && ctx.sleepRules().own === 4 && ctx.sleepRules().half && ctx.sleepRules().quarter && ctx.sleepRules().inns.some(x => x.who === 41 && x.quality === 3) && ctx.sleepRules().inns.length === 3)) fail('mechanics', 'the sleep rule was misread: ' + JSON.stringify(ctx.sleepRules()))
   else if (ctx.hungerNotes().falls || ctx.hungerNotes().complains !== 4) fail('mechanics', 'hunger was misread: ' + JSON.stringify(ctx.hungerNotes()));
-  else if (!(ctx.skillConsultations().by.get(0xCF) || new Set()).has(0x812)) fail('mechanics', 'Gambling is not listed as asked about by the dice game');
+  else if (!(ctx.skillConsultations().by.get(0xCF) || new Set()).has(0x812)) fail('mechanics', 'Gambling is not listed as tested by the dice game');
   else if (!ctx.karmaRules().writes.some(w => w.set === 55) || JSON.stringify(ctx.karmaRules().byAlignment) !== '[1,4,-10,0]') fail('mechanics', 'karma does not start at 55 or the kill table is not 1,4,-10,0: ' + JSON.stringify(ctx.karmaRules().byAlignment));
   else if (!(ctx.experienceRules().rule && ctx.experienceRules().rule.cap && ctx.experienceRules().rule.doubling) || !ctx.experienceRules().awards.some(a => a.amount === 100)) fail('mechanics', 'the experience rule or a 100-point award was not read');
   else if (!ctx.foodRules().potions.some(p => /Antidote/.test(p.name) && p.does.some(d => /clears Poisoned/.test(d))) || !ctx.foodRules().potions.some(p => /Healing/.test(p.name) && p.does.some(d => /health \+10/.test(d)))) fail('mechanics', 'the potions were not read: ' + JSON.stringify(ctx.foodRules().potions.map(p => [p.name, p.does])));
   else if (!ctx.foodRules().foods.some(f => f.variants && f.variants.length > 5)) fail('mechanics', 'the foodstuff class did not give a value per variant');
-  // v1.43.0: which classes read their aspect, and the line a food says.
+  // v1.43.0: which classes read their aspect, and a food's line.
   // The mushroom steak class indexes a string table by the aspect (three
-  // lines), the flatbread class says one line for every variant, and no
+  // lines), the flatbread class has one line for every variant, and no
   // weapon class reads the field at all.
   else if ((function () { const ar = ctx.aspectReaders(); const reads = [...ar.values()].filter(v => v.reads).length; return !(ar.size > 150 && reads >= 20 && reads < 60 && (ar.get(213) || {}).reads && (ar.get(0x1F) || {}).reads && !(ar.get(100) || {}).reads && !(ar.get(94) || {}).reads && ctx.gearTable().every(r => !(ar.get(r.pt) || {}).reads)); })()) fail('mechanics', 'the aspect readers were not counted as expected: ' + JSON.stringify([...ctx.aspectReaders()].filter(([, v]) => v.reads).map(([pt]) => pt)));
   else if ((function () { const f = ctx.foodRules().foods.find(f => f.pt === 213), b = ctx.foodRules().foods.find(f => f.pt === 69); return !(f && f.saysPer && f.variants.length === 3 && f.variants[1].name === 'dried jellyfish' && f.variants[1].plus === 8 && f.variants[1].says === 'Yetch!' && f.variants[0].says === 'Not very good' && b && !b.saysPer && b.variants.every(v => v.says === 'Tasty')); })()) fail('mechanics', 'the foods’ lines were not read: ' + JSON.stringify(ctx.foodRules().foods.filter(f => f.variants).map(f => [f.pt, f.saysPer, f.variants.map(v => v.says)])));
@@ -316,11 +316,11 @@ try {
   else if (!/preserveAspectRatio="none"/.test(html) || !/<polyline/.test(html)) fail('mechanics', 'no plotted curve reached the sheet');
   // The stacked bar went with the Combat Calculator (17 October 2026).
   else if (!/class="mechBars"/.test(html) || !/class="mechLine"/.test(html)) fail('mechanics', 'a bar group or a number line is missing');
-  // The models agree with the page's own enumeration of the same game. Two
+  // The models match the page's enumeration of the same game. Two
   // implementations of the dice payout, so a change to either shows here.
-  // The model is handed what diceGame() read; it has no numbers of its own.
+  // The model is handed what diceGame() read; it has no numbers built in.
   else if (Math.round(ctx.mechDiceExact(dice.opts).wins * 216) !== 96 || Math.round(ctx.mechDiceExact(dice.opts).losses * 216) !== 70) fail('mechanics', 'the model does not enumerate 96/70: ' + JSON.stringify([ctx.mechDiceExact(dice.opts).wins * 216, ctx.mechDiceExact(dice.opts).losses * 216]));
-  else if (Math.abs(ctx.mechDiceExact(dice.opts).mean - dice.fair) > 1e-9 || Math.abs(ctx.mechDiceExact(Object.assign({ gambling: true }, dice.opts)).mean - dice.skilled) > 1e-9) fail('mechanics', `the model and diceGame() disagree about the edge: ${ctx.mechDiceExact(dice.opts).mean} vs ${dice.fair}`);
+  else if (Math.abs(ctx.mechDiceExact(dice.opts).mean - dice.fair) > 1e-9 || Math.abs(ctx.mechDiceExact(Object.assign({ gambling: true }, dice.opts)).mean - dice.skilled) > 1e-9) fail('mechanics', `the model and diceGame() differ about the edge: ${ctx.mechDiceExact(dice.opts).mean} vs ${dice.fair}`);
   // The simulator plays the same arithmetic and tallies what it played.
   else if ((function () { ctx.diceSimReset(); ctx.diceSimPlay(500); const t = peek('DICE_SIM').tally; return !(t && t.games === 500 && t.wins + t.pushes + t.losses === 500); })()) fail('mechanics', 'the dice simulator did not play 500 games');
   else if (!/500 games/.test(ctx.diceSimHtml())) fail('mechanics', 'the simulator does not say what it played');
@@ -344,12 +344,12 @@ try {
   else if (/unidentified/.test(ctx.monsterFlagsHTML(0x00014004)) || !/fights with its body/.test(ctx.monsterFlagsHTML(0x00014004))) fail('mechanics', 'the fighter\'s flags are not all named: ' + ctx.monsterFlagsHTML(0x00014004));
   else if (withoutApp(() => ctx.monsterTopFlagSites().size !== 0 || ctx.recordFieldMap(0xF008).length !== 11 || /fights with its body/.test(ctx.monsterFlagsHTML(0x00014004)))) fail('mechanics', 'the top half of the unit flags is named with no program open');
   else if (ctx.recordFieldMap(0xF008).length !== 12 || !ctx.recordFieldMap(0xF008).some(r => r.off === 8 && r.width === 2 && r.field === 51) || !ctx.recordFieldMap(0xF008).some(r => r.off === 10 && r.width === 2 && r.field === 50)) fail('mechanics', 'the unit record does not split the flags into their two fields');
-  else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${(html.match(/class="mechFig"/g) || []).length} figures drawn; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills asked about, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);
+  else console.log(`  mechanics: ${barks.length} balloon sites catalogued, ${words.size} distinct lines; the dice game stated and enumerated; ${(html.match(/class="mechFig"/g) || []).length} figures drawn; ${ctx.gearTable().length} gear classes, ${ctx.skillConsultations().by.size} skills tested, ${ctx.karmaRules().writes.length} karma writes, ${ctx.experienceRules().awards.length} fixed awards, ${ctx.foodRules().potions.length} potions and ${ctx.foodRules().foods.length} foods, ${ctx.statusRules().applies.size} statuses, ${ctx.shopRules().shops.length} shops, ${ctx.trainingRules().teachers.length} teachers, ${ctx.spellRules().spells.length} spells`);
 } catch (e) { fail('mechanics', e); }
 
 /* Damage to things, 11 September 2026: every class with a TakeDamage of its
    own read off its script, not the metal door's arithmetic stated as a rule.
-   The figures are the shipped file's and each must arrive with the offset
+   The figures are the shipped file's and each must come with the offset
    it was read at: the ring the link paints is checked to land on the line
    holding that number, and on nothing when the offset is one the listing
    does not reach (the negative control, without which a ring painted on
@@ -361,7 +361,7 @@ try {
   const tab = r => (r.types || []).map(t => t.mask.v + (t.op === 'mul' ? '*' : '/') + t.k.v).join(' ');
   ctx.showCategory('MECHANICS');
   const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-  if (dt.rows.length < 19) fail('damage', `only ${dt.rows.length} classes take damage by a rule of their own`);
+  if (dt.rows.length < 19) fail('damage', `only ${dt.rows.length} classes take damage by a separate rule`);
   else if (tab(md) !== '4*2 1/2 2/4' || md.rule !== 'door' || !md.strength || md.strength.v !== 15) fail('damage', 'the metal door was misread: ' + JSON.stringify([tab(md), md.rule, md.strength]));
   else if (!sd.data1Below || sd.data1Below.v !== 128 || sd.strength.v !== 255) fail('damage', 'the stone door’s Data1 guard or strength was misread: ' + JSON.stringify([sd.data1Below, sd.strength]));
   else if (ch.rule !== 'chest' || ch.strength.v !== 10 || cf.strength.v !== 8 || cr.rule !== 'data2' || !cr.data2Default || cr.data2Default.v !== 5) fail('damage', 'the chest, coffer or crate was misread: ' + JSON.stringify([ch.strength, cf.strength, cr.rule, cr.data2Default]));
@@ -371,7 +371,7 @@ try {
   else if (!new RegExp('jumpToScriptAt\\(' + 0xE49 + ',' + dt.door.destroy.factor.at + '\\)').test(html)) fail('damage', 'the door’s destroying factor is not a link to its line');
   else {
     // Follow the factor's link, as a click would, and read the ring: in the
-    // raw listing it is the operand's own line, and in the structured one,
+    // raw listing it is the operand's line, and in the structured one,
     // which a visit opens on since 23 September 2026, the statement holding it.
     const ringOf = () => /<span id="listingHit" class="listingHit">([^\n]*)<\/span>/.exec(REGISTRY.get('textContent').innerHTML || '');
     ctx.jumpToScriptAt(0xE49, dt.door.destroy.factor.at);
@@ -388,22 +388,22 @@ try {
     // first object rings nothing.
     const within = peek('listingLineFor')('function obj_0000(1 args, 0 locals) {\n  0003      byte 0x05\n  0005      end\n}', 0x0004);
     const before = peek('listingLineFor')('\nfunction obj_0010(1 args, 0 locals) {\n  0003      byte 0x05\n}', 0x0004);
-    if (!ring || !/byte 0x05/.test(ring[1])) fail('damage', 'following the factor did not ring the line that holds it: ' + JSON.stringify(ring && ring[1]));
+    if (!ring || !/byte 0x05/.test(ring[1])) fail('damage', 'following the factor did not ring the line it is on: ' + JSON.stringify(ring && ring[1]));
     else if (!sring || !/\* 5\)/.test(sring[1])) fail('damage', 'in the structured listing the factor rings ' + JSON.stringify(sring && sring[1]) + ', not its statement');
     else if (!was || was.resid !== 0xE49) fail('damage', 'the ring was not kept for the jump');
     else if (!cleared) fail('damage', 'a plain jump to the same script kept the ring');
     else if (within !== 1 || before !== -1) fail('damage', 'listingLineFor rings the wrong line: ' + JSON.stringify([within, before]));
-    else console.log(`  damage: ${dt.rows.length} classes read off their own TakeDamage; the door rule (${dt.door.destroy.factor.v} times the strength) and the chest rule (${dt.chest.destroy.factor.v}) stated; a figure's link rings its line`);
+    else console.log(`  damage: ${dt.rows.length} classes read off their TakeDamage; the door rule (${dt.door.destroy.factor.v} times the strength) and the chest rule (${dt.chest.destroy.factor.v}) stated; a figure's link rings its line`);
   }
 } catch (e) { fail('damage', e); }
 
 /* What a use is aimed at, the ground and the water, 11 September 2026.
    Four readings a Discord conversation asked for, each of which the page
-   states from the file: the word a script returns when it wants a target
+   states from the file: the word a script returns when it needs a target
    (and so which spells need a neighbour), what the swamp and lava do to
    whoever stands on them, what each fountain is, and the roll behind the
    unguent's cure. The trap they share is a pattern that stops matching and
-   takes its sentence away with it, so the figures are checked against the
+   removes its sentence with it, so the figures are checked against the
    readers and the sentences against the sheet. The unguent is named on
    purpose: its Examine returns 0 from the same shape as a prompt earlier in
    the resource, and taking the first match dropped the whole script. */
@@ -418,10 +418,10 @@ try {
   const unguent = tg.find(t => t.resid === 0x118A);
   const mineral = wt && wt.kinds.find(k => k.clears.length >= 4);
   const swampChance = tn && tn.swamp && tn.swamp.chance ? tn.swamp.chance.hi.v - tn.swamp.chance.lo.v : null;
-  if (tg.length < 40 || !spells.length) fail('aim', `only ${tg.length} scripts ask for a target, ${spells.length} of them spells`);
+  if (tg.length < 40 || !spells.length) fail('aim', `only ${tg.length} scripts prompt for a target, ${spells.length} of them spells`);
   else if (!unguent || unguent.word !== 8) fail('aim', 'the unguent’s prompt was not reached: a script whose Examine returns first is being dropped');
-  else if (!reach.length || reach.length === tg.length) fail('aim', 'every target or none wants a neighbour: ' + reach.length + ' of ' + tg.length);
-  else if (!link(unguent).test(html) || !link(reach[0]).test(html)) fail('aim', 'a target word is not a link to the line that holds it');
+  else if (!reach.length || reach.length === tg.length) fail('aim', 'every target or none needs a neighbour: ' + reach.length + ' of ' + tg.length);
+  else if (!link(unguent).test(html) || !link(reach[0]).test(html)) fail('aim', 'a target word is not a link to the line it is on');
   else if (!/What a Use Can Be Aimed At/.test(html) || !/within reach/.test(html)) fail('aim', 'the Mechanics sheet does not state what a use is aimed at');
   else if (!tn || !tn.swamp || !tn.lava) fail('ground', 'the ground script was misread: ' + JSON.stringify([!!(tn && tn.swamp), !!(tn && tn.lava)]));
   else if (!tn.swamp.flag || tn.swamp.flag.v !== 31 || tn.swamp.flagName !== null || tn.lava.flagName !== 'Lava Proof') fail('ground', 'the flags that protect were misread: ' + JSON.stringify([tn.swamp.flagName, tn.lava.flagName]));
@@ -432,7 +432,7 @@ try {
   else if (!cures.length || cures[0].hi.v - cures[0].lo.v < 2) fail('cures', 'no cure with a roll behind it was read');
   else if (!grants.some(g => g.pt === 0x135 && g.flagName === 'Lava Proof') || !grants.some(g => g.clearedBy)) fail('grants', 'the worn statuses were misread: ' + JSON.stringify(grants.map(g => g.name + '/' + g.flagName)));
   else if (!bl || !bl.centre || !bl.edge || bl.centre.v <= bl.edge.v) fail('blast', 'the bomb was misread: ' + JSON.stringify(bl && [bl.centre, bl.edge, bl.corner]));
-  else console.log(`  aim and ground: ${tg.length} scripts ask for a target, ${reach.length} of them a neighbour; the swamp bites one step in ${swampChance} and lava does ${tn.lava.plus.v} to ${tn.lava.roll.hi.v - 1 + tn.lava.plus.v}; ${wt.kinds.length} kinds of water, ${mineral.clears.length} statuses cleared by the mineral spring; the unguent cures one time in ${cures[0].hi.v - cures[0].lo.v}; the bomb ${bl.centre.v}/${bl.edge.v}/${bl.corner.v}`);
+  else console.log(`  aim and ground: ${tg.length} scripts prompt for a target, ${reach.length} of them a neighbour; the swamp bites one step in ${swampChance} and lava does ${tn.lava.plus.v} to ${tn.lava.roll.hi.v - 1 + tn.lava.plus.v}; ${wt.kinds.length} kinds of water, ${mineral.clears.length} statuses cleared by the mineral spring; the unguent cures one time in ${cures[0].hi.v - cures[0].lo.v}; the bomb ${bl.centre.v}/${bl.edge.v}/${bl.corner.v}`);
 } catch (e) { fail('aim', e); }
 
 /* The To Do list and the eggs, 12 September 2026. Two readers whose whole
@@ -442,7 +442,7 @@ try {
    never names, and flags 0x44 is ROOF rather than EGG -- taking the two
    together ringed 298 roofs as triggers until this batch, so a kind above
    ten is the negative control for that returning. What is pinned besides:
-   the join to the text array by its own index field rather than by array
+   the join to the text array by the index field in each entry rather than by array
    position, the lines that name the informant instead of the errand, and
    the single line composed from a quest value, which is the only way the
    ten counting lines are reached at all. */
@@ -470,11 +470,11 @@ try {
   else if (!eg.roofs) fail('eggs', 'no roof was seen, so the flags 0x44 half of the census is not being reached');
   else if (!rooms || rooms.named < rooms.total * 0.9) fail('eggs', 'kind 8 is not the rooms: ' + JSON.stringify(rooms));
   else if (!/What an Egg Does/.test(html) || !/a room/.test(html)) fail('eggs', 'the sheet does not say what an egg does');
-  else console.log(`  to do and eggs: ${td.adds.length} lines added and ${td.dones.length} struck off over ${slots.size} slots, ${mism.length} naming the informant and ${never.length} never struck off; ${eg.kinds.reduce((n, k) => n + k.n, 0)} eggs of ${eg.kinds.length} kinds in ${eg.zones} zones, ${rooms.named} of ${rooms.total} rooms with a script of their own, ${eg.roofs} roofs kept out`);
+  else console.log(`  to do and eggs: ${td.adds.length} lines added and ${td.dones.length} struck off over ${slots.size} slots, ${mism.length} naming the informant and ${never.length} never struck off; ${eg.kinds.reduce((n, k) => n + k.n, 0)} eggs of ${eg.kinds.length} kinds in ${eg.zones} zones, ${rooms.named} of ${rooms.total} rooms with a separate script, ${eg.roofs} roofs kept out`);
 } catch (e) { fail('todo', e); }
 
 /* Which creatures an egg hatches, 13 September 2026. The inspector has named
-   them one egg at a time since the reading was new; the sheet said only that
+   them one egg at a time since the reading was new; the sheet read only that
    a kind-0 egg "holds what it hatches as contained records" and never which,
    so the archive's whole hatching census is on it now.
 
@@ -499,8 +499,8 @@ try {
   else if (held < 300) fail('egg creatures', held + ' held records across the hatching eggs, where the reading found 327');
   else if (hatch.length < 2) fail('egg creatures', 'every egg hatches the same one thing, which the archive does not');
   else if (!name) fail('egg creatures', 'the commonest hatched creature has no name: prop ' + top.proptype);
-  else if (!/What they hatch/.test(html)) fail('egg creatures', 'the section does not carry the creature table');
-  else if (!html.includes(name)) fail('egg creatures', 'the table does not name ' + name + ', its commonest creature');
+  else if (!/What they hatch/.test(html)) fail('egg creatures', 'the section does not have the creature table');
+  else if (!html.includes(name)) fail('egg creatures', 'the table does not include ' + name + ', its commonest creature');
   else console.log(`  egg creatures: ${hatch.length} kinds of creature over ${held} held records, commonest ${name} across ${top.zones.size} zones; ${eg.emptyEggs} egg(s) hold nothing`);
 } catch (e) { fail('egg creatures', e); }
 
@@ -509,7 +509,7 @@ try {
    way nobody would notice, and it was wrong twice while it counted only
    placed props: three Sapphire volumes are handed over by Itanos, Prusa and
    Unhayt, and the Wine Contract by Apis. So the check names those four and
-   requires them NOT to be listed -- a reader that forgets `sys Create`
+   requires them NOT to be listed -- a reader that drops `sys Create`
    fails here rather than quietly publishing four wrong claims. The puzzle
    half pins what the community independently reverse-engineered: seven
    tables of sixteen, the first of them the identity, and fourteen buttons.
@@ -518,7 +518,7 @@ try {
    than a missing feature. Array 5 is the table the board could not reduce to
    a rule and wrote down by playing; it is pinned literally, because array 0
    is the identity under any reading that finds the blob at all, so the
-   identity test cannot tell a slipped offset from a correct one. And the
+   identity test cannot distinguish a slipped offset from a correct one. And the
    riddles are NUL-terminated strings with no length byte: reading a length at
    the offset yields text that is long, plausible and missing its first
    character, which is how a wrong reader survives a glance. Both the whole
@@ -550,12 +550,12 @@ try {
   else if (!unshown.length) fail('library', 'nothing is unshown, so the second and third sources are over-counting');
   else if (/Sapphire Book of Mercy|Sapphire Book of Beauty|Sapphire Book of Foundation/.test(said)) fail('library', 'a script-given Sapphire volume is listed as never shown: sys Create is not being counted');
   else if (/Wine Contract/.test(said)) fail('library', 'the Wine Contract is listed as never shown, but Apis hands it over');
-  else if (!/The Game’s Own Writing/.test(libHtml)) fail('library', 'the Writings gallery does not carry the library card');
+  else if (!/The Game’s Own Writing/.test(libHtml)) fail('library', 'the Writings gallery does not have the library card');
   else if (/The Game’s Own Writing/.test(html)) fail('library', 'the library card is still on the Mechanics sheet, so the move is half done');
   /* The murder thread's `GetState(3) == 3` was this list's one entry until
      24 September 2026, when dvmDiscover began following call_subroutine:
      Berossus's 0x003A, which sets it, had been read as part of an array. So
-     the list is empty, and the positive half is that his script now holds
+     the list is empty, and the positive half is that his script now has
      the write and the scene around it. */
   else if (le.unreachable.length) fail('loose', 'a comparison is listed as unsatisfiable: ' + JSON.stringify(le.unreachable.map(u => [u.state, u.want.v])));
   else if (!((ctx.buildScriptTextIndex().find(e => e.resid === 0x1848) || {}).text || '').match(/sys SetState\n\s+[0-9A-F]{4}\s+byte 0x03\n\s+[0-9A-F]{4}\s+byte 0x03\n/) ||
@@ -563,9 +563,9 @@ try {
     fail('loose', 'Berossus\u2019s subroutine 0x003A, with SetState 3, 3, is not in his listing');
   else if (!/Loose Ends/.test(html)) fail('loose', 'the sheet does not state the loose ends');
   /* Three kinds added 17 September 2026, each a bug the community or the
-     workbench had on record and each read off its line. The flag pins carry
-     their own control: flags 254 and 255 are set only by queueing task 165,
-     so a reader that stopped counting tasks would list them as tested and
+     workbench had on record and each read off its line. The flag pins include
+     a control: flags 254 and 255 are set only by queueing task 165,
+     so a reader that stopped counting tasks would show them as tested and
      never set, beside flag 2, which nothing sets at all. */
   else if (!le.exactStrikes.some(x => x.slot.v === 18 && x.n.v === 5)) fail('loose', 'the Books of Wisdom line, struck off only when the count is exactly five, was not found');
   else if (!le.flagReadNeverWritten.includes(2)) fail('loose', 'quest flag 2, which Timon tests and nothing sets, was not found');
@@ -581,14 +581,14 @@ try {
   /* Character flags tested and never set: exactly the five the reading of
      17 September 2026 found. Two controls ride along. Ascalon's flag 5 is
      set only through the helper 0xC85 he calls, so a reader that lost the
-     helper join would list it; and Sabinate's flag 4 must be listed, since a
+     helper join would include it; and Sabinate's flag 4 must be listed, since a
      reader that could not follow task 167 through Crito's and Dares's
      customer arrays would make bit 4 wild and hide it. */
   else if (le.charFlagNeverSet.map(f => f.character + ':' + f.bit).join() !== '1:0,3:1,55:0,74:3,120:4') fail('loose', 'the character flags tested and never set are not the five expected: ' + JSON.stringify(le.charFlagNeverSet.map(f => f.character + ':' + f.bit)));
-  else if (le.dataCaseNoThing.map(d => d.pt + ':' + d.v.v + ':' + d.state).join() !== '298:2:13') fail('loose', 'the kesh vial of Data1 2, which sets quest value 13 for Sacas and which nothing carries, was not the one finding: ' + JSON.stringify(le.dataCaseNoThing.map(d => d.pt + ':' + d.v.v + ':' + d.state)));
+  else if (le.dataCaseNoThing.map(d => d.pt + ':' + d.v.v + ':' + d.state).join() !== '298:2:13') fail('loose', 'the kesh vial of Data1 2, which sets quest value 13 for Sacas and which no placed thing has, was not the one finding: ' + JSON.stringify(le.dataCaseNoThing.map(d => d.pt + ':' + d.v.v + ':' + d.state)));
   else if (le.spacedKeywords.map(k => k.list).sort().join('|') !== 'crol, corr|fish, tlep|form, shap|inn, apis|inn, crit|inn, pari|name, eury') fail('loose', 'the seven keyword lists with a space after a comma were not found as seven: ' + JSON.stringify(le.spacedKeywords.map(k => k.list)));
   else if (le.valueForFlag.map(v => v.resid.toString(16) + ':' + v.k).join() !== '1838:4') fail('loose', 'Eteocles testing quest value 4 where his other tests use flag 4 was not the one finding (Philinus and Ascalon test value 3 legitimately): ' + JSON.stringify(le.valueForFlag.map(v => v.resid.toString(16) + ':' + v.k)));
-  else if (le.shadowed.map(a => a.resid.toString(16) + ':' + a.list).sort().join('|') !== '805:pari|80e:brya') fail('loose', 'the shadowed answers are not the Paris and Bryaxis ones (a later answer keeping a keyword of its own must not be listed): ' + JSON.stringify(le.shadowed.map(a => a.resid.toString(16) + ':' + a.list)));
+  else if (le.shadowed.map(a => a.resid.toString(16) + ':' + a.list).sort().join('|') !== '805:pari|80e:brya') fail('loose', 'the shadowed answers are not the Paris and Bryaxis ones (a later answer with a keyword not seen before must not be listed): ' + JSON.stringify(le.shadowed.map(a => a.resid.toString(16) + ':' + a.list)));
   else if (le.localOnlyFalse.map(l => l.resid.toString(16)).join() !== '1844') fail('loose', 'Thoas\'s farewell local, only ever set false, was not the one finding: ' + JSON.stringify(le.localOnlyFalse.map(l => l.resid.toString(16))));
   else if (le.selfAlive.map(a => a.who).join() !== '4') fail('loose', 'Hadrian testing whether Hadrian is alive, where Hector is meant, was not the one finding: ' + JSON.stringify(le.selfAlive.map(a => a.who)));
   else if (ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels).join('|') !== '35:west standing/west sitting:1') fail('loose', 'the repeated sprite frames are not the fool\'s west standing alone (the fire spirit\'s sheet is four frames, and the two after it are a banner\'s): ' + JSON.stringify(ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels)));
@@ -596,7 +596,7 @@ try {
      the Bridge test quest value 9, which the Bridge's zone script sets, so
      it is neither written-and-never-read nor the only reader a script. */
   else if (le.writtenNeverRead.length || ![...(le.reads.get(9) || new Map()).values()].some(x => x.resid === 0xF00B)) fail('loose', 'quest value 9 was not found read by the schedules, or a value is still written and never read: ' + JSON.stringify(le.writtenNeverRead));
-  /* The fourth batch. The staff's light has its own control in the same
+  /* The fourth batch. The staff's light has a separate control in the same
      reader: the torch, the lamp and the candle say they have gone out and
      land on tiles of light 0, so a reader that looked at the wrong tile would
      turn one of them up. */
@@ -607,7 +607,7 @@ try {
   else if (ctx.tileReadWithSeenBit().map(t => t.resid.toString(16)).join() !== '1091') fail('loose', 'the fishing pole, the one script that reads the map and never masks the seen bit, was not found alone: ' + JSON.stringify(ctx.tileReadWithSeenBit()));
   else if (ctx.wrongCarryFlags().map(w => w.resid.toString(16)).sort().join() !== '1a28,3042') fail('loose', 'Fetch and the attack routine putting things into a character with flags 9 were not the two found (the shop\'s 24 must not be): ' + JSON.stringify(ctx.wrongCarryFlags()));
   else if (!/a map tile read with its seen bit/.test(html) || !/a thing given to a character with the wrong flags/.test(html)) fail('loose', 'the seen-bit or carry-flag row is missing from the card');
-  /* Awaken opens a conversation and names no speaker. With the
+  /* Awaken opens a conversation and assigns no speaker. With the
      TalkParticipant test taken out the reader finds thirteen sites, so the
      one it finds is the test's doing. */
   else if (ctx.speechWithNoSpeaker().map(c => c.resid.toString(16) + ':' + c.talk).join() !== '1a13:true') fail('loose', 'the conversation with no speaker was not Awaken alone: ' + JSON.stringify(ctx.speechWithNoSpeaker()));
@@ -620,15 +620,15 @@ try {
      object's start as well as the jump target, which is already a resource
      offset, and so walked no character's chain; the wishing fountain's four
      wishes, which the board lists among the lines that flash past, came in
-     only when that was fixed. Magpie's two are inside his flag-1 block,
+     only after that fix. Magpie's two are inside his flag-1 block,
      which is unreachable anyway, and are stated as the file has them. */
   else if (ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list).sort().join('|') !== '1036:3,thre|1036:coff|1036:pony|1036:tequ|1803:baho|1803:jhia|1811:n|1824:n|184e:n|807:atus|808:hist') fail('loose', 'the answers without a return are not the fountain\'s four wishes, Magpie\'s two, Atussa\'s, the mages\' history, and Ennomus\'s, Antenor\'s and Pheres\'s second "n" (no other yes-or-no answer, and not Neoptolemus\'s "demo", may be listed): ' + JSON.stringify(ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list)));
   else if (ctx.leaveNeverLeaves().map(l => l.who).join() !== '97') fail('loose', 'Aethon, who agrees to leave and stays, was not the one companion found: ' + JSON.stringify(ctx.leaveNeverLeaves().map(l => l.who)));
   else if (!/an answer that runs on/.test(html) || !/a companion who agrees to leave and stays/.test(html)) fail('loose', 'the run-on answer or the companion who stays is not on the card');
   /* Characters answered about by their own group: without the test that the
-     group's answer names them, Paris (told about Parium) comes in too. */
+     group's answer has their name, Paris (told about Parium) comes in too. */
   else if (ctx.selfToldByGroup().map(t => t.who).join() !== '30,39,50,60,62,79,88,120') fail('loose', 'the characters whose group answers their own name are not Milcom, Eioneus, Philinus, Propontis, Halos, Charax, Helen and Sabinate: ' + JSON.stringify(ctx.selfToldByGroup().map(t => t.who)));
-  /* The trap searches. Each asks for four types; the spike traps and the
+  /* The trap searches. Each looks for four types; the spike traps and the
      one of 0x163 lie loose, and with the placement tests taken out they come
      in as well. */
   else if (ctx.containedUnseen().map(u => u.resid.toString(16) + ':' + u.pt.toString(16)).join() !== '1a04:160,1a04:161,1af2:160,1af2:161,1af3:160,1af3:161') fail('loose', 'the searches that pass over contained things are not the three trap skills on poison and blast traps: ' + JSON.stringify(ctx.containedUnseen().map(u => u.resid.toString(16) + ':' + u.pt.toString(16))));
@@ -637,7 +637,7 @@ try {
   else if (!/a highlighted word nobody answers/.test(html)) fail('loose', 'the highlighted-word row is missing from the card');
   else if (ctx.stateNoSaveKeeps().map(w => w.resource.toString(16) + ':' + w.offset.toString(16) + ':' + w.writers.map(x => x.resid.toString(16)).join('/')).join() !== '500:10:1801' || !/a value no saved game stores/.test(html)) fail('loose', 'the word written before the game has a file is not the hero\'s gender alone (the inn room, written in play, is saved), or its row is missing: ' + JSON.stringify(ctx.stateNoSaveKeeps().map(w => [w.resource, w.offset, w.writers.length, w.readers.length])));
   else if (ctx.deletedAcrossZoneChange().map(d => d.pt.toString(16) + ':' + d.skill.toString(16) + ':' + d.zones.join('/')).join() !== '4b:1a00:3' || !/a delete after the zone has changed/.test(html)) fail('loose', 'the scroll deleting after Directed Nexus has moved the party is not the one found, or its row is missing: ' + JSON.stringify(ctx.deletedAcrossZoneChange()));
-  else if (!/a character told about by their group/.test(html) || !/a search that passes over what is inside things/.test(html) || !/a line repeated on every check/.test(html)) fail('loose', 'the own-group, contained-search or refusal row is missing from the card');
+  else if (!/a character told about by their group/.test(html) || !/a search that passes over what is inside things/.test(html) || !/a line repeated on every check/.test(html)) fail('loose', 'the own-group, contained-search or repeated-line row is missing from the card');
   else if (!/a light that stays on/.test(html) || !/two people scheduled into one place/.test(html) || !/a name told and not kept/.test(html) || !/answers written for someone never asked/.test(html)) fail('loose', 'a fourth-batch row is missing from the card');
   else if (!/a sprite frame that repeats another pose/.test(html)) fail('loose', 'the repeated sprite frames are not on the card');
   else if (!/a character asking if they are alive/.test(html)) fail('loose', 'the self-alive test is not on the card');
@@ -658,17 +658,17 @@ try {
   // Pallas Athene wrote it down from playing the game rather than from the
   // file: [0,9,6,15,6,15,0,6,9,0,15,9,15,6,9,0]. It is the only independent
   // check this reader has, so it is pinned literally. The identity test above
-  // cannot carry it: array 0 is the identity in any reading that finds the
+  // cannot show it: array 0 is the identity in any reading that finds the
   // blob at all, whereas array 5 is wrong the moment the offset slips.
   else if (!bu.arrays[5] || bu.arrays[5].join(',') !== '0,9,6,15,6,15,0,6,9,0,15,9,15,6,9,0')
     fail('puzzles', 'array 5 is not the one the community recorded: ' + JSON.stringify(bu.arrays[5]));
-  // The panel a button drives is its own record index plus the low nibble,
-  // not its position in the filtered list. The two agree only if the buttons
+  // The panel a button drives is its record index plus the low nibble,
+  // not its position in the filtered list. The two match only if the buttons
   // start at record 0 with nothing between them; these are records 82 to 157
   // with the panels and doors interleaved, so the old arithmetic named panels
   // that do not exist. Every button must resolve to a real Strange Device.
   else if (bu.buttons.some(b => !b.a.rec || !b.b.rec || b.a.rec.proptype !== 0x106 || b.b.rec.proptype !== 0x106))
-    fail('puzzles', 'a button names a panel that is missing or is not prop type 0x106');
+    fail('puzzles', 'a button points at a panel that is missing or is not prop type 0x106');
   else if (!bu.rooms || bu.rooms.length !== 5) fail('puzzles', 'the pattern rooms did not come out five: ' + JSON.stringify(bu.rooms && bu.rooms.length));
   else if (!bu.rooms.every(r => r.panels.length === 2 && r.doorRec)) fail('puzzles', 'a room is not two panels and a door');
   else if (!ri || ri.text.length !== 5 || ri.answers.length !== 5) fail('puzzles', 'the riddles did not come out five with five answers');
@@ -711,7 +711,7 @@ try {
     fail('puzzles', 'the tunes do not spell what the board recorded: ' + JSON.stringify([pan.spelled, lyre.spelled]));
   else if (!pan.gate || pan.gate.v !== 1) fail('puzzles', 'the panpipes Data1 gate is not being read: ' + JSON.stringify(pan.gate));
   else if (pan.lists.length !== 2 || pan.lists[0].spelled === pan.lists[1].spelled)
-    fail('puzzles', 'the two sets of pipes are not being told apart: ' + JSON.stringify(pan.lists.map(l => l.spelled)));
+    fail('puzzles', 'the two sets of pipes are not being distinguished: ' + JSON.stringify(pan.lists.map(l => l.spelled)));
   else if (!pan.given.some(c => /Philinus/.test(c.name || '') && c.data1 && c.data1.v === 1))
     fail('puzzles', 'Philinus is not found handing over a panpipes with Data1 one: ' + JSON.stringify(pan.given));
   else if (typeof pan.tune.at !== 'number' || typeof lyre.tune.at !== 'number')
@@ -748,22 +748,22 @@ try {
   else console.log('  strange device: start ' + td.start.join('') + ', three patterns, each a door and a shortest sequence that plays back true (' + td.patterns.map(p => p.presses.length).join(', ') + ' presses)');
 } catch (e) { fail('strange device', e); }
 
-/* The face, 12 September 2026. The page used to be set in Cythera's own
+/* The face, 12 September 2026. The page was once set in Cythera's
    typeface from the first paint, served out of res/, whether or not the
    reader had opened a copy of the game. It is Chicago Kare until a file is
-   open now, the file's own face after that, and either can be chosen.
+   open now, the file's face after that, and either can be chosen.
 
    Pinned here: the default with no file, that an open file makes the game's
    face the one in use, that every stack ends in a system sans (Chicago Kare
-   carries ASCII and most of Mac Roman but not the crumb's angle quote, the
+   has ASCII and most of Mac Roman but not the crumb's angle quote, the
    middot, the en dash or several button icons, and those must fall through
    to what stood beside Chicago on a Mac rather than to a serif), and that
-   no stack names the bundled Argos any more.
+   no stack includes the bundled Argos any more.
 
    canvasFace is checked against this stub on purpose: its getComputedStyle
    returns an object with no getPropertyValue, which is what an old browser
    does too, and a canvas label is drawn from a paint loop, so an unguarded
-   read there takes the whole map down rather than one label. */
+   read there brings the whole map down rather than one label. */
 try {
   const stacks = peek('FACE_STACKS');
   const was = ctx.GAME_FONT;
@@ -791,7 +791,7 @@ try {
 /* The World tab's three fixes, 12 September 2026, all reported from a phone.
 
    The one worth a real check is the judder. A node past the 448 pixel
-   threshold used to ask for a full map render every node, every frame, and
+   threshold once requested a full map render every node, every frame, and
    ZONE_CACHE_KEEP is two on iOS: three big towns at an intermediate zoom
    evicted each other and re-rendered continuously. Since 25 September 2026
    the tab never renders a zone in one piece at all: a paint at rest starts
@@ -832,7 +832,7 @@ try {
      beginPath, arc, stroke, restore. A dashed stroke is among the slowest
      things a canvas does, so a pan issued over a hundred of them a frame.
 
-     The assertion is a ratio rather than a number, so it holds for any
+     The assertion is a ratio rather than a number, so it is valid for any
      archive: many rings, few strokes. The control is that rings are drawn
      at all -- a pass that drew nothing would satisfy every ratio here and
      the check would pass for ever having measured nothing. */
@@ -866,29 +866,29 @@ try {
   ctx.placeHoverCard(el, fakeVp, 100, 400, true);
   const topAbove = parseInt(el.style.top, 10);
 
-  /* An egg says what it names, and in the inspector it links to it: the
+  /* An egg shows what it names, and in the inspector it links to it: the
      creatures it hatches, the sound it plays, the room it is. The hover
      cards are pointer-events:none, so a link drawn in one could never be
      clicked and the plain form is what they get. Both are pinned, because
      escaping the linked form would silently print markup at a reader and
-     forgetting to escape the plain one is an injection of the file's own
+     forgetting to escape the plain one is an injection of the file's
      text into the page. */
   const hatchLink = ctx.atlasEggAt({ resid: 0x8001 }, 137, 9, true);
   const hatch = ctx.atlasEggAt({ resid: 0x8001 }, 137, 9);
   const room = ctx.atlasEggAt({ resid: 0x8001 }, 187, 76);
   /* Three bits of a hatching egg, as TActiveMonster::HatchEgg reads them
      (eggDetail's header has the reading). The unicorn's egg at 138,176
-     carries 0x01 with a chance of 1 in 100, and 0x01 makes it certain once
-     it has hatched; the seedpod egg at 148,210 carries 0x04 and holds a
-     thing, whose count 0x04 keeps; and Odemia's night guard at 10,14
-     carries 0x04 too, but a guard is a creature and the bit is not read for
+     has 0x01 with a chance of 1 in 100, and 0x01 makes it certain once
+     it has hatched; the seedpod egg at 148,210 has 0x04 and contains a
+     thing, whose count 0x04 preserves; and Odemia's night guard at 10,14
+     has 0x04 too, but a guard is a creature and the bit is not read for
      one, so its card must not say so. The sea monster's eight tentacles are
      one record's count, which hatches whole. */
-  /* How near: TViewer::SetStage lists an egg only within 15 squares of the
+  /* How near: TViewer::SetStage collects an egg only within 15 squares of the
      party's square on both axes (exeEggReach). With the application open
-     the card says the 15 and links it to the instruction; without it the
-     card says "near" and states no figure. Each half fails on its own if
-     the reader stops finding the number or starts guessing one. */
+     the card gives the 15 and links it to the instruction; without it the
+     card reads "near" and states no figure. Each half fails by itself if
+     the reader stops finding the number or starts inventing one. */
   const hatchBare = withoutApp(() => ctx.atlasEggAt({ resid: 0x8001 }, 137, 9));
   if (!/when the party comes within 15 squares of it,/.test(hatch))
     fail('world tab', 'the hatching egg does not give the reach read off SetStage: ' + JSON.stringify(hatch));
@@ -902,13 +902,13 @@ try {
   if (!/on 1 visit in 100[^\n]*on every visit once it has hatched/.test(unicorn))
     fail('world tab', 'the unicorn egg does not say that bit 0x01 makes it certain once hatched: ' + JSON.stringify(unicorn));
   else if (!/without running out/.test(seedpod))
-    fail('world tab', 'a thing egg with bit 0x04 does not say it keeps its count: ' + JSON.stringify(seedpod));
+    fail('world tab', 'a thing egg with bit 0x04 does not show that its count is preserved: ' + JSON.stringify(seedpod));
   else if (!/hatches guard/.test(nightGuard) || /running out/.test(nightGuard))
-    fail('world tab', 'a creature egg with bit 0x04 says what the bit does for things only: ' + JSON.stringify(nightGuard));
+    fail('world tab', 'a creature egg with bit 0x04 shows what the bit does for things only: ' + JSON.stringify(nightGuard));
   else if (!/tentacle ×8/.test(hatch))
     fail('world tab', 'the sea monster egg does not give the tentacles\' count: ' + JSON.stringify(hatch));
   // Kind 3 is an ambient sound, not "nothing": every one of the hundred
-  // carrying sound 6 stands on water, and 0x9106 is named Waves / Seashore
+  // with sound 6 stands on water, and 0x9106 is named Waves / Seashore
   // Loop in the file. 151,13 is one of them.
   const surf = ctx.atlasEggAt({ resid: 0x8001 }, 151, 13);
   // Room 800, the way into the Tree of Life: egg (125,139) sized 3 by 5, so
@@ -936,7 +936,7 @@ try {
   // and must stay empty, or the rectangle is being computed too wide and
   // every room on the map is overstated.
   else if (!/a room, room 800/.test(inRoom800)) fail('world tab', 'a square inside room 800 does not read as the room: ' + JSON.stringify(inRoom800));
-  else if (!/a room, room 800/.test(onRoom800)) fail('world tab', 'room 800 stopped reading on its own trigger square: ' + JSON.stringify(onRoom800));
+  else if (!/a room, room 800/.test(onRoom800)) fail('world tab', 'room 800 stopped reading on its trigger square: ' + JSON.stringify(onRoom800));
   else if (outRoom800 !== '') fail('world tab', 'a square outside room 800 reads as inside it: ' + JSON.stringify(outRoom800));
   // The invariant, not a population: however many rings a node draws, the dash
   // is set once and they are stroked together. A threshold on the ring count
@@ -945,19 +945,19 @@ try {
   else if (!/showItemDetail\(/.test(hatchLink) || !/<button/.test(hatchLink))
     fail('world tab', 'the inspector form of an egg does not link what it hatches: ' + JSON.stringify(hatchLink));
   else if (/<button|<span/.test(hatch))
-    fail('world tab', 'the hover form of an egg carries markup, which that card cannot click and should not print: ' + JSON.stringify(hatch));
+    fail('world tab', 'the hover form of an egg has markup, which that card cannot click and should not print: ' + JSON.stringify(hatch));
   // Rooms are drawn on the zone view now, not on the world: a kind-8 egg
   // covers a rectangle, and a score of them tiling a town is clutter at the
   // scale the world map is drawn at. rect() is the call they used, and the
   // rings are arcs, so a rectangle on this path means they came back.
   else if (a2 && rects > 0) fail('world tab', rects + ' rectangles drawn on the world map: the room outlines are back on the atlas');
   else if (a2 && arcs < 1) fail('world tab', 'no rings drawn at the densest point of the world, so this measured nothing');
-  else if (a2 && dashes > 1) fail('world tab', dashes + ' setLineDash calls for ' + arcs + ' rings: the dash is being set per egg again');
+  else if (a2 && dashes > 1) fail('world tab', dashes + ' setLineDash calls over ' + arcs + ' rings: the dash is being set per egg again');
   /* Bounded, not merely fewer. `strokes < arcs` passed on the eggs alone --
      they contribute many arcs and one stroke -- which masked two dozen mouth
      rings each stroking for itself, and that was the tab still being jerky at
      mid zoom on 13 September 2026. Both passes batch per node now, so the
-     strokes on this frame are a handful whatever the archive holds, while the
+     strokes on this frame are a handful whatever is in the archive, while the
      rings are many. A ratio would drift back; a bound will not. */
   else if (a2 && arcs > 2 && strokes > 8) fail('world tab', strokes + ' strokes for ' + arcs + ' rings: a ring pass is stroking one at a time again');
   else console.log(`  world tab: ${moving} renders while moving and ${atRest} at rest; card at ${topNearFinger} by a finger at 30; ${arcs} rings in ${strokes} strokes and ${dashes} dashes, ${rects} rectangles; ${JSON.stringify(hatch.replace(/^[^:]*: /, ''))}`);
@@ -980,7 +980,7 @@ try {
   else {
     // '127' is the maps' own subindex, which is what the other map sections
     // in this file switch to. 'ZONES' is the tab's name on screen, not a
-    // category key, and showCategory refuses it, so the map never opened and
+    // category key, and showCategory rejects it, so the map never opened and
     // this check reported no rooms on a map that has twenty-three.
     ctx.showCategory('127');
     ctx.openResource(0x8003); drainRaf();            // Land King Hall, 23 rooms
@@ -1045,21 +1045,21 @@ try {
     if (c2 && realArc) c2.arc = realArc;
     Object.assign(marks, before);
     if (who === null || who === undefined) fail('path mark', 'opening the map chose nobody to follow, so the picker never filled');
-    else if (!posts) fail('path mark', 'the character the picker chose keeps no posts on this map, so this proves nothing');
+    else if (!posts) fail('path mark', 'the character the picker chose has no posts on this map, so this proves nothing');
     else if (off !== 0) fail('path mark', off + ' dots drawn with the mark off');
     else if (on < posts) fail('path mark', 'the mark drew ' + on + ' dots for ' + posts + ' posts');
     else console.log(`  path mark: ${ctx.characterName(who)}'s day on Land King Hall, ${posts} posts, ${off} dots off and ${on} on`);
   }
 } catch (e) { fail('path mark', e); }
 
-/* The day's legs are told apart, 13 September 2026. Reported from a phone:
+/* The day's legs are distinguished, 13 September 2026. Reported from a phone:
    "her path is unclear ... maybe we could make it hue-based ... not have it
    double over itself".
 
    A day doubles back -- out and home is one corridor walked twice -- and two
    identical strokes on the same squares are one stroke to look at, so a
-   single-coloured path said where she goes and never when. Each leg now
-   takes a hue from the hour it sets out, and rides its own perpendicular
+   single-coloured path showed where she goes and never when. Each leg now
+   is given a hue from the hour it sets out, and rides a separate perpendicular
    rail so a way walked twice reads as two strands.
 
    Both halves are pinned because both are exactly what a later tidy-up
@@ -1096,18 +1096,18 @@ try {
   const hues = [...new Set(styles.filter(s => typeof s === 'string' && /^hsl\(/.test(s)))];
   if (!posts) fail('path colours', 'the picker chose nobody with posts here, so this proves nothing');
   else if (!c2) fail('path colours', 'no mark layer context, so no stroke could be counted');
-  else if (!hues.length) fail('path colours', 'the path strokes carry no hsl colour: the legs are one colour again');
-  else if (hues.length < 2) fail('path colours', 'every leg is the same hue, so the colour says nothing about the hour: ' + hues[0]);
-  else console.log(`  path colours: ${hues.length} distinct hues over ${strokes} strokes for ${posts} posts, each leg on its own rail`);
+  else if (!hues.length) fail('path colours', 'the path strokes have no hsl colour: the legs are one colour again');
+  else if (hues.length < 2) fail('path colours', 'every leg is the same hue, so the colour shows nothing about the hour: ' + hues[0]);
+  else console.log(`  path colours: ${hues.length} distinct hues over ${strokes} strokes for ${posts} posts, each leg on a separate rail`);
 } catch (e) { fail('path colours', e); }
 
-/* A zone names its backdrop, and the page now says so (13 September 2026:
+/* A zone sets its backdrop, and the page now shows it (13 September 2026:
    "Zone should show the landscape image as well").
 
    The entry script's one SetLandscapeImage call has been read since the
    atlas was built -- zoneLandscapeArg -- and never shown. mapParts chips it
    now: a strip at 0x8400 + n where the argument is zero or above, and the
-   engine's own backdrops, which have no resource to open, named rather than
+   engine's backdrops, which have no resource to open, named rather than
    linked.
 
    The failure here is silent and is what this pins against. zoneLandscapeArg
@@ -1132,7 +1132,7 @@ try {
   else if (!engine) fail('zone landscape', 'no zone uses one of the engine’s own backdrops, where 14 did');
   else if (!/Landscape/.test(chips)) fail('zone landscape', 'Odemia’s parts do not chip its landscape');
   else if (!/jumpToResource\(33794\)/.test(chips)) fail('zone landscape', 'Odemia’s landscape chip does not open 0x8402');
-  else if (!/Landscape/.test(lkh)) fail('zone landscape', 'Land King Hall, whose backdrop is the engine’s own, names no landscape');
+  else if (!/Landscape/.test(lkh)) fail('zone landscape', 'Land King Hall, whose backdrop is the engine’s, shows no landscape');
   else console.log(`  zone landscape: ${strip} zones name a strip and ${engine} one of the engine’s own, all chipped in Made of`);
 } catch (e) { fail('zone landscape', e); }
 
@@ -1140,7 +1140,7 @@ try {
 
    The page tiled one of 0x8F50/0x8F51 as a pattern behind Land King Hall,
    swapped the two, and showed them under every tile with a transparent
-   pixel. TViewer::Render says otherwise (zoneBackdrop, js/page-data.js):
+   pixel. TViewer::Render shows otherwise (zoneBackdrop, js/page-data.js):
    each is a picture an egg of kind 10 places, drawn before the ground and
    seen through the tiles whose attribute has 0x10000000. Pinned on the
    hall's twelve, on the two pictures, on a depth being negative, and on
@@ -1150,7 +1150,7 @@ try {
 try {
   const sw = ctx.zoneBackdrop(3) || [];
   const pics = [...new Set(sw.map(b => b.resid))].sort().join();
-  if (sw.length !== 12) fail('void pictures', 'Land King Hall has ' + sw.length + ' pictures behind its void, where its list holds 12 eggs of kind 10');
+  if (sw.length !== 12) fail('void pictures', 'Land King Hall has ' + sw.length + ' pictures behind its void, where its list has 12 eggs of kind 10');
   else if (pics !== [0x8F50, 0x8F51].join()) fail('void pictures', 'the hall’s pictures are ' + pics + ', not 0x8F50 and 0x8F51');
   else if (sw.some(b => !(b.depth < 0))) fail('void pictures', 'a picture behind the ground has a depth that is not negative');
   else if (ctx.zoneBackdrop(2)) fail('void pictures', 'Odemia, which has no egg of kind 10, was given pictures behind its ground');
@@ -1164,8 +1164,8 @@ try {
    findPath's cache key was the endpoints and the map's width. Two maps of
    equal width share that, so the second was handed the first's route --
    walked around walls it does not have -- and the cache is only dropped with
-   the archive, not with the map. The key carries PROP_BLOCK's key now, which
-   names the resource the blockers were built from.
+   the archive, not with the map. The key includes PROP_BLOCK's key now, which
+   identifies the resource the blockers were built from.
 
    The control is the case that used to collide: the same map and the same
    endpoints under two different blocker sets must not be answered with the
@@ -1198,9 +1198,9 @@ try {
    from three characters' topics.
 
    Naxos is the anchor because dialogue_check pins the same chain against the
-   community's transcription, so this agrees with an oracle rather than with
+   community's transcription, so this matches an oracle rather than
    itself. And Protesilaus is pinned deliberately: the archive gives him
-   Pnyx, Mage, Human while all nine of his classmates carry Student, and the
+   Pnyx, Mage, Human while all nine of his classmates have Student, and the
    Student group itself has a topic reading "Protesilaus is another student".
    If that ever stops being true, something real changed and a person should
    look, so it fails here rather than passing. */
@@ -1215,7 +1215,7 @@ try {
   const notGroups = cv.groups.filter(g => g.kind !== 'group').map(g => g.rid);
   const walkGrid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   /* The chains card moved to the Dialogue gallery on 13 September 2026, so
-     both sheets are walked: the gallery must carry it and Mechanics must no
+     both sheets are walked: the gallery must have it and Mechanics must no
      longer. Nothing else in this block reads the sheet -- the assertions
      above it are all about the reader -- so the capture moves wholesale. */
   ctx.showCategory('MECHANICS');
@@ -1225,7 +1225,7 @@ try {
   if (cv.chars.length < 100 || topics < 1200) fail('talk', `${cv.chars.length} characters and ${topics} topics`);
   else if (!naxos || JSON.stringify(naxos.chain) !== JSON.stringify([0x804, 0x80E, 0x801]))
     fail('talk', 'Naxos is ' + JSON.stringify(naxos && naxos.chain) + ', expected House Comana, Cademia, Human');
-  else if (real.some(g => g.name)) fail('talk', 'a group carries a typed name, which went on 23 September 2026: ' + JSON.stringify(real.filter(g => g.name).map(g => g.rid)));
+  else if (real.some(g => g.name)) fail('talk', 'a group has a typed name, which went on 23 September 2026: ' + JSON.stringify(real.filter(g => g.name).map(g => g.rid)));
   else if (notGroups.indexOf(0x813) < 0 || notGroups.indexOf(0x816) < 0)
     fail('talk', 'the routines that are not groups are being counted as groups: ' + JSON.stringify(notGroups));
   else if (!bartender || bartender.inherited !== 0 || bartender.called < 1)
@@ -1234,7 +1234,7 @@ try {
     fail('talk', 'Protesilaus now inherits Student; the archive did not give him it, so check what changed');
   else if (!thra || thra.chain.indexOf(0x810) < 0)
     fail('talk', 'Thrasymedes lost the Student group, so the chain reading is wrong');
-  else if (!/Who Answers as Whom/.test(html)) fail('talk', 'the Dialogue gallery does not carry the chains card');
+  else if (!/Who Answers as Whom/.test(html)) fail('talk', 'the Dialogue gallery does not have the chains card');
   else if (/Who Answers as Whom/.test(mechHtml)) fail('talk', 'the chains card is still on the Mechanics sheet, so the move is half done');
   else console.log(`  talk: ${cv.chars.length} characters, ${topics} topics, ${real.length} groups inherited; Human by ${(real.find(g => g.rid === 0x801) || {}).inherited}, Bartender by none but called by ${bartender.called}`);
 } catch (e) { fail('talk', e); }
@@ -1266,7 +1266,7 @@ try {
   else if (!ln.kinds.call || !ln.kinds.resource) fail('leans', 'the kinds of reference collapsed: ' + JSON.stringify(ln.kinds));
   else if (!top || top.refs < 50 || top.calls !== top.refs) fail('leans', 'the busiest resource reads as ' + JSON.stringify(top));
   else if (!quest || quest.calls !== 0) fail('leans', 'the To Do text array reports ' + (quest && quest.calls) + ' calls; operands are being counted as calls');
-  // CurePoison was the session's name for 0xF06; the helpers carry no names
+  // CurePoison was the session's name for 0xF06; the helpers have no names
   // since 24 September 2026, so it is found by id.
   else if (!chars || !chars.dead.some(d => d.rid === 0xF06)) fail('leans', 'the character helpers nothing calls are missing from 0xFxx: ' + JSON.stringify(chars && chars.dead.map(d => d.rid)));
   else if (labels.indexOf('0x10xx') >= 0 || labels.indexOf('0x18xx') >= 0 || labels.indexOf('0x1Bxx') >= 0)
@@ -1276,7 +1276,7 @@ try {
 } catch (e) { fail('leans', e); }
 
 /* No copy of the file's numbers or names, 11 September 2026. The Mechanics
-   figures are read with the line that holds each and printed as links to
+   figures are read with the line each is on and printed as links to
    it, so a figure typed back into a sentence shows up here as a number
    with no link; the name tables keep only what the file does not say, so an
    entry copied back in shows up as one the file matches; and the rule
@@ -1303,21 +1303,21 @@ try {
     ['the bed divisor', sl && sl.div && link(0xE93, sl.div.at)],
     ['mastery', tr.masteryVal && link(0xEAF, tr.masteryVal.at)],
     ['a spell’s cost', (function () { const f = ctx.spellRules().spells.find(x => x.name === 'Fireball'); return f && f.costVal && link(f.resid, f.costVal.at); })(), sphtml]
-    // A third element says which sheet the figure is on; the rest are on
+    // A third element gives which sheet the figure is on; the rest are on
     // Mechanics, which stays the default.
   ].filter(([, re, where]) => !re || !re.test(where || html)).map(([what]) => what);
   // No typed names for prop types, portraits or zones since 23 September
   // 2026: the files' names are all there is.
   const names = peek('PROP_TYPE_NAMES') || {};
   const gone = ['CYTHERA_CHARACTERS', 'ZONES', 'RESOURCE_LABELS', 'TILE_SHEET_HINTS', 'DVM_FLAG_NAMES'].filter(n => peek('typeof ' + n) !== 'undefined');
-  if (unlinked.length) fail('file figures', 'not a link to the line that holds it: ' + unlinked.join(', '));
+  if (unlinked.length) fail('file figures', 'not a link to the line it is on: ' + unlinked.join(', '));
   else if (!/Haggling<\/b> lowers it by a further random amount from 0 to (?:<button[^>]*>)?4(?:<\/button>)?/.test(html)) fail('file figures', 'the haggling roll is not 0 to 4, one short of its operand of 5');
   else if (/capped at <b>65,535/.test(html) || /plus a random number from 0 to 29<\/b>/.test(html)) fail('file figures', 'a figure is typed into its sentence rather than read');
   else if (Object.keys(names).length || gone.length) fail('names', 'typed name tables are back: ' + JSON.stringify({ props: Object.keys(names), tables: gone }));
   else if (!/^Tile Sheet 35: unlit torch, lit torch/.test(ctx.labelFor(0x8E23) || '') || ctx.labelFor(0x8F0A) !== 'General Graphic 10: chest, coffer')
     fail('names', 'a tile sheet or a picture is not named by the game\u2019s words: ' + JSON.stringify([ctx.labelFor(0x8E23), ctx.labelFor(0x8F0A)]));
-  else if (ctx.propTypeName(3) !== 'metal door' || ctx.propTypeName(130) !== 'obol') fail('names', 'propTypeName does not take the file’s name: ' + JSON.stringify([ctx.propTypeName(3), ctx.propTypeName(130)]));
-  else if (ctx.mechDiceOpts({}).matchPay !== undefined || ctx.mechDiceOpts({}).fa !== undefined || peek('typeof MECH_BLOW_WORDS') !== 'undefined' || peek('typeof mechExpCap') !== 'undefined') fail('file figures', 'the rule models still carry the shipped numbers as defaults');
+  else if (ctx.propTypeName(3) !== 'metal door' || ctx.propTypeName(130) !== 'obol') fail('names', 'propTypeName does not use the file’s name: ' + JSON.stringify([ctx.propTypeName(3), ctx.propTypeName(130)]));
+  else if (ctx.mechDiceOpts({}).matchPay !== undefined || ctx.mechDiceOpts({}).fa !== undefined || peek('typeof MECH_BLOW_WORDS') !== 'undefined' || peek('typeof mechExpCap') !== 'undefined') fail('file figures', 'the rule models still have the shipped numbers as defaults');
   else console.log(`  file figures: no typed prop, portrait, zone, sound or flag names; the sheet's figures are links to their lines; the models have no defaults`);
 } catch (e) { fail('file figures', e); }
 
@@ -1325,22 +1325,22 @@ try {
    read out of the executable, so what is worth checking is that they reach
    the page whole and that the parts built from the ARCHIVE are really read
    off it rather than hardcoded: the sprite classes off 0xF009 and 0xF008
-   (the hero's own class, 32, has to be in it: that is the number Pandora's
+   (the hero's class, 32, has to be in it: that is the number Pandora's
    Box searched for), the levels off the 0x80xx maps, the teleporters off
    0xF00C (146 reaches the Tree of Life at (12,14), the thread's headline
-   mystery answered by its own list), and the nothing map's heap arithmetic
+   mystery answered by its list), and the nothing map's heap arithmetic
    off 0x8000 -- with the negative control the workbench ran, the same test
    on Land King Hall finding no header at all. */
 try {
   const cheatsHtml = withoutApp(() => ctx.showCategory('CHEATS') ? (REGISTRY.get('sheetGrid').innerHTML || '') : null);
-  if (cheatsHtml === null) fail('cheats', 'the Cheats tab refused to open');
+  if (cheatsHtml === null) fail('cheats', 'the Cheats tab did not open');
   else {
     const html = cheatsHtml;
     const sprites = ctx.cheatSpriteClasses();
     const hero = sprites.find(s => s.pt === 32);
     const rows = (html.match(/<td class="cheatCombo">/g) || []).length;
     // No application in this run: the keys, the gate and the record are the
-    // program's, so none of them is stated, and the sheet says where they
+    // program's, so none of them is stated, and the sheet gives where they
     // come from. The installer section requires them.
     if (!/to read the program’s code here/.test(html) || rows || /©gra|jumpToExeAt\(/.test(html))
       fail('cheats', `with no application open the sheet states the keys or the gate (${rows} key rows)`);
@@ -1379,15 +1379,15 @@ try {
   }
 } catch (e) { fail('cheats', e); }
 
-/* The preferences file, on its own tab under Data (on Tools until
-   27 September 2026, which must not carry it now), with NO application open -- which
+/* The preferences file, on a separate tab under Data (on Tools until
+   27 September 2026, which must not have it now), with NO application open -- which
    is the state a visitor who dropped the data file is in, and until v1.152.0
    was the state where this section offered nothing at all. It offers
    everything now: the four releases Ambrosia shipped give byte-for-byte the
    same layout, so PREF_SHIPPED stands in for a program that is not there,
-   and smoke_installer holds that constant to every one of the four. What
+   and smoke_installer checks that constant against every one of the four. What
    this checks is the half that one cannot: that the fallback reaches the
-   visitor -- the switches render, the file builds, and the section says the
+   visitor -- the switches render, the file builds, and the section shows the
    numbers are the shipped ones rather than the open copy's. */
 try {
   const grid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
@@ -1403,18 +1403,18 @@ try {
   const names = built ? ctx.openResourceFork(built).all().map(x => x.entry.name).join(',') : null;
   if (!L || L.from !== 'shipped') fail('preferences', 'with no application open the layout is not the shipped one: ' + (L && L.from));
   else if (!tab || tab.id !== 'prefs' || !tab.parent || tab.parent.id !== 'data' || tab.tile !== 0x1AC || tab.finder) fail('preferences', 'PREFS is not the Preferences tab under Data wearing tile 0x1AC');
-  else if (onTools) fail('preferences', 'the Tools tab still carries the preferences file');
+  else if (onTools) fail('preferences', 'the Tools tab still has the preferences file');
   else if (!/id="prefCheats"/.test(tools) || !/<select id="prefOrd_Backdrop"/.test(tools))
     fail('preferences', 'with no application open the Preferences tab does not offer the switches');
   else if (!/same in all four releases/.test(tools)) fail('preferences', 'the section does not say the numbers are the shipped releases\u2019');
   else if (names !== 'UI Prefs,Backdrop') fail('preferences', 'the file built with no application open is not the two-resource one: ' + names);
-  else console.log(`  preferences: its own tab under Data and gone from Tools; no application, so the shipped layout -- ${L.controls.length + 2} switches, ${L.choices.length + L.ordinals.length} choosers, a ${built.length}-byte fork`);
+  else console.log(`  preferences: a separate tab under Data and gone from Tools; no application, so the shipped layout -- ${L.controls.length + 2} switches, ${L.choices.length + L.ordinals.length} choosers, a ${built.length}-byte fork`);
 } catch (e) { fail('preferences', e); }
 
 
 /* A count that opens a list, 7 October 2026. A count in a sentence is a link
    to the things it counts (countLink, js/page-tabs.js), and the rule is that
-   the list holds as many as the sentence says. Nothing held that: the chips
+   the list has as many as the sentence states. Nothing checked that: the chips
    are built beside the number, from the same array when the writer is
    careful and from a filter of it when not, and a list one short reads as
    well as a whole one. Every list's title opens "The N ...", so the title's
@@ -1435,11 +1435,11 @@ try {
 
 /* The License tab, 7 October 2026: a stub under Data beside Preferences.
    Three things are held. The tab is where the tabs say it is. The reader
-   takes the name out of a file laid out as the two real ones are, made up
-   here so the check needs nothing of the game's and carries no real code.
-   And what the tab says of that file does not contain its code, which is
+   reads the name out of a file laid out as the two real ones are, made up
+   here so the check needs nothing of the game's and has no real code.
+   And what the tab shows for that file does not contain its code, which is
    the one thing the page must not print; the control is a file a byte
-   short, which the reader must refuse where a loose one would read a name
+   short, on which the reader must fail where a loose one would read a name
    out of anything. */
 try {
   const grid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
@@ -1452,17 +1452,17 @@ try {
   const lic = ctx.cytheraLicenseRead(file), said = ctx.licenseSaidHTML(file);
   if (!tab || tab.id !== 'license' || !tab.parent || tab.parent.id !== 'data') fail('license', 'LICENSE is not the License tab under Data');
   else if (!/Make a License/.test(sheet) || !/macintoshrepository\.org/.test(sheet) || !/id="licenseFile"|licenseFile/.test(sheet + JSON.stringify([...REGISTRY.keys()]))) fail('license', 'the tab does not offer the picker and the link to Decoder Ring');
-  else if (!lic || lic.name !== 'A Made-Up Name' || lic.hasCode !== true) fail('license', 'the reader did not take the name out of a made-up file: ' + JSON.stringify(lic));
+  else if (!lic || lic.name !== 'A Made-Up Name' || lic.hasCode !== true) fail('license', 'the reader did not read the name out of a made-up file: ' + JSON.stringify(lic));
   else if ('code' in lic || /ZZQQZZQQ/.test(JSON.stringify(lic) + said)) fail('license', 'the code reaches the page');
   else if (!/A Made-Up Name/.test(said)) fail('license', 'the tab does not say the name: ' + said);
   else if (ctx.cytheraLicenseRead(file.subarray(0, 513)) !== null) fail('license', 'a file a byte short was read as a license');
-  else if (!/not a Cythera License file/.test(ctx.licenseSaidHTML(file.subarray(0, 513)))) fail('license', 'the tab does not refuse a file a byte short');
-  else console.log(`  license: its own tab under Data; the name read from a made-up file and its code kept off the page; a file a byte short refused`);
+  else if (!/not a Cythera License file/.test(ctx.licenseSaidHTML(file.subarray(0, 513)))) fail('license', 'the tab does not reject a file a byte short');
+  else console.log(`  license: a separate tab under Data; the name read from a made-up file and its code kept off the page; a file a byte short rejected`);
 } catch (e) { fail('license', e); }
 
 /* Make a Save, 7 October 2026: a saved game built from the scenario open
-   here (newGameSaveBytes, buildNewGameSave). That the game takes one is
-   game_check.mjs's; this holds the half that needs no game. The creation
+   here (newGameSaveBytes, buildNewGameSave). That the game accepts one is
+   game_check.mjs's; this checks the half that needs no game. The creation
    script's figures are read, not typed, so each must come with its line;
    the file must read back as a save with the name given, the eleven
    resources a new game's has, and the hero with the stats asked for and
@@ -1480,21 +1480,21 @@ try {
   const sheet = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!cr || cr.sprites.length !== 2 || [cr.level, cr.training, cr.nutrition, cr.karma, cr.difficulty].some(v => !v || typeof v.at !== 'number')) fail('make a save', 'the creation script was not read with its lines: ' + JSON.stringify(cr));
   else if (!a || !b || !info || !info.ok || info.player !== 'NewGame01') fail('make a save', 'the file made does not read back as NewGame01’s save: ' + JSON.stringify(info));
-  else if (spec.resources.length !== 11) fail('make a save', 'the file holds ' + spec.resources.length + ' resources, where a new game’s has eleven');
+  else if (spec.resources.length !== 11) fail('make a save', 'the file has ' + spec.resources.length + ' resources, where a new game’s has eleven');
   else if (ha.body !== 21 || ha.reflex !== 14 || ha.mind !== 9 || ha.level !== 3 || !ha.health || ha.health !== ha.healthMax || ha.training !== cr.training.v) fail('make a save', 'the hero was not made as asked: ' + JSON.stringify(ha));
   else if (ha.proptype !== (cr.sprites[0].v & 0x3FF) || hb.proptype !== (cr.sprites[1].v & 0x3FF) || ha.proptype === hb.proptype) fail('make a save', 'the sprite chosen did not reach the hero: ' + ha.proptype + ' and ' + hb.proptype);
   else if (!/Save File Generator/.test(sheet) || !/makeSaveFromForm/.test(sheet)) fail('make a save', 'the Saved Game tab does not offer the maker with a scenario open');
   else {
     console.log(`  make a save: the creation script read with its lines; a new game for NewGame01 in ${spec.resources.length} resources, body ${ha.body}, level ${ha.level}, health ${ha.health}; the two sprites give two heroes`);
     /* The second half, 8 October 2026: the place, the hour and day, a named
-       state and a companion. The file must carry the list and map memory of
-       the zone asked for and not the hero's own; the hero and the companion
+       state and a companion. The file must have the list and map memory of
+       the zone asked for and not the hero's; the hero and the companion
        must stand in it on different squares, the companion with the hero's
        party bits, behaviour 1 and his alignment; the Char block must hold
        the state's value, the hour and the day. The control is the plain
        save above, which must have none of them, and a square off the map,
-       which must be refused. Without the resource fork there are no named
-       states, and that part says so. */
+       which must be rejected. Without the resource fork there are no named
+       states, and that part states it. */
     const d = ctx.saveMakerDefaults(), z = d.zones.find(k => k.zone !== d.zone && k.zone > 1).zone, pal = d.companions[0], st = d.stories.find(t => Object.keys(t.values).length);
     const c = ctx.newGameSaveBytes({ name: 'NewGame01', zone: z, party: pal ? [pal.index] : [], story: st ? st.name : '', hour: 14, day: 3 });
     const cs = c ? ctx.delverArchiveSpec(new Uint8Array(c)) : null, has = (sp, id) => sp.resources.some(r => r.resid === id);
@@ -1509,15 +1509,15 @@ try {
       else if (!d.companions.length || !p || p.zone !== z || (p.x === h.x && p.y === h.y) || (p.state & h.state) !== h.state || p.raw[22] !== 1 || p.raw[25] !== h.raw[25] || (plainRecs[pal.index].state & 0x40)) fail('make a save', 'the companion is not beside the hero as a party member, or is one in the plain save too: ' + JSON.stringify(p && { zone: p.zone, x: p.x, y: p.y, state: p.state, behaviour: p.raw[22] }));
       else if (clock !== 14 * 0x1000 || day !== 3 || ((plain[84] << 8) | plain[85]) === 3) fail('make a save', 'the hour and the day asked for are not in the Char block: ' + JSON.stringify({ clock, day }));
       else if (st && (ch[16 + +sn] !== sv || plain[16 + +sn] === sv)) fail('make a save', 'the named state did not set its quest value, or the plain save has it too');
-      else console.log(`  make a save, the second half: zone ${z} with its list; ${pal.name} beside the hero as a party member; two in the afternoon on day 3; ` + (st ? `"${st.name}" sets quest value ${sn} to ${sv}` : 'no resource fork here, so no named state was tried') + `; ${d.zones.length} places, ${d.companions.length} who can join, ${d.stories.length} named states; a square off the map refused`);
-      /* The archetypes (archetypeRules), the same day. The game says what
+      else console.log(`  make a save, the second half: zone ${z} with its list; ${pal.name} beside the hero as a party member; two in the afternoon on day 3; ` + (st ? `"${st.name}" sets quest value ${sn} to ${sv}` : 'no resource fork here, so no named state was tried') + `; ${d.zones.length} places, ${d.companions.length} who can join, ${d.stories.length} named states; a square off the map rejected`);
+      /* The archetypes (archetypeRules), the same day. The game states what
          each is twice: the table the scripts read, and two tables of text
          the creation dialog shows, 0x0205 ("Body: 18  Reflex: 18  Mind:
-         12") and 0x0206 ("Attack[4], Defense[4]"). The reader takes the
+         12") and 0x0206 ("Attack[4], Defense[4]"). The reader reads the
          first; the text is the oracle. Every stat and every skill with
-         its level must agree, bar the one place the game disagrees with
+         its level must match, bar the one place the game differs from
          itself: the Beserker [sic], whose table has mind 12 and whose
-         text says 6. A save made as one must end with a record a skill at
+         text reads 6. A save made as one must end with a record a skill at
          the end of the zone's list, the hero's, at the level with the
          conversation's bit; a save made as none must have no such record. */
       const ar = ctx.archetypeRules(), texts = rid => ctx.parseDelverTextArray(ctx.smartDecrypt(ctx.getResourceBytes(peek('ARCHIVE'), rid), rid).data).map(t => t.str);
@@ -1536,18 +1536,18 @@ try {
       const plainList = ctx.parseDelverPropList(spec.resources.find(r => r.resid === 0x8100 + d.zone).data);
       const fh = fs ? ctx.parseDelverCharacterRecords(fs.resources.find(r => r.resid === 0xF009).data)[1] : null;
       if (!ar || ar.list.length !== 9 || typeof ar.flags.at !== 'number' || typeof ar.bit.at !== 'number') fail('archetypes', 'the nine archetypes were not read with the lines their giving comes from');
-      else if (odd.length !== 1 || !/mind 12 against 6/.test(odd[0])) fail('archetypes', 'the table and the dialog’s text disagree other than at the one known place: ' + JSON.stringify(odd));
+      else if (odd.length !== 1 || !/mind 12 against 6/.test(odd[0])) fail('archetypes', 'the table and the dialog’s text differ other than at the one known place: ' + JSON.stringify(odd));
       else if (!fighter || tail.length !== 2 || !tail.every((r, i) => r.flags === ar.flags.v && r.x === 0 && r.y === 1 && r.proptype === fighter.skills[i].type && r.aspect === (fighter.skills[i].level | ar.bit.v)) || fh.body !== fighter.body || fh.raw[29] !== 0)
         fail('archetypes', 'a save made as a ' + (fighter && fighter.name) + ' does not end its zone’s list with the two skills, or has not its stats: ' + JSON.stringify(tail.map(r => [r.flags, r.proptype, r.aspect])));
       else if (plainList.some(r => r.flags === ar.flags.v && r.x === 0 && r.y === 1)) fail('archetypes', 'a save made with no archetype has a skill');
       /* The Berserker's mind as a fix with two ways to go (Data > Patches,
          the text's choices; 8 October 2026). Either option must change one
-         resource and leave the table and the dialog's text agreeing on all
+         resource and leave the table and the dialog's text matching on all
          nine; the text's way must keep every other string as it was, the
          strings after the mended one having moved; the table's way must
          change the one word. The control is the file as shipped, which
-         disagrees, and the second option run on the first's output, which
-         must be refused as having nothing to mend. */
+         differs, and the second option run on the first's output, which
+         must be rejected as having nothing to mend. */
       else if ((() => {
         const base = peek('ARCHIVE.bytes'), before0 = ctx.delverArchiveSpec(base);
         const minds = sp => { const tb = sp.resources.find(r => r.resid === 0x0501).data, top = ctx.dvmArrayWords(tb, ctx.u32be(tb, 0x110) & 0xFFFF);
@@ -1556,19 +1556,19 @@ try {
         const changed = sp => sp.resources.filter(r => { const o = before0.resources.find(x => x.resid === r.resid); return o.data.length !== r.data.length || o.data.some((v, i) => v !== r.data[i]); }).map(r => r.resid);
         const a = ctx.applyDataFixes(base, ['beserker-text']).spec, b = ctx.applyDataFixes(base, ['beserker-table']).spec, m0 = minds(before0), ma = minds(a), mb = minds(b);
         let again = false; try { ctx.applyDataFixes(new Uint8Array(ctx.writeDelverArchive(a)), ['beserker-table']); } catch (e) { again = /already match/.test(e.message); }
-        if (m0.table.join() === m0.text.join()) return fail('berserker', 'the shipped file already agrees, so there is nothing for the fix to be tried on'), true;
+        if (m0.table.join() === m0.text.join()) return fail('berserker', 'the shipped file already matches, so there is nothing for the fix to be tried on'), true;
         if (changed(a).join() !== String(0x0205) || ma.table.join() !== ma.text.join() || ma.table.join() !== m0.table.join() || ma.strings.filter((t, i) => t !== m0.strings[i]).length !== 1)
           return fail('berserker', 'the text’s way did not change the one string of 0x0205 to the table’s figure: ' + JSON.stringify({ changed: changed(a), text: ma.text })), true;
         if (changed(b).join() !== String(0x0501) || mb.table.join() !== mb.text.join() || mb.text.join() !== m0.text.join()) return fail('berserker', 'the table’s way did not change the one word of 0x0501 to the text’s figure: ' + JSON.stringify({ changed: changed(b), table: mb.table })), true;
-        if (!again) return fail('berserker', 'the second way was not refused on a file the first had mended'), true;
-        console.log(`  berserker: the shipped file has mind ${m0.table[3]} in the table and ${m0.text[3]} on the screen; one way writes ${ma.text[3]} into the text alone, the other ${mb.table[3]} into the table alone, and either leaves all nine agreeing; a mended file refuses the other way`);
-        return false; })()) { /* said */ }
+        if (!again) return fail('berserker', 'the second way was not rejected on a file the first had mended'), true;
+        console.log(`  berserker: the shipped file has mind ${m0.table[3]} in the table and ${m0.text[3]} on the screen; one way writes ${ma.text[3]} into the text alone, the other ${mb.table[3]} into the table alone, and either leaves all nine matching; a mended file rejects the other way`);
+        return false; })()) { /* reported */ }
       /* The king's welcome and the hero's faces (the same day). The
          welcome's four pieces must be read with their lines, and a save
          made with it must have the flag, the To Do line, the thing held
-         and the king's own flag, which the plain save must not. The faces
+         and the king's flag, which the plain save must not. The faces
          are the program's: with it open, two sexes of as many as it
-         says, every one a portrait the file has and names for nobody;
+         gives, every one a portrait the file has and names for nobody;
          with none open, no strip. */
       else if ((() => { const kw = ctx.kingsWelcomeRules(), hp = ctx.exeHeroPortraits();
         const w = kw ? ctx.delverArchiveSpec(new Uint8Array(ctx.newGameSaveBytes({ name: 'NewGame01', welcomed: true }))) : null;
@@ -1580,7 +1580,7 @@ try {
           return fail('welcome', 'the king’s welcome is not in the save made with it, or is in the plain one: ' + JSON.stringify(kw)), true;
         if (hp && (hp.perSex.v < 1 || faces.some(r => !ctx.refExists(r) || ctx.labelFor(r)))) return fail('welcome', 'the hero’s faces are not portraits the file has and names for nobody: ' + JSON.stringify(hp)), true;
         // The face a made hero wears when none is picked must be one of the
-        // hero's own: it was the first unnamed portrait, an empty frame.
+        // hero's: it was the first unnamed portrait, an empty frame.
         const worn = ctx.saveMakerDefaults().portrait, unnamedAll = ctx.saveMakerDefaults().portraits.filter(r => !ctx.labelFor(r));
         if (worn === unnamedAll[0] || (hp ? !faces.includes(worn) : worn < unnamedAll[unnamedAll.length - 1] - 20)) return fail('welcome', 'the portrait offered first is 0x' + worn.toString(16) + ', not one of the hero’s faces'), true;
         /* The To Do list (saveMakerTodo). Lines asked for must be in their
@@ -1596,7 +1596,7 @@ try {
           return fail('welcome', 'the To Do lines asked for are not in the save as asked: ' + JSON.stringify([slot(t1, la.slot), slot(t1, lb.slot), slot(t1, kw.todo.slot), slot(t1, 200), slot(t2, kw.todo.slot)])), true;
         console.log(`  the To Do list: ${lines.length} lines offered; "${la.text}" to do and "${lb.text}" done are in their slots beside the king's, his own struck when asked, a line no script adds left out`);
         console.log(`  the king's welcome: quest flag ${kw.flag.v}, his flag ${kw.charFlag.v}, To Do line ${kw.todo.line} in slot ${kw.todo.slot} and thing ${kw.gift.type}, each with its line, in the save made with it and not the plain one; ` + (hp ? `${faces.length} faces from the program` : 'no program here, so no faces'));
-        return false; })()) { /* said */ }
+        return false; })()) { /* reported */ }
       else console.log(`  archetypes: nine read from the table, every stat and skill as the dialog’s own text has it but the ${odd[0].split(' ')[0]}’s mind (${/mind (\d+) against (\d+)/.exec(odd[0]).slice(1).join(' in the table, ')} in the text); a ${fighter.name}’s save ends with ${tail.length} skills at their levels, a plain one has none`);
     }
   }
@@ -1604,16 +1604,16 @@ try {
 
 /* Make a Scenario, 8 October 2026: the open scenario with its world
    emptied to one zone (newScenarioBytes, buildNewScenario). That the game
-   starts a new game on one is game_check.mjs's; this holds the half that
+   starts a new game on one is game_check.mjs's; this checks the half that
    needs no game. The file must keep one map, one list and one entry
    script, all the hero's zone's, and no conversation but the creation
    script; the map must be the size and the tile asked for; the hero must
-   be the only character and stand where asked; the entry script must carry
+   be the only character and stand where asked; the entry script must have
    the name; and the creation script must have lost its slideshow and kept
    the rest. The control is the same call with the opening kept, which must
    leave 0x1801 as the scenario has it: a cut that fired whatever was asked
    would fail there. A hero outside the zone and a name the listing cannot
-   hold must be refused. */
+   hold must be rejected. */
 try {
   const d = ctx.scenarioMakerDefaults();
   const ask = { name: 'Empty Field', width: 24, height: 20, x: 10, y: 12 };
@@ -1643,10 +1643,10 @@ try {
     else if (!m || m.width !== 24 || m.height !== 20 || words.size !== 1 || !words.has(d.tile)) fail('make a scenario', 'the map is not 24 by 20 of the tile offered: ' + JSON.stringify(m && { w: m.width, h: m.height, words: [...words].slice(0, 4) }));
     else if (hero.zone !== z || hero.x !== 10 || hero.y !== 12 || cast.some((r, i) => i > 1 && (r.zone || ctx.delverCharacterInUse(r)))) fail('make a scenario', 'the hero is not alone at (10, 12): ' + JSON.stringify({ zone: hero.zone, x: hero.x, y: hero.y, others: cast.filter((r, i) => i > 1 && ctx.delverCharacterInUse(r)).length }));
     else if ((ctx.parseDelverScheduleList(of(spec, 0xF00B)) || [0]).length) fail('make a scenario', 'somebody still has a schedule');
-    else if (!Buffer.from(of(spec, 0x1400 + z)).includes('Empty Field')) fail('make a scenario', 'the entry script does not carry the name');
+    else if (!Buffer.from(of(spec, 0x1400 + z)).includes('Empty Field')) fail('make a scenario', 'the entry script does not have the name');
     else if (!says(cr0, /Slideshow/) || says(cr, /Slideshow|SpecialView/) || !says(cr, /set_global Karma/) || cr.length >= cr0.length) fail('make a scenario', 'the creation script did not lose its slideshow and keep the rest');
     else if (!same(of(kspec, 0x1801), cr0)) fail('make a scenario', 'with the opening kept, the creation script is not the scenario’s');
-    else if (!refusedSquare || !refusedName) fail('make a scenario', 'a hero outside the zone or a name with a quotation mark was not refused: ' + JSON.stringify({ refusedSquare, refusedName }));
+    else if (!refusedSquare || !refusedName) fail('make a scenario', 'a hero outside the zone or a name with a quotation mark was not rejected: ' + JSON.stringify({ refusedSquare, refusedName }));
     else {
       ctx.showCategory('PATCHES');
       const host = REGISTRY.get('scenarioMaker'), html = host ? (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(host) : '';
@@ -1654,10 +1654,10 @@ try {
       /* The battle and the art (the same day). Two enemy kinds must come
          out as an egg and its creature apiece, in two columns a square
          either side of the hero; two kinds of one alignment must be
-         refused, which is the control on the side test. Every picture of
+         rejected, which is the control on the side test. Every picture of
          the five families must come out changed and still decode at its
          own size (an empty one may come out as it went in), a portrait
-         must carry the three face colours, the hero's frames must be
+         must have the three face colours, the hero's frames must be
          black, white and see-through and nothing else, and the rest of
          the file must be untouched. */
       const kinds = ctx.scenarioCreatureChoices(), ka = kinds[0], kb = kinds.find(k => k.alignment !== ka.alignment), kc = kinds.find(k => k !== ka && k.alignment === ka.alignment);
@@ -1683,7 +1683,7 @@ try {
       const bw = new Set([0, ctx.badArtIndex(0, 0, 0), ctx.badArtIndex(255, 255, 255)]);
       const heroOk = heroTiles.length >= 2 && heroTiles.every(t => { const sheet = ctx.decodeResource(farc, of(fspec, 0x8E00 + (t >> 4)), 141, 0x8E00 + (t >> 4)).image, px = sheet.subarray((t & 15) * 1024, (t & 15) * 1024 + 1024); return px.includes(0) && px.some(v => v) && px.every(v => bw.has(v)); });
       /* The same as a patch (scenarioPatch): merged into the open file, as
-         the browser player merges one, every resource the made file holds
+         the browser player merges one, every resource in the made file
          must come out as the made file has it. What the made file dropped
          stays, which is the difference a patch cannot help; the control is
          that the merge changes the hero's zone's map at all. */
@@ -1693,26 +1693,26 @@ try {
       const patchOk = pw.count > 400 && !strays && mergedSpec.resources.length === before.resources.length && !same(of(mergedSpec, 0x8000 + z), of(before, 0x8000 + z));
       if (!host || buttons.length !== 5) fail('make a scenario', 'Data › Patches does not offer the maker with its five buttons: ' + JSON.stringify(buttons));
       else if (!patchOk) fail('make a scenario', 'the patch, merged, is not the made file over the open one: ' + JSON.stringify({ count: pw.count, strays, resources: mergedSpec.resources.length }));
-      else if (!eggsOk || !sameSide) fail('make a scenario', 'the battle is not six eggs in two columns north of the hero, or one side against itself was not refused: ' + JSON.stringify({ records: recs.length, sameSide }));
-      else if (!pics || redrawn !== pics || sized !== pics || others) fail('make a scenario', 'the pictures were not all redrawn at their own sizes with the rest left alone: ' + JSON.stringify({ pics, redrawn, sized, others }));
+      else if (!eggsOk || !sameSide) fail('make a scenario', 'the battle is not six eggs in two columns north of the hero, or one side against itself was not rejected: ' + JSON.stringify({ records: recs.length, sameSide }));
+      else if (!pics || redrawn !== pics || sized !== pics || others) fail('make a scenario', 'the pictures were not all redrawn at their native sizes with the rest left alone: ' + JSON.stringify({ pics, redrawn, sized, others }));
       else if (!has(255, 255, 255) || !has(0, 0, 0) || !has(220, 0, 0)) fail('make a scenario', 'a portrait has no face drawn on it');
       else if (!heroOk) fail('make a scenario', 'the hero’s ' + heroTiles.length + ' frames are not a black and white figure');
-      else console.log(`  make a scenario, battle and art: ${ka.name} against ${kb.name}, three eggs a side; ${ka.name} against ${kc.name} refused; ${pics} pictures redrawn at their own sizes, a face on the portrait, the hero’s ${heroTiles.length} frames black and white, nothing else changed; as a patch, ${pw.count} resources that merge to the same`);
-      if (!host || buttons.length !== 5) { /* said above */ }
-      else console.log(`  make a scenario: ${before.resources.length} resources to ${spec.resources.length}; zone ${z} alone, 24 by 20 of ${d.tiles[0].name}, the hero alone at (10, 12); the slideshow cut (${cr0.length - cr.length} bytes) and kept when asked; a square outside and a quoted name refused`);
+      else console.log(`  make a scenario, battle and art: ${ka.name} against ${kb.name}, three eggs a side; ${ka.name} against ${kc.name} rejected; ${pics} pictures redrawn at their native sizes, a face on the portrait, the hero’s ${heroTiles.length} frames black and white, nothing else changed; as a patch, ${pw.count} resources that merge to the same`);
+      if (!host || buttons.length !== 5) { /* reported above */ }
+      else console.log(`  make a scenario: ${before.resources.length} resources to ${spec.resources.length}; zone ${z} alone, 24 by 20 of ${d.tiles[0].name}, the hero alone at (10, 12); the slideshow cut (${cr0.length - cr.length} bytes) and kept when asked; a square outside and a quoted name rejected`);
     }
   }
 } catch (e) { fail('make a scenario', e); }
 
 /* The careful set, 9 October 2026 (delv-fineart.js). What can go wrong
-   with nothing on the page saying so is a kind of picture quietly left to
+   with nothing on the page showing it is a kind of picture quietly left to
    the stick men, or drawn in colours that were never meant: so every
-   picture of the five families must come out changed at its own size with
+   picture of the five families must come out changed at its native size with
    the rest of the file alone; the hero must be a figure of six colours or
    more with see-through round him, which the stick man (black and white)
    is not; the ground offered must be whole and hold no system colour and
    no cycling one; a water tile must hold a cycling blue, since that is
-   what keeps it moving; a portrait must differ from the bad set's and
+   what makes it move; a portrait must differ from the bad set's and
    keep to the ramps; and a tile drawn twice must come out the same, since
    the drawing is seeded by numbers and not by chance. The control is the
    bad set under the same tests, which must fail the hero's. */
@@ -1744,14 +1744,14 @@ try {
   const faceOk = !same(face, badFace) && new Set(face).size >= 10 && face.every(v => !v || (v >= 0x10 && v < 0xE0));
   const again = ctx.fineArt(() => 'grass'), once = ctx.fineArt(() => 'grass'), ht = heroTiles[0], old = tile(pspec, parc, ht);
   const steady = same(again.tile(ht, old, fig[ht]), once.tile(ht, old, fig[ht])) && same(again.tile(d.tile, tile(pspec, parc, d.tile), null), ground);
-  if (!pics || redrawn !== pics || sized !== pics || others) fail('the careful set', 'the pictures were not all redrawn at their own sizes with the rest left alone: ' + JSON.stringify({ pics, redrawn, sized, others }));
+  if (!pics || redrawn !== pics || sized !== pics || others) fail('the careful set', 'the pictures were not all redrawn at their native sizes with the rest left alone: ' + JSON.stringify({ pics, redrawn, sized, others }));
   else if (!heroOk) fail('the careful set', 'the hero’s ' + heroTiles.length + ' frames are not figures of six colours with see-through round them');
-  else if (control) fail('the careful set', 'the bad set’s hero passes the same test, so the test cannot tell the two apart');
+  else if (control) fail('the careful set', 'the bad set’s hero passes the same test, so the test cannot distinguish the two');
   else if (!groundOk) fail('the careful set', 'the ground offered has see-through, a system colour or a cycling one in it, or is one flat colour');
-  else if (!waterOk) fail('the careful set', 'a water tile (' + water + ') holds no cycling blue');
+  else if (!waterOk) fail('the careful set', 'a water tile (' + water + ') has no cycling blue');
   else if (!faceOk) fail('the careful set', 'the first portrait is the bad set’s, or leaves the ramps');
   else if (!steady) fail('the careful set', 'a tile drawn twice came out two ways');
-  else console.log(`  the careful set: ${pics} pictures redrawn at their own sizes, nothing else changed; the hero’s ${heroTiles.length} frames figures in colour (the bad set’s are not); the ground whole and inside the ramps; water tile ${water} still cycling; a portrait of ${new Set(face).size} colours; a tile drawn twice the same`);
+  else console.log(`  the careful set: ${pics} pictures redrawn at their native sizes, nothing else changed; the hero’s ${heroTiles.length} frames figures in colour (the bad set’s are not); the ground whole and inside the ramps; water tile ${water} still cycling; a portrait of ${new Set(face).size} colours; a tile drawn twice the same`);
 } catch (e) { fail('the careful set', e); }
 
 /* A zone from Manborough's editor, 8 October 2026 (manboroughMap). His
@@ -1760,7 +1760,7 @@ try {
    word read from his file must be the archive's, and every thing must sit
    where the archive has a record of that type. The scenario made from it
    must keep the people he placed, each in the zone with a conversation,
-   and nobody else. A JSON file that is not a map must be refused. Skips
+   and nobody else. A JSON file that is not a map must be rejected. Skips
    with a line when the sample is not on the disk. */
 try {
   const sample = 'reference/community/editors/Manborough/mygreatscenario.zip';
@@ -1793,7 +1793,7 @@ try {
     const roundB = backB.width === 24 && backB.height === 20 && backB.x === 10 && backB.y === 12 && new Set(backB.tiles).size === 1 && !backB.props.length && outB.left.join() === 'the battle' && /^[a-z0-9_]+$/.test(outB.id);
     if (!eggsOk) fail('manborough', 'a guard hatchery does not hatch the guard: ' + j(m.eggs.slice(0, 2)) + ', unit 7 wears ' + guard);
     else if (!roundA || !roundB) fail('manborough', 'a map written out does not read back: ' + j({ roundA, roundB, left: outB.left, id: outB.id }));
-    else if (mp.width !== m.width || mp.height !== m.height || words !== m.width * m.height) fail('manborough', `the map read is not the archive's: ${words} of ${m.width * m.height} words agree`);
+    else if (mp.width !== m.width || mp.height !== m.height || words !== m.width * m.height) fail('manborough', `the map read is not the archive's: ${words} of ${m.width * m.height} words match`);
     else if (!m.props.length || found !== m.props.length) fail('manborough', `${m.props.length - found} of ${m.props.length} things are not where the archive has one of that type`);
     else if (!asked.length || there.join() !== asked.join() || !asked.every(i => talk.includes(i) && cast[i].zone === z)) fail('manborough', 'the people placed are not the ones kept, in the zone, with their conversations: ' + JSON.stringify({ asked, there, talk }));
     else if (list.length !== m.props.length + 2 * m.eggs.length || !m.eggs.length) fail('manborough', `the zone's list is ${list.length} records for ${m.props.length} things and ${m.eggs.length} hatcheries`);
@@ -1802,11 +1802,11 @@ try {
   }
 } catch (e) { fail('manborough', e); }
 
-/* What uses a character flag the program does not name, 8 October 2026
+/* What uses a character flag the program has no name for, 8 October 2026
    (charFlagUses, in a record's Edit form). The mistake to catch is a flag
    of byte 8 listed with every script that sets flag 0 on anybody, forty
    characters' private notes under one head: so a character whose script
-   sets its own flag 0 must say so with a link, a character whose script
+   sets its flag 0 must show it with a link, a character whose script
    never mentions flag 0 must say nothing, and a flag of byte 26 must name
    its spell on any record. */
 try {
@@ -1818,13 +1818,13 @@ try {
   const mine = own !== undefined ? ctx.charFlagUses(own, 0) : '';
   const links = (mine.match(/jumpToScriptAt\((\d+)/g) || []).map(m => +m.replace(/\D+/, ''));
   // A flag a thing's record names (13 October 2026): the ring sets the flag
-  // in its Data2, and one ring in the file carries 28, which nothing else sets.
+  // in its Data2, and one ring in the file has 28, which nothing else sets.
   const f28 = cf.find(x => x.flag === 28);
   if (!f28 || f28.set.length !== 1 || f28.set[0].resid !== 0x1133 || !f28.set[0].record || f28.clear.length !== 1) fail('flag uses', 'flag 28 is not set by the one ring whose record names it: ' + JSON.stringify(f28));
   else if (own === undefined || none < 0 || !withEffect) fail('flag uses', 'the file has no character to try: ' + JSON.stringify([own, none, withEffect && withEffect.flag]));
   else if (!/^set in <button/.test(mine) && !/set in <button/.test(mine)) fail('flag uses', 'character ' + own + '’s flag 0 does not say where its script sets it: ' + mine.slice(0, 200));
-  else if (ctx.charFlagUses(none, 0) !== '') fail('flag uses', 'character ' + none + ', whose script never mentions flag 0, is told of other characters’: ' + ctx.charFlagUses(none, 0).slice(0, 200));
-  else if (!/the effect of /.test(ctx.charFlagUses(none, withEffect.flag))) fail('flag uses', 'flag ' + withEffect.flag + ' does not name the spell it is the effect of');
-  else if (!/The program has no name for these/.test(ctx.charEditHTML(own))) fail('flag uses', 'the record form does not carry the uses');
-  else console.log(`  flag uses: character ${own}'s flag 0 is listed from its own script, character ${none}'s is not listed, and flag ${withEffect.flag} names its spell on any record`);
+  else if (ctx.charFlagUses(none, 0) !== '') fail('flag uses', 'character ' + none + ', whose script never mentions flag 0, is shown other characters’: ' + ctx.charFlagUses(none, 0).slice(0, 200));
+  else if (!/the effect of /.test(ctx.charFlagUses(none, withEffect.flag))) fail('flag uses', 'flag ' + withEffect.flag + ' does not show the spell it is the effect of');
+  else if (!/The program has no name for these/.test(ctx.charEditHTML(own))) fail('flag uses', 'the record form does not have the uses');
+  else console.log(`  flag uses: character ${own}'s flag 0 is listed from its script, character ${none}'s is not listed, and flag ${withEffect.flag} shows its spell on any record`);
 } catch (e) { fail('flag uses', e); }

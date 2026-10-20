@@ -6,21 +6,21 @@
    they always made. This is the file to edit: add an entry, change an
    edit, drop one. Nothing here is the file's bytes except the text and the
    instructions each edit expects to find, which is what makes a wrong file,
-   or one patched already, refuse rather than patch. The causes are in the
+   or one patched already, stop rather than patch. The causes are in the
    workbench's doc/bugs.md, under the title each entry's comment names.
 
    They were eleven Node builders from 24 to 28 September 2026, each writing
-   its own Magpie patch, and a twelfth, combined_patch.mjs, chaining seven of
+   a separate Magpie patch, and a twelfth, combined_patch.mjs, chaining seven of
    them into "Cythera All Fixes". They moved here on 28 September 2026 so
-   that a visitor can choose them one at a time; each builder now names its
+   that a visitor can choose them one at a time; each builder now gives its
    stage here and writes the same patched file it wrote before (compared
    byte for byte on the day).
 
    AN ENTRY.
      id, title   a name that does not change, and one line of what it does,
                  as the player would see it
-     name        a few words on a line of their own over the title, the
-                 maintainer's own, as is the title of a fix that has one
+     name        a few words on a separate line over the title, written by
+                 the maintainer, as is the title of a fix that has one
                  (17 October 2026); a fix without one shows its title alone
      group       which list the Patches section shows it in (DATA_FIX_GROUPS),
                  which also places the program's fixes (APP_FIX_GROUP) and
@@ -46,7 +46,7 @@
                  some of its places and not the rest.
 
    THE STAGES, AND WHY THIS ORDER (combined_patch.mjs's, 25 September 2026).
-   A Magpie patch carries whole resources, so two patches that touch one
+   A Magpie patch contains whole resources, so two patches that touch one
    script cannot both apply: the second replaces the first's copy of it. The
    stages are applied one after another to the same file instead, and the
    order is the point. The three code stages go first, because their edits
@@ -73,24 +73,24 @@
    Fixes" came out the same either way. The map stage
    could come anywhere: it changes two maps, 0x8006 and 0x801F, which no
    other stage touches, and it finds its squares by the tiles on them. The
-   three larger changes were patches of their own at the maintainer's word,
+   three larger changes were separate patches at the maintainer's word,
    each touching one resource no other fix does (the kill helper, the spell,
    the character table), and came after everything until 29 September 2026;
    they come before the text now, since the olde spelling's "ye" changes
-   words in the kill helper's and the spell's own lines, which moved the
+   words in the kill helper's and the spell's lines, which moved the
    offsets Resurrection's edit is anchored to. No text stage touches their
    code, so with any other spelling the file is the same either way.
 
    Any subset of the fixes applies, because every edit checks what it
    expects: an edit that depends on another stops the build by name rather
-   than guess. utilities/data_fix_check.mjs holds that to every fix alone,
+   than assume. utilities/data_fix_check.mjs checks that for every fix alone,
    every fix together, and each left out.
 
-   NOT HERE. The program's own fixes (js/delv-appfixes.js), which no Magpie
+   NOT HERE. The program's fixes (js/delv-appfixes.js), which no Magpie
    patch reaches: Magpie imports one Resource Manager call and it is a read.
    "Beserk", "celstial" and the rest of the program's strings, for the same
    reason. The jokes and the recastings (Sour Grapes, the Pipes of the Deep, the Voices of the Hall,
-   the Strine opening), which are builders of their own and no fix. */
+   the Strine opening), which are separate builders and not fixes. */
 
 const DATA_FIX_STAGES = ['found', 'community', 'bugfix', 'further', 'apart', 'cost', 'text', 'community-text', 'spelling', 'map'];
 // The stages whose edits are found in the file, and so are sorted before
@@ -100,7 +100,7 @@ const DATA_FIX_STAGE_SORTED = ['further'];
 // The Patches section's lists, in its order. By what a fix touches since
 // 1 October 2026, at the maintainer's word; until then they were by who
 // found each fix, which the stages and the comments below still record.
-// The three larger changes (the stage "apart") went into the lists the
+// The three larger changes (the stage "apart") went into the lists that the
 // same day.
 const DATA_FIX_GROUPS = [
   { id: 'talk', title: 'Conversations' },
@@ -114,11 +114,11 @@ const DATA_FIX_GROUPS = [
   { id: 'text', title: 'Text' },
   // Fixes nobody can see in play: the file is put right and the screen is
   // the same either way (the maintainer, 12 October 2026, of the Gate
-  // Guard's reply). Named Hidden Bugs on 16 October 2026, his wording. A list of their own, so that a mark of "untested" there
+  // Guard's reply). Named Hidden Bugs on 16 October 2026, his wording. A separate list, so that a mark of "untested" there
   // is read for what it is: there is nothing to see.
   { id: 'hidden', title: 'Hidden Bugs', note: 'These are bugfixes you’d only notice if you made relevant patches to change default gameplay.' },
   // The larger changes, each a design call rather than a mended slip, in a
-  // list of their own below the rest (the maintainer, 1 October 2026).
+  // separate list below the rest (the maintainer, 1 October 2026).
   { id: 'design', title: 'Design Changes', note: 'These are bug fixes for aspects that might actually be intentional, or for which the issue necessitates a creative solution.' },
 ];
 
@@ -131,7 +131,7 @@ const DATA_FIX_CHOICES = [
   { id: 'areithous', title: 'Areithous' },
   { id: 'hyphens', title: 'Hyphens' },
   // Not a spelling: a figure the creation dialog states and the game does
-  // not give. Its third button says so.
+  // not give. Its third button states that.
   { id: 'beserker', title: 'The Berserker\u2019s Mind', none: 'Leave both as they are' },
 ];
 
@@ -244,7 +244,7 @@ const DATA_FIXES = [
       { what: 'sleep’s magic cap', resid: 0xE93, at: 0x0248, replaceOp: true, expect: { 0x0248: 'get_field full_health', 0x024E: 'set_field magic' }, code: 'get_field full_magic (0x1F)' },
       { what: 'sleep’s magic guard', resid: 0xE93, at: 0x0219, replaceOp: true, expect: { 0x0216: 'get_field magic', 0x0219: 'get_field full_health', 0x021B: 'lt' }, code: 'get_field full_magic (0x1F)' },
     ] },
-  // The bartenders' rumours (0x813): the choice between the town's own
+  // The bartenders' rumours (0x813): the choice between the town's
   // rumours and the general ones rolled Random(0, 1), which is always 0; it
   // rolls Random(0, 2), so both are heard.
   { id: 'rumours', group: 'talk', stage: 'found', name: 'Widespread rumors', title: 'Bartenders now able to tell Cythera\u2019s general rumors, not just local ones',
@@ -277,9 +277,9 @@ const DATA_FIXES = [
     ] },
   // A pitcher dipped in the wine urn (0x10A0): an empty pitcher used on a
   // fountain, a pool or the water urn fills with water, and on anything else
-  // but a well or a goat said "The pitcher is empty.", the wine urn (217)
+  // but a well or a goat printed "The pitcher is empty.", the wine urn (217)
   // included, though the urn used on the pitcher fills it. It fills with wine
-  // now, Data1 3, the pitcher's own number for wine, with a line shaped like
+  // now, Data1 3, the pitcher's number for wine, with a line shaped like
   // its water line. The test goes where the goat test's "no" already lands,
   // so the rest of the chain is untouched. (The maintainer's word, 27
   // September 2026.)
@@ -302,7 +302,7 @@ const DATA_FIXES = [
 
   // Sword, Axe and Mace training (0xE87). The melee resolver adds the
   // weapon's skill twice, and both reads take the skill off the shield
-  // loop's leftover variable; each now reads it off the weapon (Arg02).
+  // loop's leftover variable; with the fix each reads it off the weapon (Arg02).
   { id: 'weapon-skill', group: 'rules', stage: 'community', title: 'Sword, Axe and Mace skill now counts in a fight, instead of counting for nothing',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a hero given a sword in hand and Sword skill 15 by an edit, thirty attacks on Apis, her health set to 255; she is dead within nineteen blows, some of them "ground" and "shredded", against alive at 12 of 255 unpatched with none above "smashed". With the skill at a level the game reads as none, the two fight alike; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the same hero and sword, Apis dead at the sixteenth attack, two blows "ground a woman to dust", against, unpatched there, Apis dead at the twenty-eighth attack and no blow above "smashed"',
     edits: [
@@ -341,8 +341,8 @@ const DATA_FIXES = [
       { what: 'Alaric remembers 201', resid: 0x1802, at: 0x1F3B, expect: { 0x1F34: 'call_resource 0xF02', 0x1F3B: 'then' }, code: 'not' },
     ] },
   // Awakening's blank conversation (0x1A13): the sleeper and the hero are
-  // named as speakers before the sleeper's Talk, as the game's own Talk
-  // command names them.
+  // named as speakers before the sleeper's Talk, as the game's Talk
+  // command assigns them.
   { id: 'awakening', group: 'rules', stage: 'community', title: 'You can now talk to someone woken by Awakening, instead of getting a blank conversation',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Awaken, given as an ability by an edit, cast on Theano asleep in Cademia, "A person sleeping is awoken." and the conversation opens with her portrait and the hero’s, against a window with neither unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "A person sleeping is awoken." and the conversation opens with both portraits, against a window with neither unpatched',
     edits: [
@@ -365,9 +365,9 @@ const DATA_FIXES = [
       { what: 'Lindus’s training route', resid: 0x1850, at: 0x05C9, expect: { 0x05C6: 'then', 0x05C9: 'string(implicit) "*\\"The most prized possession' },
         code: 'sys SetStateFlag\nbyte 0x01\nword True\nend\nsys CompleteQuest\nbyte 0x02\nend' },
     ] },
-  // Keywords typed with a space: "inn, pari" and its kind lose the space
-  // after the comma, so the word after it answers without a space typed
-  // first. Five lists the board reported (0x1828, 0x1829, 0x182A, 0x1818,
+  // Keywords typed with a space: "inn, pari" and its kind lose the space after
+  // the comma, so the word after it answers without a space typed first. Five
+  // keyword lists that the board reported (0x1828, 0x1829, 0x182A, 0x1818,
   // 0x080F), and two this project found (0x186D Demodocus's "fish, tlep",
   // 0x1878 Sabinate's "form, shap"), which were built in the found stage.
   { id: 'keyword-spaces', group: 'talk', name: 'Lost in space', title: 'Seven keywords no longer require a space preceding them to be recognized',
@@ -412,8 +412,8 @@ const DATA_FIXES = [
         code: 'set_field data1 (0x6)\narg Arg00\nend\nbyte 0x03\nend' },
     ] },
   // "You can't stuff the carcass!" on every check (0x10D2): the inventory
-  // window asks member 23 of the thing under the cursor each time it checks
-  // a drop, and the carcass's answer printed the line; the refusal no longer
+  // window calls member 23 on the thing under the cursor each time it checks
+  // a drop, and the carcass's answer printed the line; the rejection no longer
   // prints.
   { id: 'carcass', group: 'items', stage: 'community', title: 'Dragging something over a carcass is now quiet, instead of printing \u201cYou can\u2019t stuff the carcass!\u201d at every check',
     played: 'Mac OS 8.5, 11 October 2026, the fix alone and “All Fixes”, each installed by Magpie: a carcass in the pack used, so its window opens, and a dagger dragged from the pack into that window; nothing is printed, against "You can’t stuff the carcass!" five times and more unpatched. Not played in the fork',
@@ -432,7 +432,7 @@ const DATA_FIXES = [
   // which the board took for Aeneas [453@t2023]. Character(0) is character
   // 0, a real record, so the "Nothing happens." the scripts keep for no
   // character was never reached: the corpse was deleted, its things handed
-  // to character 0 and character 0 "raised". Now a corpse of Data1 0 says
+  // to character 0 and character 0 "raised". Now a corpse of Data1 0 prints
   // "Nothing happens." and is left as it lay with its things. The spell's
   // mana is spent in Use before this runs, as for any other target; the
   // amulet returns before its charge is taken (a rock still costs one, as
@@ -480,20 +480,20 @@ const DATA_FIXES = [
       { what: 'Eteocles’s "kesh"', resid: 0x1838, at: 0x01ED, replaceOp: true, expect: { 0x01E4: 'conversation_response "kesh"', 0x01ED: 'sys GetState', 0x01EE: 'byte 0x04' }, code: 'sys GetStateFlag' },
     ] },
   // The strange device left open across a zone change (0x1175; 28 September
-  // 2026). A scripted window's buttons call back with the owner the window
-  // had when each was made: the widget constructor copies the window's owner
-  // number into its own word at 4, and TWidget::RenumberParent is an empty
-  // routine. Moving the party between zones gives every carried thing a new
-  // number (ShuffleUpPartyInventory, then the two moves in LoadLevelProps),
-  // and RenumberProp moves the window's owner with it but not the buttons'
-  // copies, so each click after it worked the storage of whatever thing now
-  // held the old number and changed nothing. The routine the three buttons
-  // share now checks that it was handed a strange device with its window
-  // open (HasWindow, which is the program's ShowWindow) and otherwise walks
-  // the party's things for the one that is, as Divide Food walks them; if
-  // there is none it does nothing. Four more locals for the two loops. The
-  // type is tested before HasWindow, since HasWindow brings a found window
-  // to the front and an open sack's should stay where it is.
+  // 2026). A scripted window's buttons call back with the owner the window had
+  // when each was made: the widget constructor copies the window's owner
+  // number into the widget's word at 4, and TWidget::RenumberParent is an
+  // empty routine. Moving the party between zones gives every carried thing a
+  // new number (ShuffleUpPartyInventory, then the two moves in
+  // LoadLevelProps), and RenumberProp moves the window's owner with it but not
+  // the buttons' copies, so each click after it worked the storage of whatever
+  // thing now held the old number and changed nothing. The routine the three
+  // buttons share, with the fix, checks that it was handed a strange device
+  // with its window open (HasWindow, which is the program's ShowWindow) and
+  // otherwise walks the party's things for the one that is, as Divide Food
+  // walks them; if there is none it does nothing. Four more locals for the two
+  // loops. The type is tested before HasWindow, since HasWindow brings a found
+  // window to the front and an open sack's should stay where it is.
   { id: 'strange-device', group: 'items', stage: 'community', title: 'The strange device\u2019s buttons now work after a change of zone, instead of doing nothing',
     played: 'Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the device used on the world map and a button pressed, the hero walked into Cademia, two more buttons pressed and the lights change, against no change after Cademia unpatched. On the fork’s 68K slice no button changes a light on either',
     edits: [
@@ -536,7 +536,7 @@ const DATA_FIXES = [
   // schedules an hour passed in more than 100 ticks as instant:
   // RepositionChar then leaves anyone not yet hatched whose new post is out
   // of sight hidden (255) rather than an egg (66), which is what the draw
-  // loop hatches; one already hatched is moved to the post. (This said on
+  // loop hatches; one already hatched is moved to the post. (This read on
   // first writing that the creature was taken off the map as well; the call
   // that would do it sits behind a test its branch has already failed and
   // never runs.) They came back only when a later hour, schedule while
@@ -556,14 +556,14 @@ const DATA_FIXES = [
         expect: { 0x0113: 'string(implicit) "You get kicked out of bed', 0x013A: 'sys SpecialView', 0x013B: 'byte 0x04' },
         code: 'sys UnknownE0\nend' },
     ] },
-  // Rune of Warding says nothing (0x10F5; 28 September 2026). The spell
+  // Rune of Warding prints nothing (0x10F5; 28 September 2026). The spell
   // (0x1A16) makes the rune with New(33, x, y, 0, 245, CurrentCharacter, 0),
   // and cbcreateprop stores the sixth argument's low byte as Data1, so a
   // rune's Data1 is its caster's character number: 1 for the hero, 6 for
   // Hector. The rune's UseOn, which what steps on it runs (the default
   // StepOn, 0x301F), prints "Something has triggered one of your runes of
   // warding." only when Data1 is 32, which is Ake, so no rune the party
-  // casts ever says it; the rune is deleted in silence, and the spell's own
+  // casts ever prints it; the rune is deleted in silence, and the spell's
   // description is "signals the caster when something steps on it". No map
   // places a rune and no shipped AI script casts one, so every rune is the
   // party's, and the test goes: the line always prints.
@@ -605,14 +605,14 @@ const DATA_FIXES = [
     ] },
   // The magic arrow drawn as a stack (0x8103, and two Cademia stacks in
   // 0x8108): the count moves from Data1 to Data2.
-  // A click reaches the one thing the viewer keeps for a square, and a
+  // A click reaches the one thing the viewer stores for a square, and a
   // loose thing outranks a door, so with a dagger lying in a doorway Use
   // finds the dagger, open door or shut, and the door cannot be worked
   // until the dagger is taken away [453@t2023]. A thing with no Use of its
   // own runs the default, 0x3009, which did nothing. It now looks over its
   // own square when it lies on the ground, and hands the Use to a door
-  // there (the six classes whose ClassFlags carry 0x200). A first try, the
-  // door's helper refusing to close on a thing, could never run: the
+  // there (the six classes whose ClassFlags have 0x200). A first try, the
+  // door's helper not closing on a thing, could never run: the
   // click does not reach the door.
   { id: 'door-under-thing', group: 'world', stage: 'community', title: 'A door comes first: using a thing that lies in a doorway works the door, which opens and will not close on it, instead of staying stuck',
     played: 'fork, 68K, and Mac OS 8.5 with each patch installed by Magpie, 12 October 2026, the stock file, the fix alone and every fix: a dagger put by an edit on the square of the oak door at (52,21) of Cademia, the hero south of it, Use on that square three times. Unpatched the pane shows "> Use dagger." three times and the door stays shut. With the fix alone and with every fix the first Use opens the door, the room behind it drawn, and the second and third show "Something is in the doorway." and leave it open. In the fork, with no dagger, three Uses open, shut and open the door on all three files. A potion on the same square, the same day, the fork and Mac OS 8.5: unpatched "Whom should quaff potion?" and the door shut; with the fix alone and with every fix the door opens and the next two Uses show "Something is in the doorway." A potion on open floor prompts for whom, on all three files (fork). The kinds another fix also edits, 13 October 2026, the fork, the three files: a fishing pole, a pitcher and the strange device in the doorway each do what they do elsewhere and leave the door shut unpatched, and open it with the fix alone and with every fix; a fishing pole on open floor shows its line on all three. Mac OS 8.5, the same day, the fishing pole in the doorway, each patch installed by Magpie: its line three times and the door shut unpatched; the door opened and "Something is in the doorway." twice with the fix alone and with every fix',
@@ -621,14 +621,14 @@ const DATA_FIXES = [
     // the doorway (the maintainer, 12 October 2026: "SHOULD the player be
     // able to close the door with something in the way?"). So the door's
     // helper, 0x0E40, also looks over its square before closing, and with
-    // anything there that has a weight it says so and stays open. Opening
-    // is never refused, so a door found shut on a thing still opens.
-    // A thing with a Use of its own, a torch, a potion, a chest, never came
+    // anything there that has a weight it prints a line and stays open.
+    // Opening is never rejected, so a door found shut on a thing still opens.
+    // A thing whose class has a Use, a torch, a potion, a chest, never came
     // to 0x3009, so a door shut on one stayed stuck (the maintainer, 12
     // October 2026: "can't you have the door use take precedence over the
-    // torch?"). Each class that has a Use and a weight now asks 0x3009
+    // torch?"). Each class that has a Use and a weight now calls 0x3009
     // first, which answers True when it has handed the Use to a door, and
-    // only otherwise goes on to its own. So in a doorway the door comes
+    // only otherwise goes on to the class's Use. So in a doorway the door comes
     // first, whatever lies there; picked up, the thing is used as before.
     plan: (s) => {
       const edits = [
@@ -659,7 +659,7 @@ const DATA_FIXES = [
       ];
       // Read from the session, not the page's open file: a build has none.
       // Each is a `late` edit: made after the rest of the stage, and carried
-      // past by a later stage's edit that names a place in the same class.
+      // past by a later stage's edit that refers to a place in the same class.
       for (let pt = 1; pt < 0x400; pt++) {
         const resid = 0x1000 + pt;
         let b; try { b = s.bytesOf(resid); } catch (e) { continue; }
@@ -681,9 +681,9 @@ const DATA_FIXES = [
   // spells, records flagged 0x1C whose type is the skill's number, and the
   // number of Barehand, 199, is the haystack's as a thing. Meleager is the
   // one companion who holds a skill record, Barehand, so with little else
-  // on him the roll finds it, the pane says "Meleager drops a haystack."
+  // on him the roll finds it, the pane shows "Meleager drops a haystack."
   // [Fletcher@t580], a haystack two squares wide lies where he stands and
-  // his Barehand is gone. A pick whose flags carry 0x04, the bit a skill
+  // his Barehand is gone. A pick whose flags have 0x04, the bit a skill
   // or spell has and a thing carried or worn does not, now ends as a
   // failed cast does, "Nothing seems to happen."
   { id: 'shake-down-skills', group: 'rules', stage: 'community', title: 'Shake Down no longer makes someone drop a skill, which fell as a haystack',
@@ -735,9 +735,9 @@ const DATA_FIXES = [
   // second mystic spear, north of the helmet's room (the armor a player
   // finds is in the Caves and the spear in the Cove), and in the north-west
   // corner four standing stones, four force walls and a pedestal. Each
-  // record is freed, flags 0xFF, as the list's own free records are;
+  // record is freed, flags 0xFF, as the list's free records are;
   // ChainFreeProps links them when the zone is loaded. A game already
-  // begun keeps its own lists. Left: the outcropping at (39,96) of the
+  // begun keeps the lists it has. Left: the outcropping at (39,96) of the
   // Underground, on void too but numbered as the one at (86,115) is.
   { id: 'castoffs', group: 'hidden', stage: 'community', title: 'Fourteen things left outside the walls of Land King Hall and the Underground are now gone, instead of standing where nobody can go',
     played: 'fork, 68K, 13 October 2026, alone and on “All Fixes”: the hero put on the void beside each group of the Underground; the pedestal, armor and spear at (34,57) and the standing stones, force walls and pedestal of the north-west corner are drawn unpatched and gone with the fix; fork, PowerPC, the fix alone: a new game, saved, has Land King Hall’s dresser and crystal ball as free records, against both on the floor unpatched. Land King Hall was not looked at on “All Fixes”, nor any of it on Mac OS',
@@ -769,8 +769,8 @@ const DATA_FIXES = [
           return n + ' vials given Data1 2';
       } },
     ] },
-  // Kilts inside kilts (0x810D): the dresser at (48,17), record 261, holds
-  // one thing, a cape (record 673); the cape holds three tunics (674 to 676)
+  // Kilts inside kilts (0x810D): the dresser at (48,17), record 261, contains
+  // one thing, a cape (record 673); the cape contains three tunics (674 to 676)
   // and the last tunic four kilts (677 to 680). A cape and a tunic are no
   // containers, and every other tunic and cape in the towns is in a dresser
   // itself, so all seven go into the dresser. Until 8 October 2026 this moved
@@ -819,7 +819,7 @@ const DATA_FIXES = [
   // corpse, a person's flags) and 229 as a copy of the guard's. No class
   // script sits at 0x1932 or 0x1933, which a unit's index would name. A
   // table can give every sleeper only the one unit, so a guard or a woman
-  // made while asleep leaves a man's body and carries a man's flags; the
+  // made while asleep leaves a man's body and has a man's flags; the
   // program fix sleeper-unit (js/delv-appfixes.js) looks up the sleeper's
   // own type instead, and this record is what is left for anything it
   // cannot name (30 September 2026).
@@ -845,7 +845,7 @@ const DATA_FIXES = [
   // The Odemia night guard's Talk (0x10E5; 11 October 2026). The class of
   // the guard a night egg hatches (type 229) hands Talk to the Gate Guard
   // with no TalkParticipant before it, where the day guard's class (0x102E)
-  // names its character in place 0 first. With nobody in that place the
+  // assigns its character to place 0 first. With nobody in that place the
   // conversation has no second portrait, and every line of the guard's is
   // drawn at the hero's, over the row of keywords. The call the day guard's
   // class makes is added. (bugs.md, *The Odemia guards' text overlaps at
@@ -869,14 +869,14 @@ const DATA_FIXES = [
           r[6] = 15; r[7] = 0; return 'record 14’s text number moved to Data1';
       } },
     ] },
-  // The names of `0xF004` are runs: an entry is a tile number and a name,
-  // and names every tile after the entry before it up to that number. The
-  // entry 2007 "polyp" covers 2000 to 2007, which is two creatures: the
-  // hydra's body (type 279, tiles from 2000) and the polyp (type 277,
-  // tiles from 2004). The hydra's arms (type 278, tiles from 1920) are
-  // "hydra", so a hydra is looked at as a polyp ringed by hydras and its
-  // hits are reported as "A polyp hit". An entry 2003 "hydra" goes in
-  // before it; the table is eight bytes longer.
+  // The names of `0xF004` are runs: an entry is a tile number and a name, and
+  // gives that name to every tile after the entry before it up to that number.
+  // The entry 2007 "polyp" covers 2000 to 2007, which is two creatures: the
+  // hydra's body (type 279, tiles from 2000) and the polyp (type 277, tiles
+  // from 2004). The hydra's arms (type 278, tiles from 1920) are "hydra", so a
+  // hydra is looked at as a polyp ringed by hydras and its hits are reported
+  // as "A polyp hit". An entry 2003 "hydra" goes in before it; the table is
+  // eight bytes longer.
   { id: 'hydra-name', group: 'world', stage: 'community', title: 'A hydra\u2019s body is now called a hydra, instead of a polyp',
     played: 'Mac OS 8.5, 11 October 2026, the fix alone and with every fix, each installed by Magpie: the hero on the shore of the Hall of Truth\u2019s pool, Look at the body two squares west, "> Look - you see a hydra.", and with the fix alone "--A hydra missed Bellerophon.--", against "> Look - you see a polyp." unpatched (and "--A polyp hit Bellerophon very hard.--" in an unpatched run the same day). The polyps of the Cove, the same day and machine, eight turns and a Look at each square beside the hero: "> Look - you see a polyp." and "--A polyp hit Bellerophon.--" with the fix alone and with every fix, as unpatched; fork, 68K, 11 October 2026, a Look at each of the six squares the body moves over, twice: two of twelve read "> Look - you see a polyp." unpatched, none with the fix alone or with every fix, where eight read "> Look - you see a hydra."',
     dataEdits: [
@@ -893,7 +893,7 @@ const DATA_FIXES = [
   /* ---- Bryce Schroeder's fixes (the stage "bugfix"; bugfix_patch.mjs,
      "Cythera Bugfix Patch") ------------------------------------------------
      The six fixes of Bryce Schroeder's unofficial bugfix patch, rebuilt with
-     the page's own code writer (24 September 2026, at the maintainer's
+     the page's code writer (24 September 2026, at the maintainer's
      word). The causes are in bugs.md under *Fixed in Bryce Schroeder's
      unofficial patch*. */
 
@@ -1005,7 +1005,7 @@ const DATA_FIXES = [
       end` },
     ] },
   // Fishing (0x1091). His source's one change: the map word the pole reads
-  // carries the automap's seen bit, which it masks off (word 0x7FFF,
+  // has the automap's seen bit, which it masks off (word 0x7FFF,
   // bitwise_and) before testing for deep water.
   { id: 'fishing', group: 'rules', stage: 'bugfix', by: 'Bryce Schroeder', title: 'Fishing now finds deep water on squares already seen, instead of only on unseen ones',
     played: 'fork, 3 October 2026: cast at deep water beside (206,40) on the world map, a fish caught, against "You need to cast into deep water." unpatched; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: cast at deep water off (206,40) of the world map, "You fish for a while..." and then "You caught something!"',
@@ -1104,11 +1104,11 @@ const DATA_FIXES = [
      "Cythera Further Fixes") ------------------------------------------------
      The bugs held back until the maintainer said what was meant (27
      September 2026, for the patch he means to share). What settled the
-     intent is said beside each; where the files themselves settle it, that
+     intent is written beside each; where the files themselves settle it, that
      is the reason given.
 
      EVERY PLACE IS FOUND, NOT GIVEN. The other code stages name their edits
-     by offset in the shipped file, which holds only while they run first or
+     by offset in the shipped file, which is valid only while they run first or
      on resources nobody else touches. Several of these share a script with an
      earlier stage (Crito, Apis and Parium with the community's keywords,
      Demodocus with the found fixes, Paris with Bryce's six), so each reads
@@ -1203,12 +1203,12 @@ const DATA_FIXES = [
     ].map(([who, resid, from, add, said]) =>
       dataFixRekey(s, who + ' answers to the name', resid, from, from + ',' + add, ['string(implicit) "\\"' + said])) }) },
   // Tlepolemus never sells his old panpipes (bugs.md): he offers them, a
-  // yes gets "Stop by some evening and I'll see if I can find them.", and
+  // yes draws "Stop by some evening and I'll see if I can find them.", and
   // no script ever sells them. The offer goes (the maintainer, 3 October
   // 2026, who had two versions made): his line ends at "stopped a while
   // back." and the question after it is jumped over, so his "I hope you
   // enjoyed them", which waits on a sale, stays unsaid as before. The other
-  // version is a joke patch of its own, deep_pipes_patch.mjs, which sells
+  // version is a separate joke patch, deep_pipes_patch.mjs, in which he sells
   // them; built on a file with this fix, its sale is never reached. Under
   // Design Changes since 17 October 2026, at the maintainer's word: Philinus
   // gives the party a set ("pipe", 0x1832), so the offer may be a path left
@@ -1225,11 +1225,11 @@ const DATA_FIXES = [
   // The party roster's figure frame (workbench GRIMOIRE-NOTES,
   // grimoire/roster-art-fnlojp): element 1 of a class's property 55 is the
   // frame of its sheet the party bar draws, and nothing else reads it (the
-  // world's readers take element 0). The sylph's class asks for frame 4 of
+  // world's readers take element 0). The sylph's class requests frame 4 of
   // a four-frame sheet, the first tile after it, a short sword, so Ur-Sylph
-  // was drawn as one; the fire spirit's asks for 4 of its four too, which
+  // was drawn as one; the fire spirit's requests 4 of its four too, which
   // lands on the other fire spirit's sheet and looks right by luck. Both
-  // now ask for frame 0. Only a party that has forced them in shows it.
+  // now request frame 0. Only a party that has forced them in shows it.
   { id: 'roster-figures', group: 'world', stage: 'further', title: 'Ur-Sylph is drawn in the party roster as herself, instead of as a short sword',
     played: 'fork, 3 October 2026: Ur-Sylph forced into the party, drawn as her sylph, against a short sword unpatched; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: Ur-Sylph forced into the party is drawn as her sylph',
     dataEdits: [0x1124, 0x1122].map(resid => ({ what: 'the roster frame of 0x' + resid.toString(16).toUpperCase(), resid, fn: (b) => {
@@ -1270,8 +1270,8 @@ const DATA_FIXES = [
   // group's "history" (0x0808) and the House Atussa group's "atus" (0x0807),
   // and a branch to the end after each of the wishing fountain's four wishes
   // (0x1036), so "Your wish is found elsewhere..." no longer follows each.
-  // Antenor (0x1824) and Pheres (0x184E): a "no" that got its own answer and
-  // then the answer to an earlier question's "no" gets only its own. The
+  // Antenor (0x1824) and Pheres (0x184E): a "no" that got its answer and
+  // then the answer to an earlier question's "no" gets only the first. The
   // bartenders (0x0812): a hero with no oboloi is refused and no longer
   // asked "Do you need instructions?" straight after. And a click after the
   // line the next one replaced before it could be read: Ennomus, the
@@ -1298,7 +1298,7 @@ const DATA_FIXES = [
         });
       }
       for (const [what, resid, line] of [['Antenor’s "no"', 0x1824, '"\\"I understand - no many'], ['Pheres’s "no"', 0x184E, '"\\"In my studies']]) {
-        // The branch goes where the second "no" answer's own test would have gone.
+        // The branch goes where the second "no" answer's test would have gone.
         const second = resid === 0x1824
           ? dataPatchPlace(s, what, resid, ['conversation_response "n" ->', 'string(implicit) ' + line, 'conversation_response "n" ->'])
           : dataPatchPlace(s, what, resid, ['sys AddQuest', 'byte 0x1D', 'word 0x021A[0]', 'byte 0x1D', 'add', 'end', 'conversation_response "n" ->']);
@@ -1340,7 +1340,7 @@ const DATA_FIXES = [
   // line there before it waits. A first line that goes to its prompt with
   // no `*` leaves the description up beside it. So a description is lost
   // only where some first line pauses, which is so for eight of the
-  // twenty-three descriptions with no `*` of their own, the four 453 named
+  // twenty-three descriptions with no `*` in them, the four 453 named
   // among them: on Mac OS 8.5 each of those four was up for about a quarter
   // of a second (bugs.md, the same title). These get the mark Magpie's
   // description has, a new line and the `*`; with the `*` straight after
@@ -1375,10 +1375,10 @@ const DATA_FIXES = [
   // "A vision appears before yo", "with a proud demeanor", and "..." as
   // "..". Seen on Mac OS 8.5 (bugs.md, *The character before a pause*). 126
   // places in the shipped file, found here rather than listed: every `*` in
-  // a string that follows anything but a new line or a quotation mark gets
+  // a string that follows anything but a new line or a quotation mark is given
   // the new line, but the one string that is ".*" alone (Cybele's), whose
   // `*` a branch jumps to. A `*` after a closing quote is left: the routine has
-  // drawn the speech by then and takes nothing from it. Each place is found
+  // drawn the speech by then and reads nothing from it. Each place is found
   // by as much of the text before it as makes it the only one, or the only
   // ones, in its script.
   { id: 'pause-keeps-letter', group: 'text', stage: 'further', title: 'The full stop or letter before a pause is now drawn, instead of dropped',
@@ -1405,7 +1405,7 @@ const DATA_FIXES = [
       return { textEdits };
     } },
   // Demodocus's "Would you like to @hear it?" leads to his song, keyed
-  // "song,meti", whose "meti" the question itself takes first; it is keyed
+  // "song,meti", whose "meti" the question itself matches first; it is keyed
   // "song,hear".
   { id: 'demodocus-song', group: 'talk', stage: 'further', name: 'Do your job, bard', title: 'Demodocus now sings you his song if you ask (nicely)',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "hear" to Demodocus in Land King Hall, "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched; "song" sings on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched',
@@ -1421,8 +1421,8 @@ const DATA_FIXES = [
   // The Directed Nexus scroll (0x104B): the scroll's Use deleted the spell it
   // cast and itself by number after the spell had moved the party to Land
   // King Hall, where those numbers name two of the hall's things. It notes
-  // the zone and the spell first; if the zone or the spell's own record is
-  // not what it was, it deletes nothing by number and takes one scroll of
+  // the zone and the spell first; if the zone or the spell's record is
+  // not what it was, it deletes nothing by number and removes one scroll of
   // that spell from whoever carries it (RemoveItem, as Selinus takes a
   // book). Directed Nexus is the one spell that changes zone. The scroll's
   // Use, from the cast to its return, and two more locals.
@@ -1455,7 +1455,7 @@ const DATA_FIXES = [
   // both blast traps in the game are inside crates and chests. Detect Traps
   // also finds an armed fine wire, as Deactivate Trap and Detect Secrets
   // already do. One level inside each thing, in a pair of locals the
-  // function did not have (item, then the iterator's own slot), which the
+  // function did not have (item, then the iterator's slot), which the
   // header is given.
   { id: 'traps', group: 'rules', stage: 'further', title: 'Detect Traps and Deactivate Trap now find traps inside chests, and armed wires, instead of missing them',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: a crate with a poison trap inside, Detect Traps cast beside it, "You detect poison trap!", against "You fail to detect anything." unpatched, and Deactivate Trap performed on it, "Poison trap destroyed.", against "There was nothing to deactivate."; a blast trap and a fine wire were not tried; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: Detect Traps beside a crate holding a poison trap, "You detect poison trap!", and Deactivate Trap on it, "Poison trap destroyed."',
@@ -1499,7 +1499,7 @@ const DATA_FIXES = [
   // frame of his is the north frame transposed, to the pixel, and this one
   // is the transposed north sitting frame; it becomes the transposed north
   // standing frame, so he no longer drops into his seat whenever he stops
-  // walking left. The title names the pose and not the stop, at the
+  // walking left. The title describes the pose and not the stop, at the
   // maintainer's word (6 October 2026): the standing frame is a step of the
   // walk too.
   { id: 'magpie-west', group: 'world', stage: 'further', title: 'Magpie now stands when in standing pose facing west, instead of sitting',
@@ -1525,7 +1525,7 @@ const DATA_FIXES = [
   // 213, the mushroom steak's type. So the hero's Lock Picking was taken for
   // food, deleted, and dealt out as a type-213 thing at the skill's aspect
   // (16, an aptitude, draws as the strange device; 0 as the steak). The
-  // gather now also asks that the thing's flags are not 28, the test
+  // gather now also tests that the thing's flags are not 28, the test
   // FindSkill and RecalcSkills use for a skill. Nothing else in the game
   // places or makes a type-213 thing, so with this the mushroom steak cannot
   // be had (the maintainer's choice, 27 September 2026).
@@ -1543,7 +1543,7 @@ const DATA_FIXES = [
   // 0x0500 with write_far_word, and 25 scripts read it back there wherever
   // they pick a word by gender ("ma'am" or "sir", "heroine" or "hero"). That
   // word lands in a file the scenario opening adds, which outlives every
-  // game, and no save holds resource 0x0500, so a loaded game reads whatever
+  // game, and no save has resource 0x0500, so a loaded game reads whatever
   // the last hero created wrote (the workbench's executable-fixes.md, *The
   // last save's gender*). The creation also writes the choice into the
   // hero's figure, field 0x25: 33 for a heroine, 32 for a hero. The
@@ -1552,7 +1552,7 @@ const DATA_FIXES = [
   // and 0x3020 puts them back from 0x25. So each read becomes
   // `PlayerCharacter.0x25 == 33`. The fix leaves two places alone: the
   // creation's write, which nothing reads once this applies, and the
-  // creation's read just after it, which comes before field 0x25 holds
+  // creation's read just after it, which comes before field 0x25 has
   // anything.
   { id: 'gender', group: 'talk', stage: 'further', name: 'A boyfriend who looked like a girlfriend', title: 'Characters no longer address you using the gender of the hero you created previously (e.g. in February of last year)',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a heroine (the hero’s figure 33) loaded where no hero had been created, "bye" to Hebe, "Ma’am, one last thing...", against "Sir, one last thing..." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ma’am, one last thing...", against "Sir, one last thing..." unpatched',
@@ -1581,8 +1581,8 @@ const DATA_FIXES = [
 
   // The first Stronghold's kitchen (map 0x801F): the metal door at (22,18)
   // stands on tile 145, "wall", which blocks, so opening it shows a wall and
-  // the step is refused; the seven squares behind it are reached by nothing
-  // else. The square takes the floor tile of the door beside it at (20,18),
+  // the step is rejected; the seven squares behind it are reached by nothing
+  // else. The square is given the floor tile of the door beside it at (20,18),
   // 210.
   { id: 'stronghold-door', group: 'world', stage: 'map', title: 'The first Stronghold\u2019s kitchen door now opens onto floor, instead of wall',
     played: 'fork, 26 September 2026: through the door into the kitchen; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: through the metal door at (22,18) into the kitchen',
@@ -1599,9 +1599,9 @@ const DATA_FIXES = [
   // a bush beside water, and the way back, the secret passage and its egg at
   // (25,53), stands on embankment tile 100, which blocks, so the party cannot
   // step onto it. Of the game's three secret passages it is the only one on
-  // a blocking tile, and every embankment tile blocks, so the square takes
+  // a blocking tile, and every embankment tile blocks, so the square is given
   // the grass of its neighbour to the north at (25,52), 52. That reads as a
-  // notch in the embankment. It opens no other way: (25,52) holds a tree,
+  // notch in the embankment. It opens no other way: (25,52) has a tree,
   // which blocks, so the notch leads only onto the passage.
   { id: 'citadel-passage', group: 'world', stage: 'map', title: 'You can now step on the secret passage on the shore under the Citadel, instead of it blocking',
     played: 'fork, 26 September 2026: a step north reaches the Underground; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: a step north from (25,54) reaches the Underground',
@@ -1648,7 +1648,7 @@ const DATA_FIXES = [
   { id: 'text-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'hyphenated, \u201ckind-looking\u201d', title: 'Standardize to hyphenated: \u201ckind-looking\u201d, \u201cdour-faced\u201d and the like', played: 'fork, 68K, 10 October 2026, with the text fix: Thetis, "You see a dour-faced older woman", against "dour faced" unpatched; Bryaxis, "kind-looking", against "kind looking"; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: Thetis, "You see a dour-faced older woman"' },
   /* The Beserker's [sic] mind (8 October 2026; bugs.md, *A figure the
      creation dialog states and the game does not give*). The dialog's text
-     says 6 and the table the creation script reads says 12. The first
+     reads 6 and the table the creation script reads has 12. The first
      option, the maintainer's on asking which made sense, mends the text:
      every archetype's three figures in the table come to 48, the
      Beserker's with its 12, and with the text's 6 they would come to 42.
@@ -1663,14 +1663,14 @@ const DATA_FIXES = [
 
   /* ---- Larger changes (the stage "apart"; karma_patch.mjs,
      resurrection_patch.mjs, peirithous_patch.mjs) --------------------------
-     Each a patch of its own at the maintainer's word, and kept out of "All
+     Each a separate patch at the maintainer's word, and kept out of "All
      Fixes", since each is a design call rather than a slip anyone can point
      to. Each touches one resource no other fix does. */
 
   // Killing a townsperson costs karma (0xE8D; 27 September 2026, "Cythera
   // Karma Fix"). THE SHIPPED RULE: the kill helper adds [+1, +4, -10, 0] to
   // karma, indexed by the victim's alignment (neutral 0, evil 1, good 2,
-  // feral 3, the combat AI's own names for them, STR# 9301), when the hero
+  // feral 3, the combat AI's names for them, STR# 9301), when the hero
   // lands the blow. Every one of the game's named people but the hero,
   // Aeneas and Eudoxus is neutral, so killing a townsperson raised karma by
   // one (bugs.md, *Killing NPCs raises karma*). THE CHANGE: a neutral victim
@@ -1681,8 +1681,8 @@ const DATA_FIXES = [
   // other karma loss for a deed, "Your deeds stain your soul" in the hero's
   // script. Evil, good and feral are unchanged. WHY BY TYPE AND NOT BY
   // NUMBER: the first idea was the named characters only, the character
-  // records below 256 (a created creature takes one from 256 up). The script
-  // cannot ask that: the victim arrives as a reference, a class tag in the
+  // records below 256 (a created creature is given one from 256 up). The script
+  // cannot test that: the victim comes as a reference, a class tag in the
   // top bits over the number, and the interpreter's bitwise_and
   // (TInterp::DoExpr's case for 0x56) masks two plain numbers only, taking
   // another path for a tagged word. The victim's type it can read, as the
@@ -1714,7 +1714,7 @@ const DATA_FIXES = [
   // in SYSTEMLESS-NOTES.md under systemless/alaric-flag-0k92h2).
   // Resurrection (0x1A2F's UseOn; 27 September 2026, "Cythera Resurrection
   // Fix"; bugs.md, *Resurrected characters vanish or reappear at home*).
-  // THE SHIPPED SPELL: on a corpse whose Data1 names a character it sets the
+  // THE SHIPPED SPELL: on a corpse whose Data1 points at a character it sets the
   // alive bit, a quarter of full health plus one, gives the character every
   // record inside the corpse at any depth with flags 16, and deletes the
   // corpse. Death (TActiveMonster::Die) had taken them out of the party and
@@ -1749,13 +1749,13 @@ const DATA_FIXES = [
   // 112, and the schedules use 0, 12, 15, 16 and 134 to 150. So a companion
   // dismissed or told to wait before they died is not taken back in, and one
   // killed in the party is. The one overlap: Dryas has a post at behaviour
-  // 12, so Dryas killed while standing at it would rejoin. JoinParty refuses
+  // 12, so Dryas killed while standing at it would rejoin. JoinParty rejects
   // a ninth member; then the person stands where the corpse lay, out of the
-  // party, until the hour takes them home. NOT CHANGED: the Land King Amulet
+  // party, until the hour sends them home. NOT CHANGED: the Land King Amulet
   // used on a corpse (0x10F4), which runs the same code, and the hero's own
   // return to Land King Hall when the amulet is worn at death (0x1801), both
   // left as shipped at the maintainer's word, but for the corpse of nobody,
-  // which nobody-corpse turns away in both. The map record wants a fifth
+  // which nobody-corpse turns away in both. The map record needs a fifth
   // local; a function's locals are the third byte of its header, and UseOn's
   // header is at 0xA0.
   // The radio button (tile 0x1AC, sheet 0x8E1A, tile 12 of it): DrawCheck
@@ -1814,7 +1814,7 @@ const DATA_FIXES = [
   // wearing his portrait). Of the scenario's placed characters only he and
   // the empty character 0 start without the bit; the unused slots have it
   // set. Every release from 1.0.1 is the same. THE CHANGE: the one bit, set.
-  // A saved game carries its own character table, so this reaches new games
+  // A saved game has a separate character table, so this reaches new games
   // only.
   { id: 'peirithous', group: 'design', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is now alive in a new game, instead of dead',
     played: 'fork, 10 October 2026, alone: a new game on the PowerPC slice saves character 96 alive in Odemia at (55,40), against dead at (0,0) unpatched; that record put into a saved Odemia by an edit and placed, on the 68K slice, he stands at his post and answers "I am called Peirithous." and "I am the majordomo of Judge Sacas.". He was not met in the new game itself; Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie: a new game saves him alive in Odemia at (55,40). Read from a save copied out of the machine; he was not met',
@@ -1834,7 +1834,7 @@ const DATA_FIXES = [
   // speak as characters 187, 188, 189 and 191 (TalkParticipant), and the
   // conversation box named each "Nothing" (seen on the 2019 livestream at
   // 1:17:45, 1:56:30 and 2:09:00; bugs.md, Found checking the 2019
-  // livestream). TConversation::ShowPortrait names a speaker through
+  // livestream). TConversation::ShowPortrait identifies a speaker through
   // GetCharacterName, which reads the name table (0x0201) only when the
   // character's flag 7, the name known, is set (byte 8, bit 0x80), and
   // otherwise gives the tile name of the record's prop type. These records
@@ -1844,7 +1844,7 @@ const DATA_FIXES = [
   // the ghost, the vision and the switch, which the maintainer chose to keep
   // (19 October 2026), and "Fountain". Omen (126) shows "Nothing" until his
   // name is learnt for the same reason, and is left alone: the flag would
-  // name him before he is introduced. A saved game carries its own character
+  // name him before he is introduced. A saved game has a separate character
   // table, so this reaches new games only.
   { id: 'nobody-speakers', group: 'talk', stage: 'apart', title: 'The Abydos ghost, the vision, the wishing fountain and the riddle switch are no longer called \u201cNothing\u201d when they speak',
     dataEdits: [
@@ -1860,7 +1860,7 @@ const DATA_FIXES = [
   // The manuscript on Semius the Golem Hunter (0x021D) has him buying a
   // lyre and "saying something about the 'key to opening being SGD'". The
   // lyre's lock (signal 131, the sewer's secret door to the room where his
-  // bones lie in the cloak the manuscript gives him) wants PMG; SGD can be
+  // bones lie in the cloak the manuscript gives him) needs PMG; SGD can be
   // played and opens nothing [Aventari,Alan Mercury,Croikle@t56]. The
   // letters are made the door's. A design change, at the maintainer's word
   // (12 October 2026): the manuscript calls it a rumour and "nonsense", so
@@ -1868,13 +1868,13 @@ const DATA_FIXES = [
   { id: 'semius-notes', group: 'design', stage: 'apart', title: 'The manuscript on Semius the Golem Hunter now gives the notes that open the door, PMG, instead of SGD',
     played: 'Mac OS 8.5, 12 October 2026, the change alone, installed by Magpie: the bookshelf at (22,42) of Catamarca used and the manuscript scrolled to its end, "the \u2018key to opening being PMG\u2019", against "SGD" unpatched. The door was not played with it; PMG opening it is the board\u2019s and the lock\u2019s constant. Not played in the fork, where the scroll\u2019s window did not scroll',
     textEdits: [dataFixT('the Golem Hunter\u2019s notes', 0x021D, "'key to opening being SGD'", "'key to opening being PMG'", 1)] },
-  // Thread and cloth colours disagree (bugs.md): spinning makes yellow
-  // thread, the loom keeps the thread's aspect and changes its type, and the
+  // Thread and cloth colours differ (bugs.md): spinning makes yellow
+  // thread, the loom retains the thread's aspect and changes its type, and the
   // cloth tiles after the thread's on sheet 0x8E2B are blue, red and green
   // where the thread's are yellow, blue and green. The cloth is redrawn to
   // match the thread (the maintainer, 3 October 2026): the blue cloth's
   // picture moves to aspect 1, the red cloth's picture, recoloured yellow,
-  // takes aspect 0, and Ake's sale list is renamed to match. Red cloth
+  // is given aspect 0, and Ake's sale list is renamed to match. Red cloth
   // leaves the game.
   { id: 'cloth-colours', group: 'design', stage: 'apart', title: 'Thread is now woven into cloth of the thread\u2019s colour, yellow, blue or green, instead of blue, red or green',
     played: 'fork, 68K, 10 October 2026, alone: cloth of aspects 0, 1 and 2 laid on a floor by an edit draws yellow, blue and green, against blue, red and green unpatched; fork, 68K, 16 October 2026, alone and with the other design changes: yellow thread used on a loom by a hero given the weaving skill makes cloth drawn yellow, against blue unpatched, and blue thread cloth drawn blue, against red; Ake, at her shop at noon, sells “Yellow Cloth”, “Blue Cloth” and “Green Cloth” with yellow, blue and green pictures, against “Blue Cloth”, “Red Cloth” and “Green Cloth” unpatched; Mac OS 8.5, 11 October 2026, a patch of the design changes installed by Magpie over “All Fixes”: cloth of aspects 0, 1 and 2 on a floor draws yellow, blue and green, against blue, red and green unpatched. The loom and Ake’s list were not seen on Mac OS',
@@ -1902,10 +1902,10 @@ const DATA_FIXES = [
       dataFixT('Ake’s second cloth', 0x1820, 'Red Cloth', 'Blue Cloth', 1),
     ] },
   // Demodocus at the Bridge (GRIMOIRE-NOTES.md, 3 October 2026): his
-  // schedule (character 109, 0xF00B) takes the Bridge while quest value 9 is
+  // schedule (character 109, 0xF00B) uses the Bridge while quest value 9 is
   // 2 ahead of his Cademia posts for quest value 4 at 5, and value 9 changes
   // only when the Bridge is entered again, so a bard met there stays there
-  // whatever the trail says. The Cademia posts now come first. A design
+  // whatever the trail shows. The Cademia posts now come first. A design
   // change at the maintainer's word, since the files do not say which was
   // meant.
   { id: 'demodocus-bridge', group: 'design', stage: 'apart', title: 'Demodocus now goes to Cademia when his trail ends there, instead of staying at the Bridge until you return to it',
@@ -1940,27 +1940,27 @@ const DATA_FIXES = [
   /* A spell's magic taken once its target is chosen (the maintainer,
      30 September and 4 October 2026; the workbench's GRIMOIRE-NOTES.md,
      grimoire/cost-4817rt). Every spell's Use calls CastSpell (0xEA1) first,
-     which refuses a cost above the caster's magic, takes the magic, adds to
-     the timing and rolls the failure; a targeted spell's Use then asks "on
+     which rejects a cost above the caster's magic, deducts the magic, adds to
+     the timing and rolls the failure; a targeted spell's Use then prompts "on
      whom?" or "where?" and answers its targeting word, and its target
      method (the class's fourth function: UseOn, or the square method of the
-     runes and Fireball) does the spell. So a cancelled, refused or mistaken
-     target cost the magic. Now Use asks without the call, and the target
+     runes and Fireball) does the spell. So a cancelled, rejected or mistaken
+     target cost the magic. Now Use prompts without the call, and the target
      method begins with it, the same three arguments, returning 0 when it
      answers false: the "more power" message comes after the target, which
-     is the maintainer's choice of the two (a check that does not take was
-     the other, and wanted a new helper).
+     is the maintainer's choice of the two (a check that does not deduct was
+     the other, and needed a new helper).
 
      The 33 are found, not listed: every spell (0x1A00 to 0x1A3F) whose Use
      answers something besides 0. The untargeted spells keep the call where
-     it is. Its own stage, after "apart", since Fetch's edit (stage bugfix)
+     it is. A separate stage, after "apart", since Fetch's edit (stage bugfix)
      and Resurrection's locals byte (stage apart) are anchored at the
      shipped offsets of the scripts this shortens and lengthens.
 
      The computer's casters. 0xC4C, the cast task, calls Use and then UseOn
      on what Use answered; a monster with SpellsKnown casts free, so most
      are unchanged. A caster without it who cannot pay, or whose spell
-     fails, now has Use answer and UseOn refuse, so the cast task's
+     fails, now has Use answer and UseOn reject, so the cast task's
      method 0x43 on the target runs where it did not; it ran for every
      cast that succeeded. Not played. */
   // Eating to heal (9 October 2026, at the maintainer's word). The helper
@@ -1969,9 +1969,9 @@ const DATA_FIXES = [
   // its worth and prints one of seven lines by its quality ("That was
   // amazingly tasty." at 0 down to retching at 6), a quality of 4 is worth
   // nothing, and at full health it answers "You aren't hungry." and leaves
-  // the food. The shipped foods ask "Feed to whom?" and add to the eater's
+  // the food. The shipped foods prompt "Feed to whom?" and add to the eater's
   // nutrition instead. This gives the helper its callers, the minimal way:
-  //   - the three foods' Use eats at once, through their own UseOn with the
+  //   - the three foods' Use eats at once, through their UseOn with the
   //     player, and their UseOn calls the helper;
   //   - the default EveryTurn (0x3020) never finds a member of the party
   //     hungry, so nobody eats from the pack or complains of hunger (the
@@ -1981,14 +1981,14 @@ const DATA_FIXES = [
   //   - the helper's jitter rolls Random(0, 2) twice, so a quality varies
   //     by one either way, which was the fix `eating`.
   // THE FIGURES are this project's, the helper's callers being gone. Worth
-  // is the food's own figure before the shipped UseOn doubles it into
+  // is the food's figure before the shipped UseOn doubles it into
   // nutrition: flatbread 3, bread 5, cheese 4, grapes 3, pomegranate 2,
   // meat pie 8, kabobs 5, fowl 3, meat 6 and 8, fish 5, sausage 7, steak 10
   // (0x1045's table), hand-baked bread 8 (half its 16), and the mushroom
   // steak's three 5, 4 and 3. Quality: 1 for a worth of 8 or more and 2
   // below it, so the jitter stays among the lines 0 to 3 and never reaches
   // the one step better than 0, which has no line; the mushroom steak's
-  // three take the verdicts their own script gives them as talk balloons,
+  // three take the verdicts their script gives them as talk balloons,
   // "Not very good" 3, "Yetch!" 4 and "Not bad" 2.
   { id: 'eat-to-heal', group: 'design', stage: 'apart', title: 'Food is eaten by the hero at once and restores health, with a line on how it tasted, instead of being fed to someone to stave off hunger; nobody in the party goes hungry',
     played: 'fork, 68K, 9 October 2026, alone and with every other fix: a hero at 10 of 28 health uses a stack of steak, "That was very good." and "That was tasty." and then "You aren\u2019t hungry." at full health with the rest of the stack kept, against "Feed to whom?" unpatched; a pomegranate, hand-baked bread, a mushroom steak and a dried jellyfish ("Yuck, that wasn\u2019t very good.", worth nothing) were eaten the same way; a starving Aethon with five flatbreads ate none and said nothing of hunger in five hundred turns, where unpatched he ate one within sixty; the steak run repeated on PowerPC; Mac OS 8.5, 11 October 2026, a patch of the design changes installed by Magpie over “All Fixes”: a hero at 10 of 28 uses a stack of six steaks four times, a line on the taste and then "You aren’t hungry." twice, 28 of 28 and four steaks left',
@@ -2009,7 +2009,7 @@ const DATA_FIXES = [
         // The helper's two rolls.
         { what: 'eating, second roll', resid: 0xE46, at: 0x0040, replaceOp: true, expect: { 0x003D: 'sys Random', 0x0040: 'byte 0x01' }, code: 'byte 0x02' },
         { what: 'eating, first roll', resid: 0xE46, at: 0x0039, replaceOp: true, expect: { 0x0036: 'sys Random', 0x0039: 'byte 0x01' }, code: 'byte 0x02' },
-        // Flatbread and its twelve kin (0x1045): worth by aspect from the table UseOn keeps in Var00.
+        // Flatbread and its twelve kin (0x1045): worth by aspect from the table UseOn stores in Var00.
         { what: 'flatbread is eaten', resid: 0x1045, at: 0x013B, to: 0x0179,
           expect: { 0x00FF: 'set_local 0x00', 0x0101: 'data', 0x013B: 'set_local 0x01', 0x014D: 'set_field nutrition', 0x0179: 'return' },
           code: ['if_not', ...byAspect, 'byte 0x08', 'ge', 'then -> plain', eat(byAspect, 'byte 0x01'), 'branch done',
@@ -2020,7 +2020,7 @@ const DATA_FIXES = [
           expect: { 0x007A: 'set_local 0x00', 0x008C: 'set_field nutrition', 0x0093: 'byte 0x10', 0x0097: 'sys Delete', 0x009A: 'return' },
           code: eat(['byte 0x08'], 'byte 0x01') },
         { what: 'hand-baked bread is used on the hero', resid: 0x10E7, at: 0x005B, to: 0x0073, expect: { ...at(0x005B, feed), 0x0070: 'byte 0x08', 0x0073: 'return' }, code: use },
-        // The mushroom steak and its two kin (0x10D5): worth from its table, quality from its own verdicts.
+        // The mushroom steak and its two kin (0x10D5): worth from its table, quality from its verdicts.
         { what: 'the mushroom steak is eaten', resid: 0x10D5, at: 0x0144, to: 0x0168,
           expect: { 0x00FF: 'set_local 0x00', 0x0113: 'set_local 0x01', 0x0144: 'set_local 0x02', 0x0154: 'set_field nutrition', 0x0165: 'sys Delete', 0x0168: 'return' },
           code: ['if_not', 'arg Arg00', 'get_field aspect (0x3)', 'byte 0x01', 'eq', 'then -> notyetch', eat(byAspect, 'byte 0x04'), 'branch done',
@@ -2245,7 +2245,7 @@ const DATA_FIX_TEXT = [
   dataFixT('Sardis\u2019s keyword "attu"', 0x181F, 'attu', 'atus', 1),
   dataFixT('Ignae\u2019s keyword "jhai"', 0x187D, 'jhai', 'jhia', 1),
   // "LandKing" to "Land King" (24 September 2026, at the maintainer's word;
-  // one of the options since the 28th): the author's own unit table names
+  // one of the options since the 28th): the author's unit table names
   // Alaric's unit "Land King", both manuals write it so 39 times and
   // "LandKing" never, the zone is titled "Land King Hall", and the dialogue
   // itself says "the Land King's side" beside its forty "LandKing"s. The
@@ -2255,13 +2255,13 @@ const DATA_FIX_TEXT = [
     .map(r => Object.assign(dataFixT('"LandKing"', r, 'LandKing', 'Land King'), { opt: 'text-land-king' })),
   /* The other way, each of the four (1 October 2026): every place the game
      has the spelling the options above change away from, found by reading
-     every resource for it on the day. "Two-Tailed" takes both the sign's
+     every resource for it on the day. "Two-Tailed" covers both the sign's
      "Two-Taled" and the directions' "Two Tailed". "LandKing" leaves the
      LandKing Amulet, a thing's name, as "Land King" does. "Ariethous"
-     takes the four keyword lists that answer to "arei" with it, as
+     brings the four keyword lists that answer to "arei" with it, as
      Sardis's "attu" follows his spelling above, so a highlighted
      @Ariethous still answers; the name table has "Ariethous" already.
-     Unhyphenated takes the five compounds the game hyphenated itself,
+     Unhyphenated covers the five compounds the game hyphenated itself,
      which the hyphenated option leaves. */
   ...[[0x0218, 1], [0x021A, 3], [0x0805, 1], [0x182A, 2]]
     .map(([r, n]) => Object.assign(dataFixT('"Two-Taled Rat"', r, 'Two-Taled Rat', 'Two-Tailed Rat', n), { opt: 'text-two-tailed' })),
@@ -2330,13 +2330,13 @@ const DATA_FIX_TEXT_BRITISH = (() => {
 // not chosen, each keeping the option it belongs to for the list of changes
 // (dataFixTextChanges). And the spelling stage's, for the spelling chosen.
 // An option's row may hold only with the text or only without it
-// (`withText`), where the text's own correction comes first in the line.
+// (`withText`), where the text's correction comes first in the line.
 function dataFixTextEdits(chosen) {
   return DATA_FIX_TEXT.filter(e => (e.opt ? chosen.has(e.opt) : chosen.has('text')) && (e.withText === undefined || e.withText === chosen.has('text')))
     .map(e => { const c = Object.assign({}, e); delete c.withText; return c; });
 }
-/* An archetype's mind where the dialog's text and the table disagree.
-   Nothing is given: the table is found by the creation script's own
+/* An archetype's mind where the dialog's text and the table differ.
+   Nothing is given: the table is found by the creation script's
    `load_far_word`, the text by its "Mind: n", and every row whose two
    figures differ is mended one way or the other, which in the shipped file
    is the one row. The text is an array of pointers to strings laid end to
@@ -2390,13 +2390,13 @@ function dataFixSpellingEdits(chosen) {
    cannot read the collection, which is in no repository, and
    utilities/data_fix_check.mjs fails if the list and the collection part.
 
-   This takes each pair, resolves the words around it to the game's own
+   This reads each pair, resolves the words around it to the game's
    wording, and looks for those words in the game's text as it stands with
-   the collection's markup allowed between them -- the game's strings carry
+   the collection's markup allowed between them -- the game's strings have
    quotes, the click marks (*) and the @ of a highlighted word where the
    collection does not. A pair found once, or the same number of times as the
-   game holds the phrase, is an edit; one found nowhere is tried with fewer
-   words around it, then with the misspelt word alone when the game holds it
+   game has the phrase, is an edit; one found nowhere is tried with fewer
+   words around it, then with the misspelt word alone when the game has it
    exactly once; what is still not found is reported and left. Found with the
    corrected wording in the same place instead, it is the collection's own
    slip in transcribing, and the game is right already. So the edits are the
@@ -2468,7 +2468,7 @@ function dataFixCommunityTypoEdits(texts, typos, spelling) {
   }
   // Each hit is anchored to where it was found. Two hits whose text overlaps
   // (a typo beside another, "Execellent.  I'm am looking") become one edit
-  // over the span of both, each misspelt word replaced at its own place.
+  // over the span of both, each misspelt word replaced at its place.
   const textEdits = [];
   for (const [resid, list] of hitsByResid) {
     list.sort((a, b) => a.index - b.index);
@@ -2807,18 +2807,18 @@ const DATA_FIX_COMMUNITY_TYPOS = [
 ];
 // @@COMMUNITY-TYPOS-END
 
-/* BEHIND THE SCENES. Fixes to what the game keeps and no player sees, asked
-   for by the maintainer on 4 October 2026 as a section of their own. The
+/* BEHIND THE SCENES. Fixes to what the game stores and no player sees, asked
+   for by the maintainer on 4 October 2026 as a separate section. The
    first is the map editor's names for the maps, STR# 135 of Cythera Data's
    resource fork, one per map from map 1 (loadEditorZoneNames): three are
-   misspelt there, and the game's own text has each right -- the sign
+   misspelt there, and the game's text has each right -- the sign
    (0x218) and the innkeepers (0x805, 0x813) say "North Shore Vineyard" and
    "Southland Vineyard", and map 31 beside it is "Inner Brotherhood Hall".
    A Magpie patch changes only the data fork, so these are written into a
-   whole copy of the file, as the Spanish one is. Each edit names the
+   whole copy of the file, as the Spanish one is. Each edit gives the
    string as the file has it, numbered from 1, and the build stops if it
-   says anything else, so a file that has it right already, or another
-   list in that place, is refused rather than overwritten. */
+   finds anything else, so a file that has it right already, or another
+   list in that place, is rejected rather than overwritten. */
 const DATA_RSRC_FIXES = [
   { id: 'editor-map-names', group: 'hidden', title: 'The Map Editor’s Names',
     note: 'Three of the map editor’s names for the maps are misspelt; the signs and characters in the game have them right. The game never shows the editor’s names, so a player sees no change.',

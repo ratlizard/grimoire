@@ -13,24 +13,24 @@
    the page after the last of these. File 13 of 14. */
 
 /* ---- Cythera's preferences file -----------------------------------------
-   The game keeps its settings in `Cythera Preferences`, in the System Folder's
+   The game stores its settings in `Cythera Preferences`, in the System Folder's
    Preferences folder: a file with an empty data fork and three `'Pref'`
    resources in its resource fork. One of them, **130 "UI Prefs"**, is four
    bytes, and two bits in it are worth a visitor's while.
 
    **Bit 7 of the first byte is smooth movement, and the game has always had
    it.** Cythera implements quarter-tile sub-pixel movement in shipped code
-   and gates it on this preference: every object's record carries a 2-bit x
+   and gates it on this preference: every object's record has a 2-bit x
    and y offset in byte 6, and the renderer tests this bit before applying it
-   at all. Bit 1 asks for four sub-steps a tile rather than two. The whole of
-   `0x9A` is what the game's own Preferences dialog writes for "Smoother
+   at all. Bit 1 selects four sub-steps a tile rather than two. The whole of
+   `0x9A` is what the game's Preferences dialog writes for "Smoother
    Movement". With no stored preference the game picks a default by CPU class,
    and the 68040 default is `0x18` -- one 32-pixel jump a tile, the character
    teleporting from square to square. That is measured, not inferred: a
    filmstrip of five sampled positions, eight pixels apart.
 
    **Bit 0 of the fourth byte is the gate on cheat mode.** The map window
-   keeps the last four keys in a rolling word, and typing `©gra` -- option-g,
+   stores the last four keys in a rolling word, and typing `©gra` -- option-g,
    then g, r, a -- toggles the cheat flag *only* when that bit is set. Nothing
    in the game ever sets it: `TApPrefWindow::SaveSettings` writes bytes 0 and
    1 and no more, and all three CPU-class defaults have byte 3 clear. So a
@@ -46,9 +46,9 @@
    first -- `18800001` in a stored preferences file was watched to print
    "Cheat mode activated." on 5 September 2026, and `0x9A` was measured the
    same week -- and on 9 September 2026 a file this page wrote was read by
-   the game and the code typed: cheat mode activated. The page has said
-   so since v1.35.0; the paragraph that stood here until v1.41.0 still called
-   the file untried and asked for five minutes with a Mac.
+   the game and the code typed: cheat mode activated. The page has stated
+   this since v1.35.0; the paragraph that stood here until v1.41.0 still called
+   the file untried and requested five minutes with a Mac.
 
    **The rest of the record is named** (v1.41.0, from the workbench's reading
    of `TApPrefWindow::AddContent`, `SaveSettings` and `TDelverApp::DefaultMenu`,
@@ -66,23 +66,23 @@
    `CurScen` out in particular: the program writes it and never reads it
    back, which is the whole of that key.
 
-   The Finder identity is **read rather than guessed**, which it was for an
+   The Finder identity is **read rather than assumed**, which it was for an
    hour: fixing the StuffIt 5 folder walk made `Cythera Installed Folder with
    Preferences & License.sit` list its whole tree, and the real `Cythera
    Preferences` is in it -- type `pref`, creator `????`, an **empty data
    fork** and a 638-byte resource fork. All three are what this writes. The
    creator was `Delv` here, then four zero bytes on a misreading of the
-   archive, and has been `????` since 23 September 2026: the archive's own
-   catalogue says so, the disk image's says so, and
+   archive, and has been `????` since 23 September 2026: the archive's
+   catalogue has it, the disk image's has it, and
    `TPrefs::OpenPrefsResFile` hands `FSpCreateResFile` that very long, so it
    is what the game itself would have made. The fork inside the archive is no
-   longer unread either -- it holds four resources, not three: `UI Prefs`
+   longer unread either -- it has four resources, not three: `UI Prefs`
    `9A 80 00 00`, `Volume` -1, `Music` 8 and a `CurScen` alias, which is a
    real file to check this one against rather than only the executable's
    word. The workbench's `doc/preferences-file.md` is the whole of that file,
    key by key.
 
-   And the file is offered on its own disk rather than added to
+   And the file is offered on a separate disk rather than added to
    the archive's export disk, because a third file on that volume pushes its
    catalog past one leaf node and raises a modal Finder alert that breaks the
    automated install -- see buildEditedDiskImage, where that was paid for. */
@@ -94,13 +94,13 @@ const PREFS_FILE_NAME = 'Cythera Preferences';
    Pascal string at 256, and a word at 512. That layout is two files looked
    at, a registered one and the one the game leaves when it is not, and no
    reading of the program, which the maintainer ruled out for this file
-   ("no reverse engineering", 6 October 2026); so the reader says the name
+   ("no reverse engineering", 6 October 2026); so the reader shows the name
    and whether a code is there, and nothing about what the game makes of
    either. It does not return the code. The page shows a name and makes no
    licence, and a reader that never hands the code on cannot have it
    printed by a caller added later.
 
-   A file of another length is refused rather than read loosely: any file
+   A file of another length is rejected rather than read loosely: any file
    at all starts with a byte that passes for a Pascal length. */
 const LICENSE_FILE_NAME = 'Cythera License';
 const LICENSE_FILE_SIZE = 514;
@@ -108,7 +108,7 @@ function cytheraLicenseRead(bytes) {
   if (!bytes || bytes.length !== LICENSE_FILE_SIZE) return null;
   return { name: pstring(bytes, 0), hasCode: bytes[256] > 0 };
 }
-// '????', as the real file has and as the game's own FSpCreateResFile call
+// '????', as the real file has and as the game's FSpCreateResFile call
 // passes: it belongs to no application, and the Finder shows it the generic
 // document icon accordingly.
 const PREFS_CREATOR = '????';
@@ -121,30 +121,30 @@ const PREFS_SCRIPT_NAME = 'Install Preferences';
    (exeKeyRoutine), and for each switch the field the preferences dialog's
    control of that label writes, or for smooth movement the bits and values
    the Preferences menu's item of that name writes (exePrefFields). The
-   labels are the game's own strings and are how a switch finds its field;
+   labels are the game's strings and are how a switch finds its field;
    the fields are read. With only `smooth` and `cheats` given the bytes are
    what they have been since the file was put in front of the game:
    9A 80 00 01, 18 80 00 00, 18 80 00 01, which the resource fork check
-   holds the program's reading to. Null with no application open. */
+   compares the program's reading with. Null with no application open. */
 const PREF_OPTIONS = [['liveDrag', 'Live Dragging'], ['manualContainers', 'Manually Place Containers'],
   ['motionFilters', 'Motion Filters'], ['walkAround', 'Walk around obstacles'], ['zoomRects', 'Use \'ZoomRects\'']];
 const PREF_SMOOTH_ITEM = 'Smoother Movement';
-/* The one question the game asks on its own, and the two bits that answer it.
+/* The one question the game puts unprompted, and the two bits that answer it.
    On a display deeper than eight bits TDelverApp::PostInitMac puts up a dialog
    -- "This game runs faster in 256 colors.  Would you like to automatically
    switch at startup?" -- and writes the answer into the record: the button
-   into one bit, the checkbox that stops it asking again into another. Neither
-   is the Preferences dialog's, which is why the record's own sheet had them
-   down as dead until 23 September 2026. Both are found here the way every
-   other switch is, by the text the program hands GetDialogItem, so the labels
-   below are the dialog's own and nothing is typed in. This page turns both on:
-   256 colours is what the game recommends in its own words, and a file written
-   to change a setting should not then stop to ask a question. */
+   into one bit, the checkbox that stops the question coming again into
+   another. Neither is the Preferences dialog's, which is why the record's
+   sheet had them down as dead until 23 September 2026. Both are found here the
+   way every other switch is, by the text the program hands GetDialogItem, so
+   the labels below are the dialog's and nothing is typed in. This page turns
+   both on: 256 colours is what the game recommends in its words, and a file
+   written to change a setting should not then stop for a question. */
 const PREF_STARTUP_ITEMS = ['Switch to 256 Colors', "Don't Ask Again"];
 // The Preferences tab's switch for each, in the same order.
 const PREF_STARTUP_IDS = ['prefSwitch256', 'prefDontAsk'];
 // A frame-rate value the game's menu does not offer, named as the menu names
-// its own: the field is ticks between frames, and a tick is a sixtieth of a
+// the others: the field is ticks between frames, and a tick is a sixtieth of a
 // second, so n ticks is 60/n frames a second; 0 is no wait at all.
 const PREF_RAW_LABEL = n => n === 0 ? 'No limit' : 'Limit to ' + Math.round(60 / n) + ' FPS';
 /* The ordinals' ranges, which are the one thing here the program does not
@@ -153,8 +153,8 @@ const PREF_RAW_LABEL = n => n === 0 ? 'No limit' : 'Limit to ' + Math.round(60 /
    TAudio::SetSoundVolume multiplies by 32 into the Sound Manager's 0-256,
    and GMSSetVolume multiplies by 8,192 into a Fixed, where 65,536 is unity
    gain -- so both scales top out at 8, and both are eighths. Volume also
-   takes -1, which SetSoundVolume sends down a different branch that leaves
-   the machine's own level alone; MENU 131 calls that one "System Volume".
+   accepts -1, which SetSoundVolume sends down a different branch that leaves
+   the machine's level alone; MENU 131 calls that one "System Volume".
    Ambient is a flag. `Backdrop` is deliberately absent: its values are read
    out of the program and the two files instead (cytheraBackdropOptions). */
 /* WHAT THE FOUR SHIPPED RELEASES SAY, so that the file can be written
@@ -162,14 +162,14 @@ const PREF_RAW_LABEL = n => n === 0 ? 'No limit' : 'Limit to ' + Math.round(60 /
    by the code above and printed, never typed: 1.0.1, 1.0.2, 1.0.3 and
    1.0.4 give byte-for-byte the same answer for all of it -- the same bit
    positions, the same menu items, the same ordinal defaults, the same two
-   'ppat' ids -- so there is nothing for a version to disagree about and no
+   'ppat' ids -- so there is nothing for a version to differ on and no
    reason to make a visitor open the game before the page will write a
    file. It is still only the fallback: with a program open the page reads
-   that one, which is what keeps a patched or unknown build right.
-   utilities/smoke_installer.mjs holds this to the program across all four
+   that one, which is what makes a patched or unknown build right.
+   utilities/smoke_installer.mjs checks this against the program across all four
    releases, so it cannot drift without a check going red. The one
    exception is `buttons`, the multi-button mouse bit, which 1.0.1 does not
-   have: it is 1.0.2's to 1.0.4's, and the check holds that apart. */
+   have: it is 1.0.2's to 1.0.4's, and the check tests that separately. */
 const PREF_SHIPPED = {
   key: "UI Prefs",
   bytes: 4,
@@ -200,8 +200,8 @@ function cytheraPrefsLayout() {
   }
   const smooth = [];
   for (const f of fields) for (const w of f.writers) if (w.item && w.item.texts.includes(PREF_SMOOTH_ITEM) && w.value && typeof w.value.v === 'number') smooth.push({ byte: f.byte, lo: f.lo, hi: f.hi, value: w.value.v });
-  // The startup question's two bits, in the order its dialog asks them. A
-  // checkbox's write takes its value from the control rather than from a
+  // The startup question's two bits, in the order its dialog shows them. A
+  // checkbox's write reads its value from the control rather than from a
   // constant, so a bit with no value read is the ticked box, 1.
   const startup = [];
   for (const text of PREF_STARTUP_ITEMS)
@@ -236,7 +236,7 @@ function cytheraPrefsLayout() {
   /* The other keys of the file: the four ordinals, each a long the program
      fetches with a fallback. The fallback in the code is not the whole
      default, because GetOrdinal searches the resource chain and the
-     application's own fork ships two of these keys -- so the value a fresh
+     application's fork ships two of these keys -- so the value a fresh
      install reads is the shipped resource when there is one, and the code's
      fallback otherwise. Both are carried; `dflt` is the one a visitor is
      actually changing away from. */
@@ -252,7 +252,7 @@ function cytheraPrefsLayout() {
     .map(e => ({ key: e.key.v, index: e.index.v, code: e.dflt.v | 0, shipped: shipped(e.key.v), writers: e.writers.length }))
     .map(o => Object.assign(o, { dflt: o.shipped === null ? o.code : o.shipped }));
   /* The switch nothing in the game sets: the bit the event routine tests
-     before asking which mouse button went down and adding a modifier key
+     before testing which mouse button went down and adding a modifier key
      for buttons two to five (the workbench's cheats.md, *Bit 2 of byte 1*).
      Found as the one bit TDelverApp::MyGetEvent reads from the record. */
   const br = acc.reads.find(x => /^TDelverApp::MyGetEvent/.test(x.routine.name) && x.bits.v[0] === x.bits.v[1]);
@@ -265,8 +265,8 @@ function cytheraPrefsLayout() {
 
 /* The same layout from PREF_SHIPPED, for a visitor with no game open. Every
    field has the shape the reading above produces, so everything downstream --
-   the record writer, the ordinals, the Tools tab -- cannot tell the
-   difference except by `from`, which the section says out loud. */
+   the record writer, the ordinals, the Tools tab -- cannot see the
+   difference except by `from`, which the section states plainly. */
 function cytheraShippedLayout() {
   const S = PREF_SHIPPED;
   if (!S) return null;
@@ -282,7 +282,7 @@ function cytheraShippedLayout() {
 /* What `Backdrop` can be set to, from the program's three numbers and the
    two files' contents. Below the limit the long is a general graphic, `base
    + n`; at or above it, and for every negative, it is a 'ppat' of
-   `base - n`, and the application's fork says which of those exist -- so the
+   `base - n`, and the application's fork shows which of those exist -- so the
    list is short because the game ships two of each, not because two were
    chosen here. Null when the program is not open. */
 function cytheraBackdropOptions() {
@@ -332,7 +332,7 @@ function cytheraPrefsRecord(opts, layout) {
   const put = (byte, lo, hi, v) => { const m = ((1 << (hi - lo + 1)) - 1) << lo; b[byte] = (b[byte] & ~m) | ((v << lo) & m); };
   for (const c of L.controls) if (o[c.opt] !== undefined) put(c.byte, c.bit, c.bit, o[c.opt] ? 1 : 0);
   if (o.smooth) for (const x of L.smooth) put(x.byte, x.lo, x.hi, x.value);
-  // A choice is named by the game's own item text; every field that item
+  // A choice is named by the game's item text; every field that item
   // writes is written, so a stop spread over two bits lands whole.
   for (const c of L.choices) {
     const want = o[c.opt];
@@ -363,27 +363,27 @@ function cytheraChoiceField(c) {
 }
 // One ordinal's resource: (index + 1) longs, the value at its index and the
 // rest zero. Exactly that length, because GetOrdinal answers its caller's
-// fallback for a resource that holds more longs than the index asks for.
+// fallback for a resource that has more longs than the index requests.
 function cytheraOrdinalRecord(value, index) {
   const b = new Uint8Array((index + 1) * 4), at = index * 4, v = value | 0;
   b[at] = (v >>> 24) & 255; b[at + 1] = (v >>> 16) & 255; b[at + 2] = (v >>> 8) & 255; b[at + 3] = v & 255;
   return b;
 }
 // The ordinals a set of options actually changes: a key left at the value a
-// fresh install would read is not written at all, so the file says only what
+// fresh install would read is not written at all, so the file records only what
 // it means to say.
 function cytheraOrdinalsFor(opts, L) {
   const o = opts || {};
   return (L.ordinals || []).filter(x => o[x.key] !== undefined && (o[x.key] | 0) !== x.dflt)
                            .map(x => ({ key: x.key, index: x.index, value: o[x.key] | 0 }));
 }
-/* The Preferences tab's two presets, as options cytheraPrefsRecord takes
+/* The Preferences tab's two presets, as options cytheraPrefsRecord accepts
    (the maintainer, 1 October 2026). DEFAULT is a new copy of the game: the
    record the program stores first, no answer to the 256-colour question so
-   the game asks it, no cheat keys, no extra mouse buttons, and every ordinal
+   the game puts it, no cheat keys, no extra mouse buttons, and every ordinal
    where a fresh install reads it. EVERYTHING is below, beside its code. A
    setting is named by what the layout read, never by a
-   bit typed here, so a patched build gets its own. */
+   bit typed here, so a patched build has its settings. */
 function cytheraPrefsPreset(name, layout) {
   const L = layout || cytheraPrefsLayout();
   if (!L) return null;
@@ -417,7 +417,7 @@ function cytheraPrefsPreset(name, layout) {
   }
   return o;
 }
-// One line naming what a record asks for, for the status line and the script.
+// One line naming what a record sets, for the status line and the script.
 function prefsSummary(o) {
   const parts = [o.cheats ? 'the cheat keys allowed' : 'no cheat keys'];
   if (o.smooth) parts.unshift('smoother movement');
@@ -437,7 +437,7 @@ function prefsSummary(o) {
   if (o.mouseButtons) parts.push('extra mouse buttons as modifier keys');
   return parts.join(', ');
 }
-// The id is the file's own choice: the store finds a key by name and gives a
+// The id is the file's choice: the store finds a key by name and gives a
 // new one whatever UniqueID answers, so 130 is only what this file uses.
 function buildCytheraPreferences(opts) {
   const L = cytheraPrefsLayout();
@@ -477,7 +477,7 @@ function prefsInstallScript(opts) {
     ''
   ].join('\r');   // classic Mac line endings, as buildInstallScript uses
 }
-// The two files on one volume, which is the most a catalog leaf holds.
+// The two files on one volume, which is the most a catalog leaf has room for.
 function buildPrefsDiskImage(opts) {
   return writeHfsImage({
     volumeName: PREFS_VOLUME_NAME,
@@ -575,12 +575,12 @@ function buildInstallScript(archiveName, note) {
    dropped on it lands in the Downloads folder still wrapped, needing a
    StuffIt Expander round trip inside the emulated Mac before the game can see
    it. A .dsk mounts as a disk, with the archive on it as an ordinary file
-   carrying both its forks and its Finder type -- drag it into the Cythera
+   with both its forks and its Finder type -- drag it into the Cythera
    folder and the game reads the edit.
 
    The resource fork rides along because a Delver archive genuinely has one
    (the eSTM stamps and eBRS brushes, and the PICT the Finder shows), and
-   because writeHfsImage keeps forks the whole point of using HFS at all.
+   because writeHfsImage preserves forks, the whole point of using HFS at all.
 
    Mac OS may say it could not rebuild the desktop file on the disk. It is
    read-only, and that is what a read-only disk with no desktop database does;
@@ -608,12 +608,12 @@ function buildEditedDiskImage(file, edited) {
                       || DISK_ARCHIVE_NAME;
   const rsrc = file.rsrc || new Uint8Array(0);
   const forkWarning = missingForkWarning(rsrc);
-  /* Everything a person needs to know goes in the script's own comments, and
+  /* Everything a person needs to know goes in the script's comments, and
      there is no Read Me file beside it. That is not tidiness, it is the fix
      for a bug only an end-to-end run found: a third file pushes the volume's
      catalog past one 512-byte leaf node, a volume with more than one leaf
      makes the Finder put up its "could not rebuild the desktop file" alert on
-     every mount, and that alert is MODAL. It holds the keyboard, so
+     every mount, and that alert is MODAL. It captures the keyboard, so
      the retired mobile shell's Install types its keystrokes into a dialog that ignores
      them and nothing happens at all. Two files fit in one leaf and no alert
      appears. the retired mobile shell dismisses one defensively as well, so a larger
@@ -681,7 +681,7 @@ const GM_NAMES = ("Acoustic Grand Piano,Bright Acoustic Piano,Electric Grand Pia
 /* ============================================================
    QTMA (QuickTime Music Architecture) -> Standard MIDI File
    Bit-field layout taken verbatim from Apple's QuickTimeMusic.h
-   (Universal Interfaces 3.3.1). Durations are in the tune's own time
+   (Universal Interfaces 3.3.1). Durations are in the tune's time
    scale, which Cythera sets to 600 a second (GMSInit; the fork's
    music-root-cause.md). They were read as milliseconds until 3 October
    2026, so every MIDI file the page wrote played 1.67 times too fast: the
@@ -718,7 +718,7 @@ function qBuildMidi(events, noteRequests, ticksPerBeat, tempoUs, kits){
   const parts = [...partSet].sort((a,b)=>a-b);
   const chanOf = {};
   let nextCh = 0;
-  // A part that asks for a drum kit (instrument 16385 and up) is channel 10,
+  // A part that requests a drum kit (instrument 16385 and up) is channel 10,
   // which is what makes it a kit to whatever plays the file. Until
   // 6 October 2026 the kit was given the next melodic channel and a program
   // from its General MIDI number, so an exported tune's drums were a tuned
@@ -794,7 +794,7 @@ function qtmaToMidi(data){
   const kits = new Set(Object.keys(tones).filter(p => tones[p].instrument >= 16384).map(Number));
   const built = qBuildMidi(seq.events, noteRequests, undefined, undefined, kits);
   const notes = seq.events.filter(e=>e.k==='note');
-  // To the last note's end, not its start, in the tune's own units.
+  // To the last note's end, not its start, in the tune's units.
   const total = seq.events.length ? Math.max(...seq.events.map(e => e.t + (e.dur || 0))) : 0;
   return {midi:built.midi, chanOf:built.chanOf, noteRequests, tones, events:seq.events,
           noteCount:notes.length, eventCount:seq.events.length, durationSec:total/QTMA_UNITS_PER_SECOND};
@@ -812,14 +812,14 @@ function downloadCurrentMidi(){
 }
 
 /* ---------------------------------------------------------------------------
-   A tune played through QuickTime's own instruments
+   A tune played through QuickTime's instruments
    ---------------------------------------------------------------------------
    js/mac-qtmusic.js reads the instruments and renders; this fetches them and
    puts the result in the sound panel. They come from archive.org's copy of
    the QuickTime 3 CD, the one copy a page can reach (js/mac-installshield.js
-   says why that one), 7 MB once, and the 2 MB of instruments taken out of it
-   are remembered in a database of their own, so a second tune, or a second
-   visit, fetches nothing. The page's own database is left alone: a new store
+   explains why that one), 7 MB once, and the 2 MB of instruments taken out of it
+   are stored in a separate database, so a second tune, or a second
+   visit, fetches nothing. The page's database is left alone: a new store
    there means a version bump every remembered archive goes through. Where
    the fetch fails, a file does as well: the installer, the .qtx, or a Mac
    QuickTime Musical Instruments file's resource fork.
@@ -873,7 +873,7 @@ async function playCurrentTune() {
   }
   if (pick) pick.style.display = 'none';
   setStatus('Playing 0x' + resid.toString(16).toUpperCase() + " through QuickTime 3's instruments");
-  await new Promise(r => setTimeout(r, 30));   // let the status paint before the render holds the page
+  await new Promise(r => setTimeout(r, 30));   // let the status paint before the render blocks the page
   try {
     const info = qtmaToMidi(raw);
     const r = qtmaRender(info.events, info.tones, QT_LIB, {unitsPerSecond: QTMA_UNITS_PER_SECOND});
@@ -896,7 +896,7 @@ async function playCurrentTune() {
 }
 /* A MIDI file in a tune's place (the maintainer, 6 October 2026: "importing
    MIDI to be playable as QTMA"). The file is made into a tune by midiToQtma
-   (js/mac-qtmusic.js), which takes from the tune being replaced what a MIDI
+   (js/mac-qtmusic.js), which copies from the tune being replaced what a MIDI
    file has no word for, and the tune goes into the open file as any other
    edit does (applyResourceEdit), so it plays here through QuickTime's
    instruments at once and leaves by Data, Cythera Data, Changes, as the
@@ -943,8 +943,8 @@ function qtInstrumentsPicked(input) {
 /* ---------------------------------------------------------------------------
    Where is this art used?
    ---------------------------------------------------------------------------
-   Every reference in this archive points one way: a map names the tiles it
-   draws, a prop type names its sprite sheet, a composite tile names its
+   Every reference in this archive points one way: a map refers to the tiles it
+   draws, a prop type points at its sprite sheet, a composite tile points at its
    fragments. Looking at a sheet of artwork and asking "and where does this
    appear?" meant reading 42 maps by hand. This inverts the three tables that
    answer it. It is built on demand rather than at load, because it decrypts
@@ -1027,17 +1027,17 @@ function showArtUsage(resid) {
 }
 
 // The same panel for every open resource. Tile sheets keep their map/prop
-// census; everything else gets what renderUsage knows -- who wears a
+// census; everything else has what renderUsage finds -- who wears a
 // portrait, who speaks a dialogue, which zone an entry script runs for, which
 // scripts play a sound, and what references the resource at all.
 /* A landscape strip as the status window shows it, over the sky of a time
    of a day (exeSkyRules, skyScene): outdoors the sky's pattern, the sun and
    the moons, then the strip copied over it with its blank pixels
-   transparent; where every script names the strip with no sky, the black
+   transparent; where every script sets the strip with no sky, the black
    fill and the strip copied solid (TStatusWindow::ChangeOutdoor). The fore
    and back colours are QuickDraw's; on an 8-bit screen QuickDraw draws the
    nearest entry of the colour table, which is what is drawn here. The sky
-   is drawn the strip's own width: if the status window is wider, the game's
+   is drawn the strip's width: if the status window is wider, the game's
    sky goes on past its ends. */
 window.SKY_DAY = 0;
 window.SKY_QUARTER = null;
@@ -1083,9 +1083,9 @@ function paintStripSky(cv, resid, sky, rules, day, quarter) {
    6 October 2026: landscapes "not shown in Zones tab"). The strip and its
    sky are the entry script's SetLandscapeImage, as zoneLandscapeArg reads
    it; a click opens the strip's page. Nothing on the World tab, whose
-   panel is another layout, and nothing for a zone whose script names no
+   panel is another layout, and nothing for a zone whose script sets no
    strip. Without the program a strip over the sky is drawn on the plain
-   fill, as its own page draws it. */
+   fill, as the strip's page draws it. */
 function paintZoneStrip() {
   const host = document.getElementById('mapStrip');
   if (!host) return;
@@ -1180,8 +1180,8 @@ function updateUsagePanel(resid, subn) {
   if (!el) return;
   if (subn === 141) {
     el.style.display = 'block';
-    // The panel renders itself: a button that says "click me to find out" was
-    // an extra step in front of information that takes ~40ms to build once
+    // The panel renders itself: a button labelled "click me to find out" was
+    // an extra step in front of information that needs ~40ms to build once
     // and is memoised after. First visit shows the building note for one beat.
     if (DERIVED.TILE_USAGE) el.innerHTML = linksFold(renderArtUsage(resid));
     else showArtUsage(resid);
@@ -1225,13 +1225,13 @@ function renderImage() {
     if (subn === 141) drawSheetGridlines(canvas, W, H, window.SHEET_SHAPE || 'grid');
     if (subn === 141) {
       canvas.style.cursor = 'pointer';
-      canvas.title = 'Click a tile to see it on its own';
+      canvas.title = 'Click a tile to see it alone';
       canvas.onclick = ev => tileSheetClick(ev, resid);
     } else { canvas.style.cursor = ''; canvas.title = ''; canvas.onclick = null; }
     startPaletteAnimation(canvas, W, H, image, transparentIndexFor(subn));
     // A tile sheet opens fitted to its viewport and cannot be taken past
-    // that (the maintainer, 9 September 2026); everything else keeps the
-    // old guess. The viewport frames itself gold when it crops (applyZoom).
+    // that (the maintainer, 9 September 2026); everything else retains the
+    // old estimate. The viewport frames itself gold when it crops (applyZoom).
     const zs = document.getElementById('zoomSlider');
     let z;
     if (subn === 141) {
@@ -1265,16 +1265,16 @@ function renderImage() {
 // used to do it with canvas.toBlob(), which loses the palette.
 
 /* ---------------------------------------------------------------------------
-   GIF, with Cythera's own palette.
+   GIF, with Cythera's palette.
 
-   A GIF is the one common format that keeps an indexed palette and can hold
+   A GIF is the one common format that preserves an indexed palette and can hold
    frames, which is what the game's pictures are: 256 colours, and motion by
    cycling the palette or by turning a sprite. encodeGIF writes GIF89a with a
    global colour table from the first frame and a local one on any frame whose
    palette differs (that is how palette cycling comes out: eight frames of the
    same pixels under eight rotated palettes), a Netscape loop block, and a
    graphic-control extension per frame for the delay and the transparent slot.
-   The LZW is the plain variable-code-size encoder the format asks for.
+   The LZW is the plain variable-code-size encoder the format specifies.
 --------------------------------------------------------------------------- */
 function gifLZW(indexed, minCodeSize) {
   const clearCode = 1 << minCodeSize, endCode = clearCode + 1;
@@ -1383,7 +1383,7 @@ function downloadCurrentGIF() {
   const frames = cycles ? Array.from({ length: 8 }, (_, f) => ({ indexed: image, palette: cycledPalette(f) })) : [{ indexed: image, palette: PAL_RGB }];
   downloadGIF(W, H, frames, 140, name);
 }
-// A prop's frames, in turn: one canvas per frame at the art's own size.
+// A prop's frames, in turn: one canvas per frame at the art's native size.
 // opts.delayMs sets the pace -- 700 for a strip of variants, 180 for a walk
 // cycle, which is four poses of one facing -- and opts.name the file.
 function downloadPropGIF(base, frames, opts) {
@@ -1404,7 +1404,7 @@ function downloadPropGIF(base, frames, opts) {
    A map at the native 32 px a square, on a phone.
 
    iOS tears the tab down for a canvas the size of the world map (8192 square,
-   67 million pixels), so the file used to be the screen's reduced bitmap
+   67 million pixels), so the file was once the screen's reduced bitmap
    there. The map is now rendered a row of squares at a time into a canvas one
    square tall, and each strip's pixels are fed to a deflate stream as they
    come, so no bitmap of the whole map ever exists: the PNG is written
@@ -1469,7 +1469,7 @@ function downloadCurrentPNG() {
 // Safari's download handling of blob URLs is far more reliable, especially
 // for larger images like full world maps.
 //
-// Two paths out of here. If the canvas still carries its palette indices
+// Two paths out of here. If the canvas still has its palette indices
 // (drawToCanvas stashes them), the image is
 // written as an indexed PNG with Cythera's CLUT in a PLTE chunk and nothing
 // else attached. Otherwise -- a composited map, say -- fall back to
@@ -1477,7 +1477,7 @@ function downloadCurrentPNG() {
 function triggerPNGDownload(canvas, filename) {
   // The blob paths go through dlBlob (js/mac-export.js), which is where the
   // attach-then-click and the delayed revoke now live. Only the data: URI
-  // fallback -- a canvas with no toBlob at all -- still builds its own anchor,
+  // fallback -- a canvas with no toBlob at all -- still builds a separate anchor,
   // because there is no blob to hand over.
   const dataUri = (href) => {
     const link = document.createElement('a');
@@ -1508,7 +1508,7 @@ function triggerPNGDownload(canvas, filename) {
   }
 }
 
-// Was building its own anchor with a data: URI and never attaching it, which
+// Was building a separate anchor with a data: URI and never attaching it, which
 // is exactly the combination iOS silently drops. Route it through the same
 // path as everything else so grid saves are indexed PNGs too.
 function downloadCanvasAsPNG(canvas, resid) {
@@ -1518,14 +1518,14 @@ function downloadCanvasAsPNG(canvas, resid) {
 // Decode enough of a text/data resource to identify it at a glance.
 // A run of readable bytes that is worth showing a reader. Symbol names,
 // opcode soup and single words with no vowels are not: they fill the tile with
-// something that looks like text and says nothing.
+// something that looks like text and means nothing.
 function snippetWorth(run) {
   const t = run.trim();
   if (t.length < 6) return 0;
   // Mac Roman decoding (js/mac-bytes.js) turns the archive's high bytes into
   // real accented letters and curly punctuation, so the letter test has to
-  // count them -- otherwise every line of Cythera's own prose that happens to
-  // carry an accent scores as though it were half punctuation.
+  // count them -- otherwise every line of Cythera's prose that happens to
+  // have an accent scores as though it were half punctuation.
   const letters = (t.match(/[A-Za-z\u00C0-\u024F]/g) || []).length;
   if (letters / t.length < 0.6) return 0;
   const words = t.split(/\s+/).filter(w => w.length > 1);
@@ -1539,12 +1539,12 @@ function snippetWorth(run) {
   return score;
 }
 
-/* A script's row in a Functions gallery says its class and what its code
+/* A script's row in a Functions gallery shows its class and what its code
    calls: { cls: 'AITest', calls: ['GetSkill', 'Monster', 'ArrayIterator'] }.
    The dispatch table's names were tried first and are the same on every
    script of a class ("Look, Examine, Use" across all 87 skills), so they do
-   not tell one row from the next; what a script calls does. Read off the
-   folded listing, which names the calls, in the order the code first makes
+   not distinguish one row from the next; what a script calls does. Read off the
+   folded listing, which spells out the calls, in the order the code first makes
    them. A cast (`Character(Arg01)`) is spelt like a call there and is
    counted as one. */
 const OUTLINE_NOT_CALLS = new Set(['if', 'while', 'switch', 'return', 'print', 'function', 'not', 'len']);
@@ -1553,7 +1553,7 @@ function scriptOutline(resid, roff, rlen) {
   const { data } = smartDecrypt(raw, resid);
   const cls = dvmClassName(resid) || '';
   // A named script's body is not bytecode, and folding it invents calls;
-  // renderText refuses to disassemble one for the same reason.
+  // renderText does not disassemble one for the same reason.
   if (dvmNamedScript(data)) return { cls, calls: [] };
   const text = dvmFoldRender(ARCHIVE, data, resid) || '';
   const calls = [];
@@ -1635,7 +1635,7 @@ function sheetTextSnippet(resid, roff, rlen, limit) {
 }
 
 function attachMapThumb(canvas, resid) {
-  // One shared observer for the whole grid; this used to create its own per
+  // One shared observer for the whole grid; this once created a separate one per
   // tile, so a 42-map gallery held 42 of them.
   lazyTile(canvas, () => {
     {
@@ -1667,7 +1667,7 @@ function installBackgroundTexture() {
   try {
     // A saved game has no tiles, nor has a patch; the wallpaper already on
     // the page stays. Until 28 September 2026 the missing resource went on
-    // to decodeResource, and every save opened on its own left a quiet
+    // to decodeResource, and every save opened alone left a quiet
     // failure under Tools.
     const raw = getResourceBytes(ARCHIVE, 0x8F00);
     if (!raw) return;
@@ -1689,11 +1689,11 @@ function refreshLabelLegend() {
   // hidden by a `display:none !important` in the stylesheet, so the dagger had
   // no explanation anywhere on the page -- which is the whole reason to be rid
   // of it. Only a name actually being shown needs explaining: the dashed
-  // "name hidden" tag explains itself and carries its own tooltip, and the
-  // sound gallery no longer needs a clause of its own, because with
+  // "name hidden" tag explains itself and has a separate tooltip, and the
+  // sound gallery needs no separate clause, because with
   // tool-supplied names off it prints "Sound 12", which is generic numbering
   // rather than a claim about what the sound is.
-  // Inside the gallery only: the legend carries a .guessTag of its own as
+  // Inside the gallery only: the legend has a separate .guessTag as
   // its example, so a document-wide query found it and the legend, once
   // shown, never went away -- it sat above the Tools tab and the Changes tab.
   const tagged = !!document.querySelector('#sheetGrid .guessTag');

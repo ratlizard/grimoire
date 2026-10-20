@@ -85,7 +85,7 @@ function applyMapZoom(fromSlider) {
 window.MAP_VIEW_MEMORY = Object.create(null);
 // The selected square is remembered separately from the pan and zoom, and
 // deliberately so: clearMapInspector() runs while a NEW map is being opened,
-// at a moment when CUR_MAP is already the new map but mapView still holds the
+// at a moment when CUR_MAP is already the new map but mapView still has the
 // previous one's transform. Folding the two together let that moment write the
 // old map's scroll position into the new map's memory.
 window.MAP_SEL_MEMORY = Object.create(null);
@@ -232,7 +232,7 @@ function setupMapViewportInteraction() {
     rememberMapView();
   }
 
-  // A click has to be told apart from the end of a drag, or every pan would
+  // A click has to be distinguished from the end of a drag, or every pan would
   // open the inspector on whatever square the finger happened to stop over.
   let pressX = 0, pressY = 0, moved = 0;
   // Tap and press-and-hold are the hover on a touch screen -- see the
@@ -319,7 +319,7 @@ function setupMapViewportInteraction() {
       const sq = mapSquareFromClient(e.clientX, e.clientY);
       if (sq) inspectMapSquare(sq.tx, sq.ty);
       // On a touch screen a tap IS the hover. There is no resting pointer to
-      // ask with, and press-and-hold -- the gesture that used to be the only
+      // ask with, and press-and-hold -- the gesture that was once the only
       // way -- puts the card under the thumb that asked for it. Asked, so the
       // card speaks over bare ground as well.
       if (sq && e.pointerType !== 'mouse') updateMapHover(e.clientX, e.clientY, true);
@@ -344,7 +344,7 @@ function setupMapViewportInteraction() {
 /* ---------------------------------------------------------------------------
    Clicking the map
    ---------------------------------------------------------------------------
-   The map already knew, for every square, which prop record put something
+   The map already recorded, for every square, which prop record put something
    there and which scheduled character is standing on it -- and none of it was
    reachable. Clicking a square now names what is on it and links onward: the
    creature's dossier, the prop type's sprite sheet, the store behind a
@@ -366,17 +366,17 @@ function clearMapInspector() {
    The map has known who is standing where since the schedules were read, and
    the only way to ask was to click a square and read the card underneath. On
    a map with sixty people on it that is sixty clicks to find one. A pointer
-   resting on somebody now says who they are and what they are doing, and the
+   resting on somebody now shows who they are and what they are doing, and the
    click still opens the dossier.
 
    A touch screen has no resting pointer and a pointermove there is a drag,
    so the gesture is a tap -- which also opens the inspector below -- or a
-   press and hold, which keeps the card with the moving finger. Either way
+   press and hold, which moves the card with the finger. Either way
    the card is placed clear of the hand rather than under it: see
    placeHoverCard, which is where the whole of that difference lives.
 
    The square under the pointer is matched the way the inspector matches it --
-   the record's own coordinate, not where the sprite is drawn, which can be
+   the record's coordinate, not where the sprite is drawn, which can be
    the best part of a square up and to the left of it. Doing otherwise would
    name a different person from the one the click is about to open.
 --------------------------------------------------------------------------- */
@@ -407,7 +407,7 @@ function updateMapHover(clientX, clientY, asked) {
   hoverSquare = key;
   // The words as markup and the sprite appended after it, with the canvas
   // ordered back in front by CSS. Built the other way round -- canvas first,
-  // words in an appended element -- the card's own innerHTML said nothing,
+  // words in an appended element -- the card's innerHTML showed nothing,
   // which is a thing no harness could then check.
   const card = squareCard(cm.level, { result: { m: cm.m, props: cm.props } }, sq.tx, sq.ty, null, asked);
   if (!card) { el.style.display = 'none'; return; }
@@ -419,7 +419,7 @@ function updateMapHover(clientX, clientY, asked) {
 }
 
 /* A tap that lands on a pinned card belongs to the card. Both cards are
-   children of their viewport, so without this the viewport's own pointerdown
+   children of their viewport, so without this the viewport's pointerdown
    runs too: on the World tab that calls hideAtlasHover() and begins a
    gesture, which would dismiss the card on the way to the link the reader was
    aiming at. Attached once, to each card, and only ever swallowing a pointer
@@ -448,7 +448,7 @@ try { guardHoverCardTaps(); } catch (e) { quiet(e); }
    above it goes to the foot of the panel rather than under the hand.
 
    `touch` is the page's `asked` flag: it is true exactly when a finger made
-   the request, which is also when the card says more (see squareCard). */
+   the request, which is also when the card shows more (see squareCard). */
 const HOVER_TOUCH_CLEAR = 64;   // px above the finger: a thumb and its shadow
 function placeHoverCard(el, vp, px, py, touch) {
   const w = el.offsetWidth || 150, h = el.offsetHeight || 40;
@@ -502,7 +502,7 @@ function propInspectRows(p) {
                       (r.takeable ? ' (you can take it)' : '')]);
   // What the square is actually being asked about most of the time: how heavy
   // is that thing, and what does its class say about it. Both come out of the
-  // prop type's own script resource, which was already parsed for the Items
+  // prop type's script resource, which was already parsed for the Items
   // gallery and never consulted here.
   const w = itemWeight(r.proptype);
   if (w !== null) rows.push(['Weight', w + (w === 1 ? ' unit' : ' units')]);
@@ -526,7 +526,7 @@ function propInspectRows(p) {
   // table the map headers' four exit fields use. Established two ways:
   // archive-wide (every portal-typed prop with a nonzero d2, all 122 of
   // them, lands on a populated zoneport entry; none dangles) and from the
-  // engine's own code (the ladder, hole, stairs, mineshaft and cave object
+  // engine's code (the ladder, hole, stairs, mineshaft and cave object
   // scripts each pass get_field data3 straight to sys ChangeZone). Bryce
   // recorded the same byte as "destination zone" on save-file portal
   // objects in 2007 (forum t1830); this is that finding, holding in the
@@ -550,8 +550,8 @@ function propInspectRows(p) {
 /* ---------------------------------------------------------------------------
    Containers
    ---------------------------------------------------------------------------
-   A prop record whose flags carry 0x08 is not on the floor: its location word
-   is the index of the prop in the SAME list that holds it (see
+   A prop record whose flags have 0x08 is not on the floor: its location word
+   is the index of the prop in the SAME list that it is in (see
    parseDelverPropList). So a chest's contents are already in the file, and
    until now the map simply did not draw them and the inspector did not
    mention them.
@@ -562,28 +562,28 @@ function propInspectRows(p) {
    drawer -- and the mapping from a container to its picture is by kind, since
    nothing in the archive links a prop type to a zoomrect.
 --------------------------------------------------------------------------- */
-// Since 19 September 2026 the class says which (classZoomrect): the helper
-// call in its own script names the picture. A name list stood here; it
-// agreed with the file on every class that has the call, and named
+// Since 19 September 2026 the class sets which (classZoomrect): the helper
+// call in its script gives the picture. A name list stood here; it
+// matched the file on every class that has the call, and named
 // pictures for jars, shelves and graves that no class opens.
 function containerZoomrect(pt) {
   const z = classZoomrect(pt);
   return z ? z.resid : 0x8F0A;                    // a chest, for a class with no call
 }
 
-// The records this one holds, from the map's full prop list.
-// The records this one holds. The prop list defaults to the open map's, which
-// is what the inspector wants; the World tab passes a node's own, because it
-// asks about a map it is looking at from outside rather than standing in.
+// The records inside this one, from the map's full prop list.
+// The records inside this one. The prop list defaults to the open map's, which
+// is what the inspector needs; the World tab passes a node's list, because it
+// reads a map it is looking at from outside rather than standing in.
 function containerContents(rec, allProps) {
   const props = allProps || (window.CUR_MAP && window.CUR_MAP.allProps);
   if (!props) return [];
   return props.filter(o => o.container === rec.index && o.flags !== 0xFF && o.proptype);
 }
 
-// What a hover over one of a container's contents says: everything the item's
-// own page would open with, in one tooltip -- weight, what its class script
-// carries, and how many of it the shipped scenario places.
+// What a hover over one of a container's contents shows: everything the item's
+// page would open with, in one tooltip -- weight, what its class script
+// has, and how many of it the shipped scenario places.
 function containedItemSummary(rec) {
   const pt = rec.proptype;
   const bits = [];
@@ -659,7 +659,7 @@ function buildContainerView(rec, contents) {
     // No weight here. A chest's contents are a picture of what is in the
     // chest; a number after every name turned that into a packing list, and
     // the number it printed was carry weight, which is a fact about the ITEM
-    // and belongs on the item's own page. The details are one hover away and
+    // and belongs on the item's page. The details are one hover away and
     // that page is one click away instead.
     nm.textContent = (terrainNameFor((tiles[o.proptype] || 0) + o.aspect) ||
                       propDisplayName(o.proptype, base) || ('0x' + o.proptype.toString(16))) +
@@ -669,7 +669,7 @@ function buildContainerView(rec, contents) {
     const goesToItem = isInventoryItem(o.proptype);
     chip.onclick = (ev) => {
       ev.stopPropagation();
-      // Through the item's own tab. Called bare, the page was drawn into the
+      // Through the item's tab. Called bare, the page was drawn into the
       // sheet where it stood, which on the World tab is hidden behind the
       // map, so a click on a thing in a chest there did nothing to see (the
       // maintainer, 6 October 2026).
@@ -710,12 +710,12 @@ function inspectMapSquare(tx, ty) {
     (tileId && !tilePassable(tileId) ? ' &nbsp;·&nbsp; <span class="inspDim">blocks movement</span>' : '') +
     '<button class="linkbtn inspClose" onclick="clearMapInspector()">close</button></div>'];
 
-  /* The lighting layer draws only what is fixed to the map -- the zone's own
-     level and each source's own cone. The level's BASE light value is not
+  /* The lighting layer draws only what is fixed to the map -- the zone's
+     level and each source's cone. The level's BASE light value is not
      fixed to the map: it is one number for the whole level computed from an
      eleven-by-eleven window around wherever the player is standing, so a
      whole-map wash would be asserting something the engine never computes.
-     Here there is a square to stand on, so here it can be said. */
+     Here there is a square to stand on, so here it can be stated. */
   if (window.SHOW_LIGHTING && cm.m && cm.resid !== WORLD_MAP_RESID) {
     const zl = zoneAmbientLevel(cm.resid);
     const attr = getTileAttributes(ARCHIVE)[tileId] || 0, ownLvl = attr & 3;
@@ -744,7 +744,7 @@ function inspectMapSquare(tx, ty) {
       'the file does not record, so the page counts every source in view.</div></div>');
   }
 
-  // A square inside a gateway's footprint says so first, and offers the
+  // A square inside a gateway's footprint shows it first, and offers the
   // crossing. The prop cards below still name the icon and its zoneport; this
   // is the same journey with one click instead of three, and it is only ever
   // on the world map because that is the only place worldGateways looks.
@@ -825,7 +825,7 @@ function inspectMapSquare(tx, ty) {
           (it.equipped ? ' (equipped)' : ''))).join(', ') + '</div>' : '') +
       '<div class="inspActs">' +
       '<button class="sv-chip" onclick="showCharacterDetail(' + c.index + ')">Dossier</button>' +
-      // 0x8800 is character 1's portrait (the dossier and the gallery agree),
+      // 0x8800 is character 1's portrait (the dossier and the gallery match),
       // so this is index - 1; it used to open the next character's face.
       '<button class="sv-chip" onclick="jumpToResource(' + (0x8800 + c.index - 1) + ')">Portrait</button>' +
       '<button class="sv-chip" onclick="jumpToResource(' + (0x1800 + c.index) + ')">Dialogue</button>' +
@@ -905,7 +905,7 @@ function renderMapPreview() {
    below is about the map itself; the two lines that were about the gallery it
    had been reached from are the caller's business now, because the World tab
    has no gallery to go back to. The bytes come from getResourceBytes rather
-   than from the (resid, offset, length) triple the dropdown carries, which is
+   than from the (resid, offset, length) triple the dropdown has, which is
    the same slice of the same ARCHIVE.bytes -- see js/delv-archive.js. */
 function renderMapResource(resid) {
   const out = document.getElementById('output');
@@ -1012,13 +1012,13 @@ function renderMapResource(resid) {
 
    The one fact everything here rests on, and it was measured before any of it
    was built: the world map does not contain the towns. It draws Cademia as a
-   pictogram four squares across, and Cademia's own map is 128x128 squares.
+   pictogram four squares across, and Cademia's map is 128x128 squares.
    Sliding every zone map over the world grid at every offset, the best
    tile-for-tile agreement any of them reaches is 44%, and that is the 24x16
    Sitia bridge matching open water. So a town cannot be revealed by
    magnifying the world map, and it must not be pasted onto the world grid at
    1:1 either -- Cademia would cover a quarter of the continent. What relates
-   the two is the pictogram's own size, which gatewayRatio measures.
+   the two is the pictogram's size, which gatewayRatio measures.
 --------------------------------------------------------------------------- */
 let worldGateTimer = null;
 const zoneMapCache = derivedMap('zoneMapCache');
@@ -1036,7 +1036,7 @@ const worldThumbs = derivedMap('worldThumbs');
    renderer, and its last functions on 25 September 2026.
 
    ZONE_CACHE_KEEP entries, most-recently-used last, and the world map itself
-   is pinned: it is what the reader keeps coming back to, and it is also the
+   is pinned: it is what the reader comes back to most, and it is also the
    bitmap the scenery behind a town is drawn from. Everything else is evicted
    oldest-first, because these are whole-map bitmaps -- renderMapVisual
    budgets to 6 megapixels, so one can be 24 MB -- and on iOS the budget is a
@@ -1049,10 +1049,10 @@ const ZONE_CACHE_KEEP = IS_IOS_WEBKIT ? 2 : 4;
    of large nodes on screen at once evict each other and re-render every
    frame, which is what the judder is, both times it has been reported.
 
-   So while the view is moving, a caller that can do without takes the cached
+   So while the view is moving, a caller that can do without uses the cached
    entry or nothing. Everything that uses this already has a way to draw
    without a render (the miniature, no people, no rings), and the sharp paint
-   arrives on settle by itself: setTouching(false) schedules one and the
+   comes on settle by itself: setTouching(false) schedules one and the
    animation's done() calls one. Callers that must have the real thing, the
    hover card and the inspector, keep calling mapRenderFor directly. */
 function mapRenderIfCheap(resid) {
@@ -1060,16 +1060,16 @@ function mapRenderIfCheap(resid) {
   if (!atlasInMotion()) atlasRenderStep(resid);
   return null;
 }
-/* A render the World tab wants and has not got is made a slice at a time
-   (25 September 2026). Until then this asked for it in one piece whenever
+/* A render the World tab needs and has not got is made a slice at a time
+   (25 September 2026). Until then this requested it in one piece whenever
    the view was still, and for a big zone that one piece was the jerk: the
    miniature was on screen, the gesture ended, and the next frame waited on
    Cademia's whole render. Now the miniature stays while
    renderMapVisualSteps runs a few milliseconds a frame, and the render
-   takes over when it is done. Nothing is started or advanced while the
+   replaces it when it is done. Nothing is started or advanced while the
    view is moving, which is the guard of 12 September kept: a gesture's
-   frames are the gesture's. One zone at a time, the latest asked for;
-   a zone asked for again while it is under way keeps its progress. Made on
+   frames are the gesture's. One zone at a time, the latest requested;
+   a zone requested again while it is under way retains its progress. Made on
    the page's open file under the Walls setting it started with, and thrown
    away if either changed before it finished. */
 const ATLAS_RENDER_SLICE_MS = 6;
@@ -1080,7 +1080,7 @@ function atlasRenderStep(resid) {
   window.ATLAS_RENDER_JOB = { resid, arc: ARCHIVE, walls: !!window.MAP_WALLS, gen: null, mapData: null, wasDecrypted: false, usedFallback: false };
   if (!j) requestAnimationFrame(atlasRenderTick);
 }
-/* The largest place on the surface, rendered before it is asked for
+/* The largest place on the surface, rendered before it is requested
    (29 September 2026). Cademia is 128 squares a side and every other town
    64 or less, so its render is four times theirs, and made a slice at a
    time only once the view had come to rest on it, it was the one wait the
@@ -1089,7 +1089,7 @@ function atlasRenderStep(resid) {
    are made and the view is still, the largest place's render is made in
    the background, a slice at a time like any other, and kept. Only while
    no place on screen is using its render: the cache is full from the
-   scene's own building, which renders every town to learn its size, so
+   scene's building, which renders every town to learn its size, so
    the prefetch evicts, and evicting a render on screen would have it made
    again, the two taking turns for ever. What it evicts is a render nobody
    is looking at. */
@@ -1137,7 +1137,7 @@ function atlasRenderTick() {
       window.ATLAS_RENDER_JOB = null;
       if (r.value) zoneCachePut(j.resid, { resid: j.resid, result: r.value, mapData: j.mapData, wasDecrypted: j.wasDecrypted, usedFallback: j.usedFallback });
       if (typeof paintAtlas === 'function') paintAtlas();
-      // Another zone may have been asked for by that paint.
+      // Another zone may have been requested by that paint.
       if (window.ATLAS_RENDER_JOB) requestAnimationFrame(atlasRenderTick);
       else atlasPrefetchRender();
       return;
@@ -1146,7 +1146,7 @@ function atlasRenderTick() {
   requestAnimationFrame(atlasRenderTick);
 }
 /* A square as the game prints it: X and Y in lower-case hex. The cheats'
-   Look prints "Location %x,%x,%x" and the jump asks "Jump from [%x,%x,%x]"
+   Look prints "Location %x,%x,%x" and the jump prompts "Jump from [%x,%x,%x]"
    (TGameSys::LookCommand), so a square the site calls 62, 57 is 3e, 39 to
    the game. Both count from the top left; only the base differs (the
    maintainer kept landing somewhere else, 23 September 2026). */
@@ -1165,7 +1165,7 @@ function mapRenderFor(resid, cache) {
 // never the world's.
 function zoneCachePut(resid, entry) {
   // The largest place on the surface is kept as well as the world, outside
-  // iOS, and has a slot of its own (17 October 2026). Cademia's render is
+  // iOS, and has a separate slot (17 October 2026). Cademia's render is
   // four times any other town's, so it was the one a visitor waited for
   // after a tap, and on a phone a few other places looked at evicted it
   // and its prefetch: the maintainer saw it blurred for over a second.
@@ -1187,13 +1187,13 @@ function atlasLargestPlace() {
   return best ? best.resid : null;
 }
 
-/* A render nobody else holds a reference to.
+/* A render nothing else has a reference to.
 
    The town miniature (gone since 25 September 2026) painted roofs straight
-   onto the canvas it was about to shrink, which is only safe on a canvas of
-   its own: handed a cached entry it would have roofed the copy the panel puts
-   on screen, permanently and only for the towns whose miniature had happened
-   to be built. Kept for whatever draws on a render next. */
+   onto the canvas it was about to shrink, which is only safe on a canvas
+   nothing else uses: handed a cached entry it would have roofed the copy the
+   panel puts on screen, permanently and only for the towns whose miniature had
+   happened to be built. Kept for whatever draws on a render next. */
 function renderMapUncached(resid) {
   let entry = null;
   try {
@@ -1203,7 +1203,7 @@ function renderMapUncached(resid) {
     // entropy heuristic in smartDecrypt() was designed for narrative text and
     // is unreliable here. Try its pick first, but fall back to the other
     // version if the header does not parse as a plausible map;
-    // parseDelverMap()'s own bounds checks make this safe either way.
+    // parseDelverMap()'s bounds checks make this safe either way.
     let { data, wasDecrypted } = smartDecrypt(raw, resid);
     let usedFallback = false;
     if (!parseDelverMap(data)) {
@@ -1228,7 +1228,7 @@ function forgetZoneRender(resid) { zoneMapCache.delete(resid); }
    join between the two -- so the pictogram is replaced, above the zoom at
    which anything could be made out, by the town itself scaled into the same
    four squares. The reader then sees a town where a town is, at every size
-   from a smudge on the coast to its own streets, and the crossing stops being
+   from a smudge on the coast to its streets, and the crossing stops being
    a substitution of one picture for another.
 
    Two sizes of each, and both roofed and bare, which is what makes the
@@ -1237,7 +1237,7 @@ function forgetZoneRender(resid) { zoneMapCache.delete(resid); }
    as the view comes in instead of being one 192-pixel picture magnified
    towards the crossing; and the roofs lift on the way in (ROOF_LIFT) by
    cross-fading the bare level over the roofed one, so by the time the view
-   crosses, the roofs are already coming off and updateRoofFade carries on
+   crosses, the roofs are already coming off and updateRoofFade continues
    from where this left it. A town seen from far off is roofs; a town you are
    walking into is not.
 
@@ -1293,13 +1293,13 @@ function contentBox(resid) {
 
 /* How many squares of a region map one square of the world map stands for.
 
-   Not a guess and not a constant: it is measured off the archive. The
+   Not an assumption and not a constant: it is measured off the archive. The
    gateways whose pictogram covers more than one square are the ones whose
-   icon says something about size -- Cademia is four `small city` props
+   icon shows something about size -- Cademia is four `small city` props
    deliberately placed in a 4x4 block, and its town is 107 squares across, so
-   the world map is drawn at about one square to twenty-seven. Catamarca says
+   the world map is drawn at about one square to twenty-seven. Catamarca gives
    27, Kosha 22, Pnyx 21, Odemia 24. The median of all of them is the ratio,
-   so a modded archive gets its own answer.
+   so a modded archive has its answer.
 
    Used to size every miniature, including the ones whose footprint is a
    single square: a `large city` prop is a symbol rather than a measurement,
@@ -1324,9 +1324,9 @@ function worldSquareRatio() {
 
 /* The ratio for one place.
 
-   Where its own pictogram covers more than one square, that pictogram is the
+   Where its pictogram covers more than one square, that pictogram is the
    answer and the median is not: the world map is stating how big this place
-   is, and a place should land on its own icon rather than on the average of
+   is, and a place should land on its icon rather than on the average of
    everyone else's. Cademia is four `small city` props in a 4x4 block over 107
    squares of town, so its ratio is about 27 while the median of every place
    is 21 -- and using 21 drew Cademia half again as wide as the thing it was
@@ -1346,7 +1346,7 @@ function gatewayRatio(gw) {
      that happens to be two tiles tall is not: a cave mouth is drawn 1x2
      because that is the shape of the picture of a cave mouth, and reading it
      as "this cave system is two world squares" gave the same Underground
-     three different sizes depending on which of its three mouths was asked.
+     three different sizes depending on which of its three mouths was used.
      One axis is the sprite; two axes is a decision. */
   if (b && fw >= 2 && fh >= 2) {
     const r = ((b.x1 - b.x0 + 1) / fw + (b.y1 - b.y0 + 1) / fh) / 2;
@@ -1456,7 +1456,7 @@ function drawTown(ctx, gw, rect, alpha, roofT) {
 
    One town per idle slice: each one is a whole map rendered and thrown away,
    and a loop over 19 of them would be a visible stall on the first zoom. They
-   arrive over a second or two of an ordinary visit, and the world map
+   come over a second or two of an ordinary visit, and the world map
    repaints as each lands.
 
    Only while the World tab is showing. The queue went on after the reader
@@ -1508,14 +1508,14 @@ let zonePrefetching = 0;
    two halves of one continuous view rather than two screens. */
 /* Zooming out of anywhere goes back up a level.
 
-   This is what keeps the tab from feeling like a set of rooms: the way in is
+   This is what stops the tab feeling like a set of rooms: the way in is
    a zoom, so the way out is the same gesture reversed, and the button below
    the map is a convenience rather than the only exit. It applies to a cave
    and a cellar as much as to a town -- an underground reached down a stair
    from Cademia zooms back out into Cademia, not into the world, because up a
    level is where you came from rather than where the tab started.
 
-   The threshold is a fraction of the map's own fit, so it is the same gesture
+   The threshold is a fraction of the map's fit, so it is the same gesture
    on a 16-square house and on Cademia: zoom out until the map is comfortably
    smaller than the panel and you have left it. */
 const WORLD_LEAVE_FACTOR = 0.62;
@@ -1529,11 +1529,11 @@ const WORLD_LEAVE_FACTOR = 0.62;
    all, which is how it was reported. */
 // What the way back is called, for the button that offers it.
 // The button under the map. Same landing as zooming out, so the two ways up
-// agree about where they put you.
+// match on where they put you.
 /* Which gateway the view is on, and how close it is to crossing.
 
    Only one at a time, and it is the one nearest the middle: two rings at once
-   says nothing about which one zooming further would open. */
+   shows nothing about which one zooming further would open. */
 /* What the World tab draws over the world map: the towns themselves in place
    of their pictograms, a name on every way off the map, and a ring on the one
    the view is about to cross into.
@@ -1543,20 +1543,20 @@ const WORLD_LEAVE_FACTOR = 0.62;
    point of doing this as a transition rather than as a magnification.
 
    The miniatures fade in over THUMB_FADE, because below that a town scaled
-   into four squares is a smudge and the game's own pictogram, which was drawn
+   into four squares is a smudge and the game's pictogram, which was drawn
    to be read at that size, is the better picture. Above it the town is the
    better picture, and it is the same town the crossing lands on. */
-/* Screen pixels per world square over which the game's own pictogram gives
+/* Screen pixels per world square over which the game's pictogram gives
    way to the town itself.
 
-   Later than it was. The pictogram used to be handed over at 10 because
+   Later than it was. The pictogram was once handed over at 10 because
    below that it was mush -- but that was the budgeted base being magnified
    without the lens, not the pictogram. Now that lensActive engages on
    magnification rather than on an absolute size, the world map is sharp from
    about 6 px a square on a phone, and the sprite Ambrosia drew is worth
-   looking at for a while before the miniature takes it over. That is the
+   looking at for a while before the miniature replaces it. That is the
    stage the ladder was missing: coarse whole world, then the sharp world map
-   with its own icons, then the town, then the town's streets. */
+   with its icons, then the town, then the town's streets. */
 const THUMB_FADE = [22, 34];      // screen px per world square: none, then full
 
 /* Keep what is painted registered with the map while the view moves.
@@ -1569,7 +1569,7 @@ const THUMB_FADE = [22, 34];      // screen px per world square: none, then full
    mapView, which is an ordinary similarity, and a similarity is exactly what
    a CSS transform is. A pan is a pure translate, so a pan is now exact. */
 let gateView = { x: 0, y: 0, scale: 0 };
-/* The world's own bitmap, for the scenery around a town.
+/* The world's bitmap, for the scenery around a town.
 
    This is the render the world map itself was drawn from -- pinned in
    zoneMapCache, so the scenery costs no second copy of a 2048x2048 canvas. A
@@ -1579,13 +1579,13 @@ let gateView = { x: 0, y: 0, scale: 0 };
 /* ---------------------------------------------------------------------------
    The country around a town, painted properly
    ---------------------------------------------------------------------------
-   The scenery used to be the world map's own base canvas, magnified. On a
+   The scenery was once the world map's base canvas, magnified. On a
    desktop that is TS=8 stretched three or four times; on a phone it is TS=4,
    and it looked like a photograph of a lawn taken through a window. The
-   world map's own art is 32 pixels a tile and none of it was being used.
+   world map's art is 32 pixels a tile and none of it was being used.
 
-   So the surround is its own plate now: SURROUND_PLATE_SQUARES of world
-   around the gateway, painted through the detail lens's own region painter at
+   So the surround is a separate plate now: SURROUND_PLATE_SQUARES of world
+   around the gateway, painted through the detail lens's region painter at
    SURROUND_PLATE_TS, once, and kept. It is drawn over the old blurred base
    rather than instead of it, so anything past the plate's edge still has
    ground under it rather than a hole.
@@ -1599,20 +1599,20 @@ const SURROUND_PLATE_TS = IS_IOS_WEBKIT ? 12 : 16;
 /* Where the world sits behind a town, in screen pixels.
 
    The town's canvas occupies (view.x, view.y, cw*scale, ch*scale). The
-   gateway's own footprint centre is pinned to the middle of that rectangle,
+   gateway's footprint centre is pinned to the middle of that rectangle,
    and one world square is drawn SURROUND_SPAN-th of the town's width -- so
    the two move as one scene under a pan or a zoom, and the coast that was
    beside the icon is still beside the town. */
 /* Paint the world behind a town.
 
-   Upsampled, and left at its own brightness. It was dimmed at first, on the
+   Upsampled, and left at its brightness. It was dimmed at first, on the
    theory that scenery should recede -- but the country beside a town is the
    whole reason for drawing it, and a wash over it read as a modal backdrop:
    the town looked like a dialog over the world rather than a place in it. The
    softness of the upsample is enough to keep it from being read square by
    square. */
 // Is the map currently sitting inside the world rather than in a panel?
-/* Carry the scenery with the map between repaints.
+/* Move the scenery with the map between repaints.
 
    This is the one layer over the map that was not slid, and it is the one
    that could least afford not to be. Everything on it is placed as
@@ -1622,9 +1622,9 @@ const SURROUND_PLATE_TS = IS_IOS_WEBKIT ? 12 : 16;
    survivable; zooming threw the country a few hundred pixels to the left and
    snapped it back on the settle, which is exactly how it was reported.
 
-   The map's own transform is the correct one, and the algebra says so: a
+   The map's transform is the correct one, and the algebra shows it: a
    surround point sits at S'(w) = r*S(w) + (x' - r*x), which is a translate
-   and a scale about the element's own origin -- the same shape as slideLens,
+   and a scale about the element's origin -- the same shape as slideLens,
    with no margin to account for. */
 let surroundView = { x: 0, y: 0, scale: 0 };
 /* Soften the rectangle a zone map ends on, so it runs into the country drawn
@@ -1639,7 +1639,7 @@ let surroundView = { x: 0, y: 0, scale: 0 };
 
    A mask on the wrap rather than on the canvas, so the layers over it --
    characters, roofs, marks -- are cut back with it and nothing hangs over the
-   edge on its own. The detail lens is a sibling of the wrap and is not
+   edge by itself. The detail lens is a sibling of the wrap and is not
    masked, which is why this is a percentage and not a pixel count: by the
    zoom at which the lens engages the edge is well off screen. */
 /* Cross-fade the map panel to another map.
@@ -1659,8 +1659,8 @@ let surroundView = { x: 0, y: 0, scale: 0 };
    settle. Uncovering even one of those early is a flash of grey between two
    views that are meant to be one place. */
 // The gazetteer's rows and the inspector's card both come here by port, so
-// neither has to carry a gateway object through an inline handler.
-/* The gateway chip on a world square, from the map panel's own inspector.
+// neither has to pass a gateway object through an inline handler.
+/* The gateway chip on a world square, from the map panel's inspector.
 
    The panel is Entities > Regions now, so this opens the destination there --
    which is what every other chip in that inspector does. The atlas has its
@@ -1691,7 +1691,7 @@ function enterGatewayByPort(port) {
 function renderAtlasBar() {
   const bar = document.getElementById('atlasBar');
   if (!bar) return;
-  // No world map, no world: a saved game holds only what play changed, and
+  // No world map, no world: a saved game has only what play changed, and
   // the panel would otherwise be a zoom slider over nothing.
   if (!atlasScene()) {
     bar.style.display = '';
