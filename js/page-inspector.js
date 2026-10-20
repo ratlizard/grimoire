@@ -1,16 +1,16 @@
 /* The map viewport, clicking the map, containers, and the world map's towns and country.
 
    One of the fourteen js/page-*.js files that were index.html's inline
-   script until 16 September 2026, cut at its own section banners and
+   script until 16 September 2026, cut at the section banners it had and
    nowhere else, so every function is where it was in the one file. This
-   tier knows the page's furniture: js/mac-*.js know nothing of Cythera,
-   js/delv-*.js know the formats but not the page, and these know both.
-   They are classic scripts, never modules, because the page has to work
-   from a file:// origin, and they share one global scope, so a name
-   declared in any of them is reachable from all. The order only decides
-   what has run when a statement runs at load time; the one such statement
-   that needed a later file, the brand line, stayed in the page after the
-   last of these. File 6 of 14. */
+   tier is the page's furniture: js/mac-*.js have nothing of Cythera in
+   them, js/delv-*.js cover the formats but not the page, and these cover
+   both. They are classic scripts, never modules, because the page has to
+   work from a file:// origin, and they share one global scope, so a name
+   declared in any of them is reachable from all. The order matters only to
+   a statement that runs at load time, which sees what loaded before it; the
+   one such statement that needed a later file, the brand line, stayed in
+   the page after the last of these. File 6 of 14. */
 
 // --- Map viewport pan & zoom state -----------------------------------
 const mapView = { scale: 1, x: 0, y: 0, dragging: false, lastX: 0, lastY: 0 };

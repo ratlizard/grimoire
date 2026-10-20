@@ -1,23 +1,23 @@
 /* The rules, read out of the scripts and the executable: what the Mechanics, Skills, Spells and Barks sheets state.
 
    One of the fourteen js/page-*.js files that were index.html's inline
-   script until 16 September 2026, cut at its own section banners and
+   script until 16 September 2026, cut at the section banners it had and
    nowhere else, so every function is where it was in the one file. This
-   tier knows the page's furniture: js/mac-*.js know nothing of Cythera,
-   js/delv-*.js know the formats but not the page, and these know both.
-   They are classic scripts, never modules, because the page has to work
-   from a file:// origin, and they share one global scope, so a name
-   declared in any of them is reachable from all. The order only decides
-   what has run when a statement runs at load time; the one such statement
-   that needed a later file, the brand line, stayed in the page after the
-   last of these. File 10 of 14. */
+   tier is the page's furniture: js/mac-*.js have nothing of Cythera in
+   them, js/delv-*.js cover the formats but not the page, and these cover
+   both. They are classic scripts, never modules, because the page has to
+   work from a file:// origin, and they share one global scope, so a name
+   declared in any of them is reachable from all. The order matters only to
+   a statement that runs at load time, which sees what loaded before it; the
+   one such statement that needed a later file, the brand line, stayed in
+   the page after the last of these. File 10 of 14. */
 
 /* ---- Entities > Mechanics ---------------------------------------------------
    The rules the scripts imply, read out of them rather than listed. Two so
    far, both worked out on 5 September 2026: the talk balloons, and the dice
    game.
    Each section is built from the open archive on the spot, so a modded file
-   shows its own words and its own rules or says that it has none.
+   shows its words and its rules, or a note that it has none.
 
    TALK BALLOONS. A character record has a field at 0x26, delvmod's
    `talk_balloon`; a script assigns a string to it and the engine draws the
@@ -123,22 +123,22 @@ function buildBarkCatalogue() {
 /* THE DICE GAME. Innkeepers offer it (Parium, Crito, Apis: "a game of
    @dice"), and the game is one function in the inn's shared dialogue,
    0x812. The rules below are read from that function, and the section
-   quotes the innkeeper's own explanation from the same script beside them,
+   quotes the innkeeper's explanation from the same script beside them,
    so the two can be compared. The expected value is enumerated here over
    all 216 rolls, with and without the Gambling skill (0xCF). */
 /* The dice game, with its numbers read off the script rather than typed
    in. The maintainer asked what to edit to change the odds, and the answer
    is five bytes and two branch targets of 0x812, all found here from the
-   listing so the sheet can name them: the three Random(0, n) ranges the
+   listing so the sheet can link each one: the three Random(0, n) ranges the
    dice are thrown with (the operand byte after each `byte 0x06`), the
-   skill's own roll, the payout after "You've got a match" (`set_local 0x06`
+   skill roll, the payout after "You've got a match" (`set_local 0x06`
    then `byte 0x02`), and the two `then ->` targets that gate the skill's
    fix-up -- the first on having Gambling at all, the second on the roll
    matching. A target rewritten to the next instruction turns a test into
    a fall-through, which is how "always" is spelt in bytecode. An `at` is
    an offset into the resource's plaintext, which is what Edit Bytes shows.
    The figures come from mechDiceExact over the numbers read, so an edited
-   archive's sheet says what that archive pays. */
+   archive's sheet shows what that archive pays. */
 function diceGame() {
   const R = 0x812;
   const e = dvmScriptEntry(R);
@@ -148,7 +148,7 @@ function diceGame() {
   const explain = explainVal ? explainVal.v : '';
   const ops = dvmOpsOf(e);
   const hex4 = n => '0x' + n.toString(16).toUpperCase().padStart(4, '0');
-  // Every Random(0, n) in the script, with the op that holds the n. A
+  // Every Random(0, n) in the script, with the op that has the n. A
   // byte's operand is the byte after its opcode, which is what Edit Bytes
   // writes at; the link goes to the instruction.
   const rolls = dvmSeqAll(ops, [/^sys Random$/, /^byte (?:0x00|0)$/, DVM_NUM]).map(g => ({ i: ops.indexOf(g[0]), val: dvmVal(R, g[2]) }));
@@ -194,13 +194,13 @@ function diceGame() {
   }
   // What a match pays: the number set into local 6 after the line that
   // announces it. No figure is supplied when it is not found; the game is
-  // not modelled from a guess.
+  // not modelled from an assumption.
   const mi = ops.findIndex(o => /You've got a match/.test(o.text));
   const pay = mi < 0 ? null : dvmSeqFirst(ops.slice(mi, mi + 6), [/^set_local 0x06$/, DVM_NUM]);
   if (!pay) return null;
   const matchPay = dvmVal(R, pay[1]);
   bytes.push(byte('what a match pays', matchPay));
-  /* The three ones the rules state: the obol a loss takes (0xD05's
+  /* The three ones the rules state: the obol a loss costs (0xD05's
      argument), the win that is only a draw (`Var06 > n` before the payout)
      and the stake taken off a win's payout (`Var06 - n`). Each is read so
      its sentence links to it; one not found leaves its sentence out. */
@@ -228,22 +228,22 @@ function diceOpts() { try { return (diceGame() || {}).opts || {}; } catch (e) { 
 /* ---------------------------------------------------------------------------
    Entities > Skills and Entities > Spells: each one a unit.
 
-   The 0x1A00 block holds the spells (0x1A00-0x1A30) and, from 0x1AC0, the
+   The 0x1A00 block has the spells (0x1A00-0x1A30) and, from 0x1AC0, the
    skills (Attack to Thievery) and the Do menu's commands (Estimate Time to
    Pass). A gallery of those resources was a row of script icons under
    subindex headings, which the maintainer found no way to read a skill from.
-   Each card here gathers what the file says about the one thing: its own
+   Each card here gathers what the file has about the one thing: its
    description (the script's text, with the game's inline "aptitude /
    training" alternative shown as one), the lines a teacher says lesson by
-   lesson, who teaches it, which scripts ask whether you have it, the weapons
-   swung with it, and the rule on the Mechanics sheet it takes part in.
+   lesson, who teaches it, which scripts test whether you have it, the weapons
+   swung with it, and the rule on the Mechanics sheet it is part of.
    Spells the same way: level, cost, what it does to health, the status it
    applies. Nothing here is typed in; it is all read on the spot.
 --------------------------------------------------------------------------- */
 function dvmCleanText(t) {
   // The game's inline codes: 0x10 opens an alternative, 0x02+letter marks
-  // each branch; the rest is style bytes. "[aptitude / training]" keeps
-  // both branches visible, since which the player sees depends on level.
+  // each branch; the rest is style bytes. "[aptitude / training]" shows
+  // both branches, since which the player sees depends on level.
   let x = String(t || '');
   // The renderer writes control bytes as \uXXXX; put them back first.
   x = x.replace(/\\u([0-9a-fA-F]{4})/g, (m, h) => String.fromCharCode(parseInt(h, 16)));
@@ -302,7 +302,7 @@ function dvmLessonLines(resid) {
 }
 const SKILL_KINDS = [[0x1AC0, 0x1AC3, 'attribute'], [0x1AC4, 0x1AC9, 'weapon'], [0x1ACA, 0x1AEF, 'special'], [0x1AF0, 0x1AFF, 'command']];
 function skillKind(resid) { const k = SKILL_KINDS.find(k => resid >= k[0] && resid <= k[1]); return k ? k[2] : 'skill'; }
-// Which Mechanics section a skill takes part in, by what its rule is read from.
+// Which Mechanics section a skill is part of, by what its rule is read from.
 const SKILL_RULES = { Attack: 'combat', Defense: 'combat', Sword: 'combat', Axe: 'combat', Mace: 'combat', Barehand: 'combat', Missile: 'combat', Shield: 'combat',
   Mana: 'experience', Casting: 'spells', Gambling: 'dice', Haggling: 'shops', 'Lock Picking': 'locks' };
 function skillCatalogue() {
@@ -337,8 +337,8 @@ function mechLink(id, label) {
    32x16 icon per class in subindex 25: icon n belongs to class 0x1A00|n,
    the same join skillNameForIcon makes the other way. Drawn once into a
    data URL per resource, like the relation chips' tile icons, and dropped
-   with the other archive-keyed caches. A class with no icon gets the tab's
-   own tile, so a card never goes without a picture. */
+   with the other archive-keyed caches. A class with no icon is given the
+   tab's tile, so a card never goes without a picture. */
 const _skillIconURLs = derivedMap('_skillIconURLs');
 function skillIconURL(resid) {
   const icon = 0x8A00 | (resid & 0xFF);
@@ -368,7 +368,7 @@ function skillIconHTML(resid, tabId) {
 /* A card on the Skills, Spells and Mechanics sheets is a <details>: the
    head is its summary and the rest opens under it. They open closed, a
    filter opens what it matched, and a link into one (mechGo) opens it
-   before scrolling. The chips in a head are buttons of their own, and a
+   before scrolling. The chips in a head are separate buttons, and a
    click on one runs the chip and not the toggle. */
 function foldCard(id, cls, open) {
   const sec = document.createElement('details');
@@ -430,7 +430,7 @@ function renderSkillsSheet() {
         sec.appendChild(d);
       }
       // What it is made of, beside what it does. The script is already named
-      // on the summary, so the strip carries the icon it wears.
+      // on the summary, so the strip shows its icon.
       {
         const chips = skillSpellParts(x.resid);
         if (chips.length) { const p = document.createElement('div'); p.innerHTML = linksFold(partsStrip('Made of', chips)); sec.appendChild(p); }
@@ -445,7 +445,7 @@ function renderSkillsSheet() {
       box.appendChild(sec);
     }
   }
-  // What a script asks about a skill, below the skills it asks about (the
+  // What scripts test about a skill, below the skills tested (the
   // maintainer, 3 October 2026; it was above them, and before 13 September
   // 2026 a section of the Mechanics sheet).
   try { box.appendChild(skillsMechSection()); } catch (e) { quiet(e); }
@@ -457,16 +457,16 @@ function renderSkillsSheet() {
    and a square. The dossier shows one character's day; this sheet shows
    everybody's, a folding card each, and every square opens the zone there.
    The behaviour byte is shown as it is stored: the scripts test it against
-   small numbers (0xEA3 asks for 4, 6 and 7), and most entries are 128 or
+   small numbers (0xEA3 tests for 4, 6 and 7), and most entries are 128 or
    more. 0x80 is not a flag on a small number: TActiveMonster::DoMove
    switches on the whole byte through a table of 171 cases, and 128 to 170
-   have handlers of their own, distinct from 0 to 42 (read 1 October 2026);
+   have separate handlers, distinct from 0 to 42 (read 1 October 2026);
    the Look helper names some of them (144 working, 145 sleeping). The
    script field is nearly always 0; the few that are not name a resource. */
 /* ---- who ScheduleTime schedules, read off the routine ----------------------
    Each hour ScheduleTime walks the 256 character records, 32 bytes each,
-   and runs ScheduleOne for a character unless one of four tests says not
-   to: bit 0x40 of byte 8 is set (JoinParty sets it; the InParty helper
+   and runs ScheduleOne for a character unless one of four tests rules it
+   out: bit 0x40 of byte 8 is set (JoinParty sets it; the InParty helper
    tests it), bit 1 of the halfword at byte 6 is clear (what a script's
    test of status_flags for being alive reads), byte 22 -- the behaviour --
    is 112, or TActiveMonster::GetCharacter finds an active monster for the
@@ -484,7 +484,7 @@ function renderSkillsSheet() {
    or when the shape is not found. */
 /* The character window's first test (TCharacterWindow::DrawStatPart):
    the halfword at byte 6 of the record, its lowest bit. Clear, the window
-   takes the first of its condition words, the one for the dead, and tests
+   uses the first of its condition words, the one for the dead, and tests
    nothing further, so a record with that bit clear reads as dead whatever
    its health (Peirithous, at 21 of 21, and the empty records 187 to 191 a
    conversation borrows a portrait from). The same bit ScheduleTime tests
@@ -532,7 +532,7 @@ function exeScheduleWho() {
    18 (`li`, then `stb` at 18). The words for each routine are this
    reading's, as the movement rules' kinds are; the routines, the waits and
    the instructions are the program's. A value past the table, or a case
-   that lands on the default, does nothing of its own, except 176 to 255,
+   that lands on the default, does nothing by itself, except 176 to 255,
    which the default hands to PerformAI as a combat program. Null with no
    application open. */
 function exeBehaviours() {
@@ -617,7 +617,7 @@ function behaviourDoes(v) {
   else does = 'nothing of its own';
   return { does, at: c.at, wait: c.wait };
 }
-// A behaviour's words as a sheet shows them: the game's own word for it
+// A behaviour's words as a sheet shows them: the game's word for it
 // (dvmBehaviourWords) or else what the handler does; the other, and the
 // wait, in the title. Empty when neither is known.
 function behaviourWordHTML(v) {
@@ -665,7 +665,7 @@ function renderSchedulesSheet() {
   const box = document.createElement('div');
   box.className = 'mechView';
   // Who is scheduled at all, read off ScheduleTime (exeScheduleWho); with
-  // no application open the sheet says where the rule comes from and
+  // no application open the sheet gives where the rule comes from and
   // states none of it.
   {
     const who = appImage() ? exeScheduleWho() : null;
@@ -726,19 +726,19 @@ function renderSchedulesSheet() {
       ', ' + [...new Set(p.real.filter(e => e.level !== 255 && !(scheduleCondition(e) || {}).stop).map(e => zoneDisplayName(e.level)))].slice(0, 3).map(svEsc).join(', ') + '</span>' +
       '<span class="mechFrom">' + characterChip(p.i, true) + '</span>';
     sec.appendChild(head);
-    // A day with no conditions reads by the clock; a program keeps the
-    // file's order, which is the order the game tests it in.
+    // A day with no conditions reads by the clock; a program stays in
+    // the file's order, which is the order the game tests it in.
     const programmed = p.real.some(e => e.cond);
     const list = programmed ? p.real : p.real.slice().sort((a, b) => a.hour - b.hour);
-    // Posts at one hour compete, and the LAST that holds wins: ScheduleOne
-    // replaces the post it took with any later passing one once its hour
-    // has come. Read top to bottom, a table of "6pm, always" above "6pm, if
-    // a roll" looked like first-match-wins, so the always row read as the
-    // first choice when it is the fallback (the maintainer, on Alaric's
-    // three 6pm rows, 16 October 2026). So the unconditional row of such an
-    // hour says "otherwise" and a conditional row below one of its own hour
-    // says "instead". The rivals are those up to the next stop: past a stop
-    // the walk only goes on when nothing above it was taken.
+    // Posts at one hour compete, and the LAST whose test passes is used:
+    // ScheduleOne replaces the post it took with any later passing one once
+    // its hour has come. Read top to bottom, a table of "6pm, always" above
+    // "6pm, if a roll" looked like the first match is used, so the always row
+    // read as the first choice when it is the fallback (the maintainer, on
+    // Alaric's three 6pm rows, 16 October 2026). So the unconditional row of
+    // such an hour reads "otherwise" and a conditional row below one of the
+    // same hour reads "instead". The rivals are those up to the next stop:
+    // past a stop the walk only goes on when nothing above it was taken.
     const sameHour = (k, dir) => {
       for (let j = k + dir; j >= 0 && j < list.length; j += dir) {
         const o = list[j];
@@ -783,7 +783,7 @@ function renderSchedulesSheet() {
    and a quest value, by bits 3-4 and 5-6 respectively: equal, at least, not
    equal, less than. Any other byte is never true. GRIMOIRE-NOTES.md, *Code
    reached by call_subroutine*, has the reading; Pelagon's schedule (13) is
-   the worked case. Null for a segment that holds always. */
+   the worked case. Null for a segment that is always true. */
 const SCHED_COMPARE = ['is', 'is at least', 'is not', 'is less than'];
 function scheduleCondition(e) {
   const k = e.cond, a = e.arg;
@@ -826,7 +826,7 @@ function renderSpellsSheet() {
   // The count is a link to what it counts: a spell is a script that calls
   // CastSpell (spellRules), so the number opens the search for those calls,
   // which lists exactly the same scripts (the maintainer, 2 October 2026: a
-  // count is linked to data; CastSpell's own page held one script, not the
+  // count is linked to data; CastSpell's page listed one script, not the
   // forty-nine).
   intro.innerHTML = svLink(spells.length + ' spells', "searchFor('call_resource CastSpell')") + ' by level, after ' + cardLink('spells', 'the rules for casting') + '.';
   box.appendChild(intro);
@@ -854,7 +854,7 @@ function renderSpellsSheet() {
     const d = document.createElement('div'); d.className = 'mechBody';
     d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><tbody>' + rows.map(r => '<tr><td class="skillKey">' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') + '</tbody></table></div>';
     sec.appendChild(d);
-    // The same strip the skills carry: the icon it wears, the script being
+    // The same strip the skills have: its icon, the script being
     // already named on the summary.
     {
       const chips = skillSpellParts(x.resid);
@@ -902,11 +902,11 @@ function renderBarksSheet() {
     : 'No script in this file sets a talk balloon.';
 }
 
-/* WEAPONS AND ARMOUR. Every item class script carries a keyed table
+/* WEAPONS AND ARMOUR. Every item class script has a keyed table
    (parseItemClass, ITEM_FIELD_INFO), and the combat keys 0x2A-0x2F are
    the weapon, ammunition, armour and shield parameters. Armour's one
    number is points of protection, which the wiki establishes; the others
-   are not published anywhere, so the table shows them as stored and says
+   are not published anywhere, so the table shows them as stored and states
    the one thing the data itself shows: the first melee number orders the
    weapons as their damage would. */
 function gearTable() {
@@ -936,10 +936,10 @@ function gearTable() {
   return rows;
 }
 
-/* WHAT EACH SKILL IS CONSULTED FOR. A script asks `GetSkill(who, skill)`;
+/* WHAT EACH SKILL IS CONSULTED FOR. A script calls `GetSkill(who, skill)`;
    where the skill is a constant the question is about that skill -- the
-   dice game asks about Gambling -- and where it is an argument the script
-   is a helper that checks whichever skill it is handed. Skill n's own
+   dice game tests Gambling -- and where it is an argument the script
+   is a helper that checks whichever skill it is handed. Skill n's
    script is 0x1A00 + n, which is where its name comes from. */
 function skillConsultations() {
   const by = new Map(); let generic = 0;
@@ -972,7 +972,7 @@ function karmaRules() {
   for (const e of buildScriptTextIndex()) {
     const lines = e.text.split('\n');
     // The occasion: the nearest line the script prints, looking back first
-    // (the deed is usually said before its price) and then ahead.
+    // (the deed usually comes before its price) and then ahead.
     const near = i => {
       const grab = j => awardNoteOf(lines[j]);   // whole, as the experience awards read it
       for (let j = i - 1; j >= Math.max(0, i - 7); j--) { const t = grab(j); if (t) return t; }
@@ -1006,7 +1006,7 @@ function karmaRules() {
       if (d[i] === 0x45 && d[i + 3] === 0x90 && d[i + 4] >= 2 && d[i + 4] <= 8 && u16be(d, i + 1) === 2 + d[i + 4] * 4) {
         byAlignment = [];
         for (let k = 0; k < d[i + 4]; k++) { let w = u32be(d, i + 5 + k * 4) & 0x0FFFFFFF; if (w & 0x08000000) w -= 0x10000000; byAlignment.push(w); }
-        byAlignmentSrc = { resid: 0xE8D, at: i };   // the data block's own line
+        byAlignmentSrc = { resid: 0xE8D, at: i };   // the data block's line
         break;
       }
     }
@@ -1014,7 +1014,7 @@ function karmaRules() {
   return { writes, reads, byAlignment, byAlignmentSrc };
 }
 
-/* EXPERIENCE AND LEVELS. One helper, GainExp (0xE8B), takes every award:
+/* EXPERIENCE AND LEVELS. One helper, GainExp (0xE8B), handles every award:
    it adds, caps at 65535, and raises the level by one when experience
    passes 100 x 2^(level-1). AdjCharLevel (0xE86) then recomputes full
    health -- body + reflex/2 + level, plus Defense x 5 x reflex / 15, Defense
@@ -1121,8 +1121,8 @@ function experienceRules() {
       if (!m) continue;
       // Back to the nearest string on the path into the award, then a few
       // lines on. A branch or a return ends the path: a string above one
-      // is said on another way through ("Nothing happens." above 0x10E7's).
-      // So does a conversation answer, whose text is said for the other
+      // is printed on another way through ("Nothing happens." above 0x10E7's).
+      // So does a conversation answer, whose text is printed for the other
       // answer ("Perhaps some other time." above 0x1805's bread lesson):
       // the scan goes on from the question that was put. A string in lower
       // case carries on the one before it, which the game printed just
@@ -1143,12 +1143,12 @@ function experienceRules() {
 }
 
 /* FOOD AND POTIONS. A potion's aspect picks its effect: the potion class
-   (0x101F) calls 0xA00 + aspect, and its own text names the eight, so the
+   (0x101F) calls 0xA00 + aspect, and its text has the eight names, so the
    names line up with the eight effect scripts, each read for what it sets,
    clears or applies. A food's Use method adds to nutrition: a constant,
    or for the general foodstuff class a value per variant from a data
    block, the variant being named by its tile. */
-// `entry` is a script's index entry. Each thing done carries the offset of
+// `entry` is a script's index entry. Each thing done has the offset of
 // the instruction that does it, so the table can link it (`effects`);
 // `does` is the same words as plain strings.
 function effectSummary(entry) {
@@ -1195,7 +1195,7 @@ function foodRules() {
     const after = lines.slice(i, i + 14).join(' ');
     const flat = /byte (0x[0-9A-F]+)\s+add/i.exec(after);
     if (flat && !/index/.test(after)) {
-      // The number's own line: the first constant then `add` after the write.
+      // The number's line: the first constant then `add` after the write.
       const fo = dvmOpsOf(e), wi = fo.findIndex(o => /^set_field nutrition/.test(o.text));
       const g = wi < 0 ? null : dvmSeqFirst(fo.slice(wi, wi + 14), [DVM_NUM, /^add$/]);
       foods.push({ pt, name, plus: parseInt(flat[1]), val: g ? dvmVal(e.resid, g[0]) : null });
@@ -1235,8 +1235,8 @@ function foodRules() {
           } catch (err) { saysPer = null; }
         } else if (c) says = c[1];
       }
-      // A line from the table has no instruction of its own, so it links to
-      // the one that shows the balloon.
+      // A line from the table is not at an instruction, so it links to the
+      // one that shows the balloon.
       const bop = balloon ? dvmOpsOf(e).find(o => /^set_field talk_balloon/.test(o.text)) : null;
       const saysSrc = bop ? { resid: e.resid, at: bop.at } : null;
       const variants = table ? table.map((v, a) => ({ aspect: a, name: base !== undefined ? (terrainNameFor(base + a) || '') : '', plus: v * mul, src: tableSrc, says: saysPer ? (saysPer[a] || '') : says, saysSrc })) : [];
@@ -1249,7 +1249,7 @@ function foodRules() {
 }
 
 /* STATUS EFFECTS. Every StatusEffect call, by flag -- the disassembler
-   names the flags (dvmFlagName) -- with the duration the call gives and
+   gives the flags' names (dvmFlagName) -- with the duration the call gives and
    who gives it: a spell, a trap, a potion, a place. And every ClearFlag,
    which is what cures. The unit of a duration is the engine's; only the
    numbers are the scripts'. */
@@ -1282,16 +1282,16 @@ function statusRules() {
 /* ---- a number read off a script, and where it was read -------------------
    The Mechanics sheet states rules with numbers in them, and until
    11 September 2026 most of those numbers were typed into the sentence
-   behind a pattern that checked the script still said them: "capped at
-   65,535" was printed because /word 65535/ matched. A number the code keeps
-   its own copy of is one an edited archive silently contradicts and one a
+   behind a pattern that checked the script still had them: "capped at
+   65,535" was printed because /word 65535/ matched. A number the code has
+   a copy of is one an edited archive silently contradicts and one a
    reader has no way to check, so the numbers are read now, each with the
-   offset of the instruction that holds it, and the sheet prints each as a
+   offset of the instruction it is in, and the sheet prints each as a
    link that opens the script ringed at that line (srcNum, jumpToScriptAt).
 
    The listing is dvmRender's, as buildScriptTextIndex caches it. A line's
    offset there counts from the start of its object -- dvmDisassemble is
-   handed the object's own bytes -- while a branch target is the resource's,
+   handed the object's bytes alone -- while a branch target is the resource's,
    so the object's start, from its `function obj_XXXX(` header, is added
    back. `at` is then an offset in the resource's plaintext, which is what a
    branch, Edit Bytes and the link all mean by one. */
@@ -1316,7 +1316,7 @@ function dvmOpsOf(entry) {
     if (!m) continue;
     // The disassembler's annotations (`byte 0x09  // flag: poison`) are kept
     // apart, so an operand with one still reads as a number. A quoted
-    // string cannot hold one: the `//` would be inside the quotes.
+    // string cannot contain one: the `//` would be inside the quotes.
     const whole = m[3] + (m[4] !== undefined ? ' ' + m[4] : '');
     const c = /^string/.test(m[3]) ? null : /^(.*?)\s+\/\/\s*(.*)$/.exec(whole);
     ops.push({ at: base + parseInt(m[1], 16), obj: base, line: li, depth: m[2].length / 4,
@@ -1341,7 +1341,7 @@ function dvmNum(op) {
   const m = op && /^(byte|short|word) (-?0x[0-9A-F]+|-?\d+)$/i.exec(op.text);
   if (!m) return null;
   let v = parseInt(m[2]);
-  // `word` already arrives signed, through dvmWord's 28-bit reading. A byte
+  // `word` is already signed, through dvmWord's 28-bit reading. A byte
   // and a short do not: they are shown as the bytes they are, and the
   // interpreter sign-extends both before using them (see the literal branch
   // of dvmDisassemble). 49 byte and 2 short literals in the shipped archive
@@ -1354,7 +1354,7 @@ function dvmNum(op) {
 }
 // The number an instruction pushes, with where: { v, resid, at }.
 /* A flag's name from the program (dvmFlagName), by the number on a
-   listing line or an op, asked at the moment it is said. The listing's own
+   listing line or an op, looked up at the moment it is shown. The listing's
    `flag:` note is written when the text is built and cached, which on the
    page is before the application has been adopted, so the rule readers do
    not read it back. */
@@ -1369,7 +1369,7 @@ function dvmVal(resid, op) {
 }
 // A string the script prints, found by a pattern of its words, with the
 // offset of its instruction: what a sheet quotes, so that a quote links to
-// its line the way a figure does and says what the file says, not what was
+// its line the way a figure does and shows what is in the file, not what was
 // typed beside a test for it (the bed's "Hey! Out of my bed!", until
 // 3 October 2026). The text as the file has it, page breaks and all, less
 // the closing newline; null when no string matches.
@@ -1386,8 +1386,8 @@ function dvmStringVal(resid, re) {
 }
 // A quote of one: the words in curly quotes, linked to their line.
 function srcQuote(sv) { return sv ? srcNum(sv, '“' + sv.v.replace(/\*/g, ' ').trim() + '”') : ''; }
-// A line a reader already holds, quoted as given and linked to the first
-// string of `resids` (a script or several) that holds it; unlinked when
+// A line a reader already has, quoted as given and linked to the first
+// string of `resids` (a script or several) that contains it; unlinked when
 // none does, so a reader that rewrote its words still prints them.
 function srcSaid(resids, text) {
   if (!text) return '';
@@ -1420,15 +1420,15 @@ function dvmSeqAll(ops, pat) {
 // The first match in a script, by resource id, as a convenience.
 function dvmSeqIn(resid, pat) { return dvmSeqFirst(dvmOpsOf(dvmScriptEntry(resid)), pat); }
 
-/* A number the sheet read, as a link to the line that holds it. `text` is
+/* A number the sheet read, as a link to the line it is on. `text` is
    what is printed when that is not the operand itself -- "29" for a
    `Random(0, 30)`, "65,535" for `word 65535`. A value that was not read
    prints as plain text, so a sentence never shows a link to nowhere. */
 /* The words of the figure last clicked, for the listing a link into the
    program opens to repeat under its ringed line (jumpToExeAt). Taken as
-   the click goes down the page, before the link's own handler runs, so
-   the link keeps its one argument, which the smoke's patterns pin; any
-   other click clears it, so a jump inside a listing carries none. */
+   the click goes down the page, before the link's handler runs, so
+   the link's handler still has one argument, which the smoke's patterns pin;
+   any other click clears it, so a jump inside a listing has none. */
 window.SRC_CLICKED = '';
 if (typeof document !== 'undefined' && document.addEventListener)
   document.addEventListener('click', e => {
@@ -1445,7 +1445,7 @@ function srcNum(val, text) {
   /* A figure read out of a record opens the bytes it was read from: the
      resource in the Data Fork, its table inspector set to the record's
      stride, with that byte ringed. This is the link that always works.
-     The executable's is better where it exists -- it says what the program
+     The executable's is better where it exists -- it shows what the program
      does with the byte, not only where the byte is -- but the application
      is open only when the visit came through the installer, and most do
      not, so every figure linked to a routine and to nothing else read as
@@ -1469,15 +1469,15 @@ function srcCell(val, text) {
    paintDecodedPane from LISTING_AT, which jumpToResource clears, so it
    belongs to this one jump and to no later visit of the same script. The
    scroll waits a beat because setMode puts a detail view at the top of
-   the page on a timeout of its own. */
+   the page on a separate timeout. */
 /* Open a resource's bytes with one of them ringed, at the stride the
    record it belongs to is read at. The ring is painted by
    renderTableInspector from TABLE_AT, the way a script line's is painted
    from LISTING_AT. */
 window.TABLE_AT = null;
-/* A figure lands on its own record under Components > Records where the
-   table is one this page knows, and in the Data Fork's hex where it is
-   not. The record page carries the step down to the same bytes
+/* A figure lands on its record under Components > Records where the
+   table is one this page reads, and in the Data Fork's hex where it is
+   not. The record page has the step down to the same bytes
    (jumpToForkBytes), so the chain reads Scenario, Components, Data rather
    than Scenario, Data. */
 function jumpToTableAt(resid, byte, stride) {
@@ -1510,7 +1510,7 @@ function jumpToScriptAt(resid, at) {
   if (window.CUR_SUBN === 'MECHANICS' || MECH_GROUP_BY_VALUE[window.CUR_SUBN] || window.CUR_SUBN === MECH_TOOL_GROUP.value) mechKeepPlace();
   if (!jumpToResource(resid)) return false;
   window.LISTING_AT = { resid, at };
-  // A script under Text opens on its words; a jump to a line wants the code.
+  // A script under Text opens on its words; a jump to a line needs the code.
   window.SCRIPT_PANE = 'code';
   paintDecodedPane();
   setTimeout(() => {
@@ -1520,12 +1520,12 @@ function jumpToScriptAt(resid, at) {
   return true;
 }
 // The line of a listing an offset falls on: the last instruction at or
-// before it, within the object that holds it.
+// before it, within the object it is in.
 //
 // The raw listing's gutter counts from the object's start, two spaces in,
 // under an `obj_NNNN` or `function obj_NNNN` header. The folded and
-// structured listings print the resource's own offset four spaces in, and
-// name a function where the dispatch table names it, so their header says
+// structured listings print the resource's offset four spaces in, and
+// name a function where the dispatch table names it, so their header gives
 // nothing about the base; there the line is simply the one whose offset is
 // the greatest at or before `at`. Until 22 September 2026 only the first was
 // read, so a figure's link opened a folded listing with nothing ringed.
@@ -1580,7 +1580,7 @@ function dvmCallArgs(ops, i) {
 /* A call's operands as values. dvmCallArgs gives the ops one level inside a
    call, but the listing is postfix, so one operand can take several ops:
    `word 0x021D[0]`, `arg Arg00`, `get_field data1`, `add` is the text table
-   plus the prop's Data1, a single value. Grouped by what each op takes off
+   plus the prop's Data1, a single value. Grouped by what each op pops off
    the stack, value k is the k-th thing the call receives, which is what a
    reader means by "the second argument". A nested call is one value: its
    own operands sit a level deeper, and its `end` closes it. */
@@ -1614,22 +1614,22 @@ function dvmOpString(op) {
    target's TakeDamage method (0x41), handed the damage and its type: the
    combat outcome 0xE87 calls it after ResistDamage, the damage helper
    0xEB8 for a spell, 0xE8F for a weapon's roll. A character takes it as
-   health through the default method 0x3041. An item class can carry a
-   TakeDamage of its own, and the metal door's -- blunt doubled, edged
+   health through the default method 0x3041. An item class can define a
+   TakeDamage method itself, and the metal door's -- blunt doubled, edged
    halved, piercing quartered, then the door helper 0xE49 -- was written up
    on 9 September 2026 from that one class and kept off the sheet until
    every class that has one had been read (asked for on 11 September).
    They have been, and the arithmetic is the doors', the chest's, the
-   coffer's and the crate's alike; the rest do something of their own.
+   coffer's and the crate's alike; the rest do something different.
 
    So this reads each class's method for its parts rather than naming
    classes: the type table (`if (type & M) damage op= K`, tested in turn,
-   the first bit that matches deciding), a guard (a type equal to N, a
+   the first bit that matches is used), a guard (a type equal to N, a
    Data1 below N, a damage above N), where the damage goes (0xE49 with the
-   door's aspects, 0xE4A with the chest's and a strength, or a lock of the
-   class's own against Data2), and what follows (the thing deleted, turned
+   door's aspects, 0xE4A with the chest's and a strength, or a lock the
+   class defines, against Data2), and what follows (the thing deleted, turned
    into another prop type, given an aspect, experience awarded, a line
-   said). The two helpers are read once, by bashRule. */
+   printed). The two helpers are read once, by bashRule. */
 function bashRule(resid) {
   const ops = dvmOpsOf(dvmScriptEntry(resid));
   if (!ops.length) return null;
@@ -1652,7 +1652,7 @@ function bashRule(resid) {
   // The flag test, kept so the sentence's "flag 2" links to it.
   const setsOffG = dvmSeqFirst(ops, [/^get_field flags/, /^byte (?:0x02|2)$/, /^bitwise_and$/]);
   const setsOff = setsOffG && ops.some(o => /^method UseOn/.test(o.text)) ? dvmVal(resid, setsOffG[1]) : null;
-  // The line each outcome says: the first string with words in it after
+  // The line each outcome prints: the first string with words in it after
   // the test that leads to it, and the one after that for the blow that
   // does nothing. Chosen by where it sits, so an edited line is quoted as
   // edited.
@@ -1729,7 +1729,7 @@ function damageTakers() {
       return i < 0 ? null : dvmCallArgs(ops, i).filter(o => DVM_NUM.test(o.text)).map(val);
     };
     const door = hand('0xE49'), chest = hand('0xE4A');
-    // A lock of the class's own, as the trapdoor has: Data2 starts at the
+    // A lock the class defines, as the trapdoor has: Data2 starts at the
     // class's lock figure and the damage is tested against what is left.
     const ownLock = !!dvmSeqFirst(ops, [/^set_field data2/, /^arg Arg00$/, /^end$/, /^arg Arg00$/, /^class_member 0x3400$/]);
     const dataDefault = dvmSeqFirst(ops, [/^if_not$/, /^arg Arg00$/, /^get_field data2/, DVM_NUM, /^eq$/, /^then /, /^set_field data2/, /^arg Arg00$/, /^end$/, DVM_NUM]);
@@ -1757,11 +1757,11 @@ function damageTakers() {
 }
 
 /* A data value in a script, read as JavaScript. A `data` block (0x45, a
-   16-bit length) holds an array: 0x90, a count, then 4-byte entries, each
+   16-bit length) contains an array: 0x90, a count, then 4-byte entries, each
    either a pointer (0x98, a byte, a 16-bit offset into the same resource)
    to a C string or to another array, or a 28-bit number. The shops' goods
    lists, the trainers' menus and the bark lists are all this shape; read
-   here once so each reader gets the same strings, numbers and nesting. */
+   here once so each reader has the same strings, numbers and nesting. */
 function dvmDataValue(d, at, depth) {
   depth = depth || 0;
   if (depth > 6 || at + 2 > d.length) return null;
@@ -1780,7 +1780,7 @@ function dvmDataValue(d, at, depth) {
 }
 // The data blocks in the operands of a call at ops[k], as values, and the
 // blocks in the ops before it (a menu built into a local), for a caller
-// that wants either.
+// that needs either.
 function dvmCallData(d, off, ops, k, before) {
   const out = [];
   if (before) { for (let j = Math.max(0, k - 60); j < k; j++) if (ops[j][2] === 'data') out.push(dvmDataValue(d, off + ops[j][0] + 3)); }
@@ -1829,14 +1829,14 @@ function dvmCallSites(target) {
   return out;
 }
 
-/* LOCKPICKING. One helper, PickLock (0xE43), takes a key or a pick, a key
+/* LOCKPICKING. One helper, PickLock (0xE43), is given a key or a pick, a key
    number (255 for a pick) and the lock. A key fits when the lock's number
    is the key's plus the number given. A pick succeeds when the picker's
    reflex plus a roll of 0 to 19 is at least 20 plus another roll of 0 to
    19 plus 5 for every 20 of the lock's difficulty, and breaks otherwise;
-   the lockpick item refuses to be used at all without the Lock Picking
-   skill (0x1109). The difficulty is the placed lock's own data1; the
-   classes carry a lock parameter of their own, shown as stored. */
+   the lockpick item cannot be used at all without the Lock Picking
+   skill (0x1109). The difficulty is the placed lock's data1; the
+   classes have a lock parameter too, shown as stored. */
 function lockRules() {
   const idx = buildScriptTextIndex();
   const pick = idx.find(e => e.resid === 0xE43);
@@ -1861,10 +1861,10 @@ function lockRules() {
 
 /* SHOPS. Every vendor calls one helper, 0xEA5, with a name for the shop, a
    list of goods -- each a prop word, a name, a price and a count -- and
-   four bargaining figures of its own. The helper's arithmetic is the
+   four bargaining figures. The helper's arithmetic is the
    game's; what is shown is what each vendor lists and at what price, and
-   that the Haggling skill (0xCC) takes a further roll of 0 to 5 off the
-   vendor's figure, which the helper's own code says. */
+   that the Haggling skill (0xCC) subtracts a further roll of 0 to 5 from
+   the vendor's figure, as the helper's code shows. */
 function shopRules() {
   const shops = [];
   for (const site of dvmCallSites(0xEA5)) {
@@ -1909,9 +1909,9 @@ function trainingRules() {
       for (const e of b) if (Array.isArray(e) && e.length === 2 && typeof e[1] === 'number' && e[1] >= 0xC0 && e[1] <= 0xD6) t.skills.set(e[1], mastery || t.skills.get(e[1]) || false);
     }
   }
-  // The points, each off its own line: gained with a level (0xE86, n less
-  // the difficulty level), given at creation (the hero's script), taken by a
-  // lesson and the aspect that is mastery (0xEAF).
+  // The points, each off the line that sets it: gained with a level (0xE86, n
+  // less the difficulty level), given at creation (the hero's script), taken
+  // by a lesson and the aspect that is mastery (0xEAF).
   const at = (resid, pat, k) => { const g = dvmSeqIn(resid, pat); return g ? dvmVal(resid, g[k]) : null; };
   const perLevel = at(0xE86, [/^get_field training/, DVM_NUM, /^global DifficultyLevel/, /^sub$/], 1);
   const atStartVal = at(0x1801, [/^set_field training/, /^arg Arg00$/, /^end$/, DVM_NUM], 3);
@@ -1937,7 +1937,7 @@ function trainingRules() {
    or less misses; a hit does a roll of 0 to the damage figure plus the
    enchantment, named grazed, hit, hit hard, very hard, extremely hard,
    crushed, smashed, ground to dust or shredded by thresholds of 3, 6, 9,
-   12, 16, 20, 25 and 35; ResistDamage takes the type; experience follows. */
+   12, 16, 20, 25 and 35; ResistDamage is given the type; experience follows. */
 function combatRules() {
   const melee = dvmScriptEntry(0xE88), missile = dvmScriptEntry(0xE89), resolve = dvmScriptEntry(0xE87);
   if (!melee || !missile || !resolve) return null;
@@ -1951,7 +1951,7 @@ function combatRules() {
   // The damage: Random(0, the figure) plus this, then the enchantment.
   const add = dvmSeqFirst(ro, [/^sys Random$/, /^byte (?:0x00|0)$/, /^arg Arg04$/, /^end$/, DVM_NUM, /^add$/]);
   // The blow words: `if (roll < n) word = "..."`, with the suffix a second
-  // local takes where there is one (" hard", " to dust"), then the word for
+  // local is set to where there is one (" hard", " to dust"), then the word for
   // everything past the last threshold.
   const words = [];
   let lastIdx = -1;
@@ -1977,11 +1977,11 @@ function combatRules() {
      figure, and the thing is meant to be the weapon, Arg02. In the shipped
      0xE87 it is not: both terms read the local the shield loop above them
      assigns from EquipmentIterator. Traced through the interpreter on
-     17 September 2026 rather than guessed: every exit from that loop follows
+     17 September 2026 rather than assumed: every exit from that loop follows
      an iterator call that ran off the end and returned None (cbWorn), the
      class_member opcode answers None for anything that is not a prop, and
      cbGetSkill passes None's low half, -1, to FindSkill, which matches no
-     skill, so 0xEAC returns 0. An armed blow therefore gets nothing from
+     skill, so 0xEAC returns 0. An armed blow therefore has nothing from
      Sword, Axe or Mace; Barehand is added in 0xE88 and Missile in 0xE89, and
      both work. That is what 453 measured on the board (topic 2044). Read as
      a shape, so a resolver that reads Arg02 finds nothing here. */
@@ -1994,8 +1994,8 @@ function combatRules() {
      `get_field 0x33`, the bit, `bitwise_and`, and in the branch `get_field
      body`. Only the attacker's: the defender's side is always its reflex.
      Field 0x33 is the top half of the unit's flag word (exeMonsterFields),
-     so the bit is 0x10000 of the word; which units carry it is the unit
-     table's (monsterTopFlagSites). Counted in the fork on 27 September
+     so the bit is 0x10000 of the word; which units have it is in the unit
+     table (monsterTopFlagSites). Counted in the fork on 27 September
      2026: a fighter's blows missed 16.9% of 496 times, against 17.0% with
      his body and 25.7% with his reflex. */
   const bfr = dvmSeqFirst(mo, [/^get_field 0x33$/, DVM_NUM, /^bitwise_and$/, /^then /, /^set_local 0x[0-9A-F]+$/i, /^arg Arg00$/, /^get_field body\b/]);
@@ -2006,13 +2006,13 @@ function combatRules() {
 
 /* THE ATTACK ITSELF. Before a blow or a missile is resolved, one routine
    (0x3042, called by nothing in the archive, so the executable's, and the
-   only caller of 0xE88 and 0xE89) decides what is swung or thrown. It takes
+   only caller of 0xE88 and 0xE89) sets what is swung or thrown. It uses
    the squared distance from 0xE8C (dx² + dy²) less one, and walks the
    attacker's equipment for the first melee entry whose reach squared is at
    least that; that weapon swings, its damage figure plus a roll of 0 to
    (body − 12) / 4 (0xE90). Only when nothing reached, the target is beyond
    the adjacent squares and in sight, does it walk again for a thrown entry
-   whose range squared covers the distance: the item's own tile flies
+   whose range squared covers the distance: the item's tile flies
    (ShootEffect), the missile margin resolves it with the Missile skill and a
    roll of 0 to (reflex − 12) / 4, and then the item is moved -- into the
    target's inventory (flags 9, container the target) when the outcome
@@ -2021,7 +2021,7 @@ function combatRules() {
    branch with its ammunition spent one a shot. Read 9 September 2026 after
    the maintainer's mystic spear flew at a target that had stepped away.
    Every number here is read off the listing rather than typed, so an edited
-   archive states its own rule, and a pattern that stops matching drops the
+   archive states its rule, and a pattern that stops matching drops the
    sentence instead of misstating it. */
 function attackRules() {
   const idx = buildScriptTextIndex();
@@ -2046,7 +2046,7 @@ function attackRules() {
   const one = dvmSeqIn(0x3042, [/^set_local 0x02$/, /^local Var02$/, DVM_NUM, /^sub$/]);
   // The + 1 after the scale, which is what makes the body roll's top
   // inclusive: Random(0, 0xE90(body) + 1). The combat figure needs it as a
-  // number, to know how many values the roll takes.
+  // number, for the count of values the roll can give.
   const bodyAdd = dvmSeqIn(0x3042, [/^call_resource 0xE90$/, /^arg Arg00$/, /^get_field body\b/, /^end$/, DVM_NUM, /^add$/]);
   const ammoSpent = /set_field quantity \(0x9\)[\s\S]{0,60}byte 0x01[\s\S]{0,500}sys Delete/.test(a);
   // Where each `member² >= D - 1` test is, so the sheet's statement of the
@@ -2059,24 +2059,24 @@ function attackRules() {
     reachAt: testAt('2A'), rangeAt: testAt('2B'), launcherAt: testAt('2E') };
 }
 
-/* WHAT A SPELL OR A USE CAN BE AIMED AT. A script that wants a target says
-   so by what it returns: it prints its question ("Cast 'Healing' on whom?",
-   "Use lock pick on what?") and returns a word, which the application keeps
+/* WHAT A SPELL OR A USE CAN BE AIMED AT. A script that needs a target signals
+   it by what it returns: it prints its question ("Cast 'Healing' on whom?",
+   "Use lock pick on what?") and returns a word, which the application stores
    until the next click and tests bit by bit before it accepts the square or
    the thing under the pointer. So the word is read off each script here,
-   with the line that holds it, and the bits are named below.
+   with the line it is on, and the bits are named below.
 
-   The names come from the application's own tests, read there rather than
-   guessed: TDroppableWindow::NeedsTarget stores the word, and
+   The names come from the application's tests, read there rather than
+   assumed: TDroppableWindow::NeedsTarget stores the word, and
    MouseRoutine tests it -- 0x8000 against CanSearch, which is the same
-   within-reach test that decides whether an item can be dragged (the three
+   within-reach test that settles whether an item can be dragged (the three
    by three squares around the character), 0x4000 against
    TViewer::IsStraightAbs, and the low bits against what is under the
    pointer. Bit 8 is a member of the party: with it set, MouseRoutine
    (0x276C8) loads byte 8 of the clicked character's record and accepts the
    click when its bit 0x40 is set, the bit JoinParty sets and the InParty
    helper tests; without that bit the click falls to the 0x0004 test, so a
-   word of 8 alone refuses anyone outside the party. Its four users are the
+   word of 8 alone rules out anyone outside the party. Its four users are the
    things you hand to a person. It printed as hex until 3 October 2026,
    when the maintainer asked what it was and the test was read.
 
@@ -2103,11 +2103,11 @@ function targetRules() {
   for (const e of buildScriptTextIndex()) {
     const ops = dvmOpsOf(e);
     // The prompt, then the return and its constant. Every match is looked
-    // at rather than the first, because a class's Examine prints its own
+    // at rather than the first, because a class's Examine prints its
     // lines and returns 0 from the same shape earlier in the resource --
     // the unguent's does, and taking the first match dropped it entirely.
     // A question mark is what marks the prompt, and a word of 0 is a script
-    // that wants no target.
+    // that needs no target.
     let g = null, prompt = null;
     for (const cand of dvmSeqAll(ops, [/^string(?:\(implicit\))? "/, /^return$/, DVM_NUM])) {
       const s = dvmOpString(cand[0]);
@@ -2124,14 +2124,14 @@ function targetRules() {
   out.sort((a, b) => (b.word & 0x8000) - (a.word & 0x8000) || a.word - b.word || a.name.localeCompare(b.name));
   return out;
 }
-// The target word one script returns, for that item's or spell's own page.
+// The target word one script returns, for the page of that item or spell.
 function targetOf(resid) {
   try { return targetRules().find(t => t.resid === resid) || null; } catch (e) { return null; }
 }
 /* The walk that would close the distance. With a target out of reach the
    click handler calls TGameSys::WalkToLocation, and in the shipped program
    that routine is two instructions: it answers false and does nothing, so
-   the click is refused instead. Read rather than stated: a build where it
+   the click is rejected instead. Read rather than stated: a build where it
    was implemented would have a body and this returns null. */
 function exeWalkStub() {
   const ops = exeOpsNamed('TGameSys::WalkToLocation');
@@ -2142,15 +2142,15 @@ function exeWalkStub() {
 }
 
 /* WHAT THE GROUND DOES. Walking is the application's, but the damage a
-   square does is a script: the default method 0x301F takes the character
+   square does is a script: the default method 0x301F is given the character
    and a code for what they stepped on. Two codes do something -- a range
    for the swamp, one value for lava -- and everything else is a prop, whose
    UseOn runs with the character on it, which is how a rune goes off.
 
-   Both are guarded by a character flag (the disassembler names them) and by
-   a monster's own immunity, and both hand their damage to TakeDamage
-   directly rather than through ResistDamage, so armour takes nothing off
-   either. Read after a Discord conversation about a game played without
+   Both are guarded by a character flag (named by the disassembler) and by
+   a monster's immunity, and both hand their damage to TakeDamage
+   directly rather than through ResistDamage, so armour reduces
+   neither. Read after a Discord conversation about a game played without
    magic, where the swamp and the Lake of Fire were the two things that
    could not be avoided. */
 function terrainRules() {
@@ -2167,7 +2167,7 @@ function terrainRules() {
   const bite = dvmSeqFirst(ops, [/^method TakeDamage/, /^arg Arg00$/, DVM_NUM, DVM_NUM]);
   const poison = dvmSeqFirst(ops, [/^sys SetFlag$/, /^arg Arg00$/, DVM_NUM]);
   const saysBit = ops.map(dvmOpString).filter(Boolean);
-  // Lava: one code, its own flag, and a roll for the damage.
+  // Lava: one code, a separate flag, and a roll for the damage.
   const lavaAt = dvmSeqFirst(ops, [/^arg Arg01$/, DVM_NUM, /^eq$/]);
   const lavaGuard = lavaAt ? guard(ops.indexOf(lavaAt[2])) : null;
   const burn = dvmSeqFirst(ops, [/^method TakeDamage/, /^arg Arg00$/, /^sys Random$/, DVM_NUM, DVM_NUM, /^end$/, DVM_NUM, /^add$/, DVM_NUM]);
@@ -2199,10 +2199,10 @@ function terrainRules() {
    that is how the script is written -- a chain of tests on the Data1 -- so
    each kind's words and effects are what lies between its test and the
    next. The census underneath is the placed props, so an edited archive
-   shows its own.
+   shows its placements.
 
-   One kind is not a constant at all: it asks the game's own state and
-   answers with another kind, which is how Catamarca's water turns from
+   One kind is not a constant at all: it reads the game's state and
+   returns another kind, which is how Catamarca's water turns from
    brackish to fresh over the course of the game. */
 function springRules() {
   const e = dvmScriptEntry(0x1036);
@@ -2233,7 +2233,7 @@ function springRules() {
       hurt: hurt ? { lo: val(hurt[3]), hi: val(hurt[4]), plus: val(hurt[6]), type: val(hurt[8]) } : null,
       chance: chance ? { lo: val(chance[1]), hi: val(chance[2]), is: val(chance[4]) } : null });
   }
-  // The kind that asks the game's state, and what sets that state.
+  // The kind that reads the game's state, and what sets that state.
   const gate = dvmSeqFirst(ops, [/^sys GetState$/, DVM_NUM, /^end$/, DVM_NUM, /^lt$/]);
   let setter = null;
   if (gate) {
@@ -2259,13 +2259,13 @@ function springRules() {
         placed.get(r.d1).push({ zone: 0x8000 + z, x: r.x, y: r.y });
       }
     }
-  } catch (err) { /* an archive with no prop lists says nothing about where */ }
+  } catch (err) { /* an archive with no prop lists has nothing about where */ }
   return { kinds, gate: gate ? { state: val(gate[1]), below: val(gate[3]) } : null, setter, placed };
 }
 
 /* A CURE THAT MIGHT NOT WORK. A script that clears a status behind a roll
    is a cure with a chance, and the unguent is the one the game has: it
-   heals a little and, if the character is poisoned, takes the poison away
+   heals a little and, if the character is poisoned, removes the poison
    one time in five. Read as the roll it is, because the chance is what a
    player wants to know and it is nowhere in the interface. */
 function chanceCures() {
@@ -2287,8 +2287,8 @@ function chanceCures() {
 /* WHAT WEARING IT DOES. A few classes set a character flag in their Wear
    method and clear it again when the thing comes off: that is the whole of
    what protective clothing is in this game, and it is not in any field the
-   item page shows. Read per class and per method, so the page can say it
-   on the item's own page and in one table. */
+   item page shows. Read per class and per method, so it can be shown
+   on the item's page and in one table. */
 function grantRules() {
   const rows = [];
   for (let pt = 1; pt < 512; pt++) {
@@ -2303,7 +2303,7 @@ function grantRules() {
       if (!sets.length) continue;
       for (const op of sets) {
         const name = dvmFlagNameOfOp(op);
-        // The method that takes it away again, where the class has one: the
+        // The method that removes it again, where the class has one: the
         // same flag cleared in another of its methods. Without this the page
         // would have to say "while worn" on faith.
         let clearedBy = null;
@@ -2323,10 +2323,10 @@ function grantRules() {
 
 /* WHAT A BOMB DOES. The one thing in the game that damages a square rather
    than a target: when its fuse runs out it walks the three by three around
-   itself and hands each square a figure, the biggest on its own square. The
+   itself and hands each square a figure, the biggest on the bomb's square. The
    three figures and the damage type are read off the script; which figure
-   belongs to which ring is read off the guards, so a changed script says
-   what it now does rather than what this one did. */
+   belongs to which ring is read off the guards, so the page describes a
+   changed script as it is rather than as this one was. */
 function blastRules() {
   const e = dvmScriptEntry(0x1142);
   if (!e) return null;
@@ -2351,12 +2351,12 @@ function blastRules() {
    script is the number in the saved game. Its second operand is a reference
    into a text array, written `0x021A[0] + n`, and n is the line.
 
-   Slot and line are usually the same number. Six sites pass a different
-   line, so one slot reads differently depending on who told you, and one
-   site composes the line from a quest value, which is how the ten lines
-   counting the Books of Wisdom are reached when no script names them. The
-   text array is joined by its own index field, which is not its position in
-   the array beyond entry 37. Nothing here is a "quest": these calls touch
+   Slot and line are usually the same number. Six sites pass a different line,
+   so one slot reads differently depending on who told you, and one site
+   composes the line from a quest value, which is how the ten lines counting
+   the Books of Wisdom are reached though no script refers to them. The text
+   array is joined by an index field in each entry, which is not its position
+   in the array beyond entry 37. Nothing here is a "quest": these calls touch
    neither the quest values nor the quest flags. */
 function todoRules() {
   const adds = [], dones = [];
@@ -2394,12 +2394,12 @@ function todoRules() {
 
 /* EGGS. A prop record with flags 0x42 is not a thing standing on a square
    but a trigger: its aspect is the kind and its low ten bits the kind's
-   argument. The file says neither, so the names below are this page's, from
+   argument. Neither is in the file, so the names below are this page's, from
    the eleven handlers TGameViewer::DrawRoutine dispatches through (the
    workbench's save-format.md has each handler's address and what it does).
    Everything stated on the sheet -- which kinds are used, their arguments,
    how many of each -- is counted off the archive here, so an archive that
-   places eggs differently says so. Flags 0x44 is ROOF and is not an egg. */
+   places eggs differently shows it. Flags 0x44 is ROOF and is not an egg. */
 const EGG_KIND_NAMES = [
   { what: 'hatches a monster' },
   { what: 'a way to another place', arg: 'zoneport' },
@@ -2411,25 +2411,25 @@ const EGG_KIND_NAMES = [
   { what: 'brings neighbors in when a condition is met' },
   { what: 'a room', arg: 'room' },
   { what: 'nothing' },
-  // Kind 10 was "counts down", from DrawRoutine's handler alone, which takes
-  // one off a nonzero Data1; every shipped one has a Data1 of 0, and what
+  // Kind 10 was "counts down", from DrawRoutine's handler alone, which subtracts
+  // one from a nonzero Data1; every shipped one has a Data1 of 0, and what
   // the kind is for is TViewer::Render's (zoneBackdrop, js/page-data.js).
   { what: 'a picture drawn behind the ground, seen through the ethereal void', arg: 'picture, 0x8F00 plus it' }
 ];
 
 /* What one egg does, in full. The kind is the aspect and the argument is the
-   bits a thing would keep its prop type in; past that, each kind reads its
-   own fields, and two of them are worth saying out loud.
+   bits a thing would keep its prop type in; past that, each kind reads different
+   fields, and two of them are worth spelling out.
 
-   A HATCHING egg holds its monsters as contained records, the way a chest
-   holds what it holds, and TActiveMonster::HatchEgg reads the conditions off
-   the egg's own Data1 and Data2. The chance is a roll of rand modulo 100
+   A HATCHING egg has its monsters as contained records, as a chest has
+   its contents, and TActiveMonster::HatchEgg reads the conditions off
+   the egg's Data1 and Data2. The chance is a roll of rand modulo 100
    compared against Data2, and it passes when the roll is less than or equal,
    so the odds are Data2 PLUS ONE in a hundred: a Data2 of zero is one in a
-   hundred rather than never, and 100 is always. Data1 bit 0x10 holds it to
+   hundred rather than never, and 100 is always. Data1 bit 0x10 limits it to
    daylight and 0x20 to the night, the clock being compared against 24576 and
    73728, which at 4096 units an hour are six in the morning and six at night.
-   Bit 0x01 writes 101 into the egg's own chance when it hatches, and since
+   Bit 0x01 writes 101 into the egg's chance when it hatches, and since
    the roll passes at or under the chance, every later roll passes: the egg
    hatches on every visit after its first. It was read on 12 September 2026
    as "only once" off the same instruction, which the comparison beside it
@@ -2437,22 +2437,22 @@ const EGG_KIND_NAMES = [
    already 100, the unicorn's, a polyp's and two of wolflizards.
 
    Bit 0x04 is read on one branch alone. For each record it hatches, the
-   routine asks TInterp::HasProperty for the class's property 55: a class
+   routine calls TInterp::HasProperty for the class's property 55: a class
    that has it is a creature, made through CreateMonster, taken off the
    record's count (Data2) and turned to a facing its property 55 picks from
    a jump table; a class without it is a thing, placed as a plain prop, and
    there bit 0x04 skips taking it off the count, so the egg makes as many
-   again on its next visit. 63 of the 67 eggs that hold things carry it:
+   again on its next visit. 63 of the 67 eggs with contents have it:
    the herbs, seedpods, beans, obsidian, sulfur, webs and eggs. It was read
    on 12 September 2026 as keeping the creature's facing, which is the other
    branch. Bit 0x08 is set on a few eggs and is read nowhere in the hatching
    path, so nothing is claimed for it.
 
-   An AMBIENT SOUND egg names a sound resource, 0x9100 plus the argument, and
+   An AMBIENT SOUND egg points at a sound resource, 0x9100 plus the argument, and
    these are placed by terrain rather than by event: every one of the hundred
-   carrying 0x9106, Waves / Seashore Loop, stands on water, and the frogs
+   with 0x9106, Waves / Seashore Loop, stands on water, and the frogs
    stand in the swamps. That is why the draw loop's dispatch does nothing with
-   them; the audio side registers them through TAudio::Ambient, which keeps
+   them; the audio side registers them through TAudio::Ambient, which tracks
    the nearest emitter of each sound and pans it with CalcStereo. */
 /* What an egg does, in words, and where `linked` is set as chips to the
    things it names: the creatures it hatches, the sound it plays, the room
@@ -2463,11 +2463,12 @@ const EGG_KIND_NAMES = [
    what a tap opens and what can hold them. So the sentence is built once
    and each piece is wrapped by `one`, which is a chip in the inspector and
    escaped text in the card. */
-/* The hours a hatching egg keeps, off TActiveMonster::HatchEgg: its day and
+/* The hours a hatching egg is limited to, off TActiveMonster::HatchEgg: its
+day and
    night bits compare the clock with two constants, a `cmpwi` for the dawn
    and a `lis`/`addi` pair for the dusk, and the clock's units an hour
    (exeClockRules) make them hours. Null with no application open, and then
-   the egg says only "by day" or "by night". */
+   the egg reads only "by day" or "by night". */
 function exeHatchHours() {
   if (!appImage()) return null;
   if (DERIVED.HATCH_HOURS !== undefined) return DERIVED.HATCH_HOURS;
@@ -2492,7 +2493,7 @@ function exeHatchHours() {
    TGameViewer::DrawRoutine passes as the party's square. Tested as a
    `cmplwi` against 10 for the kind and then an `addi` of minus the reach.
    The same window re-arms a tried egg that has left it. Null with no
-   application open, and then the card says only "near". */
+   application open, and then the card reads only "near". */
 function exeEggReach() {
   if (!appImage()) return null;
   if (DERIVED.EGG_REACH !== undefined) return DERIVED.EGG_REACH;
@@ -2522,23 +2523,23 @@ function eggDetail(g, allProps, linked) {
     /* What sets it off, which the line did not say (the maintainer,
        22 September 2026, asking what the trigger is and what night is).
        TGameViewer::DrawRoutine calls TViewer::SetStage on each draw, which
-       lists the eggs within 15 squares of the party's square on both axes
+       collects the eggs within 15 squares of the party's square on both axes
        (exeEggReach reads the 15), and hatches a listed egg only where
-       TGameViewer::InZone says its square is in the area MakeZone made:
+       TGameViewer::InZone finds its square in the area MakeZone made:
        SeedFill over a bitmap of the map's wall tiles (MakeBitMap sets a
-       square whose tile carries both 0x200 and 0x004 of its attribute
+       square whose tile has both 0x200 and 0x004 of its attribute
        word), grown one square all round. MakeZone is called with the
        party's square when the party comes into the zone (GoToLocation),
        when a game begins or is loaded (BeginPlay) and when a magic map is
        drawn (MagicMap, from a script's screen effect or the cheat key), and
-       at no other time; but every tile in the bitmap also carries 0x200,
+       at no other time; but every tile in the bitmap also has 0x200,
        which blocks a step (TGameSys::CanMove), so a party on foot cannot
        leave the area it was filled in, and in play it is the ground the
        party can reach on foot with every door counted open. A door placed
        as a thing is not in the bitmap: Odemia's walls have such doors in
        all their gaps, and from its barracks the area is the whole map. The
-       card said "in the same walled area" until 26 September 2026, which
-       read as a room. "Hatch" is the program's own word, HatchEgg.
+       card read "in the same walled area" until 26 September 2026, which
+       read as a room. "Hatch" is the program's word, HatchEgg.
 
        It is tried only while its first byte is exactly 0x42. Out of its
        hours HatchEgg returns and the egg waits, tried again on the next
@@ -2548,7 +2549,7 @@ function eggDetail(g, allProps, linked) {
        one back when the zone loads, and THood::ResetHood does it for one
        beyond 32 squares in a level of 1,536 records or more. Hence
        "visits": the chance is a chance each time the party comes within
-       reach, which the card said was rolled again on every draw until
+       reach, which the card stated was rolled again on every draw until
        25 September 2026. The eggs are read in the workbench's
        save-format.md, which has the addresses.
 
@@ -2564,22 +2565,22 @@ function eggDetail(g, allProps, linked) {
     const when = [];
     if (g.d1 & 0x10) when.push(hrs ? 'only between ' + hour(hrs.dawn) + ' and ' + hour(hrs.dusk) : 'by day');
     if (g.d1 & 0x20) when.push(hrs ? 'only between ' + hour(hrs.dusk) + ' and ' + hour(hrs.dawn) : 'by night');
-    /* Bit 0x08 is set on some eggs (Odemia's chickens carry 0x18, its goat
+    /* Bit 0x08 is set on some eggs (Odemia's chickens have 0x18, its goat
        0x0A) and the program never reads it: TActiveMonster::HatchEgg, the
        one routine that hatches, tests Data1 for 0x20, 0x10, 0x04 and 0x01
        only, and DrawRoutine hands the egg to it untested (read 1 October
-       2026). So it is said nowhere; until then the zone page called it a
+       2026). So it is shown nowhere; until then the zone page called it a
        condition not worked out. */
-    // Bit 0x01 makes the chance certain once it has hatched, which says
-    // nothing new where the chance is certain already.
+    // Bit 0x01 makes the chance certain once it has hatched, which adds
+    // nothing where the chance is certain already.
     if ((g.d1 & 0x01) && g.d2 < 99) when.push('on every visit once it has hatched');
     // Bit 0x04 is read only for a thing (a class without property 55), and
-    // only an egg holding one with a count to keep is told of it.
+    // it is listed only for an egg holding one with a count to keep.
     if ((g.d1 & 0x04) && held.some(h => h.d2 > 0 && !classHasMember(h.proptype, 55)))
       when.push('without running out');
-    // Each creature by name, and in the inspector each one opens its own
+    // Each creature by name, and in the inspector each one opens its
     // page, with the record's count beside it when it is not one: that many
-    // hatch at once. An egg holding no records says "something" because the
+    // hatch at once. An egg holding no records reads "something" because the
     // file gives it nothing to hatch, which is worth seeing rather than
     // hiding.
     const names = held.map(h => one(propDisplayName(h.proptype) || ('prop ' + h.proptype),
@@ -2642,14 +2643,15 @@ function eggKinds() {
   // can open what they count.
   const zoneIds = [], roofSpots = [];
   /* What the kind-0 eggs hatch, counted while the lists are open.
-     A hatching egg does not name its creatures: they are records in the same
-     zone list that name the egg as their container (flags & 0x08, container =
-     holder - 0x100), which is the join containerContents makes for one egg in
-     the inspector. The kinds walk already has every list in its hands and
-     threw the records away, so the tally rides it rather than reading the
-     archive a second time. Counted by prop type, with the zones each is
-     found in, and separately the eggs that hold nothing at all -- which the
-     file does leave, and which is worth seeing rather than rounding away. */
+     A hatching egg has no list of its creatures: they are records in the same
+     zone list that point at the egg as their container (flags & 0x08,
+     container = holder - 0x100), which is the join containerContents makes for
+     one egg in the inspector. The kinds walk already has every list in its
+     hands and threw the records away, so the tally rides it rather than
+     reading the archive a second time. Counted by prop type, with the zones
+     each is found in, and separately the eggs that hold nothing at all --
+     which the file does leave, and which is worth seeing rather than rounding
+     away. */
   const hatch = new Map();
   let emptyEggs = 0;
   try {
@@ -2680,7 +2682,7 @@ function eggKinds() {
   if (!kinds.size) return null;
   // The rooms are checkable: a kind-8 egg's argument is a room number, and
   // a room number has a script at 0x1B00 + it. Anything else would mean the
-  // kind has been read wrongly, so the sheet says how many resolve.
+  // kind has been read wrongly, so the sheet shows how many resolve.
   const rooms = kinds.get(8);
   const scripted = rooms ? [...rooms.args].filter(a => refExists(0x1B00 + a)).map(a => 0x1B00 + a) : [];
   const named = scripted.length;
@@ -2690,14 +2692,14 @@ function eggKinds() {
            emptyEggs };
 }
 
-/* THE LIBRARY. Cythera's own writing is in the archive: the histories and
+/* THE LIBRARY. Cythera's writing is in the archive: the histories and
    bestiaries on its bookshelves, the three prophecies, the scrolls and
    letters, the signs over its doors, the words on its gravestones and
    inside its rings. Each lives in a text array of the 0x02xx range, and a
    prop shows one passage of one array: the class calls the document helper
-   (0xE64 or 0xE65) with the array and the prop's own Data1 added to it, so
-   a bookshelf's Data1 is which book it holds. The pairs are read off the
-   classes rather than listed here, so an archive wired differently says so.
+   (0xE64 or 0xE65) with the array and the prop's Data1 added to it, so
+   a bookshelf's Data1 is which book is on it. The pairs are read off the
+   classes rather than listed here, so an archive wired differently shows it.
 
    Two questions fall out of that and the file answers both. A passage no
    placed prop and no script points at is written and never shown; a Data1
@@ -2708,7 +2710,7 @@ function eggKinds() {
    unreachable until `sys Create` was counted as a second source. */
 /* sys Create's recipient is not always a register. Thirteen of the file's
    twenty-seven flat Creates address it as a plain number, character 1 being
-   the hero, so a pattern that insists on `global`/`arg`/`local` cannot see any
+   the hero, so a pattern that requires `global`/`arg`/`local` cannot see any
    of them. Both readers of Create below match on this one shape, so they
    cannot drift apart about what a Create looks like. */
 const CREATE_RECIPIENT = /^(?:global|arg|local) |^(?:byte|short|word) /;
@@ -2747,7 +2749,7 @@ function libraryRules() {
     };
     for (const g of dvmSeqAll(ops, [/^call_resource 0xE6[45]$/, /^arg Arg\d+$/, /\[\d+\]\s*$/, /^arg Arg\d+$/, /^get_field data[12]\b/, /^add$/])) wire(g, 2, 4);
     for (const g of dvmSeqAll(ops, [/^print$/, /\[\d+\]\s*$/, /^arg Arg\d+$/, /^get_field data[12]\b/, /^add$/])) wire(g, 1, 3);
-    // A number the class tests its own Data against is a sentinel choosing a
+    // A number the class tests its Data against is a sentinel choosing a
     // path, not a passage: paper's 255 means "a picture, not a scroll". Left
     // in, it would be reported as a thing pointing at a passage that is not
     // there, which is the opposite of what it is.
@@ -2755,7 +2757,7 @@ function libraryRules() {
       if (!sent.has(pt)) sent.set(pt, new Set());
       sent.get(pt).add(dvmNum(g[1]));
     }
-    // The other way a class says "there is nothing here" is a bare truth test
+    // The other way a class signals "there is nothing here" is a bare truth test
     // on the field, with no number in it at all. The ring does that, and its
     // Data1 of 0 means a ring with no inscription rather than a ring pointing
     // at a passage that is missing.
@@ -2783,9 +2785,9 @@ function libraryRules() {
         }
       }
     }
-  } catch (e) { /* an archive with no prop lists says nothing about where */ }
+  } catch (e) { /* an archive with no prop lists has nothing about where */ }
   // The second source: a prop a script hands over rather than places. Create
-  // takes the packed type, whose low ten bits are the prop type, and then
+  // is given the packed type, whose low ten bits are the prop type, and then
   // the value that lands in Data1.
   for (const e of buildScriptTextIndex()) {
     let ops = [];
@@ -2812,7 +2814,7 @@ function libraryRules() {
   return DERIVED.LIBRARY_RULES = [...docs.values()].sort((a, b) => a.resid - b.resid);
 }
 
-/* LOOSE ENDS. Things the scenario's own scripts get wrong, each read off
+/* LOOSE ENDS. Things the scenario's scripts get wrong, each read off
    the line that causes it rather than collected from anywhere. Four kinds,
    and every one of them is a question the file can settle: a To Do line
    nothing ever strikes off; a line that shows another line's words; a quest
@@ -2827,7 +2829,7 @@ function looseEnds() {
   const exact = [], unusedCast = [], queued = new Map();
   const cfTests = new Map(), cfSets = new Set(), cfWild = new Set(), cfHelperSelf = new Map(), cfHelperTask = new Map(), cfCalls = [];
   const put = (m, k, v) => { if (!m.has(k)) m.set(k, new Set()); m.get(k).add(v); };
-  // Every finding carries WHERE it was found, the same way `tst` below
+  // Every finding records WHERE it was found, the same way `tst` below
   // already does: the resource and the offset of the instruction. Keeping
   // only the resource is what left half the Loose ends table unable to link
   // to anything, so the sheet had to render those rows as plain labels while
@@ -2868,7 +2870,7 @@ function looseEnds() {
        ruins guard, Charax and the Regroup action queue these on flags 253 to
        255, so a reader that saw only the syscalls would call 254 and 255 read
        and never written. Only 165 is counted as a write: 164 clears, which
-       is not what "set" asks. Nothing else in the application writes the
+       is not what "set" means. Nothing else in the application writes the
        flag array but the save and the load, which was checked against every
        load of its TOC slot rather than assumed. */
     for (const g of dvmSeqAll(ops, [/^sys AddTask$/, null, /^(?:byte|short|word) (?:165|0xA5)$/i, VAL])) putSite(flagAsg, dvmNum(g[3]), e.resid, g[3].at);
@@ -2876,7 +2878,7 @@ function looseEnds() {
     /* A line struck off only when a counted value equals a number exactly.
        Selinus counts the Sapphire volumes into quest value 5 and strikes the
        Books of Wisdom line only when it IS 5 after a visit, so a visit that
-       takes the count from 4 to 6 steps over the one value that strikes it.
+       moves the count from 4 to 6 steps over the one value that strikes it.
        Collected here and filtered below against `computed`, since a value a
        script only ever assigns cannot step over anything. */
     for (const g of dvmSeqAll(ops, [/^sys GetState$/, VAL, /^end$/, VAL, /^eq$/, /^then /, /^sys CompleteQuest$/, VAL]))
@@ -2895,7 +2897,7 @@ function looseEnds() {
     /* A task script that converts its item and then does not use the
        conversion. A queued task reaches its script through DefaultMethods
        0x3021, `call_index 0x0C00 + type`, with the item as a plain number:
-       TActiveMonster::QueueActivity keeps the task's first argument in a
+       TActiveMonster::QueueActivity stores the task's first argument in a
        short, and DoMove hands it on with the tag cleared. So 0xC4E, 0xC4F
        and 0xC50 each `cast Prop` the item into a local, and then send Use,
        UseOn or UseAt to the argument itself. The interpreter's method call
@@ -2912,9 +2914,9 @@ function looseEnds() {
        here and joined after the loop, because a flag is set three ways and a
        reader that saw only the first would publish tests that do pass:
        directly, with the character named by the call; by a helper that sets
-       the flag on its own first argument, as 0xC84 and 0xC85 do for the
+       the flag on its first argument, as 0xC84 and 0xC85 do for the
        characters that call them; and by queued task 167, which
-       TActiveMonster::DoMove carries out by setting a bit on the character the
+       TActiveMonster::DoMove performs by setting a bit on the character the
        task names -- 0xC80 queues it over an array its caller hands in, and
        Crito and Dares hand in their customers. A set this cannot resolve
        makes its bit wild, and a wild bit is never reported. The application
@@ -3025,12 +3027,12 @@ function looseEnds() {
      prop list and in the monsters' inventory list, plus any Data1 a script
      writes after turning something into that class (the strange staff makes
      kesh of Data1 3 that way). A value some other script also sets, or no
-     script reads, is not reported. It finds one: Eudoxus's coffer carries
+     script reads, is not reported. It finds one: Eudoxus's coffer contains
      five kesh vials of Data1 0, the vial sets quest value 13 only at Data1 2,
      and Sacas's "I found some on the band leader himself" waits on 13.
-     The wider question -- any Data1 case nothing carries -- was measured and
+     The wider question -- any Data1 case no placed thing has -- was measured and
      is mostly runtime state (lit lamps, full pitchers, a charged distiller),
-     which is why the reader asks only about quest values. */
+     which is why the reader checks only quest values. */
   const dataCaseNoThing = [];
   try {
     const have = new Map(), created = new Set();
@@ -3040,7 +3042,7 @@ function looseEnds() {
       let l; try { l = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, rid), rid).data); } catch (err) { continue; }
       for (const r of l) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1);
     }
-    // 0xF306 is a saved game's list; the scenario has none, and asking for
+    // 0xF306 is a saved game's list; the scenario has none, and requesting
     // it was the one failure the Tools sheet listed on every visit.
     if (refExists(0xF306)) try { for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0xF306), 0xF306).data)) if (r.flags !== 0xFF && !(r.flags & 0x40)) add(r.proptype, r.d1); } catch (err) { quiet(err); }
     for (const e of buildScriptTextIndex()) {
@@ -3123,15 +3125,15 @@ function looseEnds() {
     }
   }
   /* An answer every keyword of which an earlier answer in the same list
-     already takes. A character's or a group's topics are a chain: each
+     already covers. A character's or a group's topics are a chain: each
      conversation_response jumps, when the typed word does not match, to the
-     next, and the first match wins. So a later response whose keywords all
+     next, and the first match is used. So a later response whose keywords all
      appear earlier is never given. Keywords match on four letters, which is
      how Paris is lost to Parium ("pari" twice in 0x805), and 0x80E answers
-     "brya" twice, the second time more fully. A later response that keeps
-     one keyword of its own ("alar,king" after "alar") is still reachable
+     "brya" twice, the second time more fully. A later response that has
+     one keyword not seen before ("alar,king" after "alar") is still reachable
      and is not reported. The jump target is already an offset in the
-     resource, as dvmConversation takes it; the first version of this reader
+     resource, as dvmConversation is given it; the first version of this reader
      added the object's start again, which is 0 for a dialogue group and 2
      for a character, and so walked no character's chain at all. */
   const shadowed = [];
@@ -3192,8 +3194,8 @@ function looseEnds() {
     }
   }
   /* A character asking whether they themselves are alive. Status bit 0 is
-     alive (the LandKing Amulet's revive tests it and says "They aren't
-     dead!", and 0xF07 sets it), and a character's own script runs only
+     alive (the LandKing Amulet's revive tests it and prints "They aren't
+     dead!", and 0xF07 sets it), and a character's script runs only
      while that character talks, so the test always passes. Hadrian's
      "How's my son doing?" loads Character.Hadrian where Hector is meant,
      so "I regret to tell you that Hector has died in my service" is never
@@ -3239,7 +3241,7 @@ function looseEnds() {
    pixel changed, and the walk cycle passes through the standing frame
    between steps. The fire spirit's south standing and right-foot frames are
    identical as well, which in a creature that does not stride may be meant;
-   the row says what the pixels say and no more. */
+   the row reports the pixels and no more. */
 function spriteRepeats() {
   if (DERIVED.SPRITE_REPEATS) return DERIVED.SPRITE_REPEATS;
   const out = [];
@@ -3270,10 +3272,10 @@ function spriteRepeats() {
 /* FOUR MORE KINDS OF LOOSE END, 17 September 2026, each off an entry of the
    bug list and each read rather than listed.
 
-   goesDarkStillLit: an item class that says its light has gone and moves to
-   an aspect whose tile still carries a light level. A thing's light is its
+   goesDarkStillLit: an item class that prints that its light has gone and
+   moves to an aspect whose tile still has a light level. A thing's light is its
    tile's attribute (buildLightSources), so the torch, the lamp and the candle
-   all go to tiles of level 0 when they burn out; the staff says "stops
+   all go to tiles of level 0 when they burn out; the staff prints "stops
    glowing, turning gray" and goes to aspect 3, whose tile is level 1 like the
    lit ones. The three that go dark properly are the reader's control. */
 function goesDarkStillLit() {
@@ -3332,7 +3334,7 @@ function scheduleCollisions() {
 
 /* nameNeverKept: a character who says their name and never sets their own
    character flag 7, the flag every other name topic sets (by its first
-   argument or by its own number) and the scripts test before calling
+   argument or by the topic's number) and the scripts test before calling
    someone by name rather than "man" or "woman". Paris and Diomede, the
    board's bug and Bryce Schroeder's fix. */
 function nameNeverKept() {
@@ -3379,7 +3381,7 @@ function askedOfNobody() {
   return out;
 }
 
-/* answersThatRunOn: a keyword answer that says something and has no return
+/* answersThatRunOn: a keyword answer with a line and no return
    after it, so the chain runs on into the next keyword's test. When nothing
    further matches, the character's "don't understand" answer follows the one
    just given, which is the board's "flashes then reverts to the
@@ -3393,7 +3395,7 @@ function askedOfNobody() {
 
    A yes-or-no answer runs on by design as a rule ("y" falls through to the
    "n" test, and in the bartenders' dice game, 0x0812, "y" runs on into the
-   game itself), and is listed only when the chain, walked with its own
+   game itself), and is listed only when the chain, walked with that
    reply, comes to a second answer to that same reply: Ennomus (0x1811) says
    "You know - where da Tyrants used to live." and then "Built by the
    Tyrants, it was.", Antenor (0x1824) "I understand - no many can afford
@@ -3421,7 +3423,7 @@ function answersThatRunOn() {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
     const index = new Map(ops.map((o, k) => [o.at, k]));
     // Walk the chain from op k as the interpreter would for the reply kw: a
-    // list that holds kw or "*" is entered, any other jumps to its target.
+    // list that contains kw or "*" is entered, any other jumps to its target.
     const answerFor = (k, kw) => {
       for (let steps = 0; k !== undefined && k < ops.length && steps < 256; steps++) {
         const n = RESP.exec(ops[k].text);
@@ -3453,7 +3455,7 @@ function answersThatRunOn() {
 }
 
 /* linesReplacedAtOnce: a spoken line with no click to wait on, followed by
-   another spoken line before anything waits. The conversation window keeps
+   another spoken line before anything waits. The conversation window has
    one speech balloon. A closing quote draws it, a * inside the quotes draws
    it and waits for a click, and the next quoted text replaces the balloon's
    contents; so a line that ends on its closing quote is replaced as soon as
@@ -3462,11 +3464,11 @@ function answersThatRunOn() {
    me?" (0x1829), Borus's "Glaucus is a good man..." (0x1867), Niobe's first
    two lines when Helen interrupts (0x1859), Ake's "meet me in our @garden
    after dark" for a hero with Persuasion (0x1820), and the bartenders' "Good
-   - let's get on with it then." (0x0812). The walk follows the line's own
+   - let's get on with it then." (0x0812). The walk follows the line's
    path: through branches, past tests (their fall-through), and along an
    answer chain with the reply that led to the line, stopping at anything
    that prompts, returns, prints or calls out, and at a test of a local,
-   which the scripts use to steer their own paths. Where the chain comes to
+   which the scripts use to steer their paths. Where the chain comes to
    a second answer for the same reply, the row is answersThatRunOn's. Also
    listed: two quoted lines back to back inside one string, which is how the
    bartenders' "we don't give credit here" is followed at once by "Do you
@@ -3559,7 +3561,7 @@ function selfToldByGroup() {
 /* containedUnseen: a script that looks only at things lying loose -- its
    test is that a thing's flags have no bit above the low two, so nothing
    carried (0x10) or inside a prop (0x08) -- for prop types every one of
-   which the world places inside something. Detect Traps (0x1A04) asks for
+   which the world places inside something. Detect Traps (0x1A04) looks for
    the poison trap, the blast trap and two more; the five poison traps are in
    crates and the two blast traps in chests, so it never finds either, which
    is the board's "does not detect traps on containers". */
@@ -3591,7 +3593,7 @@ function containedUnseen() {
 }
 
 /* refusalOnEveryCheck: an item class whose answer to "can this go inside?"
-   (member 23) prints a line. The inventory window asks that of the thing
+   (member 23) prints a line. The inventory window tests that for the thing
    under the cursor each time it checks a drop (TWInvent::CanDrop), so the
    line is printed for every check, which is the board's "You can't stuff
    the carcass!" repeated many times. Every other class answers without a
@@ -3669,13 +3671,13 @@ function highlightsUnanswered() {
 
 /* deletedAcrossZoneChange: an item whose Use makes a spell from its Data1,
    casts it, and then deletes the spell it made and itself, where the spell
-   moves the party to another zone. A deletion names a thing by its number in
-   the zone's prop list, and by then the list is the new zone's, so the two
-   numbers name two things there and the item is left. The scroll (0x104B)
-   and Directed Nexus (0x1A00), which goes to Land King Hall: the board's
+   moves the party to another zone. A deletion identifies a thing by its number
+   in the zone's prop list, and by then the list is the new zone's, so the two
+   numbers name two things there and the item is left. The scroll (0x104B) and
+   Directed Nexus (0x1A00), which goes to Land King Hall: the board's
    "something in Landking hall usually gets destroyed" and "the scroll never
-   vanished". Cast as a learned spell nothing is deleted, which is why only
-   the scroll does it. */
+   vanished". Cast as a learned spell nothing is deleted, which is why only the
+   scroll does it. */
 function deletedAcrossZoneChange() {
   const moves = new Map();
   for (const e of buildScriptTextIndex()) {
@@ -3692,7 +3694,7 @@ function deletedAcrossZoneChange() {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
     for (let i = 0; i < ops.length; i++) {
       if (ops[i].text !== 'sys New') continue;
-      // The type New is given is the item's own Data1: the fifth argument.
+      // The type New is given is the item's Data1: the fifth argument.
       const typeOp = ops.slice(i + 1, i + 14).find((o, k, a) => /^get_field data1\b/.test(o.text) && k > 0 && /^arg Arg00$/.test(a[k - 1].text));
       if (!typeOp) continue;
       const use = ops.slice(i, i + 40).findIndex(o => /^method (?:Use|UseOn|UseAt)\b/.test(o.text));
@@ -3714,7 +3716,7 @@ function deletedAcrossZoneChange() {
 
 /* stateNoSaveKeeps: a word a script writes into a script resource with
    write_far_word, and the scripts that read it back, when the write is made
-   before the game has a file of its own. The interpreter writes a script
+   before the game has a player file. The interpreter writes a script
    resource it has changed back into the player file (TInterp::DoInterpAt,
    the only SaveEncryptedSegment caller), so a word written in play is kept:
    the inns' room paid for, word 0x16 of 0x0301, was listed here from
@@ -3759,16 +3761,16 @@ function leaveNeverLeaves() {
 }
 
 /* tileReadWithSeenBit: a script that compares GetMapTile's answer with tile
-   numbers and never masks it. A map word in memory carries the automap's
-   "seen" bit, 0x8000: TViewer::Render and TGameViewer::MagicMap set it on
-   every square they draw, LoadLevelMap restores it from the saved automap and
+   numbers and never masks it. A map word in memory has the automap's "seen"
+   bit, 0x8000: TViewer::Render and TGameViewer::MagicMap set it on every
+   square they draw, LoadLevelMap restores it from the saved automap and
    SaveLevelProps reads it back out, and TActiveMonster::HandleMove masks it
-   off (0x7FFF) before it tests the terrain. A square the player can click is
-   a square that has been drawn, so an unmasked read is always 0x8000 above
-   the tile. The fishing pole is the one script that reads the map, and it
-   wants tiles 8 to 15, the water; it therefore always says "You need to cast
+   off (0x7FFF) before it tests the terrain. A square the player can click is a
+   square that has been drawn, so an unmasked read is always 0x8000 above the
+   tile. The fishing pole is the one script that reads the map, and it looks
+   for tiles 8 to 15, the water; it therefore always prints "You need to cast
    into deep water." Bryce Schroeder's bugfix patch adds exactly the missing
-   `word 0x7FFF bitwise_and`, and says so in its comment. */
+   `word 0x7FFF bitwise_and`, and its comment states this. */
 function tileReadWithSeenBit() {
   const out = [];
   for (const e of buildScriptTextIndex()) {
@@ -3788,7 +3790,7 @@ function tileReadWithSeenBit() {
    its flags to 9 and its container to the character. Every carried record in
    the shipped prop lists has flag 0x10 (16, or 24 equipped), the shops give
    what they sell with 24, and Bryce Schroeder's fix to Fetch sets 0x10; 9 is
-   inside-a-prop, so the thing ends inside whatever prop carries the
+   inside-a-prop, so the thing ends inside whatever prop has the
    character's number and is gone. Fetch does it to whatever it fetches, and
    the attack routine (0x3042) does it to a thrown weapon that hits or is
    parried, which is the board's dagger that vanishes with the killing blow. */
@@ -3808,15 +3810,15 @@ function wrongCarryFlags() {
   return out;
 }
 
-/* speechWithNoSpeaker: a script that opens a conversation of its own and
+/* speechWithNoSpeaker: a script that opens a new conversation and
    has someone speak in it without naming a speaker with TalkParticipant.
-   The game's own Talk command names two (the hero in the third place, the
+   The game's Talk command assigns two (the hero in the third place, the
    one spoken to in the first) before it calls Talk; a new conversation
    window starts with no speaker, number -1, and draws a speaker's quoted
    words in a balloon placed 88 pixels down for each place, so with none
    named they are drawn above the window's top and are not seen, while
    unquoted narration, which goes to the message line, is. Every other script
-   that opens a conversation names both first. Awaken (0x1A13) names neither
+   that opens a conversation assigns both first. Awaken (0x1A13) assigns neither
    and calls the sleeper's Talk, which is the board's "lets you talk to
    sleepers but their words are invisible". */
 function speechWithNoSpeaker() {
@@ -3843,10 +3845,10 @@ const VAL_ANY = /^(?:byte|short|word) (?:-?0x[0-9A-F]+|-?\d+)$/i;
    place in the order, lighting one whose place is the next after the value
    advances it, lighting any other resets the value to zero, and the last
    one prints its line. The Maayti buttons are a lookup table and nothing
-   else: a button's Data1 and Data2 each carry a panel offset in the low
+   else: a button's Data1 and Data2 each have a panel offset in the low
    nibble and, in the high nibble, which of seven arrays to use; pressing it
-   takes each panel's aspect, reads it through the array, and stores the
-   result, then signals when the two panels agree. The arrays are a blob in
+   maps each panel's aspect through the array and stores the
+   result, then signals when the two panels match. The arrays are a blob in
    the class: seven pointers, then sixteen entries each. */
 /* THE STRANGE DEVICE (24 September 2026), 0x1175, the Think-a-Dot the
    handoff carried: readable since v1.170.0, when its window's callbacks
@@ -3855,7 +3857,7 @@ const VAL_ANY = /^(?:byte|short|word) (?:-?0x[0-9A-F]+|-?\d+)$/i;
    buttons; a button drops a marble in at dot 0, 1 or 2 (the callbacks at
    0x01FB, 0x0209 and 0x0217). The marble flips the dot it is on and moves on
    through one of two tables -- the one stored in local 2 when the dot is
-   now lit, the one in local 3 when it is dark -- until a table says None.
+   now lit, the one in local 3 when it is dark -- until a table entry is None.
    Then the eight dots are compared with three patterns, each passed with
    the signal it sends. A signal reaches the props of the zone whose Data1
    is the signal and whose class answers one (TGameSys::SendSignal), so the
@@ -3890,7 +3892,7 @@ function thinkADotRules() {
   while (queue.length) { const st = queue.shift(); for (let c = 0; c < 3; c++) { const nx = press(st, c); if (!prev.has(key(nx))) { prev.set(key(nx), [key(st), c]); queue.push(nx); } } }
   const path = st => { const out = []; for (let k = key(st); prev.get(k); k = prev.get(k)[0]) out.unshift(prev.get(k)[1]); return prev.has(key(st)) ? out : null; };
   // The doors: a placed prop whose Data1 is the signal, of a class with a
-  // GetMessage of its own.
+  // GetMessage method in the class itself.
   const doors = new Map(), listens = new Map();
   const answers = pt => {
     if (!listens.has(pt)) {
@@ -3943,9 +3945,9 @@ function puzzleRules() {
     let arrays = null;
     if (bytes && blob) {
       // The operand is an opcode byte, a two byte length, then the outer
-      // array; each of its words carries the offset of one table in its low
+      // array; each of its words has the offset of one table in its low
       // half. Read rather than assumed: a table that does not decode is left
-      // out rather than guessed at.
+      // out rather than inferred.
       const outer = dvmArrayWords(bytes, blob.at + 3);
       if (outer) {
         arrays = [];
@@ -3966,10 +3968,10 @@ function puzzleRules() {
         if (!here.length) continue;
         zone = 0x8000 + z;
         records = list;
-        // The panel a button drives is its OWN RECORD INDEX plus the low
+        // The panel a button drives is ITS RECORD INDEX plus the low
         // nibble, not its position in this filtered list: the class does
         // `arg Arg00 + (data1 & 15)` and casts the result to a Prop. The two
-        // agree only if the buttons run from record 0 with nothing between
+        // match only if the buttons run from record 0 with nothing between
         // them, and here they are records 82 to 157 with panels and doors
         // interleaved, so counting from the list printed panels that do not
         // exist. Resolve the record and keep it.
@@ -3981,7 +3983,7 @@ function puzzleRules() {
         break;
       }
     } catch (e) { /* no prop lists, no buttons */ }
-    // The rooms. Both panels a button drives carry the same door number in
+    // The rooms. Both panels a button drives have the same door number in
     // their Data1, and a door with that number stands between them, so the
     // five rooms fall out of the records rather than being described here.
     const rooms = new Map();
@@ -4013,18 +4015,18 @@ function puzzleRules() {
    The bells in the Tyrant's Tomb accumulate into a near word,
    near[8] = (near[8] * 0x10 + data1) & 0xFFFF, so only the LAST FOUR rings
    count and a misring can be rung out rather than restarting. The four bells
-   carry 1 to 4 in Data1, ascending west to east, which settles a numbering
+   have 1 to 4 in Data1, ascending west to east, which settles a numbering
    the board had to adjudicate between two conventions.
 
    The instruments are handed an accumulator by the Instrument widget and mask
    it to the length of their tune: three nibbles for the lyre, five for the
-   panpipes. Each instrument's gui Instrument call carries a list of the notes
+   panpipes. Each instrument's gui Instrument call has a list of the notes
    it can play, and a note n is the letter at 65 + n -- which is how the
    file's 0xF79C3 is the PHJMD players write down, and 0xFC6 is PMG. That
    mapping is derived, not assumed: it spells both of the community's strings,
    and a mapping shifted by one spells neither.
 
-   A tune's signal opens the prop carrying it in Data1, the same mechanism the
+   A tune's signal opens the prop with it in Data1, the same mechanism the
    Hall of Truth buttons use. */
 function tuneRules() {
   const out = { bells: null, instruments: [] };
@@ -4090,7 +4092,7 @@ function tuneRules() {
     if (!mask || !tune) continue;
     const len = Math.round(Math.log2(mask.v + 1) / 4);
     const notes = nibbles(tune.v, len);
-    // Each gui Instrument call carries the notes that instrument can play.
+    // Each gui Instrument call has the notes that instrument can play.
     const lists = [];
     for (const o of ops.filter(o => /^data </.test(o.text))) {
       const words = dvmArrayWords(bytes, o.at + 3);
@@ -4109,24 +4111,24 @@ function tuneRules() {
 
 /* WHAT A SIGNAL REACHES. Scripts emit signals all over the scenario -- the
    bells, both music locks, the Hall of Truth buttons, every lever -- and
-   nothing in the ARCHIVE says what answers one. No class has a handler, not
+   nothing in the ARCHIVE shows what answers one. No class has a handler, not
    even the stone door that demonstrably opens when a Hall of Truth button is
    pressed. The answer is in the application, in TGameSys::SendSignal, and
-   this reads it there rather than guessing from the records.
+   this reads it there rather than inferring from the records.
 
    The order, from the routine itself: a signal of zero returns at once;
    otherwise GetMessage (method 21) goes to the ZONE, then to the ROOM; then,
    only when the signal is below 256, to every prop of the level whose flags
-   pass a mask, whose class carries a flag bit, and WHOSE DATA1 EQUALS THE
+   pass a mask, whose class has a flag bit, and WHOSE DATA1 EQUALS THE
    SIGNAL; then to all 512 character slots; then TGremlin::OnSignal.
 
    The mask is worth stating carefully. The instruction is `li 0, -163`, which
    is 0xFFFFFF5D, and it is ANDed with a byte, so the test is `flags & 0x5D`
-   being 0 or 1. Against the archive's own conventions that excludes eggs
+   being 0 or 1. Against the archive's conventions that excludes eggs
    (0x42 -> 0x40), roofs (0x44 -> 0x44) and contained props (0x09), and admits
    a plain placed prop, which is what the rule should do.
 
-   One thing this deliberately does NOT say is which classes carry the flag.
+   One thing this deliberately does NOT state is which classes have the flag.
    That table is *(r2-30424), one long per class indexed by prop type times
    four -- the same table the workbench's item-dragging-spec.md documents from
    the 68K side at A5+$21488, where $200000 is slidable and $100000 droppable
@@ -4143,7 +4145,7 @@ function signalRules() {
   if (!ops.length) return null;
   const imm = o => (o && o.d && typeof o.d.imm === 'number') ? o.d.imm : null;
   // Matched by the SHAPE of the instructions, never by address, so a
-  // differently built application still reads or else says nothing.
+  // differently built application still reads or else reports nothing.
   const first = (mn, v) => ops.find(o => o.mn === mn && imm(o) === v) || null;
   const method = first('li', 21);
   const under = first('cmpwi', 256);
@@ -4166,7 +4168,7 @@ function signalRules() {
 
 /* THE MAGISTERIUM'S PASSWORDS (the maintainer, 3 October 2026, asked for
    the puzzles grimoire did not cover). The door class 0x1114, the metal
-   door, asks "What is the password to the" and the hall its Data1 names,
+   door, prints "What is the password to the" and the hall its Data1 names,
    then answers by keyword: each keyword is a word's first four letters,
    and opens only a door whose Data1 is that word's number, and only once
    quest value 6, the passwords Selinus has given, has reached it. Selinus
@@ -4228,7 +4230,7 @@ function passwordRules() {
   return { words, every: every ? dvmVal(0x1851, every[3]) : null };
 }
 
-/* WHICH LEVER OPENS WHAT. A lever (class 0x10BB) flips its own picture and
+/* WHICH LEVER OPENS WHAT. A lever (class 0x10BB) flips its picture and
    sends its Data1 and then its Data2 as signals, each when it is not 0.
    What a signal reaches is signalRules': below 256, every placed prop of
    the same level whose Data1 is the signal (the flags mask leaves out eggs,
@@ -4269,9 +4271,9 @@ function teleportMazes() {
   return out;
 }
 
-// Whether a class answers a signal: its script has a GetMessage of its own,
-// the test thinkADotRules makes for the strange device's doors. A bed or a
-// bust whose Data1 happens to equal a lever's signal is sent it and does
+// Whether a class answers a signal: its script has a GetMessage in the class
+// itself, the test thinkADotRules makes for the strange device's doors. A bed
+// or a bust whose Data1 happens to equal a lever's signal is sent it and does
 // nothing, so without this a lever in Cademia "opened" three beds.
 DERIVED.SIGNAL_LISTENERS = null;
 function classAnswersSignal(pt) {
@@ -4312,7 +4314,7 @@ function leverRules() {
 
    The recipient is NOT always a register. Thirteen of the archive's
    twenty-seven flat Creates address it as a plain number, character 1 being
-   the hero, and a pattern that insists on `global`/`arg`/`local` cannot see
+   the hero, and a pattern that requires `global`/`arg`/`local` cannot see
    any of them. libraryRules carried that narrower pattern until 14 September
    2026: it cost nothing on this archive, because every document handed over
    goes through `global PlayerCharacter`, but it would have under-counted in a
@@ -4343,8 +4345,8 @@ function createsOf(proptype) {
 
 /* THE RIDDLES. The five buttons in the Hall of Truth each speak a riddle and
    take a spoken answer: 0x1110 opens a conversation, prints one of five
-   strings chosen by the button's own Data1, and accepts one keyword. Get it
-   right and it emits the button's Data2 as a signal; a stone door carrying
+   strings chosen by the button's Data1, and accepts one keyword. Get it
+   right and it emits the button's Data2 as a signal; a stone door with
    that number in its Data1 is what opens.
 
    The five strings are reached through a table of DREFS. A dref is
@@ -4383,7 +4385,7 @@ function riddleRules() {
   }
   // The answers, in the order the script tests them, read off the opcodes
   // rather than listed here. A keyword with a comma is two spellings of one
-  // answer, which is how "sound" also takes "noise".
+  // answer, which is how "sound" also accepts "noise".
   const answers = ops.map(o => {
     const m = /^conversation_response "([^"]*)"/.exec(o.text);
     return m ? m[1] : null;
@@ -4401,7 +4403,7 @@ function riddleRules() {
         const door = list.find(d => d.d1 === r.d2 && d.proptype !== 0x110 && d.flags !== 0xFF && !(d.flags & 0x40));
         buttons.push({ x: r.x, y: r.y, which: r.d1, signal: r.d2, door: door || null });
       }
-      // The lone button of its own class, which emits from both its fields.
+      // The lone button in a class by itself, which emits from both its fields.
       for (const r of list.filter(r => r.proptype === 0x107 && r.flags !== 0xFF && !(r.flags & 0x40))) {
         const door = list.find(d => d.d1 === r.d1 && d.proptype !== 0x107 && d.flags !== 0xFF && !(d.flags & 0x40));
         doors.push({ x: r.x, y: r.y, signal: r.d1, second: r.d2, door: door || null });
@@ -4485,10 +4487,10 @@ function convRules() {
 
    The second half needs writing carefully, and the care is the point.
    "Referenced by nothing" is true of most of the archive and means nothing
-   on its own: an item class is reached by its prop type, a dialogue by its
+   by itself: an item class is reached by its prop type, a dialogue by its
    character index, a room script by its room number, a skill by its skill
-   number. Saying so as a headline would be the same mistake as calling the
-   ambient-sound eggs "nothing". The cut that carries information is a
+   number. Printing that as a headline would be the same mistake as calling the
+   ambient-sound eggs "nothing". The cut that is informative is a
    resource unreferenced among siblings that ARE referenced: a helper nobody
    calls standing beside one with a hundred callers.
 
@@ -4496,7 +4498,7 @@ function convRules() {
    hardcoded id, not that it is dead, and two ranges here prove it rather
    than assume it: the combat-AI hooks in 0x9xx are invoked by the compiled
    .ai rules that ship beside the game, and the 0x2xx arrays are the
-   character-creation tables the dialog reads. So the card says "no script in
+   character-creation tables the dialog reads. So the card reads "no script in
    this archive calls it", which is what was measured, and never "dead". */
 function leanRules() {
   let idx = null;
@@ -4538,17 +4540,17 @@ function leanRules() {
 
 /* SPELLS. Every spell script casts through one helper, CastSpell (0xEA1),
    with the spell's level and its cost in magic points, so the two are read
-   off each script's call. The helper says the rest: a cost above the
+   off each script's call. The helper has the rest: a cost above the
    caster's magic fails with "The spell requires more power than you
    currently have"; the cost is taken, the caster's timing rises by 10 plus
    twice the level, and the casting fails when two rolls of 0 to the
    caster's Casting figure (the skill, else a class figure) together fall
    short of a roll of 0 to the level. Nothing else about a spell -- what
-   it does -- is a rule; that is the spell's own script. */
+   it does -- is a rule; that is the spell's script. */
 function spellRules() {
   const idx = buildScriptTextIndex();
   const helper = dvmScriptEntry(0xEA1);
-  // The time a cast takes: timing + (base + mult x level).
+  // The time a cast needs: timing + (base + mult x level).
   const tg = helper ? dvmSeqFirst(dvmOpsOf(helper), [/^get_field timing/, DVM_NUM, DVM_NUM, /^arg Arg01$/, /^mul$/, /^add$/]) : null;
   const rule = helper ? { power: /requires more power/.test(helper.text), failure: /You failed to cast/.test(helper.text),
     timing: !!tg, timeBase: tg ? dvmVal(0xEA1, tg[1]) : null, timeMult: tg ? dvmVal(0xEA1, tg[2]) : null,
@@ -4570,8 +4572,8 @@ function spellRules() {
 }
 
 /* HUNGER. Nothing in the scripts lowers nutrition; the fall is the
-   engine's. The scripts read it: the idle script complains below 4, the
-   fountain and Nutrient add up to a ceiling of 100. */
+   engine's. The scripts read it: the idle script has the character
+   complain below 4, the fountain and Nutrient add up to a ceiling of 100. */
 function hungerNotes() {
   const idx = buildScriptTextIndex();
   const falls = idx.some(e => /set_field nutrition[\s\S]{0,120}sub/.test(e.text));
@@ -4613,7 +4615,7 @@ function hungerNotes() {
      of CharEntry::DeathRites.
 
    Each figure comes back as { v, exe } with the address of the instruction
-   that holds it. A pattern that does not match leaves its figure null and
+   it is in. A pattern that does not match leaves its figure null and
    the sheet drops the sentence that needed it. */
 function exeClockRules() {
   const ops = exeOpsNamed('TGameViewer::DoTicks');
@@ -4675,7 +4677,7 @@ function exeClockRules() {
     const pair = i => i >= 2 && ops[i - 1].d && ops[i - 2].d && ops[i - 1].d.mn === 'lbz' && ops[i - 2].d.mn === 'lbz' ? [val(i - 2, ops[i - 2].d.d), val(i - 1, ops[i - 1].d.d)] : null;
     r.healthBytes = cmp1 >= 0 ? pair(cmp1) : null;
     r.magicBytes = cmp2 >= 0 ? pair(cmp2) : null;
-    // What a period gives: no constant. The health byte takes the number of
+    // What a period gives: no constant. The health byte gains the number of
     // periods that have passed (the count, indexed off the stack) in one
     // add, so it is one point a period, and the sentence links the add.
     const hs2 = cmp1 >= 0 ? exeFind(ops, cmp1 + 1, 10, d => d.mn === 'add') : -1;
@@ -4701,7 +4703,7 @@ function exeClockRules() {
     const death = ops.findIndex(o => exeCalls(o, 'CharEntry::DeathRites'));
     const dt = death >= 0 ? exeFindBack(ops, death, 6, d => d.mn === 'cmplwi') : -1;
     r.deathAt = dt >= 0 ? val(dt, ops[dt].d.imm) : null;
-    // What a pass takes off a poisoned character's health and gives a
+    // What a pass removes from a poisoned character's health and gives a
     // regenerating one: the health byte loaded, a constant added, stored back.
     const hb = r.healthBytes ? r.healthBytes[0].v : null;
     const step = (from, sign) => exeFind(ops, from, 40, (d, o) => d.mn === 'addi' && Math.sign(d.imm) === sign && d.imm !== 0 &&
@@ -4752,7 +4754,7 @@ function exeClockWords(units, perHour) {
      four small tables (speed, offset, phases, first tile).
 
    Everything below is read off those three routines by the shape of the
-   instructions, so a program edited elsewhere draws its own sky. */
+   instructions, so a program edited elsewhere draws its sky. */
 const QD_PATTERN_FIELDS = { 162: 'dkGray', 170: 'ltGray', 178: 'gray', 186: 'black', 194: 'white' };
 // QuickDraw's eight old-style colours (Inside Macintosh: Imaging With
 // QuickDraw, "Color QuickDraw" constants), as RGB.
@@ -4785,7 +4787,7 @@ function readSkyRules() {
   if (bl < 0) return null;
   out.back = exeVal(ds[bl], ds[bl].d.imm);
   // The hour table: a walk of the straight code up to the FillRect, tracking
-  // what each register holds -- a data word's address, a sunrise or sunset
+  // what is in each register -- a data word's address, a sunrise or sunset
   // time and an offset from it, or a pattern field.
   const fill = ds.findIndex(o => exeCalls(o, 'FillRect'));
   const reg = {}, cmps = [], loopPats = [], sets = [];
@@ -4858,7 +4860,7 @@ function readSkyRules() {
   const divBy = Math.round(Math.pow(2, 32) / magic) * (1 << gShr.d.sh);
   out.xpos = { add: exeVal(gAdd, gAdd.d.imm), scale: exeVal(gShl, 1 << gShl.d.sh), div: exeVal(gShr, divBy), right: exeVal(gRt, gRt.d.imm) };
   // The moons: CalcLocations' count and four tables, and DrawSky's first
-  // tiles, by the data addresses each routine takes.
+  // tiles, by the data addresses each routine uses.
   const tocAt = ops => ops.filter(o => o.d && o.d.mn === 'addi' && o.d.ra === 2).map(o => ({ op: o, off: o.d.imm }));
   const clT = tocAt(cl).sort((a, b) => a.off - b.off);
   if (clT.length < 6) return null;
@@ -4877,7 +4879,7 @@ function readSkyRules() {
   if (!out.moonBias || !out.moonRound) return null;
   return out;
 }
-// What the strip's sky holds at a quarter hour of a day: the fill pattern,
+// What is in the strip's sky at a quarter hour of a day: the fill pattern,
 // and the sun and moons as tiles at their places (CalcLocations, gXPos).
 function skyScene(rules, day, quarter) {
   const Q = rules.quarters.v, q = ((quarter % Q) + Q) % Q;
@@ -4912,7 +4914,7 @@ function exeBarkRules() {
 }
 
 /* WHERE THE HERO'S PORTRAIT COMES FROM. The scenario's 0x8800 is never
-   seen in play. CreatePlayer takes the dialog's pick as a slot number --
+   seen in play. CreatePlayer is given the dialog's pick as a slot number --
    TCreatePlayerDialog::GetPortrait answers 240 plus six a column plus the
    row, off the left and top of the picker list's visible rect (the ListRec's
    shorts at 22 and 20; exePortraitsOffered below) -- reads the resource that many
@@ -4977,7 +4979,7 @@ function exePortraitsOffered() {
 /* WHAT A COMMAND COSTS IN TIME. TGameSys::HeartBeat(n) is how a command
    spends the player's time, so every call of it with a constant in r4 is a
    cost, named by the routine that makes the call. A call whose r4 is worked
-   out (an attack's, the slide's) has no one number and says so. */
+   out (an attack's, the slide's) has no one number, and the row states that. */
 function exeActionCosts() {
   return exeCallersOf('TGameSys::HeartBeat').map(c => {
     const k = exeFindBack(c.ops, c.i - 1, 3, d => d.rd === 4 || d.ra === 4);
@@ -5007,7 +5009,7 @@ function exeEnemyTable() {
   const keys = slot >= 0 ? exeOpsNamed('TMapWindow::KeyRoutine') : [];
   const load = keys.findIndex(o => o.d && o.d.mn === 'lwz' && o.d.ra === 2 && o.d.d === ops[slot].d.d);
   const flip = load >= 0 ? exeFind(keys, load, 5, d => d.mn === 'cntlzw') : -1;
-  // The answer the enemy iterator keeps: cbEnemies compares r3 with it
+  // The answer the enemy iterator stores: cbEnemies compares r3 with it
   // straight after the call.
   const cb = exeOpsNamed('cbEnemies');
   const call = cb.findIndex(o => exeCalls(o, 'TActiveMonster::GetEnemyStatus'));
@@ -5043,7 +5045,7 @@ function exeAbilityMap() {
    through an eleven-entry table of code addresses beside the TOC. The
    table's displacement is read off the `addi r, r2, d` whose register an
    `lwzx` then indexes, and its length off the `cmplwi` bound that guards the
-   index, so nothing here names a displacement or a count. Each entry is a
+   index, so no displacement or count is written in here. Each entry is a
    handler inside DrawRoutine; what it calls is the `bl`s between its start
    and the next handler's, by the traceback names. The words for each kind
    (EGG_KIND_NAMES) remain this page's; the addresses and the calls are the
@@ -5054,7 +5056,7 @@ function exeAbilityMap() {
 /* WHAT AN ALIGNMENT IS CALLED (23 September 2026). A character's byte 25
    is its alignment: the unit constructor fills it from 0xF008 byte 6
    (exeMonsterStatCopy) and GetEnemyStatus looks it up in the enemy table.
-   The game names the values in one place, the combat AI: its base groups
+   The game has names for the values in one place, the combat AI: its base groups
    are STR# 9301, which the resource fork itself calls "Groups" -- good,
    evil, neutral, feral, then ally, enemy, bystander, everybody -- and
    SCombatAIEntry::CalculateObject switches on the group's token through a
@@ -5062,7 +5064,7 @@ function exeAbilityMap() {
    constant. So a value is named by the group whose case compares with it:
    2 good, 1 evil, 0 neutral, 3 feral, read here rather than written down.
    (gandreas's monster list calls the same four Good, Chaotic, Neutral and
-   Wild, which agrees.) Null without the application. */
+   Wild, which matches.) Null without the application. */
 function exeAlignmentNames() {
   if (!appImage() || !window.APP_RSRC) return null;
   if (DERIVED.ALIGN_NAMES !== undefined) return DERIVED.ALIGN_NAMES;
@@ -5110,7 +5112,7 @@ function alignmentHTML(v, src) {
    a test's token through a table beside the TOC, token = position in STR#
    9304 plus one; a case that loads byte 8 and masks one bit is that bit's
    test, and its name is the list's entry without the argument list. What
-   dvmBitFlagName says. Null without the application. */
+   dvmBitFlagName returns. Null without the application. */
 function exeAiBitTests() {
   if (!appImage() || !window.APP_RSRC) return null;
   try {
@@ -5143,11 +5145,11 @@ function exeAiBitTests() {
                (exeSyscallTable): cbnearby, cbAddAbility;
      flags     character flag to its word in the STR# titled ObjectFlags,
                the bits of the halfword the combat AI's TestFlag reads, placed
-               by the range TSpellFX::AddAbility keeps in that halfword
+               by the range TSpellFX::AddAbility uses in that halfword
                (exeAbilityMap) -- and only when the two read the same halfword;
      bits      a bit of byte 8 to the AI test that reads it alone
                (exeAiBitTests): InParty, BeenMet.
-   The delv tier asks through dvmProgramNames; each part is null when its
+   The delv tier reads them through dvmProgramNames; each part is null when its
    reading fails, and the names then fall back to delvmod's or to numbers. */
 let _programNames = { data: null, rsrc: null, v: null };
 function programNames() {
@@ -5249,12 +5251,12 @@ function exeEggHandlers() {
 /* ---- the palette ramps, read off the program ------------------------------
    TViewer::BuildFilters fills eight remap tables, one per phase: for every
    index n it compares n against three bounds in turn and, between the first
-   two, keeps the low bits of n minus the phase under the high bits of n --
+   two, puts the low bits of n minus the phase under the high bits of n --
    which is a ramp of 2^k colours walked backwards. The bounds are the
    `cmpwi` immediates in that loop and the ramp width is the `clrlwi` that
-   keeps k bits, both read here; the identity outside the bounds is the
-   fall-through. The renderer's own constant, PALETTE_CYCLES, is compared
-   against what is read, so a program whose ramps differ says so. Null with
+   clears all but k bits, both read here; the identity outside the bounds is the
+   fall-through. The renderer's constant, PALETTE_CYCLES, is compared
+   against what is read, so a program whose ramps differ is reported. Null with
    no application open, or when the loop is not found. */
 function exePaletteRamps() {
   const ops = exeOpsNamed('TViewer::BuildFilters');
@@ -5298,7 +5300,7 @@ function exePaletteRamps() {
 /* ---- the character record's fields, read off the program ------------------
    GetField(short, short, short) hands fields 19 to 40 of a Character to a
    jump table beside the TOC, one handler each, and every handler's first
-   load through the record pointer says which byte or halfword of the
+   load through the record pointer shows which byte or halfword of the
    32-byte record that field is. The table's displacement and its bound are
    read the way the egg table's are. The scripts' names for the fields are
    delvmod's (DVM_SYM.field), and a field the handler reads through a helper
@@ -5334,8 +5336,8 @@ function exeCharacterFields() {
 
 /* ---- the monster-statistics record, off GetField's second table ----------
    `0xF008` is 128 records of 16 bytes, and what each byte means was a
-   1999 field list with question marks on it. The application says so
-   itself: `GetField` dispatches on the field a script asks for, and it
+   1999 field list with question marks on it. The application has the
+   answer: `GetField` dispatches on the field a script requests, and it
    has two jump tables -- the first for a character's record (19 to 40,
    exeCharacterFields above) and a second, further down the routine, for
    a unit's. Each handler loads one field out of the record at a fixed
@@ -5348,8 +5350,8 @@ function exeCharacterFields() {
    `ObjToMonst` searching on the halfword at +12 is what makes that one
    the prop type.
 
-   Null with no application open, and then the sheet says only what the
-   record holds and not what the program does with it. */
+   Null with no application open, and then the sheet shows only what is in
+   the record and not what the program does with it. */
 function exeMonsterFields() {
   const img = appImage();
   if (!img) return null;
@@ -5370,7 +5372,7 @@ function exeMonsterFields() {
     const ld = exeFindBack(ops, jt.at, 24, d => d.mn === 'lwz' && d.ra === 2 && d.d === disp);
     if (ld < 0) continue;
     // The record pointer is the base plus the index, so the `add` between
-    // that load and the table names the register the handlers read from.
+    // that load and the table gives the register the handlers read from.
     const ad = exeFindBack(ops, jt.at, 12, d => d.mn === 'add');
     if (ad < 0) continue;
     const a = ops[ad].d;
@@ -5416,18 +5418,19 @@ function exeMonsterFields() {
 }
 
 /* ---- which unit byte becomes which of a character's stats ----------------
-   0xF008's first three bytes were labelled Body, Reflex, Mind by the delvmod
-   wiki's field table, which then said it was not sure of the order, because
-   gandreas's 1999 list does not line up with it: all forty-four of his
-   entries print byte 1 as Body, byte 2 as Reflex and byte 0 as both Mind
-   and Damage. The program settles it. `TActiveMonster::TActiveMonster(short)`
-   builds the live character a unit is: for each stat it loads a byte of the
-   0xF008 record, scales it by a percentage, and stores it into a byte of the
-   character record -- byte 0 into 9, 1 into 10, 2 into 11, 5 (health) into
-   14. GetField's first table says which field serves each of those bytes
-   (exeCharacterFields), and delvmod's symbols name the fields: 9 is `body`,
-   10 `reflex`, 11 `mind`. So the wiki's order was right and the list is
-   shifted, and the unit page's names are read here rather than assumed.
+   0xF008's first three bytes were labelled Body, Reflex, Mind by the
+   delvmod wiki's field table, whose authors then noted they were not sure
+   of the order, because gandreas's 1999 list does not line up with it: all
+   forty-four of his entries print byte 1 as Body, byte 2 as Reflex and byte
+   0 as both Mind and Damage. The program settles it.
+   `TActiveMonster::TActiveMonster(short)` builds the live character a unit
+   is: for each stat it loads a byte of the 0xF008 record, scales it by a
+   percentage, and stores it into a byte of the character record -- byte 0
+   into 9, 1 into 10, 2 into 11, 5 (health) into 14. GetField's first table
+   shows which field serves each of those bytes (exeCharacterFields), and
+   delvmod's symbols name the fields: 9 is `body`, 10 `reflex`, 11 `mind`.
+   So the wiki's order was right and the list is shifted, and the unit
+   page's names are read here rather than assumed.
 
    Found by shape: an `lbz` at 0 to 15 through the register the record
    pointer was loaded into (`lwz rX, 4(this)`), then the first `stb` after it
@@ -5495,14 +5498,14 @@ function characterFlagSites() {
       const kids = [];
       for (let j = i + 1; j < ops.length && ops[j].depth > ops[i].depth; j++) if (ops[j].depth === ops[i].depth + 1) kids.push(ops[j]);
       const lit = kids[1] && LIT.exec(kids[1].text);
-      /* A flag named by the thing's own record. The ring (prop type 0x133)
+      /* A flag named by the thing's record. The ring (prop type 0x133)
          sets, putting it on, the flag whose number is its Data2, and clears
          it coming off: `SetFlag(Arg01, Arg00.data2)`. No literal is in the
          script, so until 13 October 2026 these were counted unknown and flag
-         28, which decides whether Tavara's fortress fades, read as set by
-         nothing; one ring in the file carries 28. Each placed thing of the
+         28, which sets whether Tavara's fortress fades, read as set by
+         nothing; one ring in the file has 28. Each placed thing of the
          class with a number in that field is a site of that flag, at the
-         script's line. Read only where the script is a class's own and the
+         script's line. Read only where the script belongs to the class and the
          field is Arg00's, the thing itself. */
       const viaField = !lit && kids.length === 3 && kids[1].text === 'arg Arg00' && /^get_field data([12]) /.exec(kids[2].text);
       if (viaField && e.resid >= 0x1000 && e.resid < 0x1800 && (verb === 'set' || verb === 'clear')) {
@@ -5519,7 +5522,7 @@ function characterFlagSites() {
       if (!lit) { unknown++; continue; }
       const f = parseInt(lit[1]);
       if (!by.has(f)) by.set(f, { flag: f, set: [], clear: [], test: [], effect: [] });
-      // `who` is the character the call names when it names one by number,
+      // `who` is the character the call gives when it gives one by number,
       // which is how a script reaches another character's flag.
       const whoLit = kids[0] && LIT.exec(kids[0].text);
       by.get(f)[verb].push({ resid: e.resid, at: kids[1].at, who: whoLit ? parseInt(whoLit[1]) : null });
@@ -5527,7 +5530,7 @@ function characterFlagSites() {
   }
   return (DERIVED.CHAR_FLAG_SITES = { flags: [...by.values()].sort((a, b) => a.flag - b.flag), unknown });
 }
-// The record byte and bit a flag lives in, by the program's own map.
+// The record byte and bit a flag lives in, by the program's map.
 function characterFlagPlace(flag) {
   const map = appImage() ? exeAbilityMap() : [];
   for (const m of map) if (m.below && flag < m.below.v && m.offset) return { offset: m.offset, bit: flag - (m.sub ? m.sub.v : 0), word: m.word };
@@ -5535,16 +5538,16 @@ function characterFlagPlace(flag) {
 }
 
 /* ---- how a monster is built, read off CreateMonster and the constructors --
-   A creature's class carries a layout code as the first word of key 55, and
+   A creature's class has a layout code as the first word of key 55, and
    TActiveMonster::CreateMonster picks a kind of monster by it: one code is a
    dragon (four extra records copying the head's, a 2x2), a run of codes is
    a crawler (a head with a tail record behind it), one code is an octopus
    (a body with eight arm records of another class around it), and the rest
    are one record. The bounds are the routine's three compares, read here,
    with the constructor each branch calls as the control. Then each
-   constructor says the rest: TCrawlMonster compares the code against one
+   constructor has the rest: TCrawlMonster compares the code against one
    value (10) for a single tail whose aspect is the head's plus 8, else
-   takes the segment count from key 54; TOctoMonster reads the arm class
+   reads the segment count from key 54; TOctoMonster reads the arm class
    from key 54 and places eight arms at the offsets in two tables of
    halfwords beside the TOC, arm i at aspect i. The page assembles a unit's
    picture by these (unitPieces in js/page-props.js), and with no
@@ -5618,7 +5621,7 @@ function exeDestReg(d) { return d.rt !== undefined ? d.rt : d.rd !== undefined ?
    Stacking (key 40), and four side tables of one byte or halfword a class
    (the weight, the Chair word plus one, key 55's word, the first word of
    SoundEffects). This reads the routine rather than stating the map: each
-   `li 4, K` names the key the next HasProperty or GetProperty asks about,
+   `li 4, K` sets the key for the next HasProperty or GetProperty,
    a single-bit test of the value followed by an `ori`/`oris` into the
    cache is a value bit moved to a cache bit, an `ori`/`oris` after a
    HasProperty alone is a has-bit, and a store through a register loaded
@@ -5654,7 +5657,7 @@ function exeIntfCache() {
       // A single-bit test of the value just before it, or a tag test: the
       // nearest test since the GetProperty call, not only the five
       // instructions before the load. The Weight's tag test sits sixteen
-      // instructions before the `oris` it decides, on the far side of the
+      // instructions before the `oris` it controls, on the far side of the
       // plain-number arm that stores the byte table, and a five-deep look
       // read that bit (0x02000000, a weight that is not a plain number) as
       // a second has-bit of key 36 until 24 September 2026.
@@ -5743,11 +5746,11 @@ function exeTocReaders(disp) {
 
 /* ---- how a character is seated, read off InteractProps ---------------------
    TViewer::InteractProps finds each seat by the per-class Chair table
-   (FillIntfCache keeps the Chair word plus one there), and for a four-way
+   (FillIntfCache stores the Chair word plus one there), and for a four-way
    sprite standing on it -- key 55's first word is 4 -- sets the sitter's
-   aspect: with a Chair word of 0, the seat's own aspect times four plus
+   aspect: with a Chair word of 0, the seat's aspect times four plus
    three, so the seat's aspect is the facing and column three is the seated
-   pose; with a word of 1 to 4, a fixed frame, which the routine holds as
+   pose; with a word of 1 to 4, a fixed frame, which the routine has as
    `li` operands of 3, 7, 11 and 15 -- north, east, south and west seated.
    Read here as the switch's four constants and the 'or 3' of the aspect
    case. Null with no application open or when the shape is not found. */
@@ -5781,18 +5784,18 @@ function exeSeatRule() {
 
 /* ---- one class's long in the per-class cache ----------------------------
    What FillIntfCache would build for a class, computed here from the
-   class's own table and the map read off the routine (exeIntfCache): a
+   class's table and the map read off the routine (exeIntfCache): a
    has-bit is set when the class has the member at all, in its data, its
    code or its strings; a moved bit when the member's one word is a plain
-   number carrying it; a tag bit when the member is there and is not a
+   number with it; a tag bit when the member is there and is not a
    plain number (a class whose weight is not a number, for one); and the
-   side tables take the member's word as the routine keeps it. The class is
+   side tables have the member's word as the routine stores it. The class is
    read as the file has it and nothing is followed to a parent or a
-   default: TInterp::HasProperty is asked about the class script itself,
-   which is also how thinkADotRules decides which classes answer a signal.
+   default: TInterp::HasProperty is called on the class script itself,
+   which is also how thinkADotRules settles which classes answer a signal.
    Each bit is joined to the routines that test it (exeTocReaders), so a
    bit is named by what reads it and by where it came from, never by a
-   guess. Null with no application open or no class table. */
+   assumption. Null with no application open or no class table. */
 function classCacheWord(pt) {
   const ic = appImage() ? exeIntfCache() : null;
   const cls = ic && parseClassTable(0x1000 + pt);
@@ -5827,9 +5830,9 @@ function classCacheWord(pt) {
 }
 
 /* ---- the syscall table, read off the interpreter ----------------------------
-   TInterp::DoExpr takes an opcode of 0xA0 or more, subtracts 0xA0, and
+   TInterp::DoExpr is given an opcode of 0xA0 or more, subtracts 0xA0, and
    calls through a table of transition vectors beside the TOC; the vector's
-   first word is the routine, and the routine has the program's own name
+   first word is the routine, and the routine has the program's name
    for the call (cbrnd, cbwhohas). delvmod's names for the same numbers are
    behavioural, from watching scripts; this puts the two side by side. The
    compare against 0xA0 and the table's displacement are read off the
@@ -5856,14 +5859,14 @@ function exeSyscallTable() {
 }
 
 /* Which syscalls take a character by its number, and in which argument,
-   read off each handler. A handler gets the argument array in r4; an
+   read off each handler. A handler is given the argument array in r4; an
    argument whose number (its tag stripped) is multiplied by 32 and used to
    index the character table (the words at r2-30352, 32 bytes a character,
    the table cbpartyjoin sets the in-party bit in) is a character -- there,
    or in a routine the handler hands it to, two calls deep, which is how
    TalkParticipant (cbsetportrait) reaches it through
    TConversation::ShowPortrait. The reader follows a value through register
-   moves, stack slots and the shifts that strip the tag, and forgets a
+   moves, stack slots and the shifts that strip the tag, and drops a
    register the moment anything else writes it. Map of syscall op to the
    argument indices; null with no application open. */
 let _sysCharArgs = { app: undefined, v: null };
@@ -5950,7 +5953,7 @@ function dvmAmountExpr(tokens) {
    executable is `a + (rand mod (b - a))`, and 31 places in the archive write
    `Random(0, len(array))` and index that array with it -- so the operands are
    not the ends of the range and printing them as if they were overstates
-   every roll on the sheet by a point. It said "a roll of 0 to 10" for
+   every roll on the sheet by a point. It read "a roll of 0 to 10" for
    Fireball's `Random(0, 10)` until 6 September 2026. Where a script passes a
    pair it cannot roll between (`a >= b`, which the routine answers with `a`),
    the one value is printed rather than a backwards range. */
@@ -6080,9 +6083,9 @@ function sleepRules() {
    25, n` after a test of one bit of the status halfword at byte 6 of the
    record (a single-bit `rlwinm.`, so bit b is character flag 8 + b, the
    ObjectFlags name), or after `TSpellFX::HasAbility(member, 0x7000)`, which
-   for 0x7000 asks no spell effect but whether the nutrition at byte 27 is
+   for 0x7000 tests no spell effect but whether the nutrition at byte 27 is
    below a number (its `cmplwi`); `li 25, 0` is the default. The first test
-   that passes wins, in the order read. */
+   that passes is used, in the order read. */
 function exePartyColours() {
   const ops = exeOpsNamed('TStatusWindow::DrawCharStatus');
   if (!ops.length) return null;

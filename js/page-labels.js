@@ -4,13 +4,13 @@
    script until 16 September 2026, cut at the section banners it had and
    nowhere else, so every function is where it was in the one file. This
    tier is the page's furniture: js/mac-*.js have nothing of Cythera in
-   them, js/delv-*.js cover the formats but not the page, and these cover both.
-   They are classic scripts, never modules, because the page has to work
-   from a file:// origin, and they share one global scope, so a name
-   declared in any of them is reachable from all. The order matters only to a
-   statement that runs at load time, which sees what loaded before it; the one such statement
-   that needed a later file, the brand line, stayed in the page after the
-   last of these. File 1 of 14. */
+   them, js/delv-*.js cover the formats but not the page, and these cover
+   both. They are classic scripts, never modules, because the page has to
+   work from a file:// origin, and they share one global scope, so a name
+   declared in any of them is reachable from all. The order matters only to
+   a statement that runs at load time, which sees what loaded before it; the
+   one such statement that needed a later file, the brand line, stayed in
+   the page after the last of these. File 1 of 14. */
 
 /* THE PAGE'S DERIVED TABLES LIVE ON THE ARCHIVE. Everything the page derives
    from the open file -- the schedules, the character table, the barks, the

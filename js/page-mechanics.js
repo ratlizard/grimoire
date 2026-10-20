@@ -1,21 +1,21 @@
 /* The Mechanics sheet: its figures, the patches and compare tools, and the sheet itself.
 
    One of the fourteen js/page-*.js files that were index.html's inline
-   script until 16 September 2026, cut at its own section banners and
+   script until 16 September 2026, cut at the section banners it had and
    nowhere else, so every function is where it was in the one file. This
-   tier knows the page's furniture: js/mac-*.js know nothing of Cythera,
-   js/delv-*.js know the formats but not the page, and these know both.
-   They are classic scripts, never modules, because the page has to work
-   from a file:// origin, and they share one global scope, so a name
-   declared in any of them is reachable from all. The order only decides
-   what has run when a statement runs at load time; the one such statement
-   that needed a later file, the brand line, stayed in the page after the
-   last of these. File 11 of 14. */
+   tier is the page's furniture: js/mac-*.js have nothing of Cythera in
+   them, js/delv-*.js cover the formats but not the page, and these cover
+   both. They are classic scripts, never modules, because the page has to
+   work from a file:// origin, and they share one global scope, so a name
+   declared in any of them is reachable from all. The order matters only to
+   a statement that runs at load time, which sees what loaded before it; the
+   one such statement that needed a later file, the brand line, stayed in
+   the page after the last of these. File 11 of 14. */
 
 /* ---- the pictures on the Mechanics sheet ---------------------------------
    The sheet states each rule in prose and then, since 6 September 2026, draws
    it. The reason is the dice game: "your die outside the two black ones wins
-   the distance to the nearer" is exact, complete, and tells nobody whether
+   the distance to the nearer" is exact, complete, and gives no sense of whether
    the game is worth playing. The 216 throws drawn as 216 coloured cells
    answer that at a glance, and every other rule here had the same gap between
    being stated and being understood -- how often a blow lands, what a shield
@@ -28,8 +28,8 @@
    against an independent simulation by utilities/mech_check.mjs. And **a
    figure must say something the table does not**; where it would only repeat
    a column, there is no figure. Weapons get bars because the ordering is the
-   point, shops get a price distribution because the range is the point, and
-   the skill table gets none.
+   point, shops have a price distribution because the range is the point, and
+   the skill table has none.
 
    The chart builders are here rather than in js/ because they emit markup and
    the class names are the page's; the arithmetic they draw is in js/ because
@@ -42,7 +42,7 @@ const MECH_INK = {
   win: '#9ec254', push: '#6e6952', lose: '#c0684f',
   cool: '#6ba8bf', warm: '#c0684f', leaf: '#9ec254', violet: '#b08fd0'
 };
-// Series colours, chosen by eye against the planks: the page's own gold
+// Series colours, chosen by eye against the planks: the page's gold
 // first, then three that stay apart from it and from each other on a dark
 // ground. Not the game's CLUT -- that palette is Cythera's artwork and
 // reading a chart is not looking at the game.
@@ -83,7 +83,7 @@ function mechBars(rows, opts) {
       '%;background:' + (r.colour || opts.colour || MECH_INK.gold) + '"></span></span>' +
     '<span class="bVal">' + svEsc(r.text !== undefined ? r.text : String(r.value)) + '</span>').join('') + '</div>';
 }
-// Columns, for a distribution. A bin may carry a second value, drawn as a
+// Columns, for a distribution. A bin may have a second value, drawn as a
 // dashed rule across the column: that is how a sampled result is laid over
 // the exact one without a second chart.
 function mechColumns(bins, opts) {
@@ -189,7 +189,7 @@ function mechDiceMatrix(cells) {
 /* WHAT TO EDIT. Every number the game is played with is one byte of the
    inn's script, and diceGame() has their offsets; this lays them out with
    three edits worked through, each figure computed by mechDiceExact over
-   the edited numbers rather than guessed. Edit Bytes on 0x812 takes the
+   the edited numbers rather than assumed. Edit Bytes on 0x812 accepts the
    hex; Changes exports the archive that plays it. */
 function mechDiceBytes(dice) {
   if (!dice || !dice.bytes || !dice.bytes.length) return '';
@@ -209,11 +209,11 @@ function mechDiceBytes(dice) {
     (tries.length ? '<ul class="ruleList">' + tries.map(t => '<li>' + t + '</li>').join('') + '</ul>' : '');
 }
 
-/* THE SIMULATOR. The exact enumeration says the player wins about three
+/* THE SIMULATOR. The exact enumeration shows the player ahead by about three
    tenths of an obol a game; the simulator is there because that sentence
    persuades nobody who has just lost four in a row, and because watching the
    running average wander and then settle is the only honest way to show what
-   an edge that small feels like. It plays the script's own arithmetic --
+   an edge that small feels like. It runs the script's arithmetic --
    mechDicePlay in js/delv-mechanics.js, the same function the exact
    enumeration is built from -- so the two cannot drift apart. */
 let DICE_SIM = { gambling: false, tally: null, last: null };
@@ -299,10 +299,10 @@ function diceSimHtml() {
   return out;
 }
 
-// Who fights with the body: how many units carry the bit 0xE88 tests, and
+// Who fights with the body: how many units have the bit 0xE88 tests, and
 // whether the hero's does, the hero being character 1 and its unit the one
-// whose prop type is the hero's. Nothing without the program, which is what
-// says the bit is the unit's field 0x33.
+// whose prop type is the hero's. Nothing without the program, which is where
+// the bit is shown to be the unit's field 0x33.
 function combatBodyUnitsText(bit) {
   const units = unitsWithTopFlag(bit);
   if (!units.length) return '';
@@ -318,7 +318,7 @@ function combatBodyUnitsText(bit) {
    the archive and return markup. None of them reads a resource itself. */
 
 // Weapons ordered by what they do, which the table's row order cannot show
-// as quickly, with the armour and the shields beside them on their own
+// as quickly, with the armour and the shields beside them on separate
 // scales -- three different quantities, so three groups rather than one.
 // The classes that read their aspect, counted off the listings, for the
 // Mechanics prop record section (aspectReaders).
@@ -438,7 +438,7 @@ function mechKarmaFigure(km) {
    nutrition column (the maintainer, 3 October 2026, asked for the chart to
    go and the table to sort by nutrition instead). Where two foods share a
    name (two "meat", the class "flatbread" and its first variant) the
-   create-a-prop word tells them apart, quietly. */
+   create-a-prop word distinguishes them, quietly. */
 function mechFoodTable(fd) {
   const rows = [];
   for (const f of fd.foods) {
@@ -456,7 +456,7 @@ function mechFoodTable(fd) {
 }
 
 /* A column heading that sorts its table on a click: the first click puts
-   the largest number (or the last name) first unless `dir` says which way
+   the largest number (or the last name) first unless `dir` gives which way
    the table already runs, and each click after turns it round. A cell
    sorts by its data-sort, else by its text. Gold, being a thing to click. */
 function mechSortHead(label, col, dir) {
@@ -498,7 +498,7 @@ function mechStatusFigure(st, unit) {
     'The longest each status lasts. The chart leaves out random durations.');
 }
 
-// The clock's own arithmetic, over four days: the belly empties in a hundred
+// The clock's arithmetic, over four days: the belly empties in a hundred
 // hours and everything else follows from whether it is empty.
 function mechHungerFigure(belly, clock) {
   if (belly === null || belly === undefined || !clock) return '';
@@ -532,7 +532,7 @@ function mechLockFigure(lk) {
     points: xs.map(d => [d, 100 * mechLockChance(reflex, d, rules)])
   }));
   // One dot per distinct difficulty rather than one per class: eight of the
-  // classes carry 15, and eight labels on one point is a smudge. The names
+  // classes have 15, and eight labels on one point is a smudge. The names
   // are joined, the labels alternate down the page so two nearby dots do not
   // collide, and a dot near the right edge hangs its label to the left.
   const byDiff = new Map();
@@ -554,7 +554,7 @@ function mechLockFigure(lk) {
   }), 'The dots are each kind of lock, for a picker with reflex 20.');
 }
 
-// What a shop asks. The interesting thing is the range -- three orders of
+// What a shop charges. The interesting thing is the range -- three orders of
 // magnitude between a loaf and the bomb -- so the axis is logarithmic and
 // the dearest few are named.
 function mechShopFigure(sh) {
@@ -594,12 +594,12 @@ function mechTrainingFigure(tr) {
 }
 
 // The balloon itself, at the size the engine draws it, because the sheet
-// says 128 by 32 and a rounded box with a tail and that is a picture rather
+// states 128 by 32 and a rounded box with a tail and that is a picture rather
 // than a fact. The geometry is from a trace of TBark in the executable.
 function mechBalloonFigure(barks, bark) {
   if (!bark || !bark.ticks || !bark.width || !bark.height) return '';
   const W = bark.width.v, H = bark.height.v, secs = bark.ticks.v / 60;
-  // A catalogue entry carries `words`, a list; the balloon shows one short line.
+  // A catalogue entry has `words`, a list; the balloon shows one short line.
   const first = b => (b && b.words && b.words.length) ? b.words[0] : '';
   const line = (barks && barks.length ? first(barks.find(b => first(b) && first(b).length < 16) || barks[0]) : '');
   return mechFig('The balloon, at the size the program draws it',
@@ -623,8 +623,8 @@ function mechSleepFigure(sl, clock) {
   const level = 6;
   const rows = [];
   if (sl.own !== null) rows.push({ name: 'your bed', quality: sl.own });
-  // The innkeeper by name, the way the table under this names them: a
-  // character record has no name field, the name is the page's own lookup.
+  // The innkeeper by name, the way the table under this does: a
+  // character record has no name field, the name comes from the page's lookup.
   for (const inn of sl.inns) if (inn.quality !== null) {
     let who = 'character ' + inn.who;
     try { who = characterName(inn.who) || who; } catch (e) { quiet(e); }
@@ -672,8 +672,8 @@ function mechClockFigure(sp, clk, costs) {
     step ? 'A step is <b>' + srcNum(stepVal, step) + '</b> unit' + (step === 1 ? '' : 's') + ', so an hour is ' + Math.round(unit / step).toLocaleString() + ' steps.' : '');
 }
 
-// How much of the archive's own code asks about each skill: the table names
-// the scripts, this says which skills the game actually leans on.
+// How much of the archive's code tests each skill: the table has
+// the scripts, this shows which skills the game actually leans on.
 function mechSkillsFigure(sk) {
   const rows = [];
   for (const [id, resids] of sk.by) {
@@ -691,24 +691,24 @@ function mechSkillsFigure(sk) {
    Cythera's one add-on system is Magpie, and a Magpie patch is a Delver
    Archive holding only the resources it replaces. `mergeDelverPatch` has
    applied one since the browser player needed it; what was missing here is
-   the part that comes first, which is saying what a patch IS before anyone
+   the part that comes first, which is showing what a patch IS before anyone
    decides to trust it. So this section reads a patch and shows what it would
    do to the file that is open: its description and its author, whether this
-   file already carries it, and every resource it replaces with the shipped
+   file already has it, and every resource it replaces with the shipped
    one drawn beside it.
 
    VERIFIED HERE MEANS "THIS IS WHAT IT DOES", NOT "WE VOUCH FOR IT". The page
-   has no way to know whether a patch is safe and does not pretend to. What it
+   has no test of whether a patch is safe and does not claim one. What it
    can do is decode both sides with the readers it already has and put them
    next to each other, which is the only claim it makes.
 
    NOTHING IS WRITTEN. The report is built out of `describeDelverPatch`,
-   which reads offsets and lengths and reaches Magpie's own verdicts; merging
+   which reads offsets and lengths and reaches Magpie's verdicts; merging
    is a separate act, offered by the report's Apply button (patchesApply,
    below) and done in memory like every other edit here.
 
-   THE TWO ARCHIVES PROBLEM DOES NOT ARISE: `delverArchiveSpec` takes bytes
-   and `decodeResource` takes a resource's bytes, so a patch's tile sheet
+   THE TWO ARCHIVES PROBLEM DOES NOT ARISE: `delverArchiveSpec` is given bytes
+   and `decodeResource` is given a resource's bytes, so a patch's tile sheet
    decodes without the open file ever being displaced. Since 18 September
    2026 that is true of every reader in js/delv-*.js, which take the archive
    as an argument; before that `getResourceBytes` read the open one out of a
@@ -727,7 +727,7 @@ function patchBaseSpec() {
 /* A patch's bytes, however they got here. Split from the file control below
    so the whole path -- unwrap, parse, compare, draw -- can be driven from a
    harness with a patch built in memory, which is the only way any of this is
-   checkable: the one real patch on this disk arrives inside a StuffIt archive
+   checkable: the one real patch on this disk comes inside a StuffIt archive
    the page cannot decompress, so a check that needed the real file would skip
    on most machines and prove nothing. */
 function patchesOpenBytes(bytes, name, baseSpec) {
@@ -746,7 +746,7 @@ function patchesOpenBytes(bytes, name, baseSpec) {
   report.fileName = name || '';
   report.via = got.via;
   window.PATCH_REPORT = report;
-  // The archive's own bytes, not the wrapper's: mergeDelverPatch wants the
+  // The archive's bytes, not the wrapper's: mergeDelverPatch needs the
   // Delver archive, and what was dropped may have been a .hqx round a .sit.
   window.PATCH_BYTES = got.bytes;
   say('');
@@ -754,9 +754,9 @@ function patchesOpenBytes(bytes, name, baseSpec) {
   return true;
 }
 
-/* A patch file chosen in the section. It arrives the way any file here does,
+/* A patch file chosen in the section. It comes in the way any file here does,
    so it can be a .hqx or a MacBinary wrapper as easily as a bare data fork,
-   and extractDelverArchive is what already knows the order to try them in. */
+   and extractDelverArchive already has the order to try them in. */
 function patchesOpenFile(file) {
   if (!file) return;
   file.arrayBuffer().then(buf => { const b = new Uint8Array(buf); noteMagpieFrom(b); basketAddFile(b, file.name); }).catch(e => {
@@ -769,7 +769,7 @@ function patchesOpenFile(file) {
    17 October 2026): read by Patch Comparison, which opens on its report,
    and added to Your Patch under its name, so it is downloaded and applied
    with the rest. Until then the file was chosen in Patch Comparison and
-   applied from its report, on its own. */
+   applied from its report, by itself. */
 function basketAddFile(bytes, name) {
   if (!patchesOpenBytes(bytes, name)) {
     const n = document.getElementById('patchNote');
@@ -832,7 +832,7 @@ function patchesApply() {
 }
 
 /* One 32x32 tile out of a decoded sheet, as a canvas at 2x. A sheet is one
-   tile wide and as many tiles tall as it holds, so a tile is a horizontal
+   tile wide and as many tiles tall as it has, so a tile is a horizontal
    band of it and nothing has to be reshaped to cut one out. */
 function patchTileCanvas(dec, t, subn) {
   const c = document.createElement('canvas');
@@ -927,7 +927,7 @@ function renderPatchReport() {
   host.appendChild(el('div', '', mechTable(['resource', '#in this file', '#in the patch', ''], rows)));
 
   /* The part worth the whole section: the tiles themselves, shipped above
-     patched. Only the tiles that differ are drawn. A sheet holds sixteen and
+     patched. Only the tiles that differ are drawn. A sheet has sixteen and
      the Pumpkin Patch redraws two or three of most of them, so drawing all
      192 would bury the answer in tiles nobody touched. */
   const sheets = rep.resources.filter(r => r.inBase && !r.identical && r.subn === 141)
@@ -955,14 +955,14 @@ function renderPatchReport() {
   }
   scriptDiffSection(host, el, rep.resources.filter(r => !r.identical && SCRIPT_SUBN.has(r.subn))
     .map(r => ({ resid: r.resid, a: r.baseData, b: r.patchData })), 'the open file', 'the patch', rep.scriptDiffs || (rep.scriptDiffs = new Map()));
-  /* The report has no Apply of its own since 17 October 2026: a patch
+  /* The report has no Apply button since 17 October 2026: a patch
      file is added to Your Patch (basketAddFile), and Your Patch's Apply to
      Site Data applies it with everything else. */
   host.appendChild(el('div', '', svLink('Clear this patch', 'patchesForget()')));
 }
 
 /* The scripts a patch or a comparison changes, each line by line
-   (dvmScriptDiff in js/delv-fold.js). The sections said which scripts
+   (dvmScriptDiff in js/delv-fold.js). The sections showed which scripts
    changed and by how many bytes; the maintainer asked for the exact
    difference (27 September 2026), and a fix patch is nearly all scripts.
    One fold a script, its counts on the fold and its lines drawn when it is
@@ -1028,22 +1028,22 @@ function scriptDiffHTML(p, d) {
    - for the hero and the heroine in their own body, the PARTS: hair, skin
      and clothes, from the hand-made table HERO_SPRITES;
    - for any sprite, COLOUR BY COLOUR: each region the art is painted in
-     (heroShadeDef), replaced as a whole. Each row carries a frame with only
+     (heroShadeDef), replaced as a whole. Each row has a frame with only
      that region in colour, since a list of palette indices means nothing
      until you see which pixels they are.
    The recolouring is all in js/delv-graphics.js, indices to indices; what is
    here is the choosing and the drawing.
 
-   ALWAYS FROM THE FILE AS IT ARRIVED. The part table names this release's
+   ALWAYS FROM THE FILE AS IT ARRIVED. The part table has this release's
    indices, so a sheet already recoloured would label nothing and a second
    recolour would compound the first. So the art is taken from PRISTINE_BYTES
    when the open file has one, which applying a patch leaves alone, and the
    choices are re-applied to the shipped art every time.
 
-   ONLY A SPRITE'S OWN FRAMES. Sheets are shared -- the demon's eight frames
+   ONLY THE SPRITE'S FRAMES. Sheets are shared -- the demon's eight frames
    are the first half of 0x8E5D and the golem's the second -- so a recolour
    touches the frames 0xF004 names for the chosen class and writes the rest
-   of the sheet back as it was. Who else is drawn with those frames is said
+   of the sheet back as it was. Who else is drawn with those frames is shown
    rather than assumed: every character record that wears the class. */
 const HERO_SWATCHES = {
   hair: [['black', '#1a1410'], ['dark brown', '#3e2614'], ['brown', '#6b4221'], ['auburn', '#8a3418'],
@@ -1093,10 +1093,10 @@ function heroSheetImage(sheet) {
   return dec && dec.W === 32 && dec.H >= 32 ? Uint8Array.from(dec.image) : null;
 }
 
-/* Every sprite class the file names a character or a monster by
-   (cheatSpriteClasses), with where its own frames are: the first run 0xF004
+/* Every sprite class the file uses for a character or a monster
+   (cheatSpriteClasses), with where its frames are: the first run 0xF004
    gives its base tile's name, cut off at the end of the sheet. Names repeat
-   (two men, three Seldane), so a repeated one carries its class number. */
+   (two men, three Seldane), so a repeated one has its class number. */
 function heroSpriteClasses() {
   heroSourceSpec();
   const c = window.HERO_SOURCE_SPEC;
@@ -1143,7 +1143,7 @@ function heroBodies(pt) {
 }
 
 /* One figure, read: the sheet and frames it is drawn from, the art as it is
-   about to be recoloured (its own or a worn body), the part map where there
+   about to be recoloured (the figure's or a worn body), the part map where there
    is one, the shade families, and who else is drawn with those frames. Null
    when the open file has no such sprite, which is what a saved game gives.
    `key` is 'hero' or 'heroine', or 'pt' and a class number for any other. */
@@ -1188,9 +1188,9 @@ function heroRecoloured(fig) {
     out = heroRecolour(fig.image, fig.labels, heroRemapTables(fig.image, fig.labels, fig.def, choices));
   }
   /* Families given the same colour are recoloured as ONE part. Apart, each
-     lands the colour on its own mean lightness, so a body drawn in two rows
-     of red -- the demon's -- came out as two yellows in blotches. Together
-     they share one mean and keep their shading against each other. */
+     lands the colour on that family's mean lightness, so a body drawn in two
+     rows of red -- the demon's -- came out as two yellows in blotches.
+     Together they share one mean and keep their shading against each other. */
   const byHex = new Map();
   fig.shades.parts.forEach(p => {
     const c = st.shades[p.key];
@@ -1257,7 +1257,7 @@ function heroSay(m, bad) {
 
 /* Apply goes through the patches section rather than beside it: the patch is
    handed to its reader and then to its Apply, which is the edit path every
-   other change here takes. The report does not outlive that -- re-entering
+   other change here follows. The report does not outlive that -- re-entering
    the archive drops it with every other derived table -- so "Read it as a
    patch" is the button for seeing what the patch is. */
 function heroSpriteApply() {
@@ -1306,7 +1306,7 @@ function heroSpriteShade(family, name, hex) {
   renderHeroSprite();
 }
 
-/* A different body forgets the colour-by-colour choices, because the
+/* A different body clears the colour-by-colour choices, because the
    families are the old body's: the demon's reds are not the hero's blues. */
 function heroSpriteBody(pt) {
   const st = heroState(window.HERO_SPRITE_STATE.which);
@@ -1322,7 +1322,8 @@ function heroSpriteReset() {
 }
 
 /* The frame a family shows best in, with every pixel outside the family
-   put to a dark grey and the outline kept, so the row says what it covers. */
+   put to a dark grey and the outline kept, so the row shows which pixels the
+   family covers. */
 function heroShadeThumb(fig, pi) {
   const size = fig.W * 32;
   let best = 0, most = -1;
@@ -1505,7 +1506,7 @@ function renderHeroSprite() {
     b.onclick = fn;
     bar.appendChild(b);
   };
-  /* Add to Patch, in place of this section's own downloads (the
+  /* Add to Patch, in place of this section's downloads (the
      maintainer, 16 October 2026): the sprite goes into the one patch the
      bar downloads, keyed by the figure, so a second add of the same
      figure replaces the first. */
@@ -1521,11 +1522,11 @@ function renderHeroSprite() {
    signal (TGameSys::SendSignal, then TGremlin::OnSignal). There are 256 of
    them, 0x1F00 plus the number, and the shipped game has none. A new game
    switches on every one whose script is in the file (ClearGremlins); a save
-   keeps the states it was made with, so a gremlin added later is off in it
+   stores the states it was made with, so a gremlin added later is off in it
    until the save sheet switches it on.
 
    The maker writes one from a form -- when it acts, on what condition, and
-   what it does -- as a listing in the page's own words. dvmAssemble turns
+   what it does -- as a listing in the page's notation. dvmAssemble turns
    that into the method and dvmWriteClass into a class the engine can look
    the method up in; it leaves the page as a patch, as the sprite does, and
    the merge adds a resource the file lacks. The listing can be edited
@@ -1563,7 +1564,7 @@ function gremlinInt(v, lo, hi, what) {
   return n;
 }
 /* The listing the form stands for. Each test is an if_not that jumps to the
-   end when it fails, so the tests read in the order the form asks them. A
+   end when it fails, so the tests read in the order of the form. A
    flag's number is a word: a byte operand is signed, and `byte 250` reached
    the game as -6 and set flag 26 in the fork run of the first maker-built
    gremlin. */
@@ -1651,7 +1652,7 @@ function gremlinAdd() {
   try { w = gremlinPatch(); } catch (e) { gremlinSay('The page could not write the gremlin: ' + e.message, true); return null; }
   if (!w) { gremlinSay('No game file is open.', true); return null; }
   basketAdd('gremlin-' + w.gremlin, 'Gremlin ' + w.gremlin, w);
-  // The next gremlin takes the next free number, as after an Apply.
+  // The next gremlin is given the next free number, as after an Apply.
   window.GREMLIN_STATE.num = null;
   renderGremlinMaker();
   gremlinSay('Gremlin ' + w.gremlin + ' is in your patch.');
@@ -1765,7 +1766,7 @@ function renderGremlinMaker() {
   host.appendChild(el('p', 'mechSub', 'A new game switches every gremlin on. In a save made before the patch, switch it on in the save’s page.'));
   gremlinCheck(formError);
 }
-// Whether the listing assembles, said under it as it is typed.
+// Whether the listing assembles, shown under it as it is typed.
 function gremlinCheck(formError) {
   const out = document.getElementById('gremlinCheck');
   if (!out) return;
@@ -1779,11 +1780,11 @@ function gremlinCheck(formError) {
   } catch (e) { out.textContent = e.message + '.'; out.className = 'mechSub patchBad'; }
 }
 
-/* ---- the program's own fixes ----
-   js/delv-appfixes.js says what each changes and js/delv-apppatch.js writes
+/* ---- the program's fixes ----
+   js/delv-appfixes.js describes what each changes and js/delv-apppatch.js writes
    them; this is the section that chooses them and hands out the program.
    The program is the installer's (APP_DATA and APP_RSRC_RAW, both forks) or
-   a copy the visitor chooses, which has to be in a container that carries
+   a copy the visitor chooses, which has to be in a container that has
    both forks, since the fixes change the data fork and the cfrg in the
    resource fork together. */
 // Every fix starts unchosen, the program's, the data's and the resource
@@ -1795,7 +1796,7 @@ function gremlinCheck(formError) {
 window.APPFIX_STATE = { off: new Set(APP_FIXES.map(f => f.id)), src: null, open: new Set() };
 /* The program the fixes are written into, as it arrived: once Apply to
    Site Data has put a fixed program in its place (APP_DATA), the one it
-   replaced is kept in APP_PRISTINE, since the fixes refuse a program that
+   replaced is kept in APP_PRISTINE, since the fixes stop on a program that
    has them already. */
 function appFixSource() {
   const st = window.APPFIX_STATE;
@@ -1805,22 +1806,21 @@ function appFixSource() {
   if (window.APP_DATA && window.APP_RSRC_RAW) return { data: window.APP_DATA, rsrc: window.APP_RSRC_RAW, name: 'the installer', type: 'APPL', creator: 'Delv' };
   return null;
 }
-// A fix nobody has seen working in the game says so after its title. The
-// maintainer's word of 30 September 2026, after walk-to, which read right
-// and assembled clean, hung the game the first time it was played. The
-// mark goes when a fix's entry gains `played` (js/delv-appfixes.js,
-// js/delv-datafixes.js), written when a run has shown it.
-// A fix seen working in some of its places and not the rest says that
-// instead (the maintainer, 13 October 2026: "you can mark patches partially
-// tested"): its `played` begins "in part", which until then left the mark
-// off and let a fix played for four of its nineteen characters read as
-// played.
+// A fix nobody has seen working in the game is marked so after its title. The
+// maintainer's word of 30 September 2026, after walk-to, which read right and
+// assembled clean, hung the game the first time it was played. The mark goes
+// when a fix's entry gains `played` (js/delv-appfixes.js,
+// js/delv-datafixes.js), written when a run has shown it. A fix seen working
+// in some of its places and not the rest is marked that way instead (the
+// maintainer, 13 October 2026: "you can mark patches partially tested"): its
+// `played` begins "in part", which until then left the mark off and let a fix
+// played for four of its nineteen characters read as played.
 function fixPlayedInPart(f) { return /^in part\b/i.test(f.played || ''); }
 function untestedMark(f) { return !f.played ? ' (untested)' : fixPlayedInPart(f) ? ' (partially tested)' : ''; }
 // A program fix has two halves, the PowerPC program and the 68K one
 // (js/delv-app68k.js), played separately: `played` is the PowerPC half's,
-// APP_FIXES_68K.played lists the fixes whose 68K part was shown. A fix seen
-// working on one says which it has not been seen on.
+// APP_FIXES_68K.played has the fixes whose 68K part was shown. A fix seen
+// working on one is marked with which it has not been seen on.
 function appFixMark(f) {
   if (typeof APP_FIXES_68K === 'undefined' || !app68kNames(f.id)) return untestedMark(f);
   const on68 = APP_FIXES_68K.played.includes(f.id);
@@ -1862,7 +1862,7 @@ function appFixOpenFile(file) {
     appFixSay('');
   }).catch(e => appFixSay('That file could not be read: ' + e.message, true));
 }
-// The program with the chosen fixes, or null with the reason said.
+// The program with the chosen fixes, or null with the reason given.
 function appFixBuild() {
   const src = appFixSource();
   if (!src) { appFixSay('No program is open.', true); return null; }
@@ -1879,7 +1879,7 @@ function appFixListing(a) {
 }
 /* A list of fixes as a fold, shut until opened (the maintainer,
    16 October 2026: "collapsed by default so as not to overwhelm"). The box
-   that chooses the whole list sits in the summary on its own, with the
+   that chooses the whole list sits in the summary by itself, with the
    title beside it as plain text, so a click on the title opens the fold
    and a click on the box chooses the list; a label round both would have
    sent every click on the title to the box. The makers redraw on every
@@ -1900,8 +1900,8 @@ function fixFold(open, key, title, count) {
   return { d, sum, t, n };
 }
 /* What a fix writes, shown on demand: a small "changes" at the end of the
-   fix's own line, and the listing under the line once it is clicked. A fold
-   of its own took a row under every fix, which in a list of sixty was most
+   fix's line, and the listing under the line once it is clicked. A separate
+   fold took a row under every fix, which in a list of sixty was most
    of the list (the maintainer, 16 October 2026). It is a span and not a
    button because the page's button rule is !important on padding and
    background, and it stops the click so that the label round it does not
@@ -1930,7 +1930,7 @@ function fixChangesLink(row, into, fill) {
    understand", and most fixes had none to show, being worked out against
    the file rather than listed). The fix is applied alone to the file a
    patch is built on (basketBase), and each resource it changes is named
-   with a link to it; a script's lines are said in plain words, what was
+   with a link to it; a script's lines are shown in plain words, what was
    and what will be (dvmScriptDiff). */
 function fixDataChanges(f, host) {
   const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
@@ -1966,11 +1966,11 @@ function fixDataChanges(f, host) {
 }
 /* A script before and after a fix in plain words, the Read view's lines
    (dvmReadRender) a line each, indented as it indents them; a and b are
-   the resources as a spec holds them, decrypted already. Two lines
+   the resources as a spec has them, decrypted already. Two lines
    either side of each change; offsets are left out of the comparison, since
    a fix that adds an instruction moves every one after it. Text the fix
    changes in the script's data follows, as Patch Comparison shows it. The
-   script's name is a link to it. Patch Comparison's own diff is of the
+   script's name is a link to it. Patch Comparison's diff is of the
    pseudo-code, which the maintainer found no easier than the bytes. */
 function fixReadDiffHTML(id, a, b) {
   const lines = d => {
@@ -2048,8 +2048,8 @@ function fixAppChanges(f, a, host) {
    face with its new letters, the message pane's face and the buttons'
    labels are in the resource fork, which no patch reaches. It is built
    from the open file and its fork: a piece the file has changed has no
-   entry and stays in English, and the note says how many. A copy without
-   its resource fork is refused, since the accents would draw as boxes. */
+   entry and stays in English, and the note gives how many. A copy without
+   its resource fork is rejected, since the accents would draw as boxes. */
 // The Spanish table and the Geneva its strikes are made from, each added as
 // a script element (a page opened from a USB stick can load those), the
 // font first since the table's builder reads it.
@@ -2075,7 +2075,7 @@ function spanishSay(m, bad) {
   const note = document.getElementById('spanishNote');
   if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; }
 }
-// The file in Spanish, or null with the reason said.
+// The file in Spanish, or null with the reason given.
 function spanishBuild(T, articles) {
   if (!ARCHIVE) { spanishSay('No game file is open.', true); return null; }
   const rsrc = window.CYTHERA_RSRC_RAW;
@@ -2105,9 +2105,9 @@ function spanishDownload(asDisk) {
 }
 /* The program in Spanish (translateProgram): its menus, dialogs and
    strings, from the program the fixes section has (the installer's, or one
-   chosen there or here). It is the PowerPC program that changes; a 68K Mac
-   keeps its English strings. `both` writes one disk image with the program
-   and the data file, the way a Mac or Infinite Mac takes them. */
+   chosen there or here). It is the PowerPC program that changes; on a 68K Mac
+   the strings stay English. `both` writes one disk image with the program
+   and the data file, the way a Mac or Infinite Mac reads them. */
 function spanishProgramDownload(both) {
   spanishSay('Writing the program in Spanish.');
   return spanishTable().then(T => {
@@ -2138,7 +2138,7 @@ function backstageToggle(id, on) {
 /* Make a Scenario (newScenarioBytes, js/page-data.js): the form, and the
    file written as the Spanish copy is, or opened here in place of the one
    it was made from. The choices are kept for the session; a field left
-   empty takes what the open file offers. */
+   empty uses what the open file has. */
 window.SCENARIO_STATE = window.SCENARIO_STATE || { name: 'New Zone', width: '', height: '', tile: '', x: '', y: '', light: '', opening: false, armyA: '', armyB: '', armyCount: '', art: '', pack: null, packName: '', map: null, mapName: '' };
 function scenarioSay(m, bad) {
   const note = document.getElementById('scenarioNote');
@@ -2161,7 +2161,7 @@ function scenarioDownload(asDisk) {
   scenarioSay(bytes.length.toLocaleString() + ' bytes written.');
   return bytes;
 }
-// The choices as newScenarioBytes takes them, or null with the reason said.
+// The choices as newScenarioBytes expects them, or null with the reason given.
 function scenarioChoices() {
   const st = window.SCENARIO_STATE;
   if (st.art === 'pack' && !st.pack) { scenarioSay('Choose the art pack’s zip first.', true); return null; }
@@ -2339,23 +2339,23 @@ function renderSpanishMaker() {
 }
 
 /* ---- the scenario's fixes, as a patch ----
-   js/delv-datafixes.js says what each changes and js/delv-datapatch.js
+   js/delv-datafixes.js describes what each changes and js/delv-datapatch.js
    applies them; this is the section that chooses them and hands out the
    patch (28 September 2026). What starts chosen is what has been played
-   (DATAFIX_STATE, below). A list's own box chooses every fix in it,
+   (DATAFIX_STATE, below). A list's box chooses every fix in it,
    the text's options are chosen one by one under it and count only with
    it, and the spelling is one of three.
 
    The patch is built from the open file, on a button, since building every
    fix is a few hundred edits and a second or two on a phone; nothing is
    built as boxes are ticked. A file that is not the shipped scenario, or one
-   that carries a fix already, is refused by the first edit that does not
-   find what it expects, and the note names the fix. Apply and Read go
+   that has a fix already, is rejected by the first edit that does not
+   find what it expects, and the note gives the fix's name. Apply and Read go
    through the patches section, as the sprite's and the gremlin's do. */
 // Nothing starts chosen (17 October 2026; the program's fixes, above, say
 // why). The presets put the text's choices on their first option, his
-// preference (4 October 2026), so that a patch of other fixes carries them.
-// An option counts without the text's own corrections (js/delv-datapatch.js).
+// preference (4 October 2026), so that a patch of other fixes includes them.
+// An option counts without the text's corrections (js/delv-datapatch.js).
 window.DATAFIX_STATE = { on: new Set(), skip: new Set(), showText: false, textChanges: null, open: new Set() };
 function dataFixSay(m, bad) {
   const note = document.getElementById('dataFixNote');
@@ -2405,7 +2405,7 @@ function dataFixChoose(choice, id) {
 }
 function dataFixSpelling(id) { dataFixChoose('spelling', id); }
 /* The rows of the text's changes. A row of the corrections themselves
-   (the text's own part, or the community's list) is in the patch when the
+   (the text's part, or the community's list) is in the patch when the
    text is chosen and the row is not left out; a row of a choice's option,
    when it is not left out, since the option is chosen or the row would not
    be listed. Ticking a correction with the text unchosen chooses the text
@@ -2435,7 +2435,7 @@ function dataFixRowToggle(row, tick) {
     b.checked = gs.all; b.indeterminate = gs.some && !gs.all;
   }
 }
-// The list's own box: ticked when every row listed is in, part when some.
+// The list's box: ticked when every row listed is in, part when some.
 function dataFixAllRowsState(b) {
   const st = window.DATAFIX_STATE;
   const r = st.textChanges && st.textChanges.key === dataFixTextIds().join(',') && st.textChanges.arc === ARCHIVE ? st.textChanges : null;
@@ -2509,7 +2509,7 @@ function dataFixPatch() {
   w.fixes = chosen.length;
   return w;
 }
-// The patch or null, with the reason said.
+// The patch or null, with the reason given.
 function dataFixBuild(what) {
   let w;
   try { w = dataFixPatch(); }
@@ -2546,7 +2546,7 @@ function dataFixShowPatch() {
    file with the options chosen (dataFixTextChanges), which is a second or
    so, so only once the list is opened, and again when an option changes
    while it is open; the rows are kept for the file and the options they
-   were made for. The text's own box need not be ticked to read it. */
+   were made for. The text's box need not be ticked to read it. */
 function dataFixTextIds() {
   return [...window.DATAFIX_STATE.on].filter(id => { const f = DATA_FIXES.find(x => x.id === id); return f && f.parent === 'text'; }).sort();
 }
@@ -2632,7 +2632,7 @@ function renderDataFixMaker() {
   const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
   const on = window.DATAFIX_STATE.on, appSt = window.APPFIX_STATE;
   /* A trial of every program fix on the program open, so each can show
-     what it writes and a refusal shows before a download. Kept for the
+     what it writes and a rejection shows before a download. Kept for the
      program it was made on, since the list is drawn again on every tick. */
   const src = appFixSource();
   if (src && (!appSt.trial || appSt.trial.src !== src)) {
@@ -2675,8 +2675,8 @@ function renderDataFixMaker() {
   noneFound.className = 'mechSub fixNoneFound'; noneFound.hidden = true;
   host.appendChild(noneFound);
   for (const g of DATA_FIX_GROUPS) {
-    /* A fix with options (the text) is not a row of its own: its options
-       are rows of buttons and its own corrections are its list of changes,
+    /* A fix with options (the text) is not a separate row: its options
+       are rows of buttons and its corrections are its list of changes,
        which has a box for all of them (the maintainer, 1 October 2026). */
     const owner = DATA_FIXES.find(f => f.group === g.id && !f.parent && DATA_FIXES.some(o => o.parent === f.id));
     const list = DATA_FIXES.filter(f => f.group === g.id && !f.parent && f !== owner);
@@ -2774,7 +2774,7 @@ function renderDataFixMaker() {
     const body = el('div', 'dataFixChanges');
     d.appendChild(body);
     // Filled after the list is drawn open, so the page answers the click
-    // before the second or so the text takes.
+    // before the second or so the text needs.
     const fill = () => { body.textContent = 'Reading the text\u2026'; setTimeout(function () { dataFixFillChanges(body); dataFixAllRowsState(all); }, 0); };
     d.ontoggle = function () { st.showText = d.open; if (d.open) fill(); };
     if (d.open) fill();
@@ -2799,10 +2799,10 @@ function renderDataFixMaker() {
   renderPatchBar();
 }
 
-/* The search: a fix shows when its title, note, finder or list holds every
+/* The search: a fix shows when its title, note, finder or list contains every
    word typed, and a list with none to show is hidden and one with some is
    opened. Done on the drawn list, so
-   typing never redraws it and the field keeps its place. The text's
+   typing never redraws it and the field stays in place. The text's
    choices show only with nothing typed. */
 function fixFilter(host) {
   const words = String(window.DATAFIX_STATE.q || '').toLowerCase().split(/\s+/).filter(Boolean);
@@ -2859,16 +2859,16 @@ function fixPreset(key) {
    The maintainer's design of 16 October 2026, "Build a Patch": each maker
    adds what it makes to one patch with "Add to Patch", and the bar pinned
    under the tab downloads the whole of it in the form the visitor's Mac
-   takes. Until then each maker wrote a patch of its own, and a visitor
+   reads. Until then each maker wrote a separate patch, and a visitor
    who wanted fixes and a recolored hero had to install two, which the
-   Bugfix Patch Generator's own text warned does not always work.
+   Bugfix Patch Generator's text warned does not always work.
 
    The fixes chosen are always in it; what the other makers add is kept
    here as the patch each wrote when it was added, by a key that a second
    add of the same thing replaces. The whole is built by merging each
    patch into the open file in turn (mergeDelverPatch), fixes first, so
    the disk image's Cythera Data and the Magpie patch both come from the
-   one merged file. Two parts that change the same resource are said, the
+   one merged file. Two parts that change the same resource are reported, the
    later one kept. The Spanish copy is not a part: it finds each piece of
    text by the English it replaces, so a text fix ahead of it would be
    left in English, and fixes after it would not find their English. */
@@ -2893,9 +2893,9 @@ function basketSay(m, bad) {
    that name went): a resource changed anywhere on the site (Edit Bytes, a
    map square, a tune brought in from a MIDI file) and the game's font or
    the Seldane script swapped in the resource fork. A resource an Apply to
-   Site Data wrote is the patch's own and not an edit. The edits are not a
-   part that can be taken out, since the file the patch is built on already
-   holds them; reloading the page is what drops them. */
+   Site Data wrote belongs to the patch and is not an edit. The edits are not
+   a part that can be taken out, since the file the patch is built on already
+   has them; reloading the page is what drops them. */
 function basketEdits() {
   const applied = window.BASKET_APPLIED || new Set();
   const resids = [...(window.EDITED_RESIDS || [])].filter(r => !applied.has(r)).sort((a, b) => a - b);
@@ -2916,9 +2916,9 @@ function basketDescription() {
 /* What a patch is built on: the site's file as it stands, with the
    resources an earlier Apply to Site Data wrote put back as they arrived.
    As it stands, so that the visitor's own edits are kept and a fix that
-   finds one in its way says so; with Apply's resources put back, so that
+   finds one in its way reports it; with Apply's resources put back, so that
    applying never stops the same patch building again, which the fixes
-   refuse on a file that has them. Resources Apply added are dropped. */
+   stop on a file that has them. Resources Apply added are dropped. */
 window.BASKET_APPLIED = window.BASKET_APPLIED || null;
 function basketBase() {
   const applied = window.BASKET_APPLIED;
@@ -2933,7 +2933,7 @@ function basketBase() {
 function basketApplied(resids) {
   window.BASKET_APPLIED = new Set([...(window.BASKET_APPLIED || []), ...resids]);
 }
-// The open file with every part merged in, or null with the reason said.
+// The open file with every part merged in, or null with the reason given.
 function basketMerged() {
   if (!ARCHIVE || !ARCHIVE.bytes) { basketSay('No game file is open.', true); return null; }
   const layers = [];
@@ -2946,7 +2946,7 @@ function basketMerged() {
   let data = basketBase();
   const by = new Map(), clash = [];
   // The edits are in the file built on, so they are counted first, and a
-  // part that changes the same resource is said like any other clash.
+  // part that changes the same resource is reported like any other clash.
   const edits = basketEdits();
   for (const id of edits.resids) by.set(id, 'your edits');
   for (const l of layers) {
@@ -2963,7 +2963,7 @@ function basketMerged() {
 }
 // The site's resource fork with the chosen fixes it does not have yet, so
 // that the visitor's own changes to it (a font swapped in) are kept; null
-// with the reason said.
+// with the reason given.
 function basketFork() {
   const rsrc = window.CYTHERA_RSRC_RAW;
   if (!rsrc || !rsrc.length) { basketSay('This copy of Cythera Data has no resource fork. Open the game in MacBinary or BinHex, or open the installer, or choose a Magpie patch.', true); return null; }
@@ -2972,7 +2972,7 @@ function basketFork() {
   try { return applyDataRsrcFixes(rsrc, ids).rsrc; } catch (e) { basketSay(e.message, true); return null; }
 }
 // The program with the chosen fixes, from the program as it arrived, or
-// null with the reason said; `none` when no program fix is chosen.
+// null with the reason given; `none` when no program fix is chosen.
 function basketProgram() {
   if (!appFixChosen().length) return 'none';
   const r = appFixBuild();
@@ -2993,11 +2993,11 @@ function basketFiles() {
   if (prog !== 'none') entries.push(prog);
   return Object.assign(m, { entries });
 }
-// The Magpie patch of everything a patch can carry.
+// The Magpie patch of everything a patch can contain.
 function basketPatch() {
   const m = basketMerged();
   if (!m) return null;
-  if (!m.resids.length) { basketSay(m.layers.length ? 'Nothing in your patch changes the file.' : 'Your patch has nothing a Magpie patch can carry.', true); return null; }
+  if (!m.resids.length) { basketSay(m.layers.length ? 'Nothing in your patch changes the file.' : 'Nothing in your patch fits in a Magpie patch.', true); return null; }
   const spec = delverArchiveSpec(m.data);
   // A resource an edit removed is not in the merged file, and a patch
   // cannot remove one.
@@ -3008,8 +3008,8 @@ function basketPatch() {
   w.name = 'Grimoire Patch';
   return Object.assign(w, { merged: m });
 }
-// What a Magpie patch cannot carry, by name: the resource fork's fixes and
-// fonts, and the program's fixes. The disk holds Cythera Data alone beside
+// What a Magpie patch cannot contain, by name: the resource fork's fixes and
+// fonts, and the program's fixes. The disk has Cythera Data alone beside
 // its install script, so the program's fixes are not on it either.
 function basketLeftOut(where) {
   if (where === 'disk') return appFixChosen().map(f => f.title);
@@ -3035,7 +3035,7 @@ function basketDownload() {
   if (where === 'files') {
     const r = basketFiles();
     if (!r) return null;
-    // MacBinary, which a Mac and Infinite Mac both take; a browser may ask
+    // MacBinary, which a Mac and Infinite Mac both read; a browser may prompt
     // once whether to allow the second file.
     for (const f of r.entries) dlBlob(new Blob([writeMacBinary(f)], { type: 'application/macbinary' }), f.name + '.bin');
     basketSay(r.entries.map(f => f.name + '.bin').join(' and ') + ', to put in place of yours.' +
@@ -3050,7 +3050,7 @@ function basketDownload() {
   return w;
 }
 /* Apply to Site Data: everything in the patch, into the files the site has
-   open, in this browser only. Cythera Data takes the patch the way any
+   open, in this browser only. Cythera Data receives the patch the way any
    patch is applied here, over whatever else was edited, and a patch
    replaces whole resources, so applying twice is harmless. The resource
    fork's fixes go into the fork the site has, skipping one it has already.
@@ -3118,7 +3118,7 @@ function basketShowPatch() {
 }
 /* The bar: what is in the patch, each part with a cross to take it out;
    where it will be played, which is the form it is downloaded in; and the
-   one download. The patch's own name and the rarer actions are in a fold. */
+   one download. The patch's name and the rarer actions are in a fold. */
 function renderPatchBar() {
   const host = document.getElementById('patchBar');
   if (!host) return;
@@ -3141,7 +3141,7 @@ function renderPatchBar() {
     items.appendChild(c);
   };
   if (n) chip(n + (n === 1 ? ' fix' : ' fixes'), function () { fixPreset('none'); });
-  // The edits have no cross: the file the patch is built on holds them
+  // The edits have no cross: the file the patch is built on has them
   // (basketEdits).
   const ed = basketEdits();
   if (ed.count) {
@@ -3175,7 +3175,7 @@ function renderPatchBar() {
   const sel = document.createElement('select');
   sel.id = 'patchWhere';
   sel.setAttribute('aria-label', 'what to do with your patch');
-  /* The button says the verb and the menu the rest, "Download" and "as
+  /* The button has the verb and the menu the rest, "Download" and "as
      Replacement Files", so that the whole reads as the maintainer named it
      and the menu fits a phone beside the button. */
   for (const [v, label] of [['files', 'as Replacement Files'], ['disk', 'as a Disk Image'], ['magpie', 'as a Magpie Patch'], ['site', 'to Site Data']]) {
@@ -3195,7 +3195,7 @@ function renderPatchBar() {
      phone while it was pinned to the screen): what the download is, what a
      patch leaves out and the rarer actions are behind More, on the bar's
      first line. */
-  // What a Magpie patch or the disk cannot carry, said whenever it is the
+  // What a Magpie patch or the disk cannot contain, shown whenever it is the
   // choice and any of it is chosen, since it is easy to miss and costs a fix.
   const left = basketLeftOut(b.where);
   if (left.length) host.appendChild(el('div', 'mechSub patchBad', (b.where === 'disk' ? 'Not on the disk: ' : 'Not in a Magpie patch: ') +
@@ -3235,20 +3235,20 @@ function renderPatchBar() {
    THE ORDER IS OLD, NEW. Added and removed are named from the first file's
    point of view, so "added" means the second has it and the first does not.
 
-   ON EXPORTING A PATCH, AND THIS HAS TO BE SAID PLAINLY. What comes out is a
+   ON EXPORTING A PATCH, AND THIS HAS TO BE STATED PLAINLY. What comes out is a
    real Delver archive shaped like a Magpie patch: grimoire reads it, the
    patches section describes it, `mergeDelverPatch` applies it, and the
    browser player loads it as an add-on. Until the check value was recovered
-   out of Magpie's own code it would NOT have installed in Magpie under
+   out of Magpie's code it would NOT have installed in Magpie under
    Mac OS 9, because the descriptor's first eight bytes are that value and
-   Magpie marks a descriptor that fails the check unusable. It carries the
+   Magpie marks a descriptor that fails the check unusable. It has the
    real value now, and Magpie installed a patch written here on 15 September
-   2026; the panel under the button says so. */
+   2026; the panel under the button states this. */
 window.COMPARE_REPORT = null;
 
 function compareSpecOf(bytes) { return bytes ? delverArchiveSpec(bytes) : null; }
 
-/* The file as it arrived. parseArchiveBytes keeps it under PRISTINE_BYTES for
+/* The file as it arrived. parseArchiveBytes stores it under PRISTINE_BYTES for
    exactly this reason -- a patch describes the file the player already has,
    and one edit rebuilds the whole archive. */
 function compareEdits() {
@@ -3270,8 +3270,8 @@ function compareEdits() {
    works as well as a bare data fork: extractDelverArchive walks BinHex,
    StuffIt and Installer VISE to find the Delver archive inside. That is what
    makes comparing two releases a matter of choosing two files. */
-/* `opts.pick` names one installer in a file holding several, and
-   `opts.newer` says the other file is the later of the two, so the sides
+/* `opts.pick` picks one installer in a file holding several, and
+   `opts.newer` marks the other file as the later of the two, so the sides
    swap: both are compareWithRelease's, below. */
 function compareOpenBytes(bytes, name, opts) {
   opts = opts || {};
@@ -3302,10 +3302,10 @@ function compareOpenBytes(bytes, name, opts) {
   return true;
 }
 
-/* The application half, when both sides have one. The page's own application
-   arrives through the installer route (`loadApplicationFork`), so this is
+/* The application half, when both sides have one. The page's application
+   comes through the installer route (`loadApplicationFork`), so this is
    only offered when a file has been opened that way; without it the section
-   compares the scenario data and says nothing about the program. */
+   compares the scenario data and shows nothing about the program. */
 function compareApplications(bytes, name, opts) {
   opts = opts || {};
   window.COMPARE_APP = null;
@@ -3315,7 +3315,7 @@ function compareApplications(bytes, name, opts) {
   const mine = { data: window.APP_DATA, rsrc: window.APP_RSRC_RAW || null };
   const d = opts.newer ? describeApplicationDiff(mine, other) : describeApplicationDiff(other, mine);
   if (!d || (!d.routines && !d.fork)) return;
-  // Two releases' applications share a name, so each is said by its release.
+  // Two releases' applications share a name, so each is named by its release.
   const otherName = opts.pick ? 'the ' + name + ' application' : other.name || name || 'the other application';
   const mineName = opts.mineName ? 'the ' + opts.mineName + ' application' : 'the open application';
   window.COMPARE_APP = Object.assign(d, opts.newer ? { aName: mineName, bName: otherName, via: other.via }
@@ -3323,9 +3323,9 @@ function compareApplications(bytes, name, opts) {
 }
 
 /* Another release out of the installer file already open. archive.org's
-   "Cythera installers.sit", which the page opens by default, holds all four
+   "Cythera installers.sit", which the page opens by default, has all four
    releases, so a visitor who has chosen nothing already has both sides of
-   every release comparison, and until 7 October 2026 was asked to find and
+   every release comparison, and until 7 October 2026 had to find and
    choose a second file to see one (the maintainer's list of 6 October 2026:
    "version diff without having to upload new file"). The two are put in
    release order whichever is open, by the same numeric name order
@@ -3348,7 +3348,7 @@ function compareForget() { window.COMPARE_REPORT = null; window.COMPARE_APP = nu
 
 /* An application inside whatever file was chosen, with both its forks.
 
-   A Cythera installer holds the data file AND the application, so opening one
+   A Cythera installer has the data file AND the application, so opening one
    can answer two questions at once: what the scenario data changed, and what
    the program changed. This finds the second. Everything it looks in is
    something the page already opens -- an Installer VISE archive, a StuffIt
@@ -3391,7 +3391,7 @@ function findApplicationIn(bytes, release) {
 
 /* A whole resource drawn, for the kinds the page can decode as one image.
    Subindex 141 is not here: a tile sheet is 32 by 512 and drawing two of them
-   side by side says nothing, so those go to the per-tile comparison the
+   side by side shows nothing, so those go to the per-tile comparison the
    patches section already has. */
 const COMPARE_IMAGE_SUBN = new Set([135, 137, 131, 142]);
 function compareImageCanvas(data, subn, resid) {
@@ -3606,7 +3606,7 @@ function renderCompareReport() {
     rep.scriptDiffs || (rep.scriptDiffs = new Map()));
 
   /* The export. Only offered when the newer side is a file this page can take
-     the resources OUT of, which is the open file -- a patch has to carry the
+     the resources OUT of, which is the open file -- a patch has to contain the
      bytes you want someone else to end up with, and for a comparison against
      a file you opened those live on the other side. */
   host.appendChild(el('div', 'partsTitle', 'Save the differences as a patch'));
@@ -3617,7 +3617,7 @@ function renderCompareReport() {
        Resource Manager call, GetResource, and none that writes -- no
        AddResource, ChangedResource, WriteResource or UpdateResFile, and no
        call that opens another file's resource fork at all. What it imports is
-       the flat-file set, FSpOpenDF through FSWrite. So the format cannot carry
+       the flat-file set, FSpOpenDF through FSWrite. So the format cannot contain
        a resource-fork change, and a swapped font is the case that would
        otherwise go missing without a word. */
     '<li>A patch cannot change the game\u2019s font, or anything else in the resource fork.</li>' +
@@ -3677,7 +3677,7 @@ function renderCompareApp(host, el) {
     for (const x of r.gone) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">gone</td>' + mechNum(x.length) + mechNum('') + mechNum('') + '<td></td></tr>');
     /* What the compiler emitted differently, not just how much. A routine
        whose census moves by nothing but register copies is the code generator
-       rather than an edit, and saying so is the difference between reading a
+       rather than an edit, and stating it is the difference between reading a
        release correctly and inventing a change that is not there. */
     const census = x => {
       const bits = (x.added || []).map(a => '+' + a.n + ' ' + a.op)
@@ -3707,13 +3707,14 @@ function renderCompareApp(host, el) {
   }
 }
 
-/* MAGPIE'S SIGNATURE, WHICH IS WHAT TELLS A PATCH FROM A SAVED GAME. Both are
-   type `DelP`: `I.M.Cheater`, `Tree`, `Zone` and `Rocky the Flying Chicken`
-   are `DelP`/`Delv`, and the Pumpkin Patch is `DelP`/`Delp`. Cythera's bundle
-   claims `DelP` and draws a saved game for it; Magpie's claims `DelP` too and
-   draws its own patch icon, the framed tile with a corner cut away. So the
-   creator is the whole of the difference, and a patch written with the game's
-   creator would arrive on a Mac looking like somebody's saved game. */
+/* MAGPIE'S SIGNATURE, WHICH IS WHAT DISTINGUISHES A PATCH FROM A SAVED
+   GAME. Both are type `DelP`: `I.M.Cheater`, `Tree`, `Zone` and `Rocky the
+   Flying Chicken` are `DelP`/`Delv`, and the Pumpkin Patch is `DelP`/`Delp`.
+   Cythera's bundle claims `DelP` and draws a saved game for it; Magpie's
+   claims `DelP` too and draws a patch icon, the framed tile with a corner cut
+   away. So the creator is the whole of the difference, and a patch written
+   with the game's creator would appear on a Mac looking like somebody's saved
+   game. */
 const DELV_PATCH_CREATOR = 'Delp';
 function compareExportPatch(asMacBinary) {
   const rep = window.COMPARE_REPORT;
@@ -3723,13 +3724,13 @@ function compareExportPatch(asMacBinary) {
   const d = document.getElementById('patchDesc');
   try {
     /* TYPE 3, NOT 0, AND THE DIFFERENCE MATTERS. The byte at descriptor +26
-       carries Magpie's type, and 0 is Bug Fix -- the one value the binary
+       has Magpie's type, and 0 is Bug Fix -- the one value the binary
        tests outright, in the branch that raises "Bug fixes are always
        installed, and can not be removed". Exporting as 0 would have produced
        patches nobody could uninstall, which was the first thing driving the
-       real export path showed. 3 is what the one real add-on patch carries,
+       real export path showed. 3 is what the one real add-on patch has,
        and is removable. It is used because that is what a working patch has,
-       not because anything here knows what 3 is called. */
+       not because the name of 3 is known here. */
     const w = writeDelverPatch(rep.bSpec, rep.changed.map(c => c.resid),
       { description: (d && d.value) || '', typeCode: DELV_PATCH_EXPORT_TYPE });
     /* The file is named for the archive, not for the side of the comparison.
@@ -3738,11 +3739,11 @@ function compareExportPatch(asMacBinary) {
     const base = (rep.kind === 'edits' ? (window.ARCHIVE_SOURCE_NAME || 'Cythera Data') : rep.bName) || 'Cythera';
     const name = safeFileName(base.replace(/\.[A-Za-z0-9]{1,4}$/, '') + ' Patch');
     /* Two shapes of the same patch. The bare data fork is the file itself and
-       is what a shared folder wants; the MacBinary is the same bytes with a
-       Finder identity around them, so a Mac that decodes it gets a file typed
-       DelP with Magpie's creator -- which is what makes it a patch rather
-       than a saved game to the Finder, and what puts Magpie's own icon on it.
-       A patch has no resource fork, so the wrapper carries none. */
+       is what a shared folder needs; the MacBinary is the same bytes with a
+       Finder identity around them, so a Mac that decodes it ends up with a
+       file typed DelP with Magpie's creator -- which is what makes it a patch
+       rather than a saved game to the Finder, and what puts Magpie's icon on
+       it. A patch has no resource fork, so the wrapper has none. */
     if (asMacBinary) {
       const bin = writeMacBinary({ name: name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
       dlBlob(new Blob([bin], { type: 'application/macbinary' }), name + '.bin');
@@ -3773,8 +3774,8 @@ function renderMechanicsSheet(value) {
   // when these were closures here.
   const table = mechTable, num = mechNum, stat = mechStat;
   const sections = [];
-  // One section: an icon, a title, where it was read from, a line saying what
-  // it is, the rule as short items, and the table or strip under it.
+  // One section: an icon, a title, where it was read from, a line describing
+  // it, the rule as short items, and the table or strip under it.
   /* A section is built but NOT placed here: the grouping loop below appends
      the ones whose tab is showing. It used to append on the spot and the loop
      re-appended, which moved the node rather than copying it, so the only
@@ -3864,7 +3865,7 @@ function renderMechanicsSheet(value) {
     '', '');
 
   // ---- damage to things ----
-  // Every class with a TakeDamage of its own, read off its script
+  // Every class that defines a TakeDamage, read off its script
   // (damageTakers), and the door and chest helpers they hand the blow to.
   {
     const dt = damageTakers();
@@ -3982,7 +3983,7 @@ function renderMechanicsSheet(value) {
       '');
   }
 
-  // What each skill is asked about is on the Skills sheet now
+  // What each skill is tested for is on the Skills sheet now
   // (skillsMechSection in js/delv-sheets.js), beside the skills.
 
   // ---- experience and levels ----
@@ -4081,8 +4082,8 @@ function renderMechanicsSheet(value) {
         table(['thing', 'status', 'given by', 'taken away by'], grants.map(g => '<tr><td>' + propChip(g.pt, g.name) + '</td><td>' + srcNum(g.flag, g.flagName || ('flag ' + g.flag.v)) + '</td><td>' + svEsc(g.method) + '</td><td>' + (g.clearedBy ? svEsc(g.clearedBy) : '<span class="inspDim">nothing in the class</span>') + '</td></tr>')) : '';
     })() + (function () {
       // The party bar's background colours (exePartyColours): one row a
-      // state, in the order the program tests them, the first that holds
-      // winning.
+      // state, in the order the program tests them, the first that passes
+      // used.
       let pc = null;
       try { pc = appImage() ? exePartyColours() : null; } catch (e) { quiet(e, 'reading the party bar\u2019s colours'); }
       if (!pc) return '';
@@ -4265,17 +4266,17 @@ function renderMechanicsSheet(value) {
     // The zone opens its map, the level its line in the entry script, and
     // the cap the one constant TViewer::AmbientLight loads (the maintainer,
     // 3 October 2026: the section linked nothing). The base columns are
-    // worked from those two, so they are not links of their own.
+    // worked from those two, so they are not separate links.
     const at = DERIVED.ZONE_AMBIENT_AT || {};
     let cap = null;
     if (appImage()) try { const ao = exeOpsNamed('TViewer::AmbientLight'), ci = exeFind(ao, 0, ao.length, d => d.mn === 'li'); cap = ci >= 0 ? exeVal(ao[ci], ao[ci].d.imm) : null; } catch (e) { quiet(e); }
     /* What a light is worth by its distance, out of TViewer::CalcLighting:
        two compares in a row, the first followed by a load of 0, sort the
        distance (rows and columns added) into three bands, and a light's
-       share halves at each. The sentence said "within five tiles" until
+       share halves at each. The sentence read "within five tiles" until
        13 October 2026, typed. That five is half the map window's eleven
        squares, which the viewer works out from the window's rectangle when
-       it is made and no instruction holds, so the sentence says "in view"
+       it is made and no instruction has, so the sentence reads "in view"
        and links the loop that walks the window. With no program open it
        states no figure. */
     const lb = exeLightBands() || {}, lightView = lb.view || null, lightNear = lb.near || null, lightFar = lb.far || null;
@@ -4359,7 +4360,7 @@ function renderMechanicsSheet(value) {
     const elsewhere = td.adds.filter(a => !a.state && a.line.v !== a.slot.v);
     const counted = td.adds.filter(a => a.state);
     const never = [...slots.keys()].filter(s => slots.get(s).adds.length && !slots.get(s).dones.length).sort((a, b) => a - b);
-    // A slot by its line's words, for the lists the counts below open.
+    // A slot by its line's words, for the lists that the counts below open.
     const lineOf = s => td.lines && td.lines.get(s) ? '“' + td.lines.get(s) + '”' : 'slot ' + s;
     const rows = [...slots.keys()].sort((a, b) => a - b).map(s => {
       const g = slots.get(s);
@@ -4445,7 +4446,7 @@ function renderMechanicsSheet(value) {
           const say = (m, text) => { const b = bitRef(m); return b ? srcNum(b, propWordHex(m)) + ' ' + text : propWordHex(m) + ' ' + text; };
           /* An example is a link to the class it names (the maintainer,
              6 October 2026). The word is looked up among the classes that
-             carry the bit, by the name the file gives each, so a word the
+             have the bit, by the name the file gives each, so a word the
              file does not back stays plain text and a patched file links
              what it has; a word several classes share ("doors") opens the
              list of them. */
@@ -4471,8 +4472,8 @@ function renderMechanicsSheet(value) {
                TGameSys::DropCommand sends method 25 to a thing dropped
                more than a square away (dx*dx + dy*dy over 2), and the
                default method 25 (0x3019) deletes a thing whose class has
-               0x10. 0x100 is not in the copy: DoTicks asks each placed
-               thing's class for the word itself on the hour and sends
+               0x10. 0x100 is not in the copy: DoTicks reads the word from each
+               placed thing's class itself on the hour and sends
                message 257 to one that has it, which the lamp post
                answers by lighting or going out and the easel by changing
                its picture. */
@@ -4491,7 +4492,7 @@ function renderMechanicsSheet(value) {
       (tableRows.length ? '<div class="mechSub">The four numbers kept beside it</div>' + table(['from', 'kept as', 'read by'], tableRows) : ''));
   }
 
-  // ---- the syscalls, by the program's own names ----
+  // ---- the syscalls, by the program's names ----
   {
     const st = appImage() ? exeSyscallTable() : null;
     // How often each is called in this archive, by delvmod's name in the listings.
@@ -4559,7 +4560,7 @@ function renderMechanicsSheet(value) {
       (eh ? '' : '<div class="mechSub">' + MECH_NO_APP + '</div>') +
       table(eh ? ['#kind', 'what it does', 'argument', 'handler', '#here', 'arguments used'] : ['#kind', 'what it does', 'argument', '#here', 'arguments used'], rows) +
       // Which creatures, and not only that there are some. The inspector has
-      // said this for one egg at a time since the reading was new; this is
+      // shown this for one egg at a time since the reading was new; this is
       // the whole archive's, so a reader can see what the island hatches
       // without hunting for a ring to hover over.
       ((eg && eg.hatch && eg.hatch.length)
@@ -4575,7 +4576,7 @@ function renderMechanicsSheet(value) {
       '<span class="partsTitle">On the map</span>' + svLink('World', "showCategory('WORLD')"));
   }
 
-  // The game's own writing is on the Writings sheet now
+  // The game's writing is on the Writings sheet now
   // (libraryMechSection in js/delv-sheets.js), above the arrays it
   // tabulates. Loose ends still reads both of these; both memoise.
   const libAll = libraryRules();
@@ -4592,19 +4593,19 @@ function renderMechanicsSheet(value) {
     const never = [...slots.keys()].filter(s => slots.get(s).adds.length && !slots.get(s).dones.length).sort((a, b) => a - b);
     const wrongLine = td2.adds.filter(a => !a.state && a.line.v !== a.slot.v);
     const rows = [];
-    /* Every row says where it came from the same way, through one cell.
+    /* Every row shows where it came from the same way, through one cell.
        Half of them used to state a plain name instead, because the reader
        kept only the resource for those and srcNum needs an instruction to
        ring; so the sheet looked as though grey rows were a lesser kind of
        finding, when the difference was only in what the reader had bothered
-       to record. looseEnds carries a site for everything now, and nothing
-       here knows which row it is building: the name falls back from the
-       site's own, to the resource's label, to its hex id. */
+       to record. looseEnds records a site for everything now, and nothing
+       here depends on which row it is building: the name falls back from the
+       site's name, to the resource's label, to its hex id. */
     /* One chip per SCRIPT, not per place. A script that writes the same value
-       three times printed its own name three times, which is noise rather
+       three times printed its name three times, which is noise rather
        than provenance (the maintainer, 12 September 2026): the reader wants
-       to know which script, and the count of places is a detail the first
-       link can carry. */
+       to know which script, and the count of places is a detail for the first
+       link. */
     const where = sites => {
       const byRes = new Map();
       for (const s of (sites || [])) {
@@ -4641,21 +4642,22 @@ function renderMechanicsSheet(value) {
        card never showed. Only the one direction: a flag no script sets,
        whether by SetStateFlag or by queueing task 165, is a test that never
        passes, since nothing else in the application writes the array. The
-       other direction is not shown, because the application READS flags on
-       its own account (EvalCondition, for the conditional eggs), so a flag
+       other direction is not shown, because the application READS flags
+       itself (EvalCondition, for the conditional eggs), so a flag
        no script tests is not thereby unread. */
     for (const k of le.flagReadNeverWritten) rows.push('<tr><td>read and never written</td><td>Quest flag ' + k +
       ': a script checks it, but no script sets it, directly or through a queued task, so the check never passes.</td><td>' +
       where(sitesOf(le.flagReads.get(k))) + '</td></tr>');
     const lineText = n => (td2.lines && td2.lines.get(n) ? ' (' + svEsc(td2.lines.get(n)) + ')' : '');
-    // A slot by its line's words, for the lists the counts above the table open.
+    // A slot by its line's words, for the lists that the counts above the
+    // table open.
     const slotWords = n => td2.lines && td2.lines.get(n) ? '“' + td2.lines.get(n) + '”' : 'slot ' + n;
     for (const x of le.exactStrikes) rows.push('<tr><td>a line struck off only at an exact count</td><td>slot ' + x.slot.v + lineText(x.slot.v) +
       ' comes off the list only when quest value ' + x.state + ' is exactly ' + srcNum(x.n) +
       ', but the scripts count that value upward, so a visit that brings it past ' + x.n.v + ' never strikes the line.</td><td>' +
       where([x.slot]) + '</td></tr>');
-    /* One line shown for two different errands. A line that is not its own
-       slot's is usually the informant's wording of that slot's errand, and
+    /* One line shown for two different errands. A line that does not belong
+       to its slot is usually the informant's wording of that slot's errand, and
        that is deliberate; but a line's words can only describe one errand,
        so the same line under two slots is wrong under one of them. That is
        Ake: she sends the hero to Halos about House Comana, slot 10, and
@@ -4731,7 +4733,7 @@ function renderMechanicsSheet(value) {
     // A local tested for truth and only ever set false.
     for (const l of le.localOnlyFalse) rows.push('<tr><td>a check of something that is always false</td><td>The script checks a local variable for true or false, but its function only ever sets it to false, so the code for the true case never runs.</td><td>' +
       where([l]) + '</td></tr>');
-    // Answers an earlier answer in the same list takes first.
+    // Answers that an earlier answer in the same list matches first.
     for (const a of le.shadowed) rows.push('<tr><td>an answer hidden by an earlier one</td><td>“' + svEsc(a.list) +
       '” has an answer earlier in the same list, and the game uses the first match, so it never gives this answer.</td><td>' + where([a]) + '</td></tr>');
     // A quest value tested where the same-numbered flag is meant.
@@ -4805,10 +4807,10 @@ function renderMechanicsSheet(value) {
      patch archives named in a list beside it, and the player's User Custom
      Data after them (exePatchFiles, js/page-data.js). Both of the program's
      routes reach only what is read through its set of open files: the
-     routines that read Cythera Data's own file, read 1 October 2026 and shown
+     routines that read the Cythera Data file, read 1 October 2026 and shown
      for tiles in the fork (cythera-workbench's doc/engine-patch-list.md). The
-     section said so until the maintainer had that line cut the same day as
-     confusing; it says only how a save keeps its own levels. The names and
+     section stated this until the maintainer had that line cut the same day as
+     confusing; it states only how a save stores its levels. The names and
      figures are the program's, with their instructions; without the program
      open the two routes are not described at all. */
   {
@@ -4836,7 +4838,7 @@ function renderMechanicsSheet(value) {
     add('patches', 'Patch Comparison', null, '',
       'Magpie patches work by replacing specific resources in the original Cythera Data file. Add a patch file in Your Patch to see its details and what resources it changes here.',
       [],
-      // The patches the open file records, said only when there are some
+      // The patches the open file records, shown only when there are some
       // (the maintainer, 1 October 2026, who had the rest of the prose go).
       applied.length
         ? '<ul class="ruleList"><li>This file records <b>' + applied.length + '</b> patch' + (applied.length === 1 ? '' : 'es') + ' applied to it' +
@@ -4846,8 +4848,8 @@ function renderMechanicsSheet(value) {
     /* The three controls are built as ELEMENTS and appended, where every
        other section's body is a string of markup. The difference is not
        taste: an id that only ever exists inside an innerHTML string is
-       invisible to the checks, which seed what they know from the static
-       markup and report an id the page asks for and never declares. The file
+       invisible to the checks, which seed their list from the static
+       markup and report an id the page requests and never declares. The file
        control, the note and the report are the whole of what this section
        does, so they are the last things that should be unreachable from a
        harness. */
@@ -4875,8 +4877,8 @@ function renderMechanicsSheet(value) {
        by what each does in play and tagged with the file it changes, so a
        visitor after the game's bugs need not know which file a bug lives
        in. Until then the program's fixes were a second list and the
-       resource fork's a section of their own, Behind the Scenes, each with
-       its own downloads. */
+       resource fork's a separate section, Behind the Scenes, each with
+       separate downloads. */
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
     host.id = 'dataFixMaker';
@@ -5050,7 +5052,7 @@ function renderMechanicsSheet(value) {
     // Which sides of a panel are lit. The aspect's low four bits are the
     // four sides, and the order is the file's: 8 right, 4 bottom, 2 left,
     // 1 top. Read off the records rather than stated here, in that the
-    // numbers below are whatever the archive holds.
+    // numbers below are whatever is in the archive.
     const litSides = a => ['right', 'bottom', 'left', 'top']
       .filter((_, i) => a & (8 >> i)).join(', ') || 'none';
     const sq = r => r ? r.x + ', ' + r.y : '';
@@ -5114,11 +5116,11 @@ function renderMechanicsSheet(value) {
        These were one card called Puzzles holding five headed blocks of a
        single string. The readings are untouched -- puzzleRules() still
        answers all of it in one go -- and only the placing changed: each
-       block keeps the part of the string it always built, and takes the
-       scripts it was actually read from as its own chips, where before one
-       card carried every script between them.
+       block retains the part of the string it always built, and shows as
+       chips the scripts it was actually read from, where before one
+       card had every script between them.
 
-       None of this is guesswork about what a puzzle wants: the sequences,
+       None of this is guesswork about what a puzzle needs: the sequences,
        the tables and the tunes are in the scripts, and the wiring is in the
        records placed on the map. What a signal opens is not in the archive,
        which is why the tunes name the signal and stop there. */
@@ -5255,7 +5257,7 @@ function renderMechanicsSheet(value) {
      rather than as a subject.
 
      A group is a plain headed block, NOT a <details>. MECH_OPEN reopens a
-     section by its own element id when a number was followed out of it, and
+     section by its element id when a number was followed out of it, and
      a section reopened inside a shut group would be restored invisibly.
 
      A section's id never changes here. The mechLink call sites and the ids
@@ -5270,7 +5272,7 @@ function renderMechanicsSheet(value) {
      deep link made before the split names MECHANICS and opens the first tab
      instead (parseDeepLink). Every section is built either way -- they are read
      off the scripts and the reading is the cost, not the placing -- so a tab
-     shows its own and leaves the rest unplaced. */
+     shows its sections and leaves the rest unplaced. */
   const only = value ? (value === MECH_TOOL_GROUP.value ? MECH_TOOL_GROUP : MECH_GROUP_BY_VALUE[value]) : null;
   // The Patches tab is headed by its parts, each a group to this loop.
   const showing = only ? (only.parts || [only]) : MECH_GROUPS;

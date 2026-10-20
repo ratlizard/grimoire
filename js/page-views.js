@@ -4,13 +4,13 @@
    script until 16 September 2026, cut at the section banners it had and
    nowhere else, so every function is where it was in the one file. This
    tier is the page's furniture: js/mac-*.js have nothing of Cythera in
-   them, js/delv-*.js cover the formats but not the page, and these cover both.
-   They are classic scripts, never modules, because the page has to work
-   from a file:// origin, and they share one global scope, so a name
-   declared in any of them is reachable from all. The order matters only to a
-   statement that runs at load time, which sees what loaded before it; the one such statement
-   that needed a later file, the brand line, stayed in the page after the
-   last of these. File 12 of 14. */
+   them, js/delv-*.js cover the formats but not the page, and these cover
+   both. They are classic scripts, never modules, because the page has to
+   work from a file:// origin, and they share one global scope, so a name
+   declared in any of them is reachable from all. The order matters only to
+   a statement that runs at load time, which sees what loaded before it; the
+   one such statement that needed a later file, the brand line, stayed in
+   the page after the last of these. File 12 of 14. */
 
 /* ---- Data > Cythera (App) > Data Fork ------------------------------------
    The PowerPC executable, read with js/mac-pef.js: the container's sections,
@@ -324,10 +324,10 @@ function exeSetView(v) {
 }
 /* A routine as pseudo-code (6 October 2026), the third view of a listing.
 
-   The plain-words view describes what each instruction does and cannot
-   show what it acts on: "check the switch 0x0080 of a value". This one follows the values.
-   Each register has an expression, built up as the instructions run, and
-   a line is written only where something happens that outlasts a register:
+   The plain-words view describes what each instruction does and cannot show
+   what it acts on: "check the switch 0x0080 of a value". This one follows the
+   values. Each register has an expression, built up as the instructions run,
+   and a line is written only where something happens that outlasts a register:
    a store to memory, a call, a jump, a return, or a value put in a register
    the routine preserves (r13 to r31). So `lbz 0, 6(30)`, `rlwinm. 0, 0, 0, 24,
    24`, `bf 2, ...` is one line, `if ((byte[r30 + 6] & 0x80) != 0) goto ...`.
@@ -1313,8 +1313,8 @@ function openSchedule(i) {
 }
 
 // A person, wearing their portrait -- the face identifies the person where the
-// sprite identifies only a class (the maintainer, 8 September 2026: a portrait is
-// the better way to identify a character wherever one is cited). The sprite
+// sprite identifies only a class (the maintainer, 8 September 2026: a portrait
+// is the better way to identify a character wherever one is cited). The sprite
 // stands in where there is no portrait, the tab's tile where there is neither.
 // `terse` labels the record and not the person, for a row whose title is
 // already the person's name (the schedules list).
@@ -1697,8 +1697,9 @@ function combatAiRuleChip() {
 function ownerRows(resid, subn) {
   const rows = [];
   if (subn === 15 || subn === 16 || subn === 24) {
-    // A living prop type is a unit, and the characters who wear it are
-    // listed on the unit's page; anything else is an item or, failing that, a prop type.
+    // A living prop type is a unit, and the characters who wear it are listed
+    // on the unit's page; anything else is an item or, failing that, a prop
+    // type.
     const chips = classOwnerChips(resid);
     if (chips.length) rows.push(['Class of', chips, '']);
   }
@@ -1796,10 +1797,10 @@ function renderUsage(resid, subn) {
 }
 
 // --- Monster stats (0xF008) ------------------------------------------------
-// 128 records of 16 bytes. The field map was the wiki's F008 page, and it matches
-// this archive: record 22 is prop type 0x5A, which the prop-type
-// list names "goat", and the wiki's note gives the goat as entry 0x16 = 22.
-// Records 21/23/24 line up with bird, crab and ratlizard the same way.
+// 128 records of 16 bytes. The field map was the wiki's F008 page, and it
+// matches this archive: record 22 is prop type 0x5A, which the prop-type list
+// names "goat", and the wiki's note gives the goat as entry 0x16 = 22. Records
+// 21/23/24 line up with bird, crab and ratlizard the same way.
 //
 // The useful part is that prop_type joins this table to everything else -- the
 // sprite, the name, and any character wearing it -- so a monster stops being a
@@ -2058,15 +2059,15 @@ function exeUnitMoveRules() {
       }
     }
     // The party's mark, 0x80000000, which GetMonstAttrs ORs in for a party
-    // member and that is set in the king's unit itself (Alaric is drawn with it).
-    // CanMove tests it twice: first beside the walk-through-walls byte
+    // member and that is set in the king's unit itself (Alaric is drawn with
+    // it). CanMove tests it twice: first beside the walk-through-walls byte
     // option-w flips with cheats on, answering 1 at once, then, on a square
-    // that blocks, before letting the mover onto it when what blocks it is
-    // a character with the party bit (0x40 of its byte 8). The name describes the
-    // second, which is all it does in play; it read "moves as a party
+    // that blocks, before letting the mover onto it when what blocks it is a
+    // character with the party bit (0x40 of its byte 8). The name describes
+    // the second, which is all it does in play; it read "moves as a party
     // member" for an hour on 1 October 2026, which the maintainer read as
-    // walking through walls, and that needs cheats.
-    // The rule is the last test of the unit's word for that bit alone.
+    // walking through walls, and that needs cheats. The rule is the last test
+    // of the unit's word for that bit alone.
     if (unitReg !== null) {
       let last = null;
       for (let i = 0; i < ops.length; i++) { const t = testAt(i); if (t && t.reg === unitReg && t.mask === 0x80000000) last = t; }
@@ -2718,11 +2719,12 @@ function renderText(sameResource) {
     }
 
     // Every non-media subindex is made of Delver VM containers, so every one
-    // of them is given a real disassembly instead of a byte dump. Subindexes 1, 2, 4,
-    // 10 and 29 were missing from this list, which is the whole reason 27
-    // resources -- 0x0301 among them -- rendered as anonymous hex. They were
-    // decrypting correctly the entire time and the disassembler could already
-    // read them; it was simply never called. 0x0301 is `[2, 3, 1, 1]`.
+    // of them is given a real disassembly instead of a byte dump. Subindexes
+    // 1, 2, 4, 10 and 29 were missing from this list, which is the whole
+    // reason 27 resources -- 0x0301 among them -- rendered as anonymous hex.
+    // They were decrypting correctly the entire time and the disassembler
+    // could already read them; it was simply never called. 0x0301 is `[2, 3,
+    // 1, 1]`.
     let scriptText = '', rawText = '';
     const listingExtra = {};
     if (SCRIPT_SUBN.has(subn)) {
@@ -3300,17 +3302,17 @@ function downloadCurrentRawBytes() {  const bytes = window.CUR_RAW_BYTES;
   downloadBlob(bytes, 'cythera_0x' + currentResid.toString(16).toUpperCase() + '.' + ext);
 }
 
-// --- Editing ----------------------------------------------------------
-// The first edit path this page has ever had, and deliberately the narrowest
-// one that is real end to end: hex-edit one resource's plaintext, rebuild the
-// ENTIRE archive through writeDelverArchive (the writer that delv_write_check.mjs
-// checks is byte-identical to delvmod's), and re-enter through parseArchiveBytes
-// as if the rebuilt file had just been opened. Rebuilding wholesale instead
-// of patching ARCHIVE.bytes in place costs ~none (a 5.6 MB archive re-serializes
-// in milliseconds) and buys everything: every derived cache resets, every
-// gallery and map redraws from the edited bytes, and the thing on screen is
-// provably the thing a download produces -- there is no second, edited-but-
-// unserialized state to drift.
+// --- Editing ---------------------------------------------------------- The
+// first edit path this page has ever had, and deliberately the narrowest one
+// that is real end to end: hex-edit one resource's plaintext, rebuild the
+// ENTIRE archive through writeDelverArchive (the writer that
+// delv_write_check.mjs checks is byte-identical to delvmod's), and re-enter
+// through parseArchiveBytes as if the rebuilt file had just been opened.
+// Rebuilding wholesale instead of patching ARCHIVE.bytes in place costs ~none
+// (a 5.6 MB archive re-serializes in milliseconds) and buys everything: every
+// derived cache resets, every gallery and map redraws from the edited bytes,
+// and the thing on screen is provably the thing a download produces -- there
+// is no second, edited-but- unserialized state to drift.
 //
 // Edits live only in ARCHIVE.bytes. The IndexedDB copy is deliberately NOT
 // updated -- a reload restores the original, and "Download edited archive"
