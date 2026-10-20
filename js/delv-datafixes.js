@@ -2192,6 +2192,7 @@ const DATA_FIX_TEXT = [
   dataFixT('"travellers tale"', 0x021D, 'travellers tale', "traveller's tale", 1),
   dataFixT('Alaric\u2019s Government, "is was"', 0x021B, 'But is was through this', 'But it was through this', 1),
   dataFixT('Alaric\u2019s Government, "a the basis"', 0x021B, 'formed a the basis', 'formed the basis', 1),
+  dataFixT('Omen, "In the mean time"', 0x1CC3, 'In the mean time', 'In the meantime', 1),
   Object.assign(dataFixT('"Alaric, Landking"', 0x021B, 'Alaric, Landking', 'Alaric, Land King', 1), { opt: 'text-land-king' }),
   // the To Do lines
   dataFixT('To Do, "has be kidnapped"', 0x021A, 'has be kidnapped', 'has been kidnapped', 1),
