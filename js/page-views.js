@@ -336,9 +336,10 @@ function exeSetView(v) {
    one:
    - Expressions are followed inside a block only: a stretch with one way in
      and one way out. At a block's start every register is shown by its name.
-   - A scratch register (r0, r3 to r12) still live after its block ends
-     is written out as `rN = ...` there. Liveness is the ordinary kind, over
-     the routine's blocks; a call is taken to read r3 to r10, since nothing
+   - When an instruction after a block reads a scratch register (r0, r3 to
+     r12), the register is written out as `rN = ...` at the block's end.
+     Which registers are read later is found by ordinary liveness analysis
+     over the routine's blocks; a call is taken to read r3 to r10, since nothing
      here records how many arguments a routine has, so some of those lines
      are a value nothing reads.
    - Before a line changes a register, a stack slot or memory, any pending
@@ -457,8 +458,8 @@ function exePseudo(r) {
       for (let j = from; j <= blk.e; j++) { const x = ud(ops[j]); if (x.u.includes(q)) return true; if (x.w.includes(q)) return false; }
       return !!(blk.out >>> q & 1);
     };
-    // Write out whatever pending expression reads what is about to change,
-    // if it is still live; one that is not is dropped.
+    // Before something changes, each pending expression that reads it is
+    // written out if a later instruction reads its register, and dropped if not.
     let now = blk.s;
     const before = (test, self) => { for (let q = 0; q < 32; q++) if (vol(q) && reg[q].k === undefined && reg[q].s !== name(q) && test(reg[q])) { if (wanted(q, self ? now : now + 1)) settle(q); else reg[q] = atom(name(q)); } };
     // A test whose operands have since changed is printed as it stood.
@@ -566,7 +567,7 @@ function exePseudo(r) {
           if (dot) cond = { a: reg[dest].k === undefined && reg[dest].s === name(dest) ? reg[dest] : res, b: konst(0), hexy: /&|\|/.test(res.s || '') };
         }
       }
-      // A block that runs on into the next: what is still live is written out.
+      // A block that runs on into the next writes out every register read after it.
       if (i === blk.e && !(d && d.branch && !d.lk)) for (let q = 0; q < 32; q++) if (vol(q) && (blk.out >>> q & 1)) settle(q);
     }
   }

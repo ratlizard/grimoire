@@ -1425,17 +1425,17 @@ const DATA_FIXES = [
   // cast and itself by number after the spell had moved the party to Land
   // King Hall, where those numbers name two of the hall's things. It notes
   // the zone and the spell first; if the zone, the spell's record or the
-  // scroll's own record is not what it was, it deletes nothing by number
-  // and removes one scroll of that spell from whoever carries it
-  // (RemoveItem, as Selinus takes a book). The scroll's record is asked too
-  // because read inside the hall the zone is the same: the party's things
-  // leave and come back after the end, so the scroll's old number holds
-  // another of them (the copy, played 20 October 2026, or a companion's
+  // scroll's record has changed, it deletes nothing by number and instead
+  // removes one scroll of that spell from the inventory it is in
+  // (RemoveItem, the call Selinus's script uses to remove a book). The
+  // scroll's record is checked as well because a scroll read inside the
+  // hall leaves the zone unchanged: the party's things leave and come back
+  // after the end, so the scroll's old number then belongs to another of them (the copy, played 20 October 2026, or a companion's
   // thing), while the copy's old slot, freed, still reads the spell's
   // type. Directed Nexus is the one spell that changes zone. The scroll's
   // Use, from the cast to its return, and two more locals.
   { id: 'nexus-scroll', group: 'rules', stage: 'further', title: 'A Directed Nexus scroll now leaves Land King Hall\u2019s things alone, instead of destroying two of them',
-    played: 'fork, 68K, 20 October 2026, alone and on “All Fixes”: read after the party came from Omen’s Test, the hall untouched and the scroll used up, against a table and a passthrough deleted and the scroll kept unpatched; read inside Land King Hall, the hero alone and again with the party’s things there, the scroll used up and nothing else lost, against the scroll kept and, with the party, the hero’s Land King Amulet deleted unpatched. The Mac OS 8.5 pass of 10 October 2026 was of the version before the scroll’s own record was asked after',
+    played: 'fork, 68K, 20 October 2026, alone and on “All Fixes”: read after the party came from Omen’s Test, the hall untouched and the scroll used up, against a table and a passthrough deleted and the scroll kept unpatched; read inside Land King Hall, the hero alone and again with the party’s things there, the scroll used up and nothing else lost, against the scroll kept and, with the party, the hero’s Land King Amulet deleted unpatched. The Mac OS 8.5 pass of 10 October 2026 tested the version from before the patch also checked the scroll’s record',
     plan: (s) => {
       const what = 'the scroll deletes nothing it has left behind', p = dataPatchPlace(s, what, 0x104B,
         ['set_local 0x01', 'method Use (0x9)', 'local Var00', 'end', 'end', 'sys Delete', 'local Var00', 'end',

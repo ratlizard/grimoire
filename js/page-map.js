@@ -70,7 +70,7 @@ function propOffsetFor(proptype, aspect, rotated) {
   if (rotated) { const t = ox; ox = oy; oy = t; }
   return [ox, oy];
 }
-// A prop record's own nudge on top of its type's offset: the low six bits of
+// A prop record's nudge, added to its type's offset: the low six bits of
 // byte 14, signed, which TViewer::Render multiplies by four and adds to both
 // draw offsets (field 16; byteMapPropRecord in page-data.js). Designers used
 // it to sit a thing right on the screen: 291 records in the shipped file,
@@ -78,8 +78,8 @@ function propOffsetFor(proptype, aspect, rotated) {
 // Upstairs's beams at -5. A positive number moves the sprite up and to the
 // left, as a larger offset does: seen in the fork on 20 October 2026, a tree
 // in Catamarca given 4 drawn 16 pixels up and 16 left. The one roof record
-// with a nudge (Catamarca's 616) draws the same with it and without, so the
-// roof layer does not take it; roofs and eggs are not drawn through here.
+// with a nudge (Catamarca's 616) draws the same with it and without, so roofs
+// are drawn without the nudge; roofs and eggs do not go through this function.
 function propRecordLift(r) {
   return ((((r.u >> 8) & 0x3F) << 26) >> 26) * 4;
 }
