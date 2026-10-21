@@ -286,7 +286,7 @@ const DATA_FIXES = [
   // its water line. The test goes where the goat test's "no" already lands,
   // so the rest of the chain is untouched. (The maintainer's word, 27
   // September 2026.)
-  { id: 'pitcher-in-wine', group: 'items', stage: 'found', title: 'An empty pitcher dipped in the wine urn now fills with wine, instead of showing \u201cThe pitcher is empty.\u201d',
+  { id: 'pitcher-in-wine', group: 'items', stage: 'found', title: 'Using an empty pitcher on the wine urn now fills it with wine, instead of showing \u201cThe pitcher is empty.\u201d',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: an empty pitcher used on the wine urn, "The pitcher is now full of wine." and the pitcher saved holding wine, against "The pitcher is empty." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "The pitcher is now full of wine.", against "The pitcher is empty." unpatched',
     edits: [
       { what: 'a pitcher dipped in wine', resid: 0x10A0, at: 0x01FD,
@@ -408,7 +408,7 @@ const DATA_FIXES = [
   // tables and in its UseOn, which pours wine through this helper only at 3.
   // This edit set 1 until 27 September 2026, which filled the pitcher with
   // water.
-  { id: 'wine-urn', group: 'items', stage: 'community', title: 'The wine urn now fills a pitcher with wine, instead of leaving it empty',
+  { id: 'wine-urn', group: 'items', stage: 'community', title: 'Using the wine urn on an empty pitcher now fills it with wine, instead of leaving it empty',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the urn used on an empty pitcher, "The pitcher is now filled with wine." and the pitcher saved holding wine, against the same line and the pitcher saved empty unpatched; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the urn used on an empty pitcher, "The pitcher is now filled with wine." and the pitcher saved holding wine. Read from a save copied out of the machine',
     edits: [
       { what: 'the wine urn', resid: 0xE0D, at: 0x0061, expect: { 0x003C: 'string(implicit) "The pitcher is now filled with wine', 0x0061: 'return' },
@@ -497,7 +497,7 @@ const DATA_FIXES = [
   // walks them; if there is none it does nothing. Four more locals for the two
   // loops. The type is tested before HasWindow, since HasWindow brings a found
   // window to the front and an open sack's should stay where it is.
-  { id: 'strange-device', group: 'items', stage: 'community', title: 'The strange device\u2019s buttons now work after a change of zone, instead of doing nothing',
+  { id: 'strange-device', group: 'items', stage: 'community', title: 'The strange device puzzle\u2019s buttons now work after a change of zone, instead of doing nothing',
     played: 'Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the device used on the world map and a button pressed, the hero walked into Cademia, two more buttons pressed and the lights change, against no change after Cademia unpatched. On the fork’s 68K slice no button changes a light on either',
     edits: [
       { what: 'the strange device finds itself', resid: 0x1175, at: 0x00C1,
