@@ -4871,7 +4871,7 @@ function renderMechanicsSheet(value) {
   // ---- the scenario's fixes, as a patch ----
   {
     add('datafixes', 'Bugfix Patch Generator', null, '',
-      'Over time, the community has uncovered a number of apparent bugs and typos that were never addressed by official version updates, and AI analysis has uncovered several more. ' +
+      'Small fixes to a big indie game. Over time, the community has uncovered a number of apparent bugs and typos that were never addressed by official version updates, and AI analysis has uncovered several more. ' +
       'Solutions for the below issues have been identified through tracing and testing in the game itself (though many solutions are still untested). ' +
       'Select as many of the fixes below as you\u2019d like, and they go into your patch.',
       [], '');
