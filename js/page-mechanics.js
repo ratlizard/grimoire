@@ -2381,7 +2381,7 @@ function dataFixGroup(group, on) {
     const opts = DATA_FIXES.filter(o => o.choice === c.id && o.group === group);
     if (!opts.length) continue;
     for (const o of opts) st.on.delete(o.id);
-    if (on) st.on.add(opts[0].id);
+    if (on && !c.unpicked) st.on.add(opts[0].id);
   }
   st.skip.clear();
   renderDataFixMaker();
@@ -2392,7 +2392,7 @@ function dataFixGroupState(group) {
   const st = window.DATAFIX_STATE, items = [];
   for (const f of DATA_FIXES) if (f.group === group && !f.parent)
     items.push(!st.on.has(f.id) ? 0 : DATA_FIXES.some(o => o.parent === f.id) && st.skip.size ? 0.5 : 1);
-  for (const c of DATA_FIX_CHOICES) if (DATA_FIXES.some(o => o.choice === c.id && o.group === group))
+  for (const c of DATA_FIX_CHOICES) if (!c.unpicked && DATA_FIXES.some(o => o.choice === c.id && o.group === group))
     items.push(DATA_FIXES.some(o => o.choice === c.id && st.on.has(o.id)) ? 1 : 0);
   for (const f of APP_FIXES) if (appFixGroup(f) === group) items.push(window.APPFIX_STATE.off.has(f.id) ? 0 : 1);
   for (const f of DATA_RSRC_FIXES) if (f.group === group) items.push(window.BACKSTAGE_CHOSEN.has(f.id) ? 1 : 0);
@@ -2479,13 +2479,17 @@ function dataFixDescription(chosen) {
   count('items', 'to items');
   count('world', 'to people and places');
   { const k = n('design'); if (k) bits.push(k + (k === 1 ? ' design change' : ' design changes')); }
+  if (n('writings')) bits.push('the books and notes');
+  { const k = n('facts'); if (k) bits.push(k + (k === 1 ? ' factual error' : ' factual errors')); }
   if (chosen.some(f => f.group === 'text')) {
     const opts = [];
     if (chosen.some(f => f.id === 'spelling-us')) opts.push('American spelling');
     if (chosen.some(f => f.id === 'spelling-uk')) opts.push('British spelling');
     const named = { 'text-two-taled': 'Two-Taled', 'text-two-tailed': 'Two-Tailed', 'text-land-king': 'Land King', 'text-landking': 'LandKing',
                     'text-areithous': 'Areithous', 'text-ariethous': 'Ariethous', 'text-hyphens': 'hyphens', 'text-no-hyphens': 'no hyphens',
-                    'beserker-text': 'Berserker shown 12', 'beserker-table': 'Berserker given 6' };
+                    'beserker-text': 'Berserker shown 12', 'beserker-table': 'Berserker given 6',
+                    'text-sapphire-knowledge': 'Books of Knowledge', 'text-sapphire-wisdom': 'Books of Wisdom',
+                    'text-oxford': 'Oxford commas', 'text-no-oxford': 'no Oxford commas' };
     for (const f of chosen) if (named[f.id]) opts.push(named[f.id]);
     const left = window.DATAFIX_STATE.skip.size;
     if (left) opts.push(left + ' left out');
@@ -2665,8 +2669,10 @@ function renderDataFixMaker() {
     presets.appendChild(c);
   }
   host.appendChild(presets);
-  host.appendChild(el('p', 'mechSub', now === 'all' ? 'Every fix, including the untested ones. Design Changes are left for you to choose.'
-    : now === 'tested' ? 'Every fix seen working in the game. Design Changes are left for you to choose.' : ''));
+  const offLists = DATA_FIX_GROUPS.filter(g => g.off).map(g => g.title);
+  const leftToYou = (offLists.length > 1 ? offLists.slice(0, -1).join(', ') + ' and ' + offLists[offLists.length - 1] : offLists.join('')) + ' are left for you to choose.';
+  host.appendChild(el('p', 'mechSub', now === 'all' ? 'Every fix, including the untested ones. ' + leftToYou
+    : now === 'tested' ? 'Every fix seen working in the game. ' + leftToYou : ''));
   const q = el('input', 'fixSearch');
   q.type = 'search'; q.id = 'fixSearch';
   q.placeholder = 'Search the fixes';
@@ -2830,14 +2836,18 @@ function fixFilter(host) {
 
 /* The three presets. Tested is what the page starts with: every fix a run
    has shown working, and the text's choices on their first option, the
-   maintainer's preference; Every Fix adds the untested ones. Design
-   changes are in neither, being design calls rather than mended slips. */
+   maintainer's preference; Every Fix adds the untested ones. The lists
+   marked `off` are in neither: Design Changes, being design calls rather
+   than mended slips, and since 21 October 2026 Books and Notes and Factual
+   Errors, whose slips could be the writers' and speakers' (DATA_FIX_GROUPS).
+   A choice marked `unpicked` (the Oxford commas) starts on neither option. */
+function dataFixGroupOff(id) { return !!(DATA_FIX_GROUPS.find(g => g.id === id) || {}).off; }
 function fixPresetSets(key) {
   const tested = key === 'tested';
   const ok = f => (!tested || !!f.played);
   return {
-    on: new Set(key === 'none' ? [] : DATA_FIXES.filter(f => ok(f) && !f.choice && f.group !== 'design').map(f => f.id)
-      .concat(DATA_FIX_CHOICES.map(c => (DATA_FIXES.find(f => f.choice === c.id) || {}).id).filter(Boolean))),
+    on: new Set(key === 'none' ? [] : DATA_FIXES.filter(f => ok(f) && !f.choice && !dataFixGroupOff(f.group)).map(f => f.id)
+      .concat(DATA_FIX_CHOICES.filter(c => !c.unpicked).map(c => (DATA_FIXES.find(f => f.choice === c.id) || {}).id).filter(Boolean))),
     off: new Set(APP_FIXES.filter(f => key === 'none' || f.kind === 'change' || !ok(f)).map(f => f.id)),
     rsrc: new Set(key === 'none' ? [] : DATA_RSRC_FIXES.filter(ok).map(f => f.id)),
   };

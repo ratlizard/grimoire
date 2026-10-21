@@ -115,6 +115,13 @@ const DATA_FIX_GROUPS = [
   // keys, the mouse, a gamepad, windows, menus and the music.
   { id: 'interface', title: 'Controls, windows and music' },
   { id: 'text', title: 'Text' },
+  // Two lists left for a visitor to choose, as Design Changes are (`off`,
+  // in neither preset), at the maintainer's word of 21 October 2026: the
+  // slips in the books, notes, letters and signs, since a writer in the
+  // world could have made them; and wrong names and facts in words that
+  // are otherwise right, since a speaker could be mistaken on purpose.
+  { id: 'writings', title: 'Books and Notes', off: true, note: 'These correct slips in the books, notes, letters and signs you find in the game, which could be mistakes their writers made.' },
+  { id: 'facts', title: 'Factual Errors', off: true, note: 'These correct names and facts that are wrong in lines whose wording is right, which could be mistakes the speaker made.' },
   // Fixes nobody can see in play: the file is put right and the screen is
   // the same either way (the maintainer, 12 October 2026, of the Gate
   // Guard's reply). Named Hidden Bugs on 16 October 2026, his wording. A separate list, so that a mark of "untested" there
@@ -122,7 +129,7 @@ const DATA_FIX_GROUPS = [
   { id: 'hidden', title: 'Hidden Bugs', note: 'These are bugfixes you’d only notice if you made relevant patches to change default gameplay.' },
   // The larger changes, each a design call rather than a mended slip, in a
   // separate list below the rest (the maintainer, 1 October 2026).
-  { id: 'design', title: 'Design Changes', note: 'These are bug fixes for aspects that might actually be intentional, or for which the issue necessitates a creative solution.' },
+  { id: 'design', title: 'Design Changes', off: true, note: 'These are bug fixes for aspects that might actually be intentional, or for which the issue necessitates a creative solution.' },
 ];
 
 // The text's choices, by the name their options share, as the Patches
@@ -136,6 +143,14 @@ const DATA_FIX_CHOICES = [
   // Not a spelling: a figure the creation dialog states and the game does
   // not give. Its third button states that.
   { id: 'beserker', title: 'The Berserker\u2019s Mind', none: 'Leave both as they are' },
+  // The set's name: "of Wisdom" in the To Do lines, Itanos and one of
+  // Anisa's, "of Knowledge" in her other and in Selinus, whose list has
+  // "Wisdom" as the second volume. Knowledge first, at the maintainer's word
+  // (21 October 2026), since it leaves "Wisdom" to the one book.
+  { id: 'sapphire', title: 'The Sapphire Books' },
+  // Neither way is wrong, and the game has both, so none is picked when the
+  // page opens (`unpicked`): the maintainer's three buttons, 21 October 2026.
+  { id: 'oxford', title: 'Oxford Commas', none: 'Leave them as they are', unpicked: true },
 ];
 
 function dataFixKeyword(what, resid, at, kw, target) {
@@ -151,6 +166,11 @@ function dataFixT(what, resid, find, replace, count) {
 function dataFixReplaceOp(s, what, resid, seq, k, code) {
   const p = dataPatchPlace(s, what, resid, seq);
   return { what, resid, at: p.at(k), replaceOp: true, expect: p.expect, code };
+}
+// Several instructions of one place replaced, each edit expecting only its
+// own, since each is checked after the one before it is made.
+function dataFixOneOp(p, what, resid, k, code) {
+  return { what, resid, at: p.at(k), replaceOp: true, expect: { [p.at(k)]: p.text(k) }, code };
 }
 function dataFixInsert(s, what, resid, seq, k, code, shiftAt) {
   const p = dataPatchPlace(s, what, resid, seq);
@@ -1598,6 +1618,93 @@ const DATA_FIXES = [
       return { edits };
     } },
 
+  /* Found reading every line of the text (21 October 2026; workbench
+     doc/text-read-2026-10.md, which has each by resource). Each is in the
+     scripts' code rather than their words, so not a text edit. */
+
+  // Eurybates (0x1818) and Sardis (0x181F) test their flag 7, "met", the
+  // wrong way round: Cybele and the rest fall through to "Greetings again"
+  // with it set and jump to the first greeting without it, and these two
+  // fall through to the first greeting. So a stranger was greeted as an
+  // acquaintance and the reverse, and Eurybates, whose first greeting sets
+  // the flag, set it only on the second meeting. Each test is made `if`.
+  { id: 'greetings-backwards', group: 'talk', stage: 'further', title: 'Eurybates and Sardis introduce themselves at the first meeting and greet you as an acquaintance after, instead of the other way round',
+    plan: (s) => ({ edits: [
+      dataFixReplaceOp(s, 'Eurybates’s first greeting', 0x1818, ['if_not', 'call_resource 0xF02', 'arg Arg00', 'byte 0x07', 'end', 'then ->', 'string(implicit) "\\"You\'re new around here'], 0, 'if'),
+      dataFixReplaceOp(s, 'Sardis’s first greeting', 0x181F, ['if_not', 'call_resource 0xF02', 'arg Arg00', 'byte 0x07', 'end', 'then ->', 'string(implicit) "\\"Hello, "'], 0, 'if'),
+    ] }) },
+  // Opheltius (0x1833) prints "friend" with his flag 1 set and then
+  // "citizen" with flag 7 set, or "stranger" without, with nothing between,
+  // so a hero who is both was "friendcitizen". After "friend" a branch goes
+  // to the end of the line, ".  What can I do for you?" in the greeting and
+  // "." in the farewell, as "citizen" does. Each branch's target is the
+  // target of "citizen"'s branch as the file stood before the edit, and the
+  // relink moves both past the three bytes put in ahead of them; the
+  // farewell's, put in first (the stage sorts from the highest offset
+  // down), is moved by the greeting's too.
+  { id: 'opheltius-friend', group: 'talk', stage: 'further', title: 'Opheltius addresses you as \u201cfriend\u201d, instead of \u201cfriendcitizen\u201d or \u201cfriendstranger\u201d',
+    plan: (s) => {
+      const what = k => 'Opheltius’s ' + k + ', "friend" alone';
+      return { edits: ['greeting', 'farewell'].map((k, i) => {
+        const p = dataPatchPlace(s, what(k), 0x1833, [i ? 'string(implicit) "\\"Farewell, "' : 'string(implicit) ", "', 'if_not', 'call_resource 0xF02', 'arg Arg00', 'byte 0x01', 'end', 'then ->', 'string(implicit) "friend"',
+          'if_not', 'call_resource 0xF02', 'arg Arg00', 'byte 0x07', 'end', 'then ->', 'string(implicit) "citizen"', 'branch']);
+        const end = parseInt(p.text(15).split(' ')[1], 16);
+        return { what: what(k), resid: 0x1833, at: p.at(8), expect: p.expect, code: 'branch ' + dataFixHex(end), shiftAt: true };
+      }) };
+    } },
+  // The bearing a "Where Is" answer computes for a square (0xEAB, called
+  // through 0xEAA by GiveDirections): in each quarter it compares the
+  // distance along the bearing's first word with five, a half and a third
+  // of the other, as northwest does with north against west. North and
+  // east of the speaker it compares east where it should compare north, so
+  // a place ten squares east and one north was "north". The two locals of
+  // each of the four comparisons are swapped.
+  { id: 'bearing-northeast', group: 'talk', stage: 'further', title: '\u201cWhere Is\u201d directions give the right bearing for places to the north-east, instead of a mirrored one',
+    plan: (s) => {
+      const edits = [];
+      for (const [line, a, b] of [['north', 1, 2], ['north northeast', 1, 4], ['northeast', 1, 4], ['east northeast', 1, 4]]) {
+        const seq = line === 'north' ? ['if_not', 'local Var00', 'local Var01', 'byte 0x05', 'mul', 'gt', 'then ->', 'print', 'string "north"']
+          : line === 'north northeast' ? ['if_not', 'local Var00', 'byte 0x0A', 'mul', 'local Var01', 'byte 0x0F', 'mul', 'gt', 'then ->', 'print', 'string "north northeast"']
+          : line === 'northeast' ? ['if_not', 'local Var00', 'byte 0x03', 'mul', 'local Var01', 'byte 0x02', 'mul', 'gt', 'then ->', 'print', 'string "northeast"']
+          : ['if_not', 'local Var00', 'byte 0x05', 'mul', 'local Var01', 'gt', 'then ->', 'print', 'string "east northeast"'];
+        const what = 'the test for "' + line + '"', p = dataPatchPlace(s, what, 0x0EAB, seq);
+        edits.push(dataFixOneOp(p, what, 0x0EAB, a, 'local Var01'), dataFixOneOp(p, what, 0x0EAB, b, 'local Var00'));
+      }
+      return { edits };
+    } },
+  // Three lines that print a name and end without a full stop, the last
+  // part a separate string: Selinus's line with the hero's name in it, and
+  // a computer character's cast with no target, "X casts Y" (0xC4B,
+  // 0xEA3), where the cast with a target (0xC4C) has one.
+  { id: 'printed-name-stops', group: 'text', stage: 'further', title: 'Three lines that end on a name or a spell end with a full stop, and a potion\u2019s line ends with a line break',
+    plan: (s) => ({ edits: [
+      // The Mage's Friend Potion's first "Nothing seems to happen." ends
+      // without the line break its second has, so the next message runs on
+      // after it; a jump lands just past it, so it is not a text edit.
+      dataFixReplaceOp(s, 'the potion’s line break', 0x0A02, ['global PlayerCharacter', 'eq', 'then ->', 'string(implicit) "Nothing seems to happen."', 'branch'], 3, 'string(implicit) "Nothing seems to happen.\\n"'),
+      dataFixReplaceOp(s, 'Selinus’s line with the hero’s name', 0x1851, ['string(implicit) "\\"I\'ll rem', 'print', 'word 0x2000000A', 'end', 'string(implicit) "\\""'], 4, 'string(implicit) ".\\""'),
+      ...[[0x0C4B, 'Var00'], [0x0EA3, 'Var0C']].map(([resid, v]) => dataFixReplaceOp(s, 'a cast with no target', resid,
+        ['string(implicit) " casts "', 'print', 'method Look', 'local ' + v, 'end', 'end', 'string(implicit) "\\n"'], 6, 'string(implicit) ".\\n"')),
+    ] }) },
+  // The bust (0x117F): its Examine tests Data1 for 0, Data2 for 1, and Data3
+  // for 2 twice. Data3 is Data1 times 256 plus Data2, so it is 2 only with
+  // Data1 0, which the first test has taken: the last two lines can never
+  // print. The seventeen busts placed have Data2 0 and Data1 0, 1 or 2, so
+  // the twelve with 1 or 2 printed nothing. The four tests read Data1 for 0,
+  // 1, 2 and 3. Which line was meant for which number is not in the file:
+  // this is a reading, which is why it is a design change. No bust has
+  // Data1 3, so the inscription stays unseen.
+  { id: 'bust-subjects', group: 'design', stage: 'further', title: 'Every bust has a line when examined, instead of twelve of the seventeen showing nothing',
+    note: 'The busts with Data1 1 are described as poor craftsmanship, and those with Data1 2 as busts of Alaric. Which line belongs to which bust is inferred from the busts placed, not stated in the file.',
+    plan: (s) => {
+      const what = 'the bust’s tests', seq = ['if_not', 'arg Arg00', 'get_field data2', 'byte 0x01', 'eq', 'then ->', 'string(implicit) "The craftsmanship isn\'t very good',
+        'branch', 'if_not', 'arg Arg00', 'get_field data3', 'byte 0x02', 'eq', 'then ->', 'string(implicit) "It is a bust of Alaric',
+        'branch', 'if_not', 'arg Arg00', 'get_field data3', 'byte 0x02', 'eq', 'then ->', 'string(implicit) "It has an inscription'];
+      const p = dataPatchPlace(s, what, 0x117F, seq);
+      return { edits: [[2, 'get_field data1 (0x6)'], [10, 'get_field data1 (0x6)'], [18, 'get_field data1 (0x6)'], [19, 'byte 0x03']]
+        .map(([k, code]) => dataFixOneOp(p, what, 0x117F, k, code)) };
+    } },
+
   /* ---- Maps (the stage "map"; map_fixes_patch.mjs, "Cythera Map Fixes")
      The two faults in the scenario's maps that the board reported and this
      project confirmed (26 September 2026, the Citadel's at the maintainer's
@@ -1687,6 +1794,29 @@ const DATA_FIXES = [
   { id: 'beserker-table', parent: 'text', choice: 'beserker', group: 'text', short: 'the hero has 6, as the screen shows', title: 'A Berserker starts with mind 6, as the creation screen shows',
     played: 'a new game, PowerPC, 8 October 2026; Mac OS 8.5, 11 October 2026, with the text fix installed by Magpie: a new Berserker has Mind 6' },
   { id: 'text-no-hyphens', parent: 'text', choice: 'hyphens', group: 'text', short: 'unhyphenated, \u201ckind hearted\u201d', title: 'Standardize to unhyphenated: \u201ckind-hearted\u201d, \u201crat-faced\u201d and the like lose theirs', played: 'fork, 68K, 10 October 2026, with the text fix: Stentor, "You see a wide eyed man", against "wide-eyed" unpatched; Mac OS 8.5, 11 October 2026, with the text fix installed by Magpie: Stentor, "You see a wide eyed man"' },
+  { id: 'text-sapphire-knowledge', parent: 'text', choice: 'sapphire', group: 'text', short: '“Sapphire Books of Knowledge”', title: 'Standardize to “Sapphire Books of Knowledge”, which leaves “Wisdom” to the second book' },
+  { id: 'text-sapphire-wisdom', parent: 'text', choice: 'sapphire', group: 'text', short: '“Sapphire Books of Wisdom”, as in the To Do list', title: 'Standardize to “Sapphire Books of Wisdom”, as in the To Do list' },
+  { id: 'text-oxford', parent: 'text', choice: 'oxford', group: 'text', short: 'Use them: “bread, and meat”', title: 'Standardize lists to a comma before the last “and” or “or”' },
+  { id: 'text-no-oxford', parent: 'text', choice: 'oxford', group: 'text', short: 'Don’t use them: “bread and meat”', title: 'Standardize lists to no comma before the last “and” or “or”' },
+
+  /* ---- Books and notes, and factual errors (the stage "text") ------------
+     Off unless chosen, as Design Changes are (DATA_FIX_GROUPS). The books'
+     slips were part of the text fix until 21 October 2026. */
+  { id: 'writings', group: 'writings', stage: 'text', title: 'Misspellings and typos in the books, notes, letters and signs',
+    plan: () => ({ textEdits: DATA_FIX_WRITINGS }) },
+  // Myus is of House Comana, which rules Kosha (Darius: "youngest brother of
+  // House Comana"; the Where Is heading "Myus of Comana"). The words missing
+  // from the same line are the text fix's.
+  { id: 'bryaxis-comana', group: 'facts', stage: 'text', title: 'Bryaxis sold his last lock to Myus of House Comana, instead of House Kosha',
+    plan: () => ({ textEdits: [dataFixT('Bryaxis, "House Kosha"', 0x184C, 'Myus of House Kosha', 'Myus of House Comana', 1)] }) },
+  // Magpie's "tale" (0x1803): the tale is Magpie's, and the narration has
+  // Alaric laugh and caper as if the joke were his, then "again" beam after
+  // Magpie's riddle. Alaric need not be in the room.
+  { id: 'magpie-tale', group: 'facts', stage: 'text', title: 'In Magpie’s tale, Magpie laughs, capers and beams, instead of Alaric',
+    plan: () => ({ textEdits: [
+      dataFixT('Magpie’s tale, "Alaric laughs"', 0x1803, 'Alaric laughs and capers', 'Magpie laughs and capers', 1),
+      dataFixT('Magpie’s tale, "Alaric again beams"', 0x1803, 'Alaric again beams', 'Magpie again beams', 1),
+    ] }) },
 
   /* ---- Larger changes (the stage "apart"; karma_patch.mjs,
      resurrection_patch.mjs, peirithous_patch.mjs) --------------------------
@@ -2216,18 +2346,8 @@ const DATA_FIX_TEXT = [
   dataFixT('a room, "the smell ... fill"', 0x1B9B, 'food and wine fill the air', 'food and wine fills the air', 1),
   dataFixT('a room, "the smell ... fill"', 0x1BCA, 'metalwork and sweat fill the air', 'metalwork and sweat fills the air', 1),
   dataFixT('a room, "provisioners shop"', 0x1B9A, 'the provisioners shop', "the provisioner's shop", 1),
-  // books
-  dataFixT('"City of Mistery"', 0x021D, 'City of Mistery', 'City of Mystery', 1),
-  dataFixT('"diverisified"', 0x021D, 'diverisified', 'diversified', 1),
-  dataFixT('"percieve"', 0x021D, 'percieve', 'perceive', 1),
-  dataFixT('"wreack"', 0x021D, 'wreack', 'wreak', 1),
-  dataFixT('"live live"', 0x021D, 'live live', 'live', 1),
-  dataFixT('"A expedition"', 0x021D, 'A expedition', 'An expedition', 1),
-  dataFixT('"it wasn\'t 174"', 0x021D, "it wasn't 174 when", "it wasn't until 174 when", 1),
-  dataFixT('"truely"', 0x021D, 'can they truely be', 'can they truly be', 1),
-  dataFixT('"travellers tale"', 0x021D, 'travellers tale', "traveller's tale", 1),
-  dataFixT('Alaric\u2019s Government, "is was"', 0x021B, 'But is was through this', 'But it was through this', 1),
-  dataFixT('Alaric\u2019s Government, "a the basis"', 0x021B, 'formed a the basis', 'formed the basis', 1),
+  // The books' slips are DATA_FIX_WRITINGS since 21 October 2026; their
+  // choices stay here, as every choice applies to the whole text.
   dataFixT('Omen, "In the mean time"', 0x1CC3, 'In the mean time', 'In the meantime', 1),
   Object.assign(dataFixT('"Alaric, Landking"', 0x021B, 'Alaric, Landking', 'Alaric, Land King', 1), { opt: 'text-land-king' }),
   // the To Do lines
@@ -2246,10 +2366,7 @@ const DATA_FIX_TEXT = [
   dataFixT('To Do, "shading dealing"', 0x021A, 'the shading dealing of', 'the shady dealings of', 1),
   dataFixT('To Do, "Matro"', 0x021A, 'Matro Thuria', 'Matron Thuria', 1),
   dataFixT('To Do, "too her"', 0x021A, 'take it too her', 'take it to her', 1),
-  // notes, signs, the character sheet
-  dataFixT('the letter, "Berrosus"', 0x0219, '--Berrosus', '--Berossus', 1),
-  dataFixT('Tavara’s note, "once chance"', 0x0219, 'but once chance', 'but one chance', 1),
-  dataFixT('the sign "Eight Degree Hall"', 0x0218, 'Eight Degree Hall', 'Eighth Degree Hall', 1),
+  // the character sheet (the notes and signs are DATA_FIX_WRITINGS)
   dataFixT('archetypes, "A explorer"', 0x0204, 'A explorer', 'An explorer', 1),
   dataFixT('archetypes, "Beserker"', 0x0203, 'Beserker', 'Berserker', 1),
   // the opening and endings
@@ -2382,9 +2499,328 @@ const DATA_FIX_TEXT = [
     .map(r => Object.assign(dataFixT('the keyword "arei"', r, 'arei', 'arie', 1), { opt: 'text-ariethous' })),
   ...[['kind-hearted', 0x1806], ['Dark-hearted', 0x1806], ['rat-faced', 0x1810], ['round-faced', 0x1867], ['wide-eyed', 0x186C]]
     .map(([w, r]) => Object.assign(dataFixT('"' + w + '"', r, w, w.replace('-', ' '), 1), { opt: 'text-no-hyphens' })),
+  /* Found reading every line of the text in order, code and all (21 October
+     2026; workbench doc/text-read-2026-10.md, by resource). After the
+     options above in the list, and each found by words none of them
+     changes, so that "Two-Taled", "LandKing" and the hyphens can go either
+     way under them. Left as the game has them: a question ended with a
+     full stop for its tone, a capital that may be emphasis, a character's
+     dialect, and lines whose fix would need new code. */
+  // the To Do lines and the general topics
+  dataFixT('To Do, Charax’s book', 0x021A, 'saw in the library at the Magisterium', 'saw in the library at the Magisterium.', 1),
+  dataFixT('To Do, "a miner has"', 0x021A, 'Atymnius, a miner has', 'Atymnius, a miner, has', 1),
+  dataFixT('To Do, Apis’s flour', 0x021A, 'Rat needs more flour', 'Rat, needs more flour', 1),
+  dataFixT('To Do, Apis’s wine', 0x021A, 'Rat has you negotiating', 'Rat, has you negotiating', 1),
+  dataFixT('Cademia, "is oldest city"', 0x0801, 'Cademia is oldest city', 'Cademia is the oldest city', 1),
+  dataFixT('the mages, "aren\'t they?"', 0x0804, "great job, aren't they?", 'great job, are they?', 1),
+  dataFixT('the mages, "handling out"', 0x0808, 'The handling out of', 'The handing out of', 1),
+  ...[0x0808, 0x184D, 0x1851].map(r => dataFixT('"Prophesies"', r, 'Prophesies', 'Prophecies', 1)),
+  dataFixT('Anisa, "the first prophesy"', 0x184D, 'the first prophesy', 'the first prophecy', 1),
+  ...[0x0808, 0x0817].map(r => dataFixT('"lead us onto prosperity"', r, 'lead us onto prosperity', 'lead us on to prosperity', 1)),
+  dataFixT('Land King Hall, "hall"', 0x0809, 'King hall as it used', 'King Hall as it used', 1),
+  dataFixT('Pnyx, Demodocus', 0x080C, 'but I believe he left"', 'but I believe he left."', 1),
+  dataFixT('Kosha, Demodocus', 0x080D, 'if he is still around"', 'if he is still around."', 1),
+  dataFixT('Cademia, "the Tyrant\'s Castle"', 0x080E, "front hall of the Tyrant's Castle", "front hall of the Tyrants' Castle", 1),
+  dataFixT('the students, "be Freemage"', 0x0810, 'She should be Freemage soon', 'She should be a Freemage soon', 1),
+  dataFixT('the mine, "messhall"', 0x0811, 'serves food in messhall', 'serves food in the mess hall', 1),
+  dataFixT('the mine, "messhall"', 0x0811, 'north of the messhall', 'north of the mess hall', 1),
+  dataFixT('the dice game, "win 2:1"', 0x0812, 'If they match you win 2:1"', 'If they match you win 2:1."', 1),
+  dataFixT('the Judges, "such as change"', 0x0817, 'such as change in House', 'such as a change in House', 1),
+  // the helpers and things: a full stop, or a line break where the next
+  // message ran on after the line
+  dataFixT('locks, "It is now unlocked"', 0x0E44, 'It is now unlocked\n', 'It is now unlocked.\n', 2),
+  dataFixT('locks, "It is now locked"', 0x0E44, 'It is now locked\n', 'It is now locked.\n', 2),
+  dataFixT('sleep, "by its owner"', 0x0E93, 'by its owner\n', 'by its owner.\n', 1),
+  dataFixT('the mirror, "Seven years"', 0x1014, 'Seven years, coming up...', 'Seven years, coming up...\n', 1),
+  dataFixT('a potion, "quaff potion"', 0x101F, 'Whom should quaff potion?', 'Whom should quaff the potion?', 1),
+  dataFixT('the crystal, "use are"', 0x1025, 'its source or use are beyond', 'its source or use is beyond', 1),
+  dataFixT('a door, "It is locked"', 0x102B, 'It is locked\n', 'It is locked.\n', 1),
+  dataFixT('a door, "It is magically locked"', 0x102B, 'It is magically locked\n', 'It is magically locked.\n', 2),
+  dataFixT('the fountain, "Name your wish"', 0x1036, '"Name your wish"', '"Name your wish."', 1),
+  // The quote is closed before the pause, as the game's other lines have
+  // it. After the further stage's fix for the letter before a pause, a new
+  // line stands before the pause, which a pause after a quote does not need.
+  Object.assign(dataFixT('the fountain, the quote after the pause', 0x1036, 'No exceptions.*"', 'No exceptions."*', 1), { optional: true }),
+  Object.assign(dataFixT('the fountain, the quote after the pause', 0x1036, 'No exceptions.\n*"', 'No exceptions."*', 1), { optional: true }),
+  dataFixT('the dagger, "small, weapon"', 0x105F, 'a nice, small, weapon', 'a nice, small weapon', 1),
+  dataFixT('butter, "perfectly good butter"', 0x1084, 'perfectly good butter.', 'perfectly good butter.\n', 1),
+  dataFixT('a bed, "good nights rest"', 0x10B0, 'a good nights rest', "a good night's rest", 1),
+  dataFixT('Omen, "Earth continue"', 0x10EA, 'forces of Earth continue,', 'forces of Earth continues,', 1),
+  dataFixT('the glowing sword, "magical light."', 0x1119, 'with a magical light.', 'with a magical light.\n', 1),
+  dataFixT('a kesh vial, "prevents"', 0x112A, 'wrongness prevents you', 'wrongness prevent you', 1),
+  dataFixT('the hand mirror, "Seven years"', 0x113B, 'Seven years, coming up...', 'Seven years, coming up...\n', 1),
+  dataFixT('the hand mirror, "already broken"', 0x113B, "It's already broken.", "It's already broken.\n", 1),
+  dataFixT('the crystal ball, "gazes into"', 0x1141, 'One gazes into and', 'One gazes into it and', 1),
+  dataFixT('the dummy, "unphased"', 0x1145, 'It appears unphased', 'It appears unfazed', 1),
+  dataFixT('the abyss, "certainly fatal..."', 0x114C, 'and certainly fatal...', 'and certainly fatal...\n', 1),
+  dataFixT('the moss, "gives of"', 0x1150, 'gives of nasty', 'gives off nasty', 1),
+  dataFixT('boards, "with boards..."', 0x1156, 'with boards...', 'with boards...\n', 1),
+  dataFixT('the spent staff, "burned out..."', 0x1157, 'It appears to be burned out...', 'It appears to be burned out...\n', 1),
+  dataFixT('unguent, "leeched"', 0x118A, 'poison leeched out', 'poison leached out', 1),
+  // Omen's visions, Alaric, Magpie
+  dataFixT('Omen, the pause before he fades', 0x1801, 'alone..."Omen fades', 'alone..."*Omen fades', 1),
+  dataFixT('Omen, the pause before he fades', 0x1801, 'warned."Omen fades', 'warned."*Omen fades', 1),
+  dataFixT('Omen, "especially at night"', 0x1801, 'especially at night"', 'especially at night."', 1),
+  dataFixT('Alaric, "the vision Magpie"', 0x1802, 'the vision Magpie appears', 'the vision of Magpie appears', 1),
+  dataFixT('Alaric, "Swamp of Khalkis"', 0x1802, 'Swamp of Khalkis"', 'Swamp of Khalkis."', 1),
+  dataFixT('Magpie, "called the Land King"', 0x1803, 'King"*"And this place', 'King."*"And this place', 1),
+  // Hadrian to Hector
+  dataFixT('Hadrian, "Greetings again, stranger"', 0x1804, '"Greetings again, stranger', '"Greetings again, stranger."', 1),
+  dataFixT('Hadrian, "is fine lad"', 0x1804, 'Hector is fine lad', 'Hector is a fine lad', 1),
+  dataFixT('Hadrian, "my father Lycus"', 0x1804, 'my father Lycus"', 'my father Lycus."', 1),
+  dataFixT('Emesa, "Greetings again, stranger."', 0x1805, 'Greetings again, stranger.', 'Greetings again, stranger."', 1),
+  dataFixT('Emesa, "a something"', 0x1805, 'get a something to eat', 'get something to eat', 1),
+  dataFixT('Emesa, "some food"', 0x1805, 'She gives you some food\n', 'She gives you some food.\n', 1),
+  dataFixT('Hector, "agents of evil,"', 0x1806, 'agents of @evil,"', 'agents of @evil."', 1),
+  dataFixT('Hector, "and as well as"', 0x1806, 'my @father, and as well as make', 'my @father, as well as make', 1),
+  dataFixT('Hector, "honorable profession"', 0x1806, 'honorable profession"', 'honorable profession."', 1),
+  dataFixT('Hector, his mother', 0x1806, 'always says"', 'always says."', 1),
+  dataFixT('Hector, the earthquake', 0x1806, "@earthquake, I don't know\"", "@earthquake, I don't know...\"", 1),
+  // the guards
+  ...[[0x1808, 1], [0x180F, 1], [0x1836, 1], [0x183F, 1], [0x1854, 1], [0x1864, 2]]
+    .map(([r, n]) => dataFixT('a guard, "talk of such"', r, 'not permitted to talk of such"', 'not permitted to talk of such."', n)),
+  // Myus, Naxos, Darius, and Kosha to Odemia
+  ...[0x180A, 0x180B, 0x180C].map(r => dataFixT('"accuse me with"', r, 'accuse me with something', 'accuse me of something', 1)),
+  dataFixT('Naxos, "a clear a failure"', 0x180B, 'a clear a failure', 'a clear failure', 1),
+  dataFixT('Naxos, "Northshore Vineyards"', 0x180B, 'Northshore Vineyards', 'North Shore Vineyard', 1),
+  dataFixT('Darius, "House Comana"', 0x180C, '@brother of House @Comana"', '@brother of House @Comana."', 1),
+  dataFixT('Atreus, "but cunning smile"', 0x1810, 'but cunning smile', 'but a cunning smile', 1),
+  dataFixT('Thuria, "interested investigating"', 0x1814, 'interested investigating', 'interested in investigating', 1),
+  dataFixT('Thuria, "so-called ghost"', 0x1814, 'the so-called ghost"', 'the so-called ghost."', 1),
+  // "good" and "sir" or "ma'am" are two strings, with no space between.
+  dataFixT('Cybele, "goodsir"', 0x1816, '"Greetings again, good', '"Greetings again, good ', 1),
+  dataFixT('Cybele, "about Opheltius"', 0x1816, 'anything about Opheltius"', 'anything about Opheltius."', 1),
+  dataFixT('Amphidamas, "into ghost story"', 0x1817, 'look into @ghost story', 'look into the @ghost story', 1),
+  dataFixT('Atymnius, "torches that hope"', 0x181D, 'spare torches that hope you never need', 'spare torches that you hope you never need', 1),
+  dataFixT('Milcom, "use to"', 0x181E, 'I get use to the heat', 'I get used to the heat', 1),
+  // The lady's greeting goes on from the space before "how", which this
+  // edit starts at, so both have it.
+  dataFixT('Sardis, "good man. how"', 0x181F, ' how can I be of service?', '  How can I be of service?', 1),
+  dataFixT('Sardis, "Now is it"', 0x181F, 'Now is it ruled', 'Now it is ruled', 1),
+  dataFixT('Sardis, "House Atussa"', 0x181F, '@Milcom, of House @Atussa"', '@Milcom, of House @Atussa."', 1),
+  dataFixT('Ake, "the there"', 0x1820, 'that the there is', 'that there is', 1),
+  dataFixT('Ake, "in Cademia"', 0x1820, 'House Strymon in Cademia"', 'House Strymon in Cademia."', 2),
+  dataFixT('Ake, "say anymore"', 0x1820, "I can't say anymore", "I can't say any more", 2),
+  dataFixT('Neoptolemus, "what your"', 0x1821, 'what your, dense', 'what are you, dense', 1),
+  dataFixT('Meleager, "teach an"', 0x1822, 'Let me teach an important', 'Let me teach you an important', 1),
+  dataFixT('Meleager, "with him"', 0x1822, 'anything to do with him"', 'anything to do with him."', 1),
+  dataFixT('Meleager, "your service"', 0x1822, 'your @service"', 'your @service."', 1),
+  dataFixT('Hebe, "to you your forgiveness"', 0x1823, 'looks to you your forgiveness', 'looks to you for your forgiveness', 1),
+  dataFixT('Hebe, "mousey, woman"', 0x1823, 'slight, mousey, woman', 'slight, mousey woman', 1),
+  dataFixT('Antenor, "of Odemia"', 0x1824, 'formerly of Odemia"', 'formerly of Odemia."', 1),
+  dataFixT('Alastor, "like sort"', 0x1825, 'seem like sort that', 'seem like the sort that', 1),
+  dataFixT('Alastor, "here are boots"', 0x1825, 'here are boots', 'here are the boots', 1),
+  dataFixT('Alastor, "I will in turn,"', 0x1825, 'I will in turn, make', 'I will, in turn, make', 1),
+  dataFixT('Apis, "the Two-Taled Rat"', 0x182A, "Rat'\"", "Rat'.\"", 1),
+  dataFixT('Diomede, "truly great meal"', 0x182E, 'serves you truly great', 'serves you a truly great', 1),
+  dataFixT('Diomede, "get interest"', 0x182E, 'can I get @interest you', 'can I @interest you', 1),
+  dataFixT('Bias, "I am servant"', 0x1831, 'I am servant of', 'I am a servant of', 1),
+  dataFixT('Philinus, the pause before the narration', 0x1832, '."Philinus searches', '."*Philinus searches', 1),
+  dataFixT('Philinus, the pause before the narration', 0x1832, '."Philinus gives', '."*Philinus gives', 1),
+  dataFixT('Philinus, "Catamarca a would"', 0x1832, 'Catamarca a would', 'Catamarca would', 1),
+  dataFixT('Philinus, "an agent of the Land King"', 0x1832, 'King"*"That such', 'King."*"That such', 1),
+  dataFixT('Ascalon, "man in Odemia"', 0x1834, 'most powerful man in Odemia"', 'most powerful man in Odemia."', 1),
+  dataFixT('Ascalon, "working for Strymon"', 0x1834, 'working for @Strymon"', 'working for @Strymon."', 1),
+  dataFixT('Eteocles, "key to the sewers"', 0x1838, 'honorary key to the sewers"', 'honorary key to the sewers."', 1),
+  dataFixT('Propontis, "need search"', 0x183C, 'You need search elsewhere', 'You need to search elsewhere', 1),
+  dataFixT('Halos, "I am Halos"', 0x183E, '"I am Halos"', '"I am Halos."', 1),
+  dataFixT('Periphas, "a bag of flour"', 0x1841, '*He gives you a bag of flour', '*He gives you a bag of flour.', 1),
+  dataFixT('Hypsenor, "elsewhere friend"', 0x1843, 'seek elsewhere friend.', 'seek elsewhere, friend.', 1),
+  dataFixT('Thoas, "at around a forge"', 0x1844, 'working at around a forge', 'working at a forge', 1),
+  // Catamarca and Pnyx
+  dataFixT('Sacas, "her conscious"', 0x1846, 'her conscious.', 'her conscience.', 1),
+  dataFixT('Sacas, "There more"', 0x1846, '"There more, though', '"There\'s more, though', 1),
+  dataFixT('Sacas, "There were a gang"', 0x1846, 'There were a gang', 'There was a gang', 1),
+  dataFixT('Sacas, "Thersites quarters"', 0x1846, '@Thersites quarters', "@Thersites' quarters", 1),
+  dataFixT('Sacas, "find something"', 0x1846, 'hoping you\'d find something"', 'hoping you\'d find something."', 1),
+  dataFixT('Sacas, "control of Cademia"', 0x1846, 'control of Cademia"', 'control of Cademia."', 1),
+  dataFixT('Sacas, "from Thersites"', 0x1846, 'prison from Thersites"', 'prison from Thersites."', 1),
+  dataFixT('Sacas, "come back later"', 0x1846, 'Please come back later"', 'Please come back later."', 1),
+  dataFixT('Metopes, "is current ruling house"', 0x1847, 'is current ruling house', 'is the current ruling house', 1),
+  dataFixT('Metopes, "to some degree"', 0x1847, 'to some degree"', 'to some degree."', 1),
+  dataFixT('Metopes, "is resolved"', 0x1847, 'plague is resolved"', 'plague is resolved."', 1),
+  dataFixT('Metopes, "a Freemage the next step"', 0x1847, 'a Freemage the next step', 'a Freemage is the next step', 1),
+  dataFixT('Metopes, "that was the initial symptoms"', 0x1847, 'for that was the initial symptoms', 'for those were the initial symptoms', 1),
+  dataFixT('Metopes, "under the city"', 0x1847, 'spring under the city"', 'spring under the city."', 1),
+  dataFixT('Metopes, "Farewell"', 0x1847, '"Farewell"', '"Farewell."', 1),
+  dataFixT('Berossus, "anymore"', 0x1848, 'see if anymore can', 'see if any more can', 1),
+  dataFixT('Berossus, "anymore"', 0x1848, 'learn anymore about', 'learn any more about', 1),
+  dataFixT('Itanos, "make much of,"', 0x1849, 'make much of, but', 'make much of it, but', 1),
+  dataFixT('Itanos, "she called"', 0x1849, "'true seeing' she called.", "'true seeing' she called it.", 1),
+  dataFixT('Timon, "I was in a spring"', 0x184A, 'I was in a spring', 'It was in a spring', 1),
+  dataFixT('Timon, "I am Timon"', 0x184A, 'I am Timon"', 'I am Timon."', 1),
+  dataFixT('Timon, "green crystal"', 0x184A, 'glowing green @crystal"', 'glowing green @crystal."', 1),
+  dataFixT('Timon, "Headwater"', 0x184A, "call '@Headwater'\"", "call '@Headwater'.\"", 1),
+  dataFixT('Timon, "River Tirynth"', 0x184A, 'River Tirynth"', 'River Tirynth."', 1),
+  dataFixT('Timon, "Swamp of Khalkis"', 0x184A, 'found in the @Swamp of Khalkis"', 'found in the @Swamp of Khalkis."', 1),
+  dataFixT('Timon, "west of Kosha"', 0x184A, 'west of @Kosha"', 'west of @Kosha."', 1),
+  // Myus's house is a factual error, apart (bryaxis-comana).
+  dataFixT('Bryaxis, "was Myus"', 0x184C, 'sold was Myus', 'sold was to Myus', 1),
+  dataFixT('Bryaxis, "give to"', 0x184C, 'going to give to his', 'going to give it to his', 1),
+  // The community's list mends Alastor's, Anisa's and Charax's
+  // "Execellent", and not Pheres's two.
+  dataFixT('Pheres, "Execellent"', 0x184E, 'Execellent', 'Excellent', 2),
+  dataFixT('Anisa, Machaon', 0x184D, 'Mage Machaon use to live', 'Mage Machaon used to live', 1),
+  dataFixT('Anisa, "wit lead"', 0x184D, 'quick wit lead him', 'quick wit led him', 1),
+  dataFixT('Anisa, "Mage-friend"', 0x184D, 'Mage-friend community', 'Mage-friendly community', 1),
+  dataFixT('Anisa, "happened its"', 0x184D, 'what happened its citizens', 'what happened to its citizens', 1),
+  dataFixT('Anisa, "when basic problem"', 0x184D, 'when basic problem', 'when the basic problem', 1),
+  dataFixT('Anisa, "least as far"', 0x184D, 'third, least as far', 'third, at least as far', 1),
+  dataFixT('Pheres, "You peaceful"', 0x184E, 'You peaceful', 'You see a peaceful', 1),
+  dataFixT('Pheres, "if could you"', 0x184E, 'if could you do', 'if you could do', 1),
+  dataFixT('Pheres, "effected area"', 0x184E, 'reharmonizing effected area', 'reharmonizing the affected area', 1),
+  dataFixT('Pheres, "give the basics"', 0x184E, 'I can give the basics', 'I can give you the basics', 1),
+  dataFixT('Charax, the kelp', 0x184F, '*Charax takes the kelp', '*Charax takes the kelp.', 1),
+  dataFixT('Lindus, "council"', 0x1850, 'to him for council', 'to him for counsel', 1),
+  dataFixT('Lindus, "a well guarded"', 0x1850, 'are a well guarded', 'are well guarded', 1),
+  dataFixT('Lindus, "one of greatest"', 0x1850, 'one of greatest', 'one of our greatest', 1),
+  dataFixT('Lindus, "Headmaster of the Magisterium"', 0x1850, 'Headmaster of the Magisterium"', 'Headmaster of the Magisterium."', 1),
+  dataFixT('Lindus, "talk to is Timon"', 0x1850, 'talk to is @Timon"', 'talk to is @Timon."', 1),
+  dataFixT('Selinus, "Book of Kingdom"', 0x1851, 'Book of Kingdom', 'Book of the Kingdom', 1),
+  dataFixT('Selinus, "a copy on that"', 0x1851, 'a copy on that', 'a copy of that', 1),
+  dataFixT('Selinus, "copies Neleneus\'"', 0x1851, 'copies Neleneus', 'copies of Neleneus', 1),
+  dataFixT('Palaestra, "and the places"', 0x1852, 'and the places certain', 'and then places certain', 1),
+  dataFixT('Tros, "that doesn\'t fit"', 0x1853, "that doesn't fit this pattern", "that don't fit this pattern", 1),
+  dataFixT('Alcestris, "your were born"', 0x1855, 'before your were born', 'before you were born', 1),
+  dataFixT('Helen, "forgettable meal"', 0x1858, 'serves you forgettable', 'serves you a forgettable', 1),
+  dataFixT('Joppa, "very nice person"', 0x185B, 'and very nice person', 'and a very nice person', 1),
+  // "lovely ma'am" goes on from the spaces before "May", so both have it.
+  dataFixT('Eumelus, "kind sir  May"', 0x185D, '  May the @plague never catch you.', '.  May the @plague never catch you.', 1),
+  dataFixT('Eumelus, "Hey You"', 0x185D, "'Hey You'\"", "'Hey You'.\"", 1),
+  dataFixT('Eumelus, "from wine"', 0x185D, 'from @wine"', 'from @wine."', 1),
+  dataFixT('Eumelus, "wasn\'t I"', 0x185D, "wasn't I\"", "wasn't I?\"", 1),
+  dataFixT('Eumelus, "too sober"', 0x185D, 'too sober"', 'too sober."', 1),
+  // The community's list makes "spasm" "spasms" and leaves the verb, from
+  // a collection that has "wrack"; both here, which the list then finds
+  // mended.
+  dataFixT('Polydamas, "spasms wracks"', 0x185F, 'Coughing spasm wracks', 'Coughing spasms wrack', 1),
+  dataFixT('Polydamas, "didn\'t it"', 0x185F, "dicey there, didn't it\"", "dicey there, didn't it?\"", 1),
+  dataFixT('Aethon, "a friend of mine"', 0x1861, 'a friend of mine"', 'a friend of mine."', 1),
+  dataFixT('Dryas, "Goodbye"', 0x1862, '"Goodbye"', '"Goodbye."', 1),
+  dataFixT('the Gate Guard, "House Nicander"', 0x1864, 'House @Nicander"', 'House @Nicander."', 1),
+  dataFixT('the Gate Guard, "bandit Eudoxus"', 0x1864, 'bandit @Eudoxus"', 'bandit @Eudoxus."', 1),
+  dataFixT('the Gate Guard, "to Philinus"', 0x1864, 'take the body to Philinus"', 'take the body to Philinus."', 1),
+  dataFixT('Thersites, "Whomever"', 0x1865, 'Whomever is behind', 'Whoever is behind', 1),
+  dataFixT('Thersites, "Captain of the Guard"', 0x1865, 'the Captain of the Guard"', 'the Captain of the Guard."', 1),
+  dataFixT('Thersites, "with Love"', 0x1865, "with Love'\"", "with Love'.\"", 1),
+  dataFixT('Thersites, "than she did"', 0x1865, 'more than she did"', 'more than she did."', 1),
+  dataFixT('Thersites, "my responsibility"', 0x1865, 'are my responsibility"', 'are my responsibility."', 1),
+  dataFixT('Glaucus, "wine in Cythera"', 0x1866, '@wine in Cythera"', '@wine in Cythera."', 1),
+  dataFixT('Borus, "faced man"', 0x1867, 'faced man', 'faced man.', 1),
+  dataFixT('Briseis, "Southland Vineyard"', 0x1868, 'the Southland Vineyard"', 'the Southland Vineyard."', 1),
+  dataFixT('Briseis, "house Comana"', 0x1868, 'since house Comana', 'since House Comana', 1),
+  dataFixT('Demodocus, "laying around"', 0x186D, 'an old set laying around', 'an old set lying around', 1),
+  dataFixT('Demodocus, "village of Odemia"', 0x186D, 'village of Odemia"', 'village of Odemia."', 1),
+  dataFixT('Demodocus, "The metics"', 0x186D, '"The metics', '"The Metics', 1),
+  dataFixT('Semele, "that lead to"', 0x1875, 'mountains that lead to', 'mountains that led to', 1),
+  // The Seldane's word order stays as the game has it; their "less" for
+  // "lest" is a misspelling.
+  dataFixT('Sabinate, "less"', 0x1878, 'use it, less you', 'use it, lest you', 1),
+  dataFixT('Sabinate, "less"', 0x1878, 'we did, less corruption', 'we did, lest corruption', 1),
+  dataFixT('Unhayt, "We are Unhayt"', 0x187A, 'We are Unhayt"', 'We are Unhayt."', 1),
+  dataFixT('Uset, "weighted"', 0x187C, 'been weighted and', 'been weighed and', 1),
+  dataFixT('Uset, "We are Uset"', 0x187C, 'We are Uset"', 'We are Uset."', 1),
+  dataFixT('Ignae, "the rest of the human"', 0x187D, 'rest of the human,', 'rest of the humans,', 1),
+  dataFixT('Ignae, "equals 0"', 0x187D, 'equals 0"', 'equals 0."', 1),
+  dataFixT('Ur-Sylph, "we lead"', 0x187F, 'Once we lead', 'Once we led', 1),
+  dataFixT('Ur-Sylph, "the last great Sylph"', 0x187F, 'last great @Sylph"', 'last great @Sylph."', 1),
+  // the spells and skills
+  dataFixT('Death Strike, "harm of"', 0x1A06, 'harm of whatever', 'harm to whatever', 1),
+  dataFixT('Detect Rune, "some sorts"', 0x1A14, 'a rune of some sorts', 'a rune of some sort', 1),
+  dataFixT('Rune of Pain, "a rune"', 0x1A21, 'a rune that causes', 'a Rune that causes', 1),
+  dataFixT('Fireball, "effecting"', 0x1A22, 'effecting all', 'affecting all', 1),
+  dataFixT('Daylight, "long last"', 0x1A25, 'a long last light', 'a long-lasting light', 1),
+  dataFixT('Mass Confusion, "to among"', 0x1A2C, 'confusion to among', 'confusion among', 1),
+  dataFixT('Remove Mage Lock, "no no"', 0x1A30, 'is no no longer', 'is no longer', 1),
+  ...[0x1AC2, 0x1AC3].map(r => dataFixT('training, "in basics"', r, 'trained in basics', 'trained in the basics', 1)),
+  // Awareness: the aptitude's line goes on from just past this word, so
+  // its replacement is of the same length ("This skill enables one to").
+  dataFixT('Awareness, "This skill ability"', 0x1ACD, 'ability', 'enables', 1),
+  dataFixT('Fishing, "less talking"', 0x1ACE, 'less talking"', 'less talking."', 1),
+  dataFixT('Thievery, the closing quote', 0x1AD6, 'need it)."', 'need it).', 1),
+  dataFixT('Attack, "ones"', 0x1AF7, 'within ones own', "within one's own", 1),
+  // the rooms, Omen, the combat line
+  dataFixT('a room, "scrolls, line"', 0x1B03, 'scrolls, line the walls', 'scrolls line the walls', 1),
+  dataFixT('a room, "bails of flax"', 0x1B37, 'bails of flax', 'bales of flax', 1),
+  dataFixT('a room, "in very small"', 0x1BAF, 'You are in very small', 'You are in a very small', 1),
+  dataFixT('a room, "it\'s original"', 0x1BD2, "not it's original", 'not its original', 1),
+  dataFixT('Tavara, "back be now"', 0x1C2D, 'back be now', 'back by now', 1),
+  dataFixT('a room, "trapping of office"', 0x1C30, 'the trapping of office', 'the trappings of office', 1),
+  dataFixT('Omen, "where you\'ve been"', 0x1CC3, "see where you've been\"", "see where you've been.\"", 1),
+  dataFixT('combat, "wounded!--"', 0x3041, 'wounded!--', 'wounded! --', 1),
+  // The keyword fix for "Jhaixus" (above) reached Ignae's alone.
+  ...[0x187B, 0x187C].map(r => dataFixT('the keyword "jhai"', r, 'jhai', 'jhia', 1)),
+  // Magpie's topic for Chrysothemis answers "chrs", which her name never
+  // matches; Alaric's answers "chry".
+  dataFixT('Magpie’s keyword "chrs"', 0x1803, 'chrs', 'chry', 1),
+  // Four more compounds for the hyphens.
+  ...[[0x104E, 'one sided', 'one-sided'], [0x1B0F, 'recent cave in', 'recent cave-in'], [0x1B5D, 'low ceilinged', 'low-ceilinged'], [0x1B7B, 'well kept', 'well-kept']]
+    .map(([r, a, b]) => Object.assign(dataFixT('"' + a + '"', r, a, b, 1), { opt: 'text-hyphens' })),
+  // The Sapphire Books, either way (DATA_FIX_CHOICES). "Book of Wisdom",
+  // the second volume, and Selinus's keyword for it, "wisd", stay.
+  ...[[0x021A, 'Books of Wisdom', 'Books of Knowledge', 22], [0x1849, 'Sapphire Books of Wisdom', 'Sapphire Books of Knowledge', 1], [0x1849, 'sapp,wisd', 'sapp,know', 1],
+      [0x184D, 'Sapphire Books of Wisdom', 'Sapphire Books of Knowledge', 1], [0x1851, 'Book of @Sapphire Wisdom', 'Book of @Sapphire Knowledge', 1],
+      [0x1851, 'Books of Sapphire Knowledge', 'Sapphire Books of Knowledge', 1], [0x1851, 'Sapphire books of Knowledge', 'Sapphire Books of Knowledge', 1]]
+    .map(([r, a, b, n]) => Object.assign(dataFixT('"' + a + '"', r, a, b, n), { opt: 'text-sapphire-knowledge' })),
+  ...[[0x184D, 'Sapphire Books of Knowledge'], [0x1851, 'Books of Sapphire Knowledge'], [0x1851, 'Sapphire books of Knowledge']]
+    .map(([r, a]) => Object.assign(dataFixT('"' + a + '"', r, a, 'Sapphire Books of Wisdom', 1), { opt: 'text-sapphire-wisdom' })),
+  /* Oxford commas, either way (DATA_FIX_CHOICES): every list of three or
+     more found on the day with a comma before its last "and" or "or", and
+     every list that has none there. A run of clauses ("Go out the exit,
+     past Odemia, and continue") is not a list, and the books' lists stay
+     as their writers have them. */
+  ...[[0x1036, 'license, dealer-prep or options'], [0x1802, 'Hall and all humanity'], [0x1849, 'divination and some sort'], [0x184F, 'Time and Change'],
+      [0x1B03, 'papers and scrolls'], [0x1B9A, 'office and storeroom'], [0x1BCA, 'metalwork and sweat']]
+    .map(([r, a]) => Object.assign(dataFixT('"' + a + '"', r, a, a.replace(/ (and|or) /, ', $1 '), 1), { opt: 'text-oxford' })),
+  ...[[0x0221, 'a settlement, and then'], [0x0817, '@popularity, and the like'], [0x10EA, 'spoil our plans, and destroy'], [0x1802, 'mild weather, and peace'],
+      [0x181E, '@Catamarca, and unrest'], ...[0x1828, 0x1829, 0x182A, 0x182D, 0x182E, 0x1858].map(r => [r, 'bread, and meat']),
+      [0x184A, '@Naxos, and @Darius'], [0x1851, 'Foundation, and the Kingdom'], [0x187D, '@South, and @West'], [0x1B39, 'dusty, and hot'], [0x1BD0, 'roasted meats, and other']]
+    .map(([r, a]) => Object.assign(dataFixT('"' + a + '"', r, a, a.replace(', and ', ' and '), 1), { opt: 'text-no-oxford' })),
   // tab bytes
   Object.assign(dataFixT('Tavara’s tabs', 0x1CC3, '\t', '', 10), { mid: true }),
   Object.assign(dataFixT('a rumour’s tab', 0x0813, '\t', '', 1), { mid: true }),
+];
+
+/* The slips in what the game's people wrote, the books (0x021B, 0x021D),
+   the notes and letter (0x0219) and the signs (0x0218): the fix
+   "writings", off unless chosen, at the maintainer's word of 21 October
+   2026, since a writer in the world could have made them. The first
+   fourteen were in the text fix from 24 September 2026; the rest are from
+   the reading of every line. The Golem Hunter's notes (semius-notes) are a
+   puzzle's key, not a slip, and stay a separate fix. Legendary Beasts
+   breaks off mid-word with a stray quotation mark, "playing in the waves
+   at a gr\"": the sentence ends at "waves", since what followed is not in
+   the file. */
+const DATA_FIX_WRITINGS = [
+  dataFixT('"City of Mistery"', 0x021D, 'City of Mistery', 'City of Mystery', 1),
+  dataFixT('"diverisified"', 0x021D, 'diverisified', 'diversified', 1),
+  dataFixT('"percieve"', 0x021D, 'percieve', 'perceive', 1),
+  dataFixT('"wreack"', 0x021D, 'wreack', 'wreak', 1),
+  dataFixT('"live live"', 0x021D, 'live live', 'live', 1),
+  dataFixT('"A expedition"', 0x021D, 'A expedition', 'An expedition', 1),
+  dataFixT('"it wasn\'t 174"', 0x021D, "it wasn't 174 when", "it wasn't until 174 when", 1),
+  dataFixT('"truely"', 0x021D, 'can they truely be', 'can they truly be', 1),
+  dataFixT('"travellers tale"', 0x021D, 'travellers tale', "traveller's tale", 1),
+  dataFixT('Alaric’s Government, "is was"', 0x021B, 'But is was through this', 'But it was through this', 1),
+  dataFixT('Alaric’s Government, "a the basis"', 0x021B, 'formed a the basis', 'formed the basis', 1),
+  dataFixT('the letter, "Berrosus"', 0x0219, '--Berrosus', '--Berossus', 1),
+  dataFixT('Tavara’s note, "once chance"', 0x0219, 'but once chance', 'but one chance', 1),
+  dataFixT('the sign "Eight Degree Hall"', 0x0218, 'Eight Degree Hall', 'Eighth Degree Hall', 1),
+  dataFixT('the treasure note, "4 paces south"', 0x0219, '4 paces south', '4 paces S', 1),
+  dataFixT('The Artifact of Pnyx, "artifact to almost"', 0x021B, 'rendering this artifact to almost', 'rendering this artifact almost', 1),
+  dataFixT('Basic Alchemical Potions, "Mages Friend"', 0x021B, 'Mages Friend', "Mage's Friend", 1),
+  dataFixT('Basic Alchemical Potions, "Smiths Friend"', 0x021B, 'Smiths Friend', "Smith's Friend", 1),
+  dataFixT('the Book of Understanding, a verb missing', 0x021B, 'be able to this very abstract', 'be able to apply this very abstract', 1),
+  dataFixT('the Book of the Kingdom, "viewed at"', 0x021B, 'can be viewed at the final', 'can be viewed as the final', 1),
+  dataFixT('Basis of Magic, "to becoming"', 0x021D, 'attempting to becoming', 'attempting to become', 1),
+  dataFixT('Lost Cult of Scylla, "that is it"', 0x021D, 'save that is it in', 'save that it is in', 1),
+  dataFixT('Lifecycle of Scylla, "barrels shaped"', 0x021D, 'barrels shaped with', 'barrel-shaped, with', 1),
+  dataFixT('Common Beasts, "than that ratlizard"', 0x021D, 'than that ratlizard', 'than the ratlizard', 1),
+  dataFixT('Legendary Beasts, "tail are"', 0x021D, 'or their tail are rumored', 'or their tail is rumored', 1),
+  dataFixT('Legendary Beasts, the end', 0x021D, 'in the waves at a gr"', 'in the waves.', 1),
+  dataFixT('Magickal Beasts, "pure theoretical"', 0x021D, 'is pure theoretical', 'is purely theoretical', 1),
+  dataFixT('"existance"', 0x021D, 'existance', 'existence', 4),
+  dataFixT('the prophecies, "Prophesy"', 0x021D, 'Prophesy of Neleneus', 'Prophecy of Neleneus', 3),
 ];
 
 /* The spelling. British spellings in a game whose text, and whose Hintbook
