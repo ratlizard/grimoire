@@ -646,33 +646,24 @@ const APP_FIXES = [
   // the portrait's GWorld, the current port, whose txSize is the halfword at
   // 74; r23 is dead once the routine has set its port, and stores the size to
   // put back. The imports are called at their glue: TextWidth 0xC2AC0,
-  // TextSize 0xC35B8, CharExtra 0xC3630; 0xB6CE8 is strlen.
+  // TextSize 0xC35B8, CharExtra 0xC3630; 0xB6CE8 is strlen. The limit is 90
+  // pixels: a name centred on x 64 then ends by 110 with its outline, short
+  // of the clears from 111 (name-clear) and 112 (speech-clear). It was 104
+  // until 21 October 2026, which reached 116 and lost its end to both, and
+  // to the shipped clears.
   { id: 'name-fit', kind: 'fix', title: 'A long name under a conversation portrait shrinks until it fits, instead of squeezing until its letters overlap',
-    played: 'Mac OS 8.5 in Infinite Mac, applied alone',
     bug: 'A long name under a conversation portrait squeezes until its letters overlap',
     sites: [
       { at: 0x3DE90, was: [0x38800054, 0x4BFFDAA1], asm: ['b @fit                ; was li 4, 84', 'nop                   ; was bl FitText'] },
       { at: 0x3DF68, was: [0x38600000, 0x480856C5, 0x80410014], asm: ['b @restore            ; was li 3, 0', 'nop                   ; was bl CharExtra', 'nop                   ; was lwz 2, 20(1)'] }],
     cave: ['fit:', 'lha 23, 74(28)        ; the size, to put back after',
            'measure:', 'addi 3, 1, 56', 'bl @0xB6CE8', 'mr 5, 3', 'addi 3, 1, 56', 'li 4, 0', 'bl @0xC2AC0', 'lwz 2, 20(1)',
-           'extsh 3, 3', 'cmpwi 3, 104', 'ble @fits              ; clear of the other speaker\'s text',
+           'extsh 3, 3', 'cmpwi 3, 90', 'ble @fits               ; ends by x 110, clear of every clear and the speech',
            'lha 3, 74(28)', 'cmpwi 3, 9', 'ble @squeeze', 'addi 3, 3, -1', 'bl @0xC35B8', 'lwz 2, 20(1)', 'b @measure',
-           'squeeze:', 'addi 3, 1, 56', 'li 4, 104', 'bl @FitText__FPCcs   ; at 9 points and still too wide: the shipped squeeze',
+           'squeeze:', 'addi 3, 1, 56', 'li 4, 90', 'bl @FitText__FPCcs    ; at 9 points and still too wide: the shipped squeeze',
            'fits:', 'b @0x3DE98',
            'restore:', 'li 3, 0', 'bl @0xC3630', 'lwz 2, 20(1)', 'mr 3, 23', 'bl @0xC35B8', 'lwz 2, 20(1)', 'b @0x3DF74'] },
 
-  // In TConversation::ShowTalking. The speech is cleared by copying the
-  // background over one rectangle, SetRect(103, 12, 488, 276) offset 12
-  // across, and the same rectangle, copied to 2136(31) with its bottom set
-  // to 80, is the box the text is laid out in from its left edge at 115.
-  // Argos's P, R, j, Y and g draw up to a twelfth of an em left of the pen,
-  // 1.9 pixels for P in the speech's 22 points (TxSt 134), so a line that
-  // began with one left that sliver of ink outside the next clear (seen in
-  // the Spanish on 29 September 2026; the English does it too). The clear
-  // now starts three pixels further left, at 112, a pixel to spare. The
-  // names under the portraits lie inside the same rectangle: fitted to 84
-  // pixels about x 64 they end by 107 with their outline and are not
-  // reached; drawn up to 104 pixels by the name-fit fix they can reach 116,
   // In TConversation::WriteJournal, the click that writes a line of the
   // conversation to the journal. A spoken line (this+82, NUL put at its
   // length, 1106(30)) goes to TJournal::SaidToJournal with its speaker, and
@@ -700,10 +691,21 @@ const APP_FIXES = [
            'strip:', 'lbz 7, 0(4)', 'addi 4, 4, 1', 'cmpwi 7, 64            ; "@"', 'beq @strip', 'stb 7, 0(6)', 'addi 6, 6, 1',
            'cmpwi 7, 0', 'bne @strip', 'blr'] },
 
-  // and the shipped clear from 115 already took that tip, so the three
-  // pixels more cost such a name what lies between 112 and 115 whenever the
-  // speech is cleared without the portraits being drawn again. The copy to
-  // 2136(31) is written as the constants it always
+  // In TConversation::ShowTalking. The speech is cleared by copying the
+  // background over one rectangle, SetRect(103, 12, 488, 276) offset 12
+  // across, and the same rectangle, copied to 2136(31) with its bottom set
+  // to 80, is the box the text is laid out in from its left edge at 115.
+  // Argos's P, R, j, Y and g draw up to a twelfth of an em left of the pen,
+  // 1.9 pixels for P in the speech's 22 points (TxSt 134), so a line that
+  // began with one left that sliver of ink outside the next clear (seen in
+  // the Spanish on 29 September 2026; the English does it too). The clear
+  // now starts three pixels further left, at 112, a pixel to spare. The
+  // names under the portraits lie inside the same rectangle: fitted to 84
+  // pixels about x 64 they end by 107 with their outline, and at the 90
+  // pixels the name-fit fix allows, by 110, so neither is reached. (The
+  // fix allowed 104 until 21 October 2026, which this clear and the
+  // shipped one from 115 both cut.) The copy to 2136(31) is written as the
+  // constants it always
   // was (top 12, left 115, bottom 80, right 500) in the same eight words,
   // so the text stays in place; r3 and r4 are the OffsetRect arguments
   // that follow, and r5 and r6 were only the copy's.
@@ -715,6 +717,29 @@ const APP_FIXES = [
         asm: ['lis 0, 12              ; top 12', 'ori 0, 0, 115          ; left 115, where the text has always begun', 'stw 0, 2136(31)',
               'lis 0, 80              ; bottom 80', 'ori 0, 0, 500          ; right 500', 'stw 0, 2140(31)',
               'addi 3, 31, 2136       ; OffsetRect(2136(31), 0, ...), as before', 'li 4, 0'] }] },
+
+  // In TConversation::GetWorkRect and ShowTalking. ShowPortrait clears the
+  // band under a portrait from x 12 to 116 before it draws a name there, so
+  // that is the name's column. The conversation's work area, where a menu,
+  // a count or a field is laid out while it is open, is the window from
+  // x 104 (GetWorkRect, which TInteraction::GetWorkRect reaches through the
+  // vtable), and ShowTalking, with no speech to show (1106(31) zero), copies
+  // the background over (103, 0, 536, 276) with no offset, which crosses
+  // every name's band. A name wider than about 78 pixels lost its end there
+  // until the conversation was drawn again: the hero's "Bellerophon" read
+  // "Bellerophor" from a training menu or a line of narration on (the 2019
+  // livestream, the 2025 StormThalion video, and the 68K fork from the
+  // kit's cp1-intro-done, Hadrian's training). A menu's items begin at 105,
+  // so the clear cannot just start further right and leave the work area
+  // where it was: the work area's left edge moves to 113 and the clear to
+  // 111, three pixels short of it for the ink a swash letter draws left of
+  // the pen, as speech-clear leaves. A name fitted to 84 pixels ends by 107
+  // with its outline, and one of name-fit's 90 by 110.
+  { id: 'name-clear', kind: 'fix', title: 'A long name under a conversation portrait stays whole when a menu or a line of narration appears, instead of being cut short',
+    bug: 'The end of a long name under a conversation portrait is cut off when a menu or a line of narration appears',
+    sites: [
+      { at: 0x3C988, was: [0x38000068], asm: ['li 0, 113             ; was 104: the work area\'s left edge'] },
+      { at: 0x3D714, was: [0x38800067], asm: ['li 4, 111             ; was 103: the clear with no speech, from 111'] }] },
 
   // ---- Hooks ----------------------------------------------------------------
   { id: 'hook-take', kind: 'hook', method: 241, title: 'Scripts can refuse a thing being moved somewhere, or let it in without weighing it',
@@ -851,6 +876,6 @@ const APP_FIX_GROUP = {
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
   'corpse-light': 'rules', 'spell-glow': 'rules',
-  'menu-scroll': 'talk', 'menu-items': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk',
+  'menu-scroll': 'talk', 'menu-items': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
 };
 function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }

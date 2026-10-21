@@ -53,6 +53,8 @@ const APP_FIXES_68K = {
     { fix: 'right-click', seg: 1, at: 0xD7DE, was: '006a1000000e', now: '006a0100000e' },  // ori.w #$100, $e(a2)
     { fix: 'speech-clear', seg: 5, at: 0xFC9C, was: '2f3c000c0067', now: '2f3c000c0064' },  // move.l #$c0064, -(a7)
     { fix: 'speech-clear', seg: 5, at: 0xFCE2, was: '256efff80858256efffc085c357c0050085c', now: '257c000c00730858257c005001f4085c4e71' },  // move.l #$c0073, $858(a2); move.l #$5001f4, $85c(a2); nop
+    { fix: 'name-clear', seg: 5, at: 0xF56C, was: '357c00680002', now: '357c00710002' },  // move.w #$71, $2(a2)
+    { fix: 'name-clear', seg: 5, at: 0xFE0A, was: '48780067', now: '4878006f' },  // pea.l $6f.w
     { fix: 'menu-items', seg: 3, at: 0xA0B2, was: '48780014', now: '48780040' },  // pea.l $40.w
     { fix: 'menu-items', seg: 3, at: 0xA132, was: '0c430014', now: '0c430040' },  // cmpi.w #$40, d3
     { fix: 'corner-body', seg: 1, at: 0x4E02, was: '7400', now: '7401' },  // moveq #$1, d2
@@ -117,18 +119,18 @@ const APP_FIXES_68K = {
         '52804a18',                                  // addq.l #$1, d0; tst.b (a0)+
         'b66 len',
         '554f486efef442673f00a886301f',              // subq.w #$2, a7; pea.l -$10c(a6); clr.w -(a7); move.w d0, -(a7); dc.w $a886; move.w (a7)+, d0
-        '0c400068',                                  // cmpi.w #$68, d0
+        '0c40005a',                                  // cmpi.w #$5a, d0
         'b6f fits',
         '205520503028004a0c400009',                  // movea.l (a5), a0; movea.l (a0), a0; move.w $4a(a0), d0; cmpi.w #$9, d0
         'b6f squeeze',
         '53403f00a88a',                              // subq.w #$1, d0; move.w d0, -(a7); dc.w $a88a
         'b60 measure',
         ':squeeze',
-        '3f3c0068486efef4',                          // move.w #$68, -(a7); pea.l -$10c(a6)
+        '3f3c005a486efef4',                          // move.w #$5a, -(a7); pea.l -$10c(a6)
         'bsr.l 0xeb76',
         'bra.l 0x103bc',
         ':fits',
-        '3f3c0068486efef4',                          // move.w #$68, -(a7); pea.l -$10c(a6)
+        '3f3c005a486efef4',                          // move.w #$5a, -(a7); pea.l -$10c(a6)
         'bra.l 0x103bc',
       ],
     } },
@@ -551,7 +553,7 @@ const APP_FIXES_68K = {
     { fix: 'text-compatible', at: 0x98EE, was: '74686973', now: '77697468' },
     { fix: 'text-compatible', at: 0x9A11, was: '74686973', now: '77697468' },
   ],
-  played: ['containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'option-p', 'option-x', 'roster-pose', 'sleeper-unit', 'spell-glow', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
+  played: ['containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'name-clear', 'option-p', 'option-x', 'roster-pose', 'sleeper-unit', 'spell-glow', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
   built: {
     'books-window': '207b3c02cdf3210a790655b10b292f6af82a2758492771c8b8e1a0d9abc58840',
     'containers-weight': '75a358199feb783bfbc9dc5bfc27a3a330321f6bd0bacb341f4e03f13790c5db',
@@ -572,7 +574,8 @@ const APP_FIXES_68K = {
     'menu-scroll': '829f52f2fd98bded93a73cc37a16405eedb4efc9c3e9f176d4bbc3b839a221dc',
     'music-lock': '0be1695d786e5c8c2c855aa96421daabb83b59326ae52e03522d8a148e63ffe9',
     'music-revert': '50c306a8f80643d5467290ea5dbbba4a3e362e072cbaffaa144572ae54cbf5a4',
-    'name-fit': '768c4ab526dab1d96bbec2759fa91ae1631b4ce5493cf870dc01f0b10c55e9aa',
+    'name-clear': 'b1d85aad5ad95485b577f08c7e4273371af7b7ff120e0756553d1b2fe0395c42',
+    'name-fit': '4cb48e5fb56b289e879d5dcf7a6e1de0c7f246a7ee28174b02f8fa584b0ebc7f',
     'option-p': '6917f679a8d9fac518babc87c16ab4112df7965b8313222a302109dc376e6225',
     'option-x': 'bed7d91fc213c424f96f8c4a8bdff56831792e71698f8099595ed428d7c65215',
     'right-click': '0ea255ae9bbd6a6245a40cadc2c088d99adb7a6bf4a9abdbe2e985296a2994a6',
@@ -592,6 +595,6 @@ const APP_FIXES_68K = {
     'walk-to': 'e9dc95c294c067c41f836ef643962132e0d58e15fa366234b273f7189b25db2c',
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
-    '': 'bc9a43aac84babcd9e8f18562882ff3844dfccdaa7152182021aa0b311e0612d',   // every fix
+    '': 'daa4d67fd9a5d922e9440ddb69e0a0b9b651f704090546f388cd6bf9bbef59df',   // every fix
   },
 };
