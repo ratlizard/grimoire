@@ -115,7 +115,7 @@ const APP_FIXES = [
       { at: 0x54258, was: [0x28000000, 0x41820010, 0x881E0000, 0x28000008, 0x40820094],
         asm: ['andi. 0, 0, 223       ; the moved bit aside', 'beq @0x5426C', 'cmplwi 0, 8', 'bne @0x542FC', 'nop'] }] },
 
-  { id: 'weight-contents', kind: 'fix', title: 'An item’s weight is its own, instead of also counting the load of an unrelated thing that shares its number',
+  { id: 'weight-contents', kind: 'fix', title: 'The scale and the shops weigh an item correctly, instead of adding in whatever an unrelated character or thing is carrying',
     bug: 'The scale gives wrong weights',
     sites: [{ at: 0x958A4, was: [0x4BFC01B5], asm: ['li 3, 0               ; was bl GetCurInvEncumb'] }] },
 
@@ -133,7 +133,7 @@ const APP_FIXES = [
   // be empty is written as one free slot (flags 0xFF, what the routine's
   // own trimming loop treats as unused), 16 bytes, which is copied like
   // any other and replaces what was there.
-  { id: 'empty-zone-save', kind: 'fix', title: 'A zone left with nothing in it is saved as one free slot, so Tavara\u2019s island no longer doubles what you carry',
+  { id: 'empty-zone-save', kind: 'fix', title: 'Saving at the clearing of the hidden fortress no longer doubles everything in your inventory',
     bug: 'Saving and reverting around Tavara\u2019s ring duplicates everything carried',
     played: 'Mac OS 8.5, 11 October 2026, the program with the fix alone and with every fix beside the stock one, the hero given stairs to the fortress and to Land King Hall: a save on the island without the fortress, the hall and a save, the island again, and the save then has 36 carried records on the stock program, the hero\u2019s six things twice, and 18 with the fix alone and with every fix. The board\u2019s route on foot (the island and a save, the ring on, the Stronghold, the ring off and a save, Revert To Saved, out by the west edge and onto the fortress\u2019s square): 34 carried on the stock program, 17 with the fix alone. Fork, PowerPC, 12 October 2026: after the save in the hall the stock program\u2019s save still holds the island\u2019s list with the 18 carried records and the fixed ones\u2019 do not; the step back to the island did not land there, so the doubled count is not shown in the fork. Mac OS 8.5, 12 October 2026, ten rounds of the island, a save, the hall, a save: the stock program stops on the tenth return with "Sorry - there has been a fatal error:Out of space for new props!", 288 carried records after four rounds; the program with the fix alone ends the ten with 18',
     sites: [{ at: 0x6EF8, was: [0x54062036], asm: ['bl @cave               ; was slwi 6, 0, 4: the length, 16 a record'] }],
