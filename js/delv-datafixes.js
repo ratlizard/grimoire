@@ -497,7 +497,7 @@ const DATA_FIXES = [
   // walks them; if there is none it does nothing. Four more locals for the two
   // loops. The type is tested before HasWindow, since HasWindow brings a found
   // window to the front and an open sack's should stay where it is.
-  { id: 'strange-device', group: 'items', stage: 'community', title: 'The strange device puzzle\u2019s buttons now work after a change of zone, instead of doing nothing',
+  { id: 'strange-device', group: 'items', stage: 'community', title: 'The strange device puzzle\u2019s buttons now work after a change of zone, instead of needing to be reopened to do anything',
     played: 'Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the device used on the world map and a button pressed, the hero walked into Cademia, two more buttons pressed and the lights change, against no change after Cademia unpatched. On the fork’s 68K slice no button changes a light on either',
     edits: [
       { what: 'the strange device finds itself', resid: 0x1175, at: 0x00C1,

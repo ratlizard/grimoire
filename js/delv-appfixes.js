@@ -108,7 +108,7 @@ const APP_FIXES = [
     bug: 'A one-square drag to the north-west does nothing',
     sites: [{ at: 0x28838, was: [0x41820064], asm: ['beq @0x28858          ; cursor 22 slides too'] }] },
 
-  { id: 'theft-moved', kind: 'fix', title: 'A thing moved on the ground stays somebody’s, and a thing the hero drops is free to take back',
+  { id: 'theft-moved', kind: 'fix', title: 'Moving someone else’s stuff along the ground before taking it no longer gets around the theft check',
     bug: 'Moving an item before taking it avoids the theft check',
     sites: [
       { at: 0x54FFC, was: [0x540007FF], asm: ['andi. 0, 0, 17        ; free if it was free, or carried'] },
