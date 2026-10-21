@@ -1410,6 +1410,21 @@ const DATA_FIXES = [
       }
       return { textEdits };
     } },
+  // The combat script (0xE87) prints a miss as "--^", the attacker,
+  // " missed ^", the target, and a parry as "--^", the defender,
+  // " parries ^", the attacker. "^" capitalises the article of the next name
+  // printed, which is right at the start of the line and wrong after the
+  // verb: "--Hector missed A [sic] ruffian.--", against the hit line's
+  // "--Hector hit a ruffian.--", which prints its target with no mark. Seen
+  // in the 2013 MyshPlays video and the 2025 StormThalion one (bugs.md,
+  // *Found checking the 2025 StormThalion video*). The two other "^" in the
+  // middle of a line (0x1856, 0x185B) come before the hero's name, which has
+  // no article, and are left.
+  { id: 'missed-capital', group: 'text', stage: 'further', title: 'Misses and parries in combat are written “missed a ruffian”, instead of “missed A ruffian”',
+    plan: () => ({ textEdits: [
+      { what: 'the target of a miss in small letters', resid: 0x0E87, find: ' missed ^', replace: ' missed ', count: 1 },
+      { what: 'the attacker in a parry in small letters', resid: 0x0E87, find: ' parries ^', replace: ' parries ', count: 1 },
+    ] }) },
   // Demodocus's "Would you like to @hear it?" leads to his song, keyed
   // "song,meti", whose "meti" the question itself matches first; it is keyed
   // "song,hear".
@@ -2181,6 +2196,9 @@ const DATA_FIX_TEXT = [
   dataFixT('Mass Terrorisation, "shreaks"', 0x1A26, 'shreaks', 'shrieks', 1),
   dataFixT('the spell "Acertainment"', 0x1A07, 'Acertainment', 'Ascertainment', 1),
   dataFixT('Rune, "enscribe"', 0x1A16, 'will enscribe a Rune', 'will inscribe a Rune', 1),
+  // Found checking the 2025 StormThalion video (bugs.md, under that title).
+  ...[0x1A17, 0x1A1A, 0x1A21].map(r => dataFixT('the rune spells, "enscribes"', r, 'This spell enscribes a', 'This spell inscribes a', 1)),
+  dataFixT('Directed Nexus, "creates opens"', 0x1A00, 'This spell creates opens a portal', 'This spell opens a portal', 1),
   // items and rooms
   dataFixT('the grimoire, "correspondances"', 0x104C, 'correspondances', 'correspondences', 1),
   dataFixT('a room, "cinammon"', 0x1BD6, 'cinammon', 'cinnamon', 1),
@@ -2192,6 +2210,12 @@ const DATA_FIX_TEXT = [
   dataFixT('waking, "Your are"', 0x0A03, 'Your are wide awake', 'You are wide awake', 1),
   dataFixT('eating, "satifying"', 0x0A04, 'Very good, and satifying', 'Very good, and satisfying', 1),
   dataFixT('a room, "presense"', 0x1B9F, 'the presense of', 'the presence of', 1),
+  // An air, or a smell, "of" two things fills, not fill; "A number of cots
+  // fill the room" (0x1B33) is right and left.
+  dataFixT('a room, "an air ... fill"', 0x1B04, 'power and order fill the room', 'power and order fills the room', 1),
+  dataFixT('a room, "the smell ... fill"', 0x1B9B, 'food and wine fill the air', 'food and wine fills the air', 1),
+  dataFixT('a room, "the smell ... fill"', 0x1BCA, 'metalwork and sweat fill the air', 'metalwork and sweat fills the air', 1),
+  dataFixT('a room, "provisioners shop"', 0x1B9A, 'the provisioners shop', "the provisioner's shop", 1),
   // books
   dataFixT('"City of Mistery"', 0x021D, 'City of Mistery', 'City of Mystery', 1),
   dataFixT('"diverisified"', 0x021D, 'diverisified', 'diversified', 1),
