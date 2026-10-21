@@ -580,7 +580,9 @@ green (`await_checks`; `NO_CHECKS=1` skips the wait). It checks out grimoire
 with the delvmod submodule and its whole history (`version_check.mjs`
 compares against `origin/main`), and beside it `ratlizard/wolflizard` on
 `cythera-detailed` (the HFS round trip builds its `hfs_dump` example, with
-the Rust build cached), `ratlizard/mac-files` (`copies_check.mjs`) and
+the Rust build cached), `ratlizard/mac-files` (`copies_check.mjs`; a
+front's run takes mac-files' branch of the same name when there is one,
+because a changed reader is copied here before mac-files' `main` has it) and
 `ratlizard/ratlizard.github.io` (`reach_check.mjs` counts the player's
 calls). It installs `unar` and llvm-mc 22 from apt.llvm.org:
 `ppc_check.mjs` fails with 21 and with Ubuntu's 18, which read the code

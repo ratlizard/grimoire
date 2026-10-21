@@ -35,9 +35,27 @@ jobs:
           ref: cythera-detailed
           path: wolflizard
 
+      # A front that changes a mac-files reader copies it into js/ before
+      # mac-files' main has it, since mac-files lands a change only once these
+      # checks pass with the copy (its README). So a front's run checks out
+      # mac-files' branch of the same name when there is one, which
+      # tools/front.sh land pushes before it waits for this run, and every
+      # other run mac-files' main.
+      - name: Choose the mac-files branch
+        id: macfiles
+        run: |
+          ref=""
+          if [[ "$GITHUB_REF_NAME" == front/* ]] &&
+             git ls-remote --exit-code --heads https://github.com/ratlizard/mac-files "$GITHUB_REF_NAME" >/dev/null; then
+            ref="$GITHUB_REF_NAME"
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "mac-files at ${ref:-main}"
+
       - uses: actions/checkout@v4
         with:
           repository: ratlizard/mac-files
+          ref: ${{ steps.macfiles.outputs.ref }}
           path: mac-files
 
       # The player calls functions nothing in grimoire does (reach_check.mjs).
