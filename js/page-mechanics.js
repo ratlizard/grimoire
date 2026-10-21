@@ -3154,7 +3154,7 @@ function renderPatchBar() {
     items.appendChild(c);
   }
   for (const p of b.parts) chip(p.label, function () { basketRemove(p.key); });
-  if (!n && !ed.count && !b.parts.length) items.appendChild(el('span', 'mechSub', 'Nothing yet. Choose fixes, or use Add to Patch below.'));
+  if (!n && !ed.count && !b.parts.length) items.appendChild(el('span', 'mechSub', 'Your Patch is empty. Choose fixes, or use Add to Patch below.'));
   /* Add File: a patch file joins Your Patch (basketAddFile). The input is
      hidden behind a link, as a file control is the size of a button. */
   const input = document.createElement('input');
