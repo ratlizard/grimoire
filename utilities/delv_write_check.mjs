@@ -247,8 +247,8 @@ if (REF.real && REF.real.bytes) {
 {
   // The saved game is read straight off disk rather than through the Python
   // reference: this check is the writer against its parser over a real
-  // table, and delvmod has nothing to say about it that the round trip does
-  // not. Without one the shipped table alone still runs.
+  // table, and delvmod could add nothing to what the round trip shows.
+  // Without one the shipped table alone still runs.
   const saveB64 = (savePath && existsSync(savePath)) ? readFileSync(savePath).toString('base64') : null;
   for (const [label, b64] of [['shipped', REF.real && REF.real.bytes], ['saved game', saveB64]]) {
     if (!b64) continue;

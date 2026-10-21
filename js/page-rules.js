@@ -780,8 +780,8 @@ function renderSchedulesSheet() {
    set against the argument; 0x40 to 0x7F the argument character's flag
    (its low five bits), 0x60 up negated; 0x80 up a quest value (low five
    bits) against the argument. The four comparisons are the same for a roll
-   and a quest value, by bits 3-4 and 5-6 respectively: equal, at least, not
-   equal, less than. Any other byte is never true. GRIMOIRE-NOTES.md, *Code
+   and a quest value, by bits 3-4 and 5-6 respectively: equal (=), at least
+   (>=), not equal (!=) and less than (<). Any other byte is never true. GRIMOIRE-NOTES.md, *Code
    reached by call_subroutine*, has the reading; Pelagon's schedule (13) is
    the worked case. Null for a segment that is always true. */
 const SCHED_COMPARE = ['is', 'is at least', 'is not', 'is less than'];
@@ -949,7 +949,7 @@ function skillConsultations() {
     for (let i = 0; i < lines.length; i++) {
       if (!/sys GetSkill\b/.test(lines[i])) continue;
       // Either spelling: the listing renders a plain number in decimal now,
-      // and did so in hex before. Matching one alone would quietly stop
+      // and used to render it in hex. Matching one alone would quietly stop
       // finding skills the day the other is used.
       const m = /short (?:0x([0-9A-F]{4})|(\d+))\b/i.exec((lines[i + 1] || '') + ' ' + (lines[i + 2] || ''));
       if (!m) { generic++; genericIn.add(e.resid); continue; }
@@ -1342,7 +1342,7 @@ function dvmNum(op) {
   if (!m) return null;
   let v = parseInt(m[2]);
   // `word` is already signed, through dvmWord's 28-bit reading. A byte
-  // and a short do not: they are shown as the bytes they are, and the
+  // and a short are not signed here: they are shown as the bytes they are, and the
   // interpreter sign-extends both before using them (see the literal branch
   // of dvmDisassemble). 49 byte and 2 short literals in the shipped archive
   // have the high bit set, across 39 script resources; the zone light levels
@@ -1352,7 +1352,7 @@ function dvmNum(op) {
   if (w === 'short' && v > 0x7FFF) v -= 0x10000;
   return v;
 }
-// The number an instruction pushes, with where: { v, resid, at }.
+// The number an instruction pushes, with its resource and offset: { v, resid, at }.
 /* A flag's name from the program (dvmFlagName), by the number on a
    listing line or an op, looked up at the moment it is shown. The listing's
    `flag:` note is written when the text is built and cached, which on the
@@ -1476,8 +1476,8 @@ function srcCell(val, text) {
    from LISTING_AT. */
 window.TABLE_AT = null;
 /* A figure lands on its record under Components > Records where the
-   table is one this page reads, and in the Data Fork's hex where it is
-   not. The record page has the step down to the same bytes
+   table is one this page reads, and in the Data Fork's hex for any other
+   table. The record page has the step down to the same bytes
    (jumpToForkBytes), so the chain reads Scenario, Components, Data rather
    than Scenario, Data. */
 function jumpToTableAt(resid, byte, stride) {
@@ -1975,7 +1975,7 @@ function combatRules() {
   /* The weapon's skill, as the resolver actually reads it. It adds
      `0xEAC(attacker, <thing>.MeleeWeapon[3])` to the margin and to the damage
      figure, and the thing is meant to be the weapon, Arg02. In the shipped
-     0xE87 it is not: both terms read the local the shield loop above them
+     0xE87 it is something else: both terms read the local the shield loop above them
      assigns from EquipmentIterator. Traced through the interpreter on
      17 September 2026 rather than assumed: every exit from that loop follows
      an iterator call that ran off the end and returned None (cbWorn), the
@@ -2195,7 +2195,7 @@ function terrainRules() {
 /* THE WATER. One class (0x1036) is every fountain and spring in the game,
    and the placed prop's Data1 picks which water it is: the plain kinds say
    something and do nothing, one poisons, one heals, one is a wishing well,
-   and one clears four statuses at once. Read as a list of kinds because
+   and one clears four statuses together. Read as a list of kinds because
    that is how the script is written -- a chain of tests on the Data1 -- so
    each kind's words and effects are what lies between its test and the
    next. The census underneath is the placed props, so an edited archive
@@ -2553,7 +2553,7 @@ function eggDetail(g, allProps, linked) {
        25 September 2026. The eggs are read in the workbench's
        save-format.md, which has the addresses.
 
-       A hatch makes the whole of each record's count (its Data2) at once:
+       A hatch makes the whole of each record's count (its Data2) in one go:
        one of Odemia's chicken eggs six, the sea monster's eight
        tentacles. Nothing that compares the clock with the eggs' hours
        removes what hatched, so a creature hatched by day is still there
@@ -2579,8 +2579,8 @@ function eggDetail(g, allProps, linked) {
     if ((g.d1 & 0x04) && held.some(h => h.d2 > 0 && !classHasMember(h.proptype, 55)))
       when.push('without running out');
     // Each creature by name, and in the inspector each one opens its
-    // page, with the record's count beside it when it is not one: that many
-    // hatch at once. An egg holding no records reads "something" because the
+    // page, with the record's count beside it when it is other than one: that
+    // many hatch together. An egg holding no records reads "something" because the
     // file gives it nothing to hatch, which is worth seeing rather than
     // hiding.
     const names = held.map(h => one(propDisplayName(h.proptype) || ('prop ' + h.proptype),
@@ -2623,7 +2623,7 @@ function eggDetail(g, allProps, linked) {
    save-format.md has the reading and the addresses; the figure to check this
    against is room 1 of Land King Hall, published there from a saved game as
    x 15..23, y 18..29 from the egg at (19,24) sized 8 by 11, which this
-   reproduces. The un-biased formula gives y 19 and does not.
+   reproduces. The un-biased formula gives y 19, which does not match.
 
    Not one of the archive's 170 room eggs is a single square -- the smallest
    is 2 by 2 and the largest 22 by 22 -- so a ring on the trigger square
@@ -4116,7 +4116,7 @@ function tuneRules() {
    pressed. The answer is in the application, in TGameSys::SendSignal, and
    this reads it there rather than inferring from the records.
 
-   The order, from the routine itself: a signal of zero returns at once;
+   The order, from the routine itself: a signal of zero returns immediately;
    otherwise GetMessage (method 21) goes to the ZONE, then to the ROOM; then,
    only when the signal is below 256, to every prop of the level whose flags
    pass a mask, whose class has a flag bit, and WHOSE DATA1 EQUALS THE
@@ -4691,7 +4691,8 @@ function exeClockRules() {
       const d = ops[i].d;
       if (d && d.mn === 'rlwinm.' && d.sh === 0 && d.mb === d.me && bits.length < 2 && !bits.some(b => b.v === 31 - d.mb)) {
         bits.push(val(i, 31 - d.mb));
-        // The word the bits are of: the record word loaded just before.
+        // The word the bits are of: the record word loaded by the preceding
+        // instruction.
         const w = ops[i - 1] && ops[i - 1].d;
         if (!r.statusWord && w && w.mn === 'lhz' && w.rt === d.rs && w.ra === 31) r.statusWord = val(i - 1, w.d);
       }
@@ -4740,7 +4741,7 @@ function exeClockWords(units, perHour) {
 
    - BackColor with an old QuickDraw colour constant (cyanColor, 273), then
      FillRect of the strip with one of QuickDraw's standard patterns chosen
-     by the hour from a 24-entry table it builds once: the pattern's set bits
+     by the hour from a 24-entry table it builds: the pattern's set bits
      are the foreground, black, and its clear bits that cyan. The patterns
      are fields of the QuickDraw globals (dkGray 162, ltGray 170, gray 178,
      black 186, white 194, Inside Macintosh's QDGlobals), so night is solid

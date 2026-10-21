@@ -2219,7 +2219,7 @@ function classCacheBlock(pt) {
   const rows = cw.bits.map(b => '<tr><td style="' + cell + ';color:#fff">' + from(b) + '</td><td style="' + cell + ';color:#dcd8cc;font-size:0.75rem">' + tested(b.testedBy) + '</td><td class="num" style="' + cell + '">' + srcNum(b.bit, propWordHex(b.bit.v)) + '</td></tr>').join('');
   const side = cw.tables.map(t => '<tr><td style="' + cell + ';color:#fff">' + svEsc(itemFieldLabel(t.key)) + (t.plusOne ? ' plus one' : '') + '</td><td class="num" style="' + cell + '">' + srcNum(t.at, String(t.value)) + '</td><td style="' + cell + ';color:#dcd8cc;font-size:0.75rem">' + (t.readBy.length ? 'read by ' + t.readBy.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : 'no routine reads it') + '</td></tr>').join('');
   // What the routine looks for, in the order it tests: every key it tests
-  // for a bit or stores a value of, each once.
+  // for a bit or stores a value of, without repeats.
   const looked = ic ? [...new Set(ic.has.map(h => h.key).concat(ic.bits.map(x => x.key), ic.tables.map(t => t.key)))].map(itemFieldLabel) : [];
   const noted = [...new Set(cw.bits.map(b => b.key).concat(cw.tables.map(t => t.key)))].map(itemFieldLabel);
   const none = !cw.bits.length && !cw.tables.length;

@@ -482,7 +482,7 @@ try {
    records whose `container` equals the egg's `index`, and both are positions
    within ONE zone's prop list -- hand it the wrong list and it matches
    nothing, `eg.hatch` comes back empty, the table is omitted altogether and
-   the section looks exactly as it did before. No error, no gap on screen.
+   the section looks exactly like the old one. No error, no gap on screen.
    That is what this pins against, and the figure it is held to is a previous
    reading's, arrived at independently of this code: 327 held records across
    311 of the archive's 312 kind-0 eggs. A count is the control; "the table
@@ -882,7 +882,7 @@ try {
      it has hatched; the seedpod egg at 148,210 has 0x04 and contains a
      thing, whose count 0x04 preserves; and Odemia's night guard at 10,14
      has 0x04 too, but a guard is a creature and the bit is not read for
-     one, so its card must not say so. The sea monster's eight tentacles are
+     one, so its card must say nothing about it. The sea monster's eight tentacles are
      one record's count, which hatches whole. */
   /* How near: TViewer::SetStage collects an egg only within 15 squares of the
      party's square on both axes (exeEggReach). With the application open
@@ -958,7 +958,7 @@ try {
      rings each stroking for itself, and that was the tab still being jerky at
      mid zoom on 13 September 2026. Both passes batch per node now, so the
      strokes on this frame are a handful whatever is in the archive, while the
-     rings are many. A ratio would drift back; a bound will not. */
+     rings are many. A ratio would drift back; a bound stays fixed. */
   else if (a2 && arcs > 2 && strokes > 8) fail('world tab', strokes + ' strokes for ' + arcs + ' rings: a ring pass is stroking one at a time again');
   else console.log(`  world tab: ${moving} renders while moving and ${atRest} at rest; card at ${topNearFinger} by a finger at 30; ${arcs} rings in ${strokes} strokes and ${dashes} dashes, ${rects} rectangles; ${JSON.stringify(hatch.replace(/^[^:]*: /, ''))}`);
 } catch (e) { fail('world tab', e); }
@@ -1058,7 +1058,7 @@ try {
 
    A day doubles back -- out and home is one corridor walked twice -- and two
    identical strokes on the same squares are one stroke to look at, so a
-   single-coloured path showed where she goes and never when. Each leg now
+   single-coloured path showed where she goes and never at what hour. Each leg now
    is given a hue from the hour it sets out, and rides a separate perpendicular
    rail so a way walked twice reads as two strands.
 
@@ -1566,7 +1566,7 @@ try {
       /* The king's welcome and the hero's faces (the same day). The
          welcome's four pieces must be read with their lines, and a save
          made with it must have the flag, the To Do line, the thing held
-         and the king's flag, which the plain save must not. The faces
+         and the king's flag, which the plain save must lack. The faces
          are the program's: with it open, the portraits it offers for each
          of two sexes, every one a portrait the file has and names for nobody;
          with none open, no strip. */
@@ -1709,8 +1709,8 @@ try {
    the stick men, or drawn in colours that were never meant: so every
    picture of the five families must come out changed at its native size with
    the rest of the file alone; the hero must be a figure of six colours or
-   more with see-through round him, which the stick man (black and white)
-   is not; the ground offered must be whole and hold no system colour and
+   more with see-through round him, unlike the stick man (black and
+   white); the ground offered must be whole and hold no system colour and
    no cycling one; a water tile must hold a cycling blue, since that is
    what makes it move; a portrait must differ from the bad set's and
    keep to the ramps; and a tile drawn twice must come out the same, since
@@ -1751,7 +1751,7 @@ try {
   else if (!waterOk) fail('the careful set', 'a water tile (' + water + ') has no cycling blue');
   else if (!faceOk) fail('the careful set', 'the first portrait is the bad set’s, or leaves the ramps');
   else if (!steady) fail('the careful set', 'a tile drawn twice came out two ways');
-  else console.log(`  the careful set: ${pics} pictures redrawn at their native sizes, nothing else changed; the hero’s ${heroTiles.length} frames figures in colour (the bad set’s are not); the ground whole and inside the ramps; water tile ${water} still cycling; a portrait of ${new Set(face).size} colours; a tile drawn twice the same`);
+  else console.log(`  the careful set: ${pics} pictures redrawn at their native sizes, nothing else changed; the hero’s ${heroTiles.length} frames figures in colour (the bad set’s are not in colour); the ground whole and inside the ramps; water tile ${water} still cycling; a portrait of ${new Set(face).size} colours; a tile drawn twice the same`);
 } catch (e) { fail('the careful set', e); }
 
 /* A zone from Manborough's editor, 8 October 2026 (manboroughMap). His

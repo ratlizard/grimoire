@@ -171,7 +171,7 @@ const COLLECTION = 'reference/community/guides-site/dialogue/Dialogue';
 // one complete player file in the add-ons, and addons_check.mjs unpacks it
 // here on its run, which the three checks that read it wait for (`after`);
 // without unar, or without the add-ons, the section notes the absence and
-// the rest of the smoke test runs as before.
+// the rest of the smoke test runs unchanged.
 const SAVE = `${TMP}/cythera_addons/606_CheaterSavedGame/I.M.Cheater`;
 const GFX_REF = `${TMP}/gfx_ref.json`;
 // QuickTime 3's Windows installer, which contains the instruments the tunes
@@ -445,7 +445,7 @@ const CHECKS = [
    grep: /\d+ Compact Pro fork\(s\) read back byte identical/},
   /* The zip reader, which needs nothing: zlib is in Node and the container
      is written by the check itself. Info-ZIP, ditto, unar and the add-on each
-     add a comparison when they are here and are skipped by name when not. */
+     add a comparison when they are here and are skipped by name when absent. */
   {page: 'viewer', name: 'zip archives',
    cmd: ['utilities/zip_check.mjs', 'index.html', 'reference'],
    grep: /\d+ zip entries read back byte identical/},

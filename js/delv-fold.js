@@ -25,7 +25,7 @@
  *         byte 0x18
  *     end
  *
- * Note what that means and what it does not: `get_field` CONSUMES the Arg00
+ * Note what that means and what it does not mean: `get_field` CONSUMES the Arg00
  * before it, so the call has three arguments and not four. Read the other way
  * it would be four, and the fold would be asserting something about CastSpell
  * that the bytes do not say.
@@ -80,7 +80,8 @@ const DVM_INFIX = {
   // The VM's logical `and` and `or` consume two values already computed, so
   // both sides have run. They are spelt as words, not `&&` and `||`, because a
   // reader takes those to stop at the first side that settles it -- which is
-  // what a merged condition (dvmMergeConditions) does, and these do not.
+  // what a merged condition (dvmMergeConditions) does and these opcodes never
+  // do.
   0x5C: 'and', 0x5D: 'or',
 };
 const DVM_PREFIX = { 0x55: '-', 0x59: '~', 0x5E: '!' };
@@ -803,7 +804,7 @@ function dvmExpandForest(forest) {
  * The folded view above leaves control flow exactly as the bytes have it --
  * `if (!(C)) goto L0094` and a label at 0x0094 -- because every line of it is a
  * local reorganisation of ops that are there, and three assertions in
- * utilities/fold_check.mjs say so. This half is different in kind, and the
+ * utilities/fold_check.mjs hold it to that. This half is different in kind, and the
  * difference is the whole reason it is separate:
  *
  *   A MISREAD JUMP RENDERS A WRONG PROGRAM THAT LOOKS RIGHT.
@@ -838,21 +839,22 @@ function dvmExpandForest(forest) {
  */
 
 /* ---- text split where a jump lands in it ------------------------------------
- * The disassembler reads direct text as delvmod does -- any byte below 0x80 *
- on an empty expectation stack, until the first byte that is not -- and *
- delv_dasm_check.mjs checks it against that. But the compiler shares the tails
- of * strings: 0xE91 prints "You don't have enough money." on one path and *
- `"` + name + " doesn't have enough money." on the other, and both end by *
- printing `"*`, so the first path's `branch` lands two bytes from the end * of
- the second's text run. A label inside a run has no line, the goto * that names
- it stays a goto, and the block round it cannot close: 117 * gotos on 24
- September 2026, the largest class left once jumps to a * return were folded.
- So the fold tier -- the folded, structured and Read * views and their checks
- -- splits a text run at every jump target inside * it, into two runs of the
- same bytes, which is exact: direct text is * printed byte by byte and a run's
- boundary means nothing to the machine. * The raw listing retains delvmod's one
- run, since that is what the oracle * reads. `segStart` is the function's
- offset in the resource, which is * what the targets count from. */
+ * The disassembler reads direct text as delvmod does -- any byte below 0x80 on
+ * an empty expectation stack, until the first byte that is not -- and
+ * delv_dasm_check.mjs checks it against that. But the compiler shares the tails
+ * of strings: 0xE91 prints "You don't have enough money." on one path and `"` +
+ * name + " doesn't have enough money." on the other, and both end by printing
+ * `"*`, so the first path's `branch` lands two bytes from the end of the
+ * second's text run. A label inside a run has no line, the goto that names it
+ * stays a goto, and the block round it cannot close: 117 gotos on 24 September
+ * 2026, the largest class left once jumps to a return were folded. So the fold
+ * tier -- the folded, structured and Read views and their checks -- splits a
+ * text run at every jump target inside it, into two runs of the same bytes,
+ * which is exact: direct text is printed byte by byte and a run's boundary
+ * means nothing to the machine. The raw listing retains delvmod's one run,
+ * since that is what the oracle reads. `segStart` is the function's offset in
+ * the resource, which is what the targets count from.
+ */
 function dvmSplitTextAtTargets(ops, segStart) {
   const targets = new Set();
   for (const o of ops) {
@@ -917,7 +919,7 @@ function dvmStatementList(forest, segStart) {
 }
 
 /* The edge set the flat listing fixes. A `cond` and a `switch` fall through as
-   well as branching; a `jump` does not; an `end` goes nowhere. An edge off the
+   well as branching; a `jump` only branches; an `end` goes nowhere. An edge off the
    end of the function is dropped and counted, since there is nothing to point
    at -- compiler output does not do it, and a function that does is left
    unstructured rather than explained. */
@@ -936,16 +938,20 @@ function dvmFlatEdges(stmts) {
 }
 
 /* Is [lo, hi) a region a block can be built from? Two conditions, and stopping
- * when either fails is the whole of what makes this half trustworthy: * *
- nothing outside the range jumps into its MIDDLE -- an entry past `lo` means *
- the range is not a block, it is part of something larger, and * *   nothing
- inside leaves except to one of `allowed`, which is the place control *   is
- meant to continue -- a jump out to anywhere else means the same thing. * * A
- fallthrough into the middle is impossible, the statements being in address *
- order. This is a top-level function rather than a closure inside the recovery
+ * when either fails is the whole of what makes this half trustworthy:
+ *
+ *   nothing outside the range jumps into its MIDDLE -- an entry past `lo` means
+ *   the range is not a block, it is part of something larger, and
+ *
+ *   nothing inside leaves except to one of `allowed`, which is the place control
+ *   is meant to continue -- a jump out to anywhere else means the same thing.
+ *
+ * A fallthrough into the middle is impossible, the statements being in address
+ * order. This is a top-level function rather than a closure inside the recovery
  * so that utilities/structure_check.mjs can replace it with one that answers
- yes to * everything: a recovery that cannot be caught claiming a region it has
- no right * to is not one anybody should trust. */
+ * yes to everything: a recovery that cannot be caught claiming a region it has
+ * no right to is not one anybody should trust.
+ */
 function dvmRegionClosed(stmts, index, lo, hi, allowed, sources) {
   if (hi <= lo) return false;
   /* `sources[j]` is every statement index that jumps to j, built once per
@@ -968,34 +974,45 @@ function dvmRegionClosed(stmts, index, lo, hi, allowed, sources) {
 }
 
 /* ---- two tests, one condition --------------------------------------------
- * Two conditionals in a row that jump to the same place are one condition: * *
- if_not A -> L0094               if (A && B) { *     if_not B -> L0094      -->
- ... *     ...                             } *   L0094: * * which is what a
- compiler emits for `if (A && B)`, and also for * `if (A) { if (B) { ... } }`.
- The two are the same program, so the merged * spelling costs nothing when the
- nesting was already recoverable -- and where * it was not, it is the only
- spelling that is: `if (A && B) { .. } else { .. }` * shares its else between
- both tests, which nested ifs cannot express, and a loop * whose test is two
- tests (`while (A && B)`) otherwise has its second test as * a goto out of its
- body. Measured on 22 September 2026: 212 such pairs, * every one of them two
- `if_not`s. * * Merged only when nothing else jumps to the second test. If
- something did, the * second test would be a separate place that control can
- reach without the * first, and one condition cannot be entered halfway. On the
- shipped archive no * pair fails that, so the guard is never exercised here and
- nothing here * demonstrates it working; it is kept because a hand-edited
- archive can do * what Ambrosia's compiler did not. * * A pair of `if`s (jump
- when true) would merge the same way into * `if (A || B) goto L`; the archive
- has none, and a mixed pair is left alone * rather than spelt with a negation
- inside a conjunction. * * THE SPELLING. The VM also has `and` and `or` opcodes
- (0x5C, 0x5D; 245 uses * in the archive). They are not the same thing: an
- opcode consumes two values * already on the stack, so both sides were
- evaluated, where the jump pair never * evaluates B when A is false. So `&&`
- and `||` are kept for this, which is * what a reader of C-like text takes them
- to mean, and the opcodes are spelt * `and` and `or` (DVM_INFIX). They were
- both `&&` until 22 September 2026, and * only the brackets distinguished them.
- * * utilities/structure_check.mjs tests each merged condition against the flat
- * listing for every truth assignment of its parts, reading the text the *
- listing prints; the edge check sees the pair as one node. */
+ * Two conditionals in a row that jump to the same place are one condition:
+ *
+ *     if_not A -> L0094               if (A && B) {
+ *     if_not B -> L0094      -->          ...
+ *     ...                             }
+ *   L0094:
+ *
+ * which is what a compiler emits for `if (A && B)`, and also for `if (A) { if
+ * (B) { ... } }`. The two are the same program, so the merged spelling costs
+ * nothing when the nesting was already recoverable -- and where it was not, the
+ * merged spelling is the only one that can express it: `if (A && B) { .. } else { .. }` shares its
+ * else between both tests, which nested ifs cannot express, and a loop whose
+ * test is two tests (`while (A && B)`) otherwise has its second test as a goto
+ * out of its body. Measured on 22 September 2026: 212 such pairs, every one of
+ * them two `if_not`s.
+ *
+ * Merged only when nothing else jumps to the second test. If something did, the
+ * second test would be a separate place that control can reach without the
+ * first, and one condition cannot be entered halfway. On the shipped archive no
+ * pair fails that, so the guard is never exercised here and nothing here
+ * demonstrates it working; it is kept because a hand-edited archive can hold
+ * jumps Ambrosia's compiler never wrote.
+ *
+ * A pair of `if`s (jump when true) would merge the same way into `if (A || B)
+ * goto L`; the archive has none, and a mixed pair is left alone rather than
+ * spelt with a negation inside a conjunction.
+ *
+ * THE SPELLING. The VM also has `and` and `or` opcodes (0x5C, 0x5D; 245 uses in
+ * the archive). They are not the same thing: an opcode consumes two values
+ * already on the stack, so both sides were evaluated, where the jump pair never
+ * evaluates B when A is false. So `&&` and `||` are kept for this, which is
+ * what a reader of C-like text takes them to mean, and the opcodes are spelt
+ * `and` and `or` (DVM_INFIX). They were both `&&` until 22 September 2026, and
+ * only the brackets distinguished them.
+ *
+ * utilities/structure_check.mjs tests each merged condition against the flat
+ * listing for every truth assignment of its parts, reading the text the listing
+ * prints; the edge check sees the pair as one node.
+ */
 function dvmMergeConditions(stmts) {
   const jumpedTo = new Set();
   for (const s of stmts) for (const t of s.targets) jumpedTo.add(t);
@@ -1276,11 +1293,12 @@ function dvmRecoverStructure(flat) {
   return { tree, gotos, structured, absorbed, merged, ended };
 }
 
-/* Take the trailing nodes of `out` that start at or after `abs`, in order, for a
- * backward jump to claim as its body. Returns null when they do not line up
- with * a node boundary -- which means the loop's head is in the middle of a
- block * already built, and a region that cannot be taken cleanly is one to
- leave alone. */
+/* Take the trailing nodes of `out` that start at or after `abs`, in order, for
+ * a backward jump to claim as its body. Returns null when they do not line up
+ * with a node boundary -- which means the loop's head is in the middle of a
+ * block already built, and a region that cannot be taken cleanly is one to
+ * leave alone.
+ */
 function dvmTakeBack(out, abs) {
   let i = out.length;
   while (i > 0) {
@@ -1363,17 +1381,18 @@ function dvmStructureEdges(tree, follow) {
   return edges;
 }
 
-/* A conditional's expression, in the polarity the reader needs.
- * `if_not C -> T` jumps when C is false, so the statements it falls through to
- * run when C is TRUE -- which is the `if (C)` a reader wants. `if C -> T` is
- the * other way round, and its fallthrough block is `if (!(C))`. A backward
- jump * needs the opposite of both, since a loop repeats when the jump IS
- taken. * * A merged condition (dvmMergeConditions) joins its parts: two
- `if_not`s fall * through when both are true, so `A && B`, and jump when that
- fails; two `if`s jump * when either is true, so `A || B`. `ctx.leaf`, when
- given, spells a part -- * utilities/structure_check.mjs names each one `c0`,
- `c1`, ... and evaluates the * result, which is how the joined text is held to
- the flat listing. */
+/* A conditional's expression, in the polarity the reader needs. `if_not C -> T`
+ * jumps when C is false, so the statements it falls through to run when C is
+ * TRUE -- which is the `if (C)` a reader wants. `if C -> T` is the other way
+ * round, and its fallthrough block is `if (!(C))`. A backward jump needs the
+ * opposite of both, since a loop repeats when the jump IS taken.
+ *
+ * A merged condition (dvmMergeConditions) joins its parts: two `if_not`s fall
+ * through when both are true, so `A && B`, and jump when that fails; two `if`s
+ * jump when either is true, so `A || B`. `ctx.leaf`, when given, spells a part
+ * -- utilities/structure_check.mjs names each one `c0`, `c1`, ... and evaluates
+ * the result, which is how the joined text is held to the flat listing.
+ */
 function dvmCondJoined(s, ctx) {
   const leaf = p => (ctx && ctx.leaf) ? ctx.leaf(p) : dvmFoldFrame(p.node.groups[0] || [], ctx);
   if (!s.parts) return leaf(s);
@@ -1402,40 +1421,54 @@ function dvmCondOperand(e) {
 }
 
 /* ---- for-each, break and continue ------------------------------------------
- * The engine's iterators are one syscall called three ways, and the compiler *
- lays a loop over one out the same way every time: * *     Var01 =
- EquipmentIterator(&Var02, 0, Arg01)     the first item *     while
- (!(EquipmentIterator(&Var02, 1))) {        not yet finished *         ... *
- Var01 = EquipmentIterator(&Var02, 2)         the next item *     } * * which
- is `for Var01 in EquipmentIterator(Arg01) { ... }`. 152 loops in the *
- archive, measured on 22 September 2026, and every one recovers as a `while` *
- with its start just before it and its step last in its body -- so this is a *
- way of printing a recovered `while`, not a new pattern for the recovery, and *
- the tree the structure check compares is the same tree either way. * * The
- state word (`&Var02`, delvmod's `&Var1`) is not printed on the `for` * line:
- it is the iterator's bookkeeping, in the slot after the loop * variable, and
- the raw and folded listings still show it. The * iterator retains its name as
- the listing gives it rather than losing the * `Iterator`, so it can be
- searched for. * * The step moves to the loop's closing brace, which has its
- offset in the * gutter so that a ring on the step lands on the brace rather
- than on the * statement before it; the `for` line has the start's, and the
- test, * between the two, rings the `for` line. * * What makes it safe to
- print, beyond the three calls matching on the name, * the state word and the
- loop variable: * *   nothing jumps to the TEST except the loop's back edge,
- which the *   recovery absorbed -- in a `for` there is nowhere to jump that
- runs the test *   without the step, and * *   every goto to the STEP can be
- printed without a label: a `continue` of *   this loop, or a `break` out of a
- loop nested in it whose exit is the step. *   Four jumps in three functions
- (0xEA3, 0xEB7, 0x1827) are the second kind, *   an inner loop left for the
- outer one's step, and read as the `break` they *   are. A goto to the step
- that is neither would leave the loop a `while`; *   the archive has none. * *
- `continue` and `break` are printed for every kind of loop, and only for a *
- jump whose innermost enclosing loop is the one it continues or leaves -- the *
- loop a reader would take it to mean. A jump from an inner loop to an outer *
- one's step or exit stays a goto. utilities/structure_check.mjs reads each *
- `break` and `continue` in the printed text, finds its loop by the braces as *
- a reader would, and checks the flat statement's target against that loop's
- step or * exit. */
+ * The engine's iterators are one syscall called three ways, and the compiler
+ * lays a loop over one out the same way every time:
+ *
+ *     Var01 = EquipmentIterator(&Var02, 0, Arg01)     the first item
+ *     while (!(EquipmentIterator(&Var02, 1))) {        not yet finished
+ *         ...
+ *         Var01 = EquipmentIterator(&Var02, 2)         the next item
+ *     }
+ *
+ * which is `for Var01 in EquipmentIterator(Arg01) { ... }`. 152 loops in the
+ * archive, measured on 22 September 2026, and every one recovers as a `while`
+ * with its start just before it and its step last in its body -- so this is a
+ * way of printing a recovered `while`, not a new pattern for the recovery, and
+ * the tree the structure check compares is the same tree either way.
+ *
+ * The state word (`&Var02`, delvmod's `&Var1`) is not printed on the `for`
+ * line: it is the iterator's bookkeeping, in the slot after the loop variable,
+ * and the raw and folded listings still show it. The iterator retains its name
+ * as the listing gives it rather than losing the `Iterator`, so it can be
+ * searched for.
+ *
+ * The step moves to the loop's closing brace, which has its offset in the
+ * gutter so that a ring on the step lands on the brace rather than on the
+ * statement before it; the `for` line has the start's, and the test, between
+ * the two, rings the `for` line.
+ *
+ * What makes it safe to print, beyond the three calls matching on the name, the
+ * state word and the loop variable:
+ *
+ *   nothing jumps to the TEST except the loop's back edge, which the
+ *   recovery absorbed -- in a `for` there is nowhere to jump that runs the test
+ *   without the step, and
+ *
+ *   every goto to the STEP can be printed without a label: a `continue` of
+ *   this loop, or a `break` out of a loop nested in it whose exit is the step.
+ *   Four jumps in three functions (0xEA3, 0xEB7, 0x1827) are the second kind,
+ *   an inner loop left for the outer one's step, and read as the `break` they
+ *   are. A goto to the step that is neither would leave the loop a `while`;
+ *   the archive has none.
+ *
+ * `continue` and `break` are printed for every kind of loop, and only for a
+ * jump whose innermost enclosing loop is the one it continues or leaves -- the
+ * loop a reader would take it to mean. A jump from an inner loop to an outer
+ * one's step or exit stays a goto. utilities/structure_check.mjs reads each
+ * `break` and `continue` in the printed text, finds its loop by the braces as a
+ * reader would, and checks the flat statement's target against that loop's step
+ * or exit.
+ */
 
 /* The three calls, read off the ops rather than the text. Returns what the
    `for` line needs, or null. `prev` is the node before the `while`. */

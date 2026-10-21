@@ -6,7 +6,7 @@
    doing it; then more than printed text, a dialogue and a fight, and no
    gremlin in the words.) The shipped task cannot be finished -- Ambrosia
    called it a red herring (the board, topic 87) -- and the fix patches
-   leave it so. This replaces wine_gremlin_patch.mjs, which only printed.
+   leave it unfinishable. This replaces wine_gremlin_patch.mjs, which only printed.
    Then, the same day: something only a gremlin could do, which the
    maintainer chose as the grapes growing stronger the longer the contract
    is left, and the unit named "bunch of grapes".
@@ -35,9 +35,9 @@
      and after the party is rebuilt on a load (TDelverApp::BeginPlay). No
      script of a zone or a character sees every zone change, which is why
      the wait is a gremlin's: the first one after Apis's flag 5 is set
-     writes the day into the hero's quest value 30, and each after reads the
-     days since. It switches itself off at the vineyard, so the fight
-     happens once.
+     writes the day into the hero's quest value 30, and each one after it
+     reads how many days have passed. It switches itself off at the vineyard,
+     so the fight never repeats.
    - The grapes are characters 140 to 145, free records in the scenario's
      0xF009 (130 to 188 are all zero), laid out after the game's two hostile
      named characters, Aeneas and Eudoxus: the bird's body (prop type 89,

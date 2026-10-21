@@ -16,7 +16,7 @@
    The game stores its settings in `Cythera Preferences`, in the System Folder's
    Preferences folder: a file with an empty data fork and three `'Pref'`
    resources in its resource fork. One of them, **130 "UI Prefs"**, is four
-   bytes, and two bits in it are worth a visitor's while.
+   bytes, and this page can change two bits in it.
 
    **Bit 7 of the first byte is smooth movement, and the game has always had
    it.** Cythera implements quarter-tile sub-pixel movement in shipped code
@@ -903,7 +903,7 @@ async function playCurrentTune() {
    whole file (a disk image for an emulator among its forms). The
    maintainer heard the game play an imported tune in a local Infinite Mac
    on 7 October 2026. An instrument's name is written when the instrument
-   set is loaded and left empty when it is not. */
+   set is loaded and left empty otherwise. */
 function midiFilePicked(input) {
   const f = input && input.files && input.files[0];
   if (!f) return;
@@ -1181,8 +1181,8 @@ function updateUsagePanel(resid, subn) {
   if (subn === 141) {
     el.style.display = 'block';
     // The panel renders itself: a button labelled "click me to find out" was
-    // an extra step in front of information that needs ~40ms to build once
-    // and is memoised after. First visit shows the building note for one beat.
+    // an extra step in front of information that is built in about 40ms the
+    // first time and memoised from then on. First visit shows the building note for one beat.
     if (DERIVED.TILE_USAGE) el.innerHTML = linksFold(renderArtUsage(resid));
     else showArtUsage(resid);
     return;
@@ -1410,7 +1410,7 @@ function downloadPropGIF(base, frames, opts) {
    come, so no bitmap of the whole map ever exists: the PNG is written
    truecolour, filter None, and only the compressed bytes are held. The
    terrain, the roofs, the characters and the marks go in; the lighting layer
-   does not, since its painter works on the whole map at once.
+   does not, since its painter needs the whole map in memory.
 --------------------------------------------------------------------------- */
 async function downloadMapPNGStreamed(cm, TS, name) {
   const W = cm.tilesW, H = cm.tilesH;
@@ -1517,7 +1517,7 @@ function downloadCanvasAsPNG(canvas, resid) {
 
 // Decode enough of a text/data resource to identify it at a glance.
 // A run of readable bytes that is worth showing a reader. Symbol names,
-// opcode soup and single words with no vowels are not: they fill the tile with
+// opcode soup and single words with no vowels do not count: they fill the tile with
 // something that looks like text and means nothing.
 function snippetWorth(run) {
   const t = run.trim();

@@ -4,7 +4,7 @@
 // parts are smoke_galleries.mjs, smoke_atlas.mjs, smoke_rules.mjs,
 // smoke_edits.mjs, smoke_saves.mjs and smoke_installer.mjs, cut out of the
 // one 4,100-line file on 18 September 2026 at the points where the open file
-// changes, so each can run as a separate process and the six run at once.
+// changes, so each can run as a separate process and the six run side by side.
 //
 // Importing this module does the boot: it reads the arguments, builds the
 // DOM, runs the page's scripts and opens the archive, once per process. A

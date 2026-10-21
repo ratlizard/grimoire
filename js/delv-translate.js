@@ -188,8 +188,8 @@ function translateKeywordList(words, T, resid) {
   if (!add.length) return null;
   // A stem may have a lower-case accent, as its control code: what a click
   // on a button or a highlighted word sends is the script's text, codes
-  // and all, so "d\x04nd" answers a button labelled "Dónde" where "dond"
-  // would not. It never has a byte of 0x80 up, which is fatal in a list.
+  // and all, so "d\x04nd" answers a button labelled "Dónde" and "dond"
+  // never matches it. It never has a byte of 0x80 up, which is fatal in a list.
   const enc = add.map(stem => translateEncode(stem));
   for (const stem of enc) if (!/^[a-z \x01-\x07]+$/.test(stem)) throw new Error('a keyword stem may hold lower-case letters, their accents and spaces only, not ' + JSON.stringify(stem));
   return words + ',' + enc.join(',');
@@ -242,7 +242,7 @@ function translatePlaces(b, resid, T, report) {
 
 /* ---- the splice ------------------------------------------------------------ */
 
-// Every place in one resource at once. dvmRelink's arithmetic, over many
+// Every place in one resource, in one pass. dvmRelink's arithmetic, over many
 // places: a site past a place moves by the change in length of every place
 // that ends at or before what it points at, so a jump to the start of a
 // piece stays at the start of its translation; a site pointing inside a

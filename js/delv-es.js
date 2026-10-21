@@ -3577,7 +3577,7 @@ Object.assign(DELV_TRANSLATION_ES.text, {
   // Sacas, the Judge of Odemia, and the kidnapping. "What can I do for you
   // this " + the program's word for the part of the day + "?": that word is
   // to be the whole greeting in Spanish, so the greeting comes first and the
-  // question after it, in the '?"' this resource has once.
+  // question after it, in the one '?"' this resource has.
   '1846': {
     '0bf5e85d': '"Así que eres quien Alaric dijo que vendría: ',
     '76d33e07': 'aunque esperaba algo mejor."*"',

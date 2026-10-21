@@ -80,7 +80,8 @@ const FIXES = JSON.parse(vm.runInContext('JSON.stringify(DATA_FIXES.map(f => ({ 
 const top = FIXES.filter(f => !f.parent);
 // The text's options: since 1 October 2026 every one is half of a choice
 // (the spelling, and four that go one way or the other). `options` is the
-// first of each pair but the spelling, the way they went before; `others`
+// first of each pair but the spelling, matching how the text read before
+// 1 October; `others`
 // the second.
 const pairs = {};
 for (const f of FIXES) if (f.parent === 'text' && f.choice && f.choice !== 'spelling') (pairs[f.choice] = pairs[f.choice] || []).push(f.id);
@@ -180,7 +181,7 @@ if (FULL) {
         const b = bytes(loc.resid);
         let ok = true; for (let k = 0; k < row.find.length; k++) if (b[loc.at + k] !== row.find.charCodeAt(k)) { ok = false; break; }
         // A place inside words an earlier edit wrote has what that edit
-        // replaced, and is marked so; any other place must have its words.
+        // replaced, and is marked as touched; any other place must have its words.
         if (loc.touched) { touched++; continue; }
         if (!ok) { let was = ''; for (let k = 0; k < row.find.length + 6; k++) was += String.fromCharCode(b[loc.at + k] || 32); off.push(row.part + ' "' + row.find + '" at 0x' + loc.resid.toString(16) + '+' + loc.at.toString(16) + ' reads "' + was + '"'); }
       }

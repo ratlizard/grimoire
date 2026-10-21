@@ -266,7 +266,7 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
     // Where each place is in the file the session began on, before this
     // edit's splices; the list of the text's changes links to it.
     const origin = hits.map(i => dataPatchOrigin(s, e.resid, i));
-    /* Every place at once: dvmRelink's splice and check, with one step it
+    /* Every place in one pass: dvmRelink's splice and check, with one step it
        lacks put between them, a data block's size word corrected
        before the result is read back, since the block is read by that size
        and a stale one throws every site after it off. Until 29 September
@@ -349,7 +349,7 @@ function dataFixesChosen(ids) {
   return out;
 }
 /* Which row of the list of the text's changes an edit is (dataFixTextChanges):
-   the part of the fix it came from, and its words before and after. The
+   the part of the fix it came from, and the words on either side of it. The
    key is what a row left out is remembered by (opts.skip, below). */
 function dataFixTextPart(stage, e, chosen) {
   if (stage === 'community-text') return 'community';

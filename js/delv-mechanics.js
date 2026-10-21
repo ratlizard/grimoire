@@ -308,7 +308,7 @@ function mechLockChance(reflex, difficulty, lk) {
    The cast fails when two rolls of 0 to the caster's Casting figure together
    fall short of a roll of 0 to the spell's level -- both `Random` calls, so
    both stop one short of the figure named. Two consequences the curve shows
-   and the sentence does not: a **level 1 spell can never fail**, because the
+   and the sentence leaves out: a **level 1 spell can never fail**, because the
    level's roll is `Random(0, 1)` and is always 0; and the first few points of
    Casting are worth far more than the next ten. */
 function mechCastFailure(casting, level) {
@@ -347,8 +347,8 @@ function mechLevelThreshold(level, base) { return base * Math.pow(2, Math.max(1,
        level 8 up     five
 
    and a regenerating character -- flag 12, what Omen's ring grants, and what
-   the cheat key toggles -- gains one every six minutes, ten an hour, fed or
-   not. A poisoned one loses one every six minutes and dies rather than
+   the cheat key toggles -- gains one every six minutes, ten an hour, hungry
+   or fed. A poisoned one loses one every six minutes and dies rather than
    falling below 1.
 
    These rates are why the 2012 bed measurements come out: they are the only

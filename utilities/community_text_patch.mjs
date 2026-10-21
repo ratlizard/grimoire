@@ -28,7 +28,8 @@ import vm from 'node:vm';
 import {fileURLToPath} from 'node:url';
 import {buildFixes, everyFix, pageContext} from './patch_build.mjs';
 
-// Every pair in the collection: [file, original, fix, two words before, two after].
+// Every pair in the collection: [file, original, fix, the two words before it,
+// the two words after it].
 export function readCollection(collDir) {
   const files = [];
   (function walk(d) { for (const f of readdirSync(d).sort()) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (f.endsWith('.txt')) files.push(p); } })(collDir);

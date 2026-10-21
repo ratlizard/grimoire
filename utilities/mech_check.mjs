@@ -20,7 +20,7 @@
 // classic-Mac decoders, built the only way it could be here -- there is no
 // third-party implementation of Cythera's combat maths to borrow.
 //
-// It is worth being clear about what agreement proves and what it does not.
+// It is worth being clear about what agreement proves and what it leaves open.
 // It proves the two match on the rule as the sheet states it; it shows
 // nothing about whether the sheet reads the bytecode rightly, which is the
 // disassembler's job and the archaeology's. Where the prose is ambiguous both

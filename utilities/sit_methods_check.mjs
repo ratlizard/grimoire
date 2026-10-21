@@ -202,7 +202,7 @@ else {
    copies share no code: Arsenic inside archive.org's bundle, and stored
    inside a MacBinary that came from elsewhere. If the Arsenic decoder were
    wrong in a way The Unarchiver is also wrong in, unar would match it
-   and this would not. */
+   and this check would catch the error. */
 const BUNDLE = join(refDir, 'game', 'installers', 'Cythera installers (archive.org).sit');
 const MACBIN = join(refDir, 'game', 'installers', 'Cythera.bin');
 if (!existsSync(BUNDLE) || !existsSync(MACBIN))
@@ -237,7 +237,7 @@ else {
 // 0.3.1), which this reader came from, XORs them when the bit is clear and so
 // finds nothing in those 30 (13 October 2026). So the bundle, its flag bit
 // turned over, must have the same entries at the same offsets. The walk also
-// follows each file's next-entry pointer, as stuffit-rs does not; the
+// follows each file's next-entry pointer, which stuffit-rs ignores; the
 // lsar comparison over that collection is StarGrimoire's
 // (utilities/unpack_check.mjs), since the collection is EV Nova's.
 if (existsSync(BUNDLE)) {

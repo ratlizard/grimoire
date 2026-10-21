@@ -11,7 +11,7 @@ import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsr
 
 // The installer. The page's default input is the whole game as one file,
 // and three views exist only when it arrived that way: Data › Installer, and
-// the two Combat AI tabs, which were placeholders before. Opened through
+// the two Combat AI tabs. Opened through
 // adoptArchive -- the path a dropped file follows -- so that the application's
 // fork gallery is also drawn here from the installer, without the fetch the
 // bare-archive run above cannot make.
@@ -52,7 +52,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
        program's. Two negative controls: a link followed rings the line with
        the number in it and the next address rings a line without it, and
        the hour's shift changed in a copy of the application moves the
-       sheet's hour, which a typed figure would not. */
+       sheet's hour, which would stay put if the figure were typed in. */
     try {
       const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
       const clk = ctx.exeClockRules(), m = clk && clk.model, bark = ctx.exeBarkRules(), costs = ctx.exeActionCosts(), et = ctx.exeEnemyTable();
@@ -249,7 +249,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     /* Who ScheduleTime schedules, read off the routine (exeScheduleWho):
        the four tests as the notes read them on 24 September 2026, the
        behaviour 112 traced to the scripts that set it, and the Schedules
-       sheet stating the rule with the application open and not without. */
+       sheet stating the rule only while the application is open. */
     try {
       const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
       const inRoutine = (val, name) => { const r = val && ctx.exeRoutineAt(val.exe); return !!(r && r.name.startsWith(name + '(')); };
@@ -313,7 +313,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
        The hour table comes out black at midnight, cyan ("white") at noon and
        half and half ("gray") in the sunrise and sunset hours; the sun at noon
        stands in the middle of the strip; a strip painted at noon and at
-       midnight differs, and one painted twice at the same time does not. */
+       midnight differs, and one painted twice at the same time comes out the
+       same. */
     try {
       const r = ctx.exeSkyRules();
       const rise = r && Math.floor(r.sunrise.v / (1 << r.hourUnit.v)), set = r && Math.floor(r.sunset.v / (1 << r.hourUnit.v));
@@ -331,7 +332,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     /* Which syscalls take a character, read off their handlers
        (exeSyscallCharacterArgs): JoinParty's first argument indexes the
        character table, so Aethon's "join party 97" names him, and
-       TalkParticipant's reaches it two calls down. PlaySound's does not. */
+       TalkParticipant's reaches it two calls down. PlaySound's never reaches
+       it. */
     try {
       const ca = ctx.exeSyscallCharacterArgs();
       const SYM = peek('DVM_SYM').syscall, op = nm => +Object.keys(SYM).find(k => SYM[k] === nm);
@@ -732,7 +734,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     const badge = REGISTRY.get('installerVersionBadge');
     const btn = REGISTRY.get('archiveMenuBtn');
     if (!badge || !/^\d+(\.\d+)+$/.test(badge.textContent)) fail('installer version', 'no version badge on the Installer tab');
-    if (!btn || btn.textContent !== 'Settings') fail('installer version', 'the Settings button is not named so: ' + (btn && btn.textContent));
+    if (!btn || btn.textContent !== 'Settings') fail('installer version', 'the Settings button has another name: ' + (btn && btn.textContent));
     const opened = (REGISTRY.get('sheetGrid').children || []).find(c => c.className && /installerOpen/.test(c.className));
     if (!opened) fail('installer version', 'the sheet does not say which installer is open');
     const dataNode = peek('TAB_BY_ID').get('data');

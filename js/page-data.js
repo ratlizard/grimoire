@@ -75,7 +75,7 @@ function zoneLandscapeArg(level) {
    strip in the one global TStatusWindow::ChangeOutdoor reads, and that
    routine draws 0x8400 plus it into the 288 by 32 picture in the status
    window, over DrawSky's sky of the hour when the flag is set and over a
-   plain fill when it is not. Nothing else writes the global.
+   plain fill when it is clear. Nothing else writes the global.
 
    So every strip a negative number names is used, which this page missed
    until 22 September 2026: it matched the signed argument against the
@@ -764,7 +764,8 @@ function exePatchFiles() {
     if (gi >= 0) {
       list = exeArgOf(scen, gi, 4);
       // The index is the register `addi 5, rX, 0` hands GetIndString; the
-      // loop sets it with a `li` before and compares it after.
+      // loop sets it with a `li` ahead of the call and compares it after the
+      // call returns.
       const ai = exeFindBack(scen, gi, 8, d => d.mn === 'addi' && d.rd === 5 && d.imm === 0);
       const reg = ai >= 0 ? scen[ai].d.ra : null;
       if (reg !== null) {
@@ -1894,7 +1895,7 @@ function renderSaveSheet() {
   // set on is in the document, and the edit form is found by id.
   let h = '';
 
-  // Who and where.
+  // The heading: the hero, and the party's location.
   const face = characterFace(1);
   h += '<div class="saveHead">' +
     (face ? '<img class="saveFace" src="' + face.url + '" alt="">' : '') +
@@ -1990,7 +1991,7 @@ function toggleSaveShowAll() { window.SAVE_SHOW_ALL = !window.SAVE_SHOW_ALL; ren
    scripts that read a field (0xE95, the defence helper's stand-in). The
    form groups them by what they are for, and each describes itself, links
    to its byte of 0xF009, and with the application open to the handler
-   that serves it. What was wrong before: byte 8, called the "state byte"
+   that serves it. What the old form got wrong: byte 8, called the "state byte"
    and described as movement and orientation, is the character's first
    eight flags (bit 6 is in the party); byte 18, called the "party byte"
    and "0 before Hector joins and 5 after", is the countdown to the next
@@ -2157,7 +2158,7 @@ function charFlagUses(index, f) {
   const words = saveWords();
   const cf = words && words.charFlags ? words.charFlags.find(x => x.flag === f) : null;
   if (!cf) return '';
-  // A link when the open file has the script, its name alone when not.
+  // A link when the open file has the script, and its name alone otherwise.
   const linked = refExists(0x1802);
   const mine = s => f >= 24 || s.resid === 0x1800 + index || s.who === index;
   const say = (list, verb) => {
@@ -2629,7 +2630,8 @@ function scenarioTileChoices() {
   return [...by.values()].sort((a, b) => b.count - a.count);
 }
 function scenarioMakerDefaults() {
-  // A saved game's header has its player's name at 0x20; a scenario's does not.
+  // A saved game's header has its player's name at 0x20, where a scenario's
+  // has a zero.
   if (!ARCHIVE || ARCHIVE.bytes[0x20]) return null;
   const hero = loadCharacterTable()[1];
   if (!hero || !hero.zone) return null;
@@ -2720,7 +2722,8 @@ function scenarioBattleEggs(c, width, height, x, y) {
    is lit are data words this does not write; zone ports lead to zones that
    are gone and are dropped. `spawns.player_start` is where the hero
    stands. Returns { name, width, height, tiles, props, eggs, cast, x, y,
-   skipped: [names] }, or throws an error naming what the file is not. */
+   skipped: [names] }, or throws an error with the reason the file cannot be
+   read as a map. */
 function manboroughMap(bytes) {
   let text = null;
   if (looksLikeZip(bytes)) {
@@ -3946,8 +3949,8 @@ function recordFieldMap(resid) {
     const mf = appImage() ? exeMonsterFields() : null;
     // The flags are one long to the program, served as two fields: the top
     // half at 8 and 9 (field 51, `srawi 16`) and the low half at 10 and 11
-    // (field 50, `clrlwi 16`). Split where the handlers say so; one row, as
-    // the long, where the program is not open to say it.
+    // (field 50, `clrlwi 16`). Split as the handlers split it; one row, as
+    // the long, when the program is not open.
     const top = mf ? mf.fields.find(x => x.half === 'high') : null, low = mf ? mf.fields.find(x => x.half === 'low') : null;
     const split = !!(top && low);
     const named = { 0: 'Body', 1: 'Reflex', 2: 'Mind', 3: 'Armor', 4: 'Damage', 5: 'Health',

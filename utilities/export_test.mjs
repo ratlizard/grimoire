@@ -44,7 +44,7 @@ const peek = n => ctx.__peek(n);
 
 // A unit check on CRC-32 before trusting a hand-written archive: a ZIP whose
 // checksums are wrong unpacks on some tools and not others, and `unzip -t`
-// below would be the only thing to say so. These vectors came across when
+// below would be the only thing to catch it. These vectors came across when
 // zip_export_test.mjs retired with resource_fork_browser.html.
 {
   const CRC_VECTORS = [

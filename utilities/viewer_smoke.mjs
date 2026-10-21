@@ -13,7 +13,7 @@
 // views, atlas, rules, edits, saves, installer. Named parts run in this process in
 // the order given; none named runs all six, which is the four-minute drive
 // of old in one process. check_all.mjs runs one part per row so the six run
-// at once. Each part starts from smoke_boot.mjs, which loads the page and
+// side by side. Each part starts from smoke_boot.mjs, which loads the page and
 // opens the archive, so a part never depends on what another left behind.
 import { PARTS, finish } from './smoke_boot.mjs';
 // galleries-a and galleries-b are the two halves of the galleries loop, each

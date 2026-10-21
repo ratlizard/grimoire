@@ -39,7 +39,7 @@
    10-point bearings place Geneva 10's wider letters, so the 10-point
    strike does not use them as they are: it is used only for which side of Geneva
    9's letter an odd pixel of extra width goes (js/delv-translate.js).
-   Only the numbers are here; Kurrajong's pixels are not. licences/Kurrajong-OFL.txt
+   Only Kurrajong's numbers are in this file, none of its pixels. licences/Kurrajong-OFL.txt
    (in grimoire, res/) is the licence. The frame is Geneva's at both sizes, ten pixels above
    the baseline and two below, with one of leading at 10 points; an
    accented letter has its letter's width, as Apple's do. */
@@ -451,7 +451,7 @@ const GENEVA_METRICS = {
     lsb: [3, 2, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0] },
 };
 
-// The font as bytes, decoded once. Base64 by hand rather than atob, which
+// The font as bytes, decoded on the first call and cached. Base64 by hand rather than atob, which
 // the utilities' sandbox does not have.
 function geneva9Bytes() {
   if (geneva9Bytes.cache) return geneva9Bytes.cache;

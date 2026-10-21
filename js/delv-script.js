@@ -118,7 +118,7 @@ function dvmResourceName(rid) {
  *     -15, not 268,435,441. Every negative constant in every script was being
  *     shown as a nine-digit positive one; 34 lines of the archive's readable
  *     disassembly were affected. `SetLandscapeImage -15` is a line you can
- *     read, and `SetLandscapeImage 268435441` is not.
+ *     read, where `SetLandscapeImage 268435441` means nothing to a reader.
  *   - Object references other than characters. Bits 16-23 are the class, so
  *     0x40200005 is zone 5, not an unexplained hex constant. Only the
  *     character case (class 0x40) was handled.

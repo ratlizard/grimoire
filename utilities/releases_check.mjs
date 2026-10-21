@@ -420,7 +420,7 @@ eq('and it grows', notes.defendAiBytes.join(' -> '), '584 -> 712');
  * 1.0.2 is the release whose notes are mostly about the application rather
  * than the scenario, so its claims cannot be joined to a resource the way
  * 1.0.3's are. They join to routine names instead, and the strongest evidence
- * is a routine that did not exist before: a name either appeared in this
+ * is a routine new in this release: a name either appeared in this
  * release or it did not, with nothing to interpret.
  *
  * Every join below was made by reading the 45 recompiled routines with the

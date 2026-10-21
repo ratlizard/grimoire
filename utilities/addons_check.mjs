@@ -147,7 +147,7 @@ if (dataPath && existsSync(dataPath)) {
 // The recorded floor. It is not a target, it is a baseline: what matters is
 // that the agreement does not become WORSE, because a change to a shape test, to
 // the container test or to the entropy comparison that drops this number has
-// made modded archives read worse, silently, and nothing else would say so.
+// made modded archives read worse, silently, and nothing else would catch it.
 //
 // No figure is written into this comment, because every one that was went
 // stale: the breakdown is printed on every run and that printed line is the

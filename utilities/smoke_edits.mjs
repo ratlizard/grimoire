@@ -74,7 +74,7 @@ try {
   const named = [];
   for (const g of groups) for (const id of (g.ids || [])) named.push(id);
   const dupes = named.filter((id, i) => named.indexOf(id) !== i);
-  // One title each tab must show, and one it must not. Titles rather than
+  // One title each tab must show, and one it must leave out. Titles rather than
   // ids, because a section's id is a property the stub stores in REGISTRY and
   // never writes into the markup.
   const MARK = {
@@ -213,7 +213,8 @@ try {
    to be present before any absence is believed.
 
    REGISTRY is no use here: it is one Map for the whole run and never clears,
-   so a card it has seen once looks present on every sheet rendered after.
+   so a card it has seen once looks present on every sheet rendered from then
+   on.
    The library and talk cards are pinned in separate blocks above, where the
    readers they need are already built. */
 try {
@@ -252,7 +253,8 @@ try {
    This has to run in THIS harness and not a lighter one: showCategory rejects
    any value that is not among categorySelect's options, and only the stub
    here parses the real markup into them. A lighter sandbox reports every
-   category as lost, which looks exactly like the bug and is not. */
+   category as lost, which looks exactly like the bug and comes from the
+   sandbox instead. */
 try {
   const was = ctx.location.hash;
   const landings = [];
@@ -321,7 +323,8 @@ try {
     window.EDITED_RESIDS = new Set();
     const empty = basketPatch(), emptyFiles = basketFiles();
     window.EDITED_RESIDS = keep;
-    // Nothing chosen, so the patch is the edit alone; put back after.
+    // Nothing chosen, so the patch is the edit alone; the choices are put back
+    // afterwards.
     const was = { on: DATAFIX_STATE.on, skip: DATAFIX_STATE.skip, off: APPFIX_STATE.off, rsrc: BACKSTAGE_CHOSEN };
     fixPreset('none');
     const ed = basketEdits(), w = basketPatch();
@@ -819,8 +822,8 @@ try {
   }
   // From the open file, not the file as it arrived: blocks above have
   // edited it, and the report reads against what is open. (gCharNames was
-  // the first choice for the data case; those blocks rename characters in
-  // it, which is why it is not.)
+  // the first choice for the data case, and was dropped because those blocks
+  // rename characters in it.)
   const base = ctx.delverArchiveSpec(A().bytes);
   const plain = rid => base.resources.find(r => r.resid === rid);
   const swap = (rid, from, to) => {
@@ -857,8 +860,9 @@ try {
 /* Magpie's icon for the Patches tab (noteMagpieFrom, magpieIcon). The one
    Magpie there is comes in the Pumpkin Patch archive among the community's
    add-ons, which is not ours and not in the repository, so this runs where
-   that file is and states it where it is not. The archive must be recognised
-   and give the DelP icon; the data file, which has no Magpie, must not. */
+   that file is and prints a note of its absence elsewhere. The archive must be
+   recognised and give the DelP icon; the data file, which has no Magpie, must
+   give none. */
 try {
   const MAGPIE = 'reference/community/addons/614_MagpiePumpkinPatch.sit.hqx';
   if (!existsSync(MAGPIE)) console.log('  (no Magpie archive among the add-ons; the patch icon is not checked)');
@@ -1024,7 +1028,7 @@ try {
       if (!wp || wp.resids.length !== 1 || wp.resids[0] !== cover[0].sheet || !wp.checkValueValid)
         fail('hero bodies', 'the worn body did not write a verifying patch of the hero\'s sheet alone');
       else if (!/hero, as the demon, \d+ colors? changed/.test(wp.description)) fail('hero bodies', 'the description is ' + JSON.stringify(wp.description));
-      else console.log(`  hero bodies: ${bodies.length} bodies offered, the gator, the titan and the corpse not; the demon worn stride for facing, turned yellow in ${worn.shades.length} families, and written as one resource`);
+      else console.log(`  hero bodies: ${bodies.length} bodies offered, the gator, the titan and the corpse left out; the demon worn stride for facing, turned yellow in ${worn.shades.length} families, and written as one resource`);
     }
   }
 
@@ -1483,7 +1487,7 @@ try {
     window.SMOKE_DISK = basketFiles(); window.SMOKE_DISK_WHY = document.getElementById('patchBarNote') ? document.getElementById('patchBarNote').textContent : '';
     window.CYTHERA_RSRC_RAW = keep; })()`);
   // The fixes built from Bryce Schroeder's published source have his name;
-  // the four of his patch written here from the causes do not.
+  // the four of his patch written here from the causes are uncredited.
   const credit = peek(`(() => { renderDataFixMaker(); const host = document.getElementById('dataFixMaker'); const rows = [...(host ? host.querySelectorAll('.appFixRow') : [])].map(r => r.textContent);
     const row = id => rows.find(t => t.indexOf(DATA_FIXES.find(f => f.id === id).title) >= 0) || '';
     return { fetch: row('fetch'), fishing: row('fishing'), locks: row('aethon-locks') }; })()`);
@@ -1516,7 +1520,7 @@ try {
     // Built from the file as it arrived (PRISTINE_BYTES), so applying the
     // fixes to the site never stops them building again (17 October 2026).
     else if (again) fail('game fixes', 'the fixes would not build again after being applied: ' + again);
-    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list rejected on the edited Paris topic by the fix's name; Fetch and fishing credited to him and Aethon's lock picking not; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), the fixed game's Cythera Data the same file, and built again after being applied; the text's ${changes.rows} changes listed under ${changes.parts.length} headings, the option not chosen not among them, and Helen's "Yery well" linked to her script at 0x${link.at.toString(16).toUpperCase()}, opened ringed there`);
+    else console.log(`  game fixes: nothing chosen writes nothing; Bryce's list rejected on the edited Paris topic by the fix's name; Fetch and fishing credited to him, Aethon's lock picking uncredited; ${w.fixes} fixes, ${w.resids.length} resources, read as a usable patch, applied and read back (Fetch, Land King, Peirithous), the fixed game's Cythera Data the same file, and built again after being applied; the text's ${changes.rows} changes listed under ${changes.parts.length} headings, the option not chosen not among them, and Helen's "Yery well" linked to her script at 0x${link.at.toString(16).toUpperCase()}, opened ringed there`);
   }
   ctx.dataFixClear();
   ctx.patchesForget();

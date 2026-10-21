@@ -77,8 +77,8 @@ function buildXrefIndex() {
 // separate those: what this resource IS, how it was read, who uses it, and
 // only then the code.
 //
-// Descriptions are the wiki's words where it has any, and state plainly
-// where it does not. An invented purpose would be worse than admitting none.
+// Descriptions are the wiki's words where it has any, and say plainly when
+// it has none. An invented purpose would be worse than admitting none.
 const SUBINDEX_PURPOSE = {
   0:   ['Symbol table', 'One resource, 0x0101, holding names for numbered things. They are the developers’ names and do not always match the game as released, so they are a hint rather than the truth.'],
   1:   ['Data lists and the game’s writing', 'Lists of things: character names, and the global values the symbol table in subindex 0 names. It is also where Cythera’s in-game writing is: the bookshelf histories and bestiaries, the prophecies, the scrolls and letters, the signs, the gravestones and the ring inscriptions. Each passage is one entry in a list, and a thing in the world picks its entry with the number in its Data1. The Mechanics page covers them under The Game’s Writing.'],
@@ -96,7 +96,7 @@ const SUBINDEX_PURPOSE = {
   15:  ['Item classes', 'What each kind of item is: what it is called, and what happens when you use it.'],
   16:  ['Object classes', 'Objects with data and scripts, and text in them that you can read.'],
   19:  ['Zone entry scripts', 'One for each map. It runs as you enter the zone, and has the zone names that the game shows.'],
-  20:  ['Sub-zone scripts', 'For maps that hold several zones in one 0x80xx resource, where not all of it appears at once.'],
+  20:  ['Sub-zone scripts', 'For maps that hold several zones in one 0x80xx resource and show one part at a time.'],
   23:  ['Character dialogue', 'What a named character says when you talk to them.'],
   24:  ['Monster classes', 'What each kind of monster is. The script that sets one up is given the monster and the thing that represents it, and entry 0x1D sets what happens when it dies.'],
   25:  ['Skill & spell classes', 'Descriptions and scripts for spells, skills and actions. Usually several small functions: one gives the name, another the description.'],

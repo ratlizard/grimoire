@@ -236,7 +236,8 @@ function drawSheetGridlines(canvas, W, H, mode) {
    -- a class at aspect n draws its base tile + n, on its sheet -- with how
    often the file places that class at that aspect. A chip opens the item at
    that aspect, where the prop record shows the picture, or the prop type's
-   page. A picture no class owns (orphanItemArt) is marked so. */
+   page. A picture no class owns (orphanItemArt) is marked as owned by no
+   class. */
 function tileFactsHTML(tileId) {
   const rows = [];
   const sheet = 0x8E00 + (tileId >> 4);
@@ -612,7 +613,8 @@ function ditherFrameMask(resid) {
   // The hole is the largest run of one colour that does not touch the
   // border: index 0 in 0x88A2, but 0x88F2 fills its window with index 17,
   // and looking for 0 there found nothing (the maintainer, 9 September
-  // 2026). Every uniform region is flooded once; the biggest inner one is used.
+  // 2026). Each uniform region is flooded in one pass, and the biggest inner
+  // one is used.
   const comp = new Int32Array(W * H).fill(-1);
   let best = -1, bestN = 0, id = 0;
   const stack = [];
@@ -1149,7 +1151,8 @@ function stopLazyTiles() {
 }
 
 // The gallery tally cannot be printed once and left, now that tiles decode as
-// they scroll into view. It shows what is known so far, and how much is not.
+// they scroll into view. It shows what is known so far and how much remains
+// unknown.
 let sheetStats = null;
 function updateSheetSummary() {
   const s = sheetStats;
@@ -1429,7 +1432,7 @@ function renderContactSheet() {
   }
   // Blank resources are hidden on purpose, but the tally has to admit it: the
   // old line read "50 decoded, 0 errors" while 12 tiles had quietly vanished.
-  // It now also admits how many have not been decoded yet.
+  // It now also gives the number still waiting to be decoded.
   refreshLabelLegend();
   updateSheetSummary();
 }
@@ -1482,8 +1485,8 @@ function scrollHintWatch(el) {
   scrollHintUpdate(el);
 }
 /* A tab row under a mouse (the maintainer, 6 October 2026). A finger slides
-   a row that is wider than the page and a wheel mostly cannot, so: the row
-   drags, a press that moves more than a few pixels sliding it and not
+   a row that is wider than the page and a wheel mostly cannot, so under a
+   mouse the row drags, a press that moves more than a few pixels sliding it and not
    opening the tab it began on; and with no button down the row drifts
    while the pointer rests on a faded end, faster the nearer the edge,
    until there is no more that way or the pointer leaves. Mouse only: a

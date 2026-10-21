@@ -47,7 +47,7 @@ _ArgSpec = collections.namedtuple('ArgSpec', 'args varargs keywords defaults')
 
 
 def install_shims():
-    """Install both compatibility shims. Safe to call more than once."""
+    """Install both compatibility shims. Calling it again is harmless."""
     if not hasattr(inspect, 'getargspec'):
         def getargspec(func):
             fas = inspect.getfullargspec(func)

@@ -562,7 +562,7 @@ function installDialogueBox() {
 
 /* Which face the page is set in. Three sources and one rule: the reader's
    choice comes first, and without one the game's face is used when an open file
-   has given us one and Chicago Kare when it has not. Every stack ends in the
+   has given us one and Chicago Kare otherwise. Every stack ends in the
    system sans because Chicago Kare does not have a handful of the marks this
    page uses, and those should fall through to what stood beside Chicago on a
    real Macintosh rather than to a serif.
@@ -826,7 +826,7 @@ function renderRsrcSheet() {
   const inv = rsrcInventory();
   if (!inv) {
     out.textContent = 'No resource fork. It comes from the file you opened Cythera Data from: ' +
-      'a .hqx, MacBinary or AppleSingle file includes both forks, but the data fork alone does not. ' +
+      'a .hqx, MacBinary or AppleSingle file includes both forks, but a bare data fork leaves it out. ' +
       'Open the file again from "Cythera Data.hqx" to get it.';
     return;
   }
@@ -1133,8 +1133,8 @@ function renderMacRsrcSheet() {
     if (!fork) {
       missing.push(src === 'app'
         ? (window.APP_RSRC_STATE === 'loading' ? 'Loading the program…'
-           : window.APP_RSRC_STATE || 'The program’s fork is not open yet.')
-        : 'No resource fork came with the file. It comes from the file you opened Cythera Data from: a .hqx, MacBinary or AppleSingle file includes both forks, but the data fork alone does not.');
+           : window.APP_RSRC_STATE || 'The program’s fork has not been opened.')
+        : 'No resource fork came with the file. It comes from the file you opened Cythera Data from: a .hqx, MacBinary or AppleSingle file includes both forks, but a bare data fork leaves it out.');
       continue;
     }
     total += fork.total();

@@ -13,7 +13,7 @@
 
    1. Checks the data fork against APP_FIXES_TARGET: a PEF container whose code
       section begins and ends where 1.0.4's does and whose data section
-      follows it at once. That is the layout step 4 grows; a program laid
+      starts where the code section ends. That is the layout step 4 grows; a program laid
       out otherwise is rejected rather than grown by a rule written for
       another.
    2. Places the caves. Every chosen fix's cave, one after another, from
@@ -194,8 +194,9 @@ function applyAppFixes(app, fixes, opts) {
     caveAt = a;
     return { fix: f, labels, lines, start, end: a };
   });
-  // 2b. C strings: which are written in place, and for those that grow,
-  // a trampoline for every load of a pointer to them and the bytes after.
+  // 2b. C strings: which are written in place, and for each that grows, a
+  // trampoline for every load of a pointer to it and room for its bytes
+  // after the trampolines.
   const codeWord = a => pefU32(data, code.containerOffset + a);
   const stringPlan = [], r0Steps = 3;
   if (fixes.some(f => (f.cstrings || []).length)) {
@@ -240,7 +241,8 @@ function applyAppFixes(app, fixes, opts) {
     }
     // Trampolines first, four words a load; then the strings, each on a word.
     // A load into r0 uses `addic` in steps of up to 32767, since addis and
-    // addi read r0 as 0; the distance is bounded by the strings laid after.
+    // addi read r0 as 0; the distance is bounded by the length of the strings
+  // laid out after the trampolines.
     for (const sp of stringPlan) if (sp.place === 'moved') for (const st of sp.sites) {
       st.r0 = ((codeWord(st.at) >>> 21) & 31) === 0;
       st.tramp = caveAt; caveAt += st.r0 ? 4 * (2 + r0Steps) : 16;

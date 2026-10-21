@@ -259,8 +259,8 @@ function faPaint(img, W, H, rim) {
    `name(id)` is the page's: what the file calls a tile. Ground is a name
    the first list below applies to a tile with no see-through pixels; a tile
    with some is ground only by the second list, since a shore or a snowcap
-   laid over another tile is still ground and a tree standing on one is
-   not. */
+   laid over another tile is still ground, but a tree standing on one is no
+   longer ground. */
 const FA_GROUND = /^(grass|earth|embankment|wet earth|shore|water|sand|swamp|scrub|shrub|field|ground|lava|puddle|pool|mountains?|snowcaps|bush|tree|dead tree|crops|abyss|farmlands|water pool)$/;
 const FA_GROUND_OVER = /^(grass|shore|mountains?|snowcaps|water pool|farmlands)$/;
 function fineArt(name) {

@@ -83,8 +83,8 @@ function applyMapZoom(fromSlider) {
    Nothing is persisted: this is the state of a session, not a preference.
 --------------------------------------------------------------------------- */
 window.MAP_VIEW_MEMORY = Object.create(null);
-// The selected square is remembered separately from the pan and zoom, and
-// deliberately so: clearMapInspector() runs while a NEW map is being opened,
+// The selected square is remembered separately from the pan and zoom on
+// purpose, because clearMapInspector() runs while a NEW map is being opened,
 // at a moment when CUR_MAP is already the new map but mapView still has the
 // previous one's transform. Folding the two together let that moment write the
 // old map's scroll position into the new map's memory.
@@ -1239,7 +1239,7 @@ function forgetZoneRender(resid) { zoneMapCache.delete(resid); }
    cross-fading the bare level over the roofed one, so by the time the view
    crosses, the roofs are already coming off and updateRoofFade continues
    from where this left it. A town seen from far off is roofs; a town you are
-   walking into is not.
+   walking into is streets and floors.
 
    Only open-edged destinations get one. A cave's inside is not what is at
    that spot on the world map, and painting it there would say it was.
@@ -1325,7 +1325,7 @@ function worldSquareRatio() {
 /* The ratio for one place.
 
    Where its pictogram covers more than one square, that pictogram is the
-   answer and the median is not: the world map is stating how big this place
+   answer, not the median: the world map is stating how big this place
    is, and a place should land on its icon rather than on the average of
    everyone else's. Cademia is four `small city` props in a 4x4 block over 107
    squares of town, so its ratio is about 27 while the median of every place
@@ -1343,7 +1343,7 @@ function gatewayRatio(gw) {
 
      A block of props placed two or four squares each way -- Cademia, Kosha,
      Catamarca -- is somebody saying how big the place is. A single sprite
-     that happens to be two tiles tall is not: a cave mouth is drawn 1x2
+     that happens to be two tiles tall is no measure of the place: a cave mouth is drawn 1x2
      because that is the shape of the picture of a cave mouth, and reading it
      as "this cave system is two world squares" gave the same Underground
      three different sizes depending on which of its three mouths was used.
@@ -1420,8 +1420,8 @@ function buildThumbsFor(gw, sizes) {
 /* Draw a town into a rectangle, from the best level it has.
 
    The smallest level at least as wide as the rectangle, so a town sharpens as
-   the view comes in rather than being magnified; the biggest it has when it
-   has nothing big enough yet. `roofT` is how much roof is left: the bare
+   the view comes in rather than being magnified, and the biggest it has
+   while nothing big enough has loaded. `roofT` is how much roof is left: the bare
    level goes down first and the roofed one over it at that strength, which is
    an ordinary cross-fade because the roofed picture is the bare one with
    roofs added. */
@@ -1501,7 +1501,7 @@ let levelQueue = null;
    already zoomed in beside one, not while panning across the whole world --
    and only one at a time. requestIdleCallback where there is one, because
    this is a whole map render and it must never land in the middle of a drag;
-   a plain timer where there is not. */
+   a plain timer in a browser without it. */
 let zonePrefetching = 0;
 /* The world map rings its gateways; a town shows the world around it and
    watches for the reader zooming back out of it. One settle, because they are

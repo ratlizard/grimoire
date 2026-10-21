@@ -459,7 +459,8 @@ function exePseudo(r) {
       return !!(blk.out >>> q & 1);
     };
     // Before something changes, each pending expression that reads it is
-    // written out if a later instruction reads its register, and dropped if not.
+    // written out if a later instruction reads its register, and otherwise
+    // dropped.
     let now = blk.s;
     const before = (test, self) => { for (let q = 0; q < 32; q++) if (vol(q) && reg[q].k === undefined && reg[q].s !== name(q) && test(reg[q])) { if (wanted(q, self ? now : now + 1)) settle(q); else reg[q] = atom(name(q)); } };
     // A test whose operands have since changed is printed as it stood.
@@ -469,7 +470,8 @@ function exePseudo(r) {
       if (q === 1 || q === 2) return;
       before(mentions(name(q)));
       stale(mentions(name(q)));
-      // An expression that reads the register it is going into is written at once.
+      // An expression that reads the register it is going into is written out
+      // immediately.
       if (!vol(q) || (e.k === undefined && (mentions(name(q))(e) || e.s.length > 64))) {
         if (!(e.k === undefined && e.s === name(q))) say(name(q) + ' = ' + str(e));
         reg[q] = atom(name(q));
@@ -1278,7 +1280,7 @@ function partsStrip(title, chips, note) {
 // tabs and deep link included, rather than inside whatever gallery was open.
 /* Open a detail view that lives under another category, as one step: the
    category switch is made with the history silent (syncDeepLink), the view
-   is opened, and then the hash is written once. Every "Open X in Y" link
+   is opened, and then the hash is written a single time. Every "Open X in Y" link
    from the World tab comes through here, which is also what makes them work
    from there at all: the atlas panel hides the sheet, and a detail drawn
    into the hidden sheet without the switch was the "Open cloth in Items does
@@ -1971,7 +1973,8 @@ function unitsWithTopFlag(bit) {
    So each place CanMove tests one of the unit's bits beside one of the
    square's, with a result straight after, is a rule:
 
-   - square, then unit: a unit with the bit may go where the rest may not.
+   - square, then unit: a unit with the bit may go where the rest are kept
+     out.
      Inside the stretch that runs only for a square that blocks (0x200, the
      bit tilePassable walks by), 0x0001 and 0x0002 get onto water and pools
      (0x100) and 0x40000000 onto a mousehole (0x80000000); outside it, lava
@@ -2139,7 +2142,7 @@ function monsterFlagsHTML(f, each) {
   const sites = monsterFlagSites();
   const named = [];
   let rest = f >>> 0;
-  // A bit two rules read (0x0080 is fire and lava) is counted once.
+  // A bit two rules read (0x0080 is fire and lava) is not counted twice.
   let told = 0;
   const own = v => { if (!each) return ''; const again = (told & v) >>> 0 === v >>> 0; told = (told | v) >>> 0;
     return ' <span style="color:#dcd8cc">' + (again ? 'also ' : '') + propWordHex(v >>> 0) + '</span>'; };
@@ -2615,7 +2618,7 @@ function renderText(sameResource) {
     document.getElementById('backToSheet').style.display = 'block';
 
     // The identity of the resource is now the job of the script view's header,
-    // so this line shows only what that panel does not: the decision the
+    // so this line shows only what that panel leaves out: the decision the
     // decryptor made, and how close it was.
     const readNote =
       (wasDecrypted ? 'decrypted' : 'read as stored') +
@@ -2639,7 +2642,8 @@ function renderText(sameResource) {
       content += recs.map(r =>
         '#' + r.index + '  flags=0x' + r.flags.toString(16).padStart(2,'0') +
         // Same reading as delvmod's textual_location: the location word is a
-        // containment link, not coordinates, once the flags say so.
+        // containment link, not coordinates, when the flags mark the record as
+        // carried.
         '  ' + (r.carriedBy !== null
                   ? (r.equipped ? 'equipped by #' : 'carried by #') + r.carriedBy
                   : r.container !== null
@@ -2949,7 +2953,8 @@ function convTextHtml(resid, e) {
   let html = '';
   // Which conditions pick each line: the Read clause at or before the
   // string's offset, within this prompt (convReadConds). Shown when it
-  // changes from the line before, so a run under one test reads once.
+  // changes from the line before, so a run of lines under one test names it
+  // only at the start.
   const lines = e.kw && e.kw !== '*' ? (convReadConds(resid).lines.get(e.at) || []) : [];
   let prev = '';
   for (const t of e.text) {
@@ -2968,7 +2973,8 @@ function convTextHtml(resid, e) {
 }
 
 /* What the player means by a prompt (the maintainer, 23 September 2026:
-   the "real" four letters and the "intended" word, both at once). The code
+   the "real" four letters and the "intended" word, both shown together). The
+   code
    stores only what it matches -- "demo", "eteo", "job" -- and the words
    those stand for are in the game's text: every @word in every response
    is a word the player can ask about, spelt in full. So a stored keyword's
@@ -3021,7 +3027,7 @@ function convPromptHtml(e) {
    showed only which tests it called ("depends on: GetQV"), and missed a test
    made through a helper altogether: Aethon's "demo" calls 0xF13 to test
    whether he is in the party and its card showed nothing. */
-// "not (x)" of a condition, without doubling a not: a test the Read view
+// "not (x)" of a condition, without a double negative: a test the Read view
 // already wrote as "not (x)" or "not x" is turned back to x when x is one
 // clause (no "and" or "or" at its top).
 function convNegate(k) {
@@ -3118,7 +3124,7 @@ function convCardHtml(resid, e, depth) {
   return html + '</div>';
 }
 
-/* A character's conversation, everything at once: the person as the
+/* A character's conversation, everything in one view: the person as the
    window shows them -- the portrait, the name, and the line the window
    opens with -- then every topic they answer, their own first and then each
    group they fall through to in the order the catch-all calls them (the
@@ -3176,7 +3182,7 @@ function renderConversationPane(data, subn, resid) {
       '<button class="sv-chip" onclick="jumpToResource(' + g + ')">' +
       svEsc((window.SHOW_BUILTIN_LABELS && DIALOGUE_GROUP_NAMES[g]) || ('0x' + g.toString(16).toUpperCase())) + '</button>').join(' ');
     head = conv.entries.length + ' topic' + (conv.entries.length === 1 ? '' : 's') +
-      ', read from the code' + (chain ? ' · also answers as: ' + chain : '');
+      ', read from the code' + (chain ? ' · generic topics: ' + chain : '');
   }
   let html = '<div class="convHead">' + head + '</div>' + dlgToolsHtml();
   if (subn !== 8) html += convWhoHtml(resid, conv);
@@ -3548,7 +3554,7 @@ function applyPropRecordEdit(propResid, index, fields) {
      - `duplicate ... with replacing` does the replace with no confirmation,
        which is what makes this one step rather than an interactive one.
      - `display dialog` compiles, so the Dialogs scripting addition is there
-       and the not-found case can say so.
+       and the not-found case can show a message.
 
    The game is *found*, not named: the folder holding an application called
    "Cythera" is the one whose data is replaced, so this works whatever the

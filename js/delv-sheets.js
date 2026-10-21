@@ -88,7 +88,7 @@ function spellsMechSection() {
     // figures, and the roll is the first line here.
     sp.spells.length ? '' : 'No spell in this file is cast through the shared script.',
     sp.spells.length ? [
-      'The game adds two random numbers below the caster’s Casting figure, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>: the only number below 1 is 0. The caster spends the magic points whether the cast works or not.',
+      'The game adds two random numbers below the caster’s Casting figure, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>: the only number below 1 is 0. The caster spends the magic points even when the cast fails.',
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
       sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The caster pays the cost.',
       'Spell damage works like a blow’s; the victim’s resistance applies, and the caster earns experience as usual.',

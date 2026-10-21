@@ -48,7 +48,8 @@
    script page is in js/page-views.js.
    =========================================================================== */
 
-// Is a 32-bit word a pointer into resource `resid`, and to where.
+// The offset a 32-bit word points to in resource `resid`, or null when it is
+// not a pointer into that resource.
 function dvmSelfRef(v, resid) {
   v = v >>> 0;
   return (v & 0x80000000) && ((v & 0x7FFF0000) >>> 16) === resid ? (v & 0xFFFF) : null;
@@ -344,7 +345,7 @@ function dvmAssemble(text, resid) {
   return { bytes: Uint8Array.from(bytes), sites, labels };
 }
 
-/* A class written from its methods, for a script the file does not have yet:
+/* A class written from its methods, for a script that is not in the file:
    the gremlin maker's (26 September 2026). The layout is the one shipped
    class in the gremlins' range has, 0x1E20's: a word pointing at the table,
    the functions from offset 2, then the table.

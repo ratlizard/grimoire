@@ -183,7 +183,7 @@ const APP_FIXES = [
   // party left an area mid-fight, and one fed past 30 was cut back. The
   // tail's two middle words swap places, so the timing store has a separate
   // entry, and the party member's branch is taken; the others, and
-  // behaviour 146, which enters the tail at its start, are as before.
+  // behaviour 146, which enters the tail at its start, are unchanged.
   { id: 'target-hunger', kind: 'fix', title: 'A companion whose target is gone goes back to following without its hunger set to 30',
     played: 'fork, PowerPC, 30 September 2026: two companions saved at behavior 113 follow again with their food as it was',
     bug: 'Followers\' hunger and poison clear on their own',
@@ -540,8 +540,8 @@ const APP_FIXES = [
   // 64 drawers (operator new, 0xBE7C8, as the routine's vector does),
   // puts the address in the TOC slot, where every later call reads it, and
   // in r24, and builds them; the guard byte records the capacity (it only had
-  // to be nonzero) and the loop's test reads it. If the allocation fails the
-  // shipped array is built with its 20, as before. r25 is free until
+  // to be nonzero) and the loop's test reads it. If the allocation fails, the
+  // program builds the shipped array of 20 unchanged. r25 is free until
   // 0x96AAC sets it.
   { id: 'menu-items', kind: 'fix', title: 'Long lists of dialogue choices (like Where Is\u2026) now show up to 64 entries instead of stopping at 20',
     played: 'fork, PowerPC, 30 September 2026: Antenor offers Cademia’s 21, with menu-scroll',
@@ -612,7 +612,7 @@ const APP_FIXES = [
   // where its data was, memory the heap goes on to reuse while QuickTime
   // plays from it. TAudio::PlayMusic, the one caller, leaves the data locked
   // across the call instead: the lock is counted, so GMSPlayAmbient's
-  // lock and every path through it, music-revert's too, are as before.
+  // lock and every path through it, music-revert's too, are unchanged.
   // Read, not reproduced (no moved block was forced): the board's "wrong instruments, distorted timing"
   // after long play fits it and nothing here shows it is the cause.
   { id: 'music-lock', kind: 'fix', title: 'The music a zone starts is held in place before the old tune is let go, so it is never played from memory that has moved',

@@ -42,7 +42,7 @@
 // encodeDCGLiterals): every re-encoded sheet is bigger than the one it
 // replaces. That is why the patch is megabytes rather than the Pumpkin
 // Patch's 57 KB. Nothing in the game minds; a smaller file would need
-// delvmod's compressor, which writes the run opcodes this one does not.
+// delvmod's compressor, which writes the run opcodes this one never emits.
 //
 // WHAT IS CHECKED HERE. Every sheet is decoded again from the bytes that go
 // into the patch and compared pixel for pixel with the remap that produced
@@ -163,7 +163,7 @@ const luma = i => {
   return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
 };
 
-// Tile sheets, decoded once. 0x8EFF is a sized picture rather than a strip of
+// Tile sheets, all decoded up front. 0x8EFF is a sized picture rather than a strip of
 // sixteen tiles and is left alone -- it is not something Render draws as a
 // tile, and re-encoding it would only make the patch bigger.
 const SHEETS = [];

@@ -69,8 +69,8 @@
    text stage's wording stands and the list finds the place fixed already or
    not at all (three places when this was written: "take the road" in Kosha,
    "quaters" in Pnyx, "kind looking" in Bryaxis's description). The spelling
-   comes after the list (28 September 2026; it was part of the text stage
-   before): the list finds each typo by the words around it as the game has
+   comes after the list (28 September 2026; until then it was part of the
+   text stage): the list finds each typo by the words around it as the game has
    them, and the British spelling changed a word beside Bryaxis's "ones",
    which was then not found. The American spelling changes none, so "All
    Fixes" came out the same either way. The map stage
@@ -547,7 +547,7 @@ const DATA_FIXES = [
   // Reschedule (0xE0, ScheduleTime for the current hour, not instant) when
   // the night ends, and when an owner kicks the hero out of bed, so the
   // hidden are placed as eggs and hatch as the party comes near: the pass
-  // the next waking hour would have run, run at once. The loop's exit lands
+  // the next waking hour would have run, run immediately. The loop's exit lands
   // on the first, and nothing jumps to the second.
   { id: 'sleep-reschedule', group: 'world', stage: 'community', title: 'People are now back around the zone after a night\u2019s sleep, instead of missing until a later hour',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: the hero slept until midnight in Land King Hall, "You sleep soundly."; Alaric, Magpie and Hector are saved as waiting to appear and Hadrian and Emesa as present, against all five hidden unpatched. Read from the save, not seen on a screen; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: after the same sleep the five are saved as in the fork with the fix, against all five hidden unpatched there too. Read from a save copied out of the machine',
@@ -632,7 +632,8 @@ const DATA_FIXES = [
     // torch?"). Each class that has a Use and a weight now calls 0x3009
     // first, which answers True when it has handed the Use to a door, and
     // only otherwise goes on to the class's Use. So in a doorway the door comes
-    // first, whatever lies there; picked up, the thing is used as before.
+    // first, whatever lies there; picked up, the thing goes to the class's Use
+    // unchanged.
     plan: (s) => {
       const edits = [
       { what: 'a thing with no use hands it to a door on its square', resid: 0x3009, at: 0x0003, expect: { 0x0003: 'return' },
@@ -1017,8 +1018,8 @@ const DATA_FIXES = [
         code: `word 0x7FFF\nbitwise_and` },
     ] },
   // Aethon's lock picking (0x0C4E, 0x0C4F, 0x0C50). Not his fix -- his source
-  // was never published and he called PickLock directly -- but the cause
-  // read since: the task scripts cast their item argument into a local and
+  // was never published and he called PickLock directly -- but the cause,
+  // found in the scripts afterwards: the task scripts cast their item argument into a local and
   // then send the method to the argument, a bare number, which the
   // interpreter ignores. Each sends it to the local.
   { id: 'aethon-locks', group: 'rules', stage: 'bugfix', title: 'Aethon now picks a lock when told to, instead of ignoring the order',
@@ -1210,7 +1211,8 @@ const DATA_FIXES = [
   // no script ever sells them. The offer goes (the maintainer, 3 October
   // 2026, who had two versions made): his line ends at "stopped a while
   // back." and the question after it is jumped over, so his "I hope you
-  // enjoyed them", which waits on a sale, stays unsaid as before. The other
+  // enjoyed them", which waits on a sale, stays unsaid, as it was in the
+  // shipped game. The other
   // version is a separate joke patch, deep_pipes_patch.mjs, in which he sells
   // them; built on a file with this fix, its sale is never reached. Under
   // Design Changes since 17 October 2026, at the maintainer's word: Philinus
@@ -1374,7 +1376,8 @@ const DATA_FIXES = [
   // the text up to one character short of it (the length it hands
   // AppendConv or AppendMessage is the `*`'s place less one, less the
   // start), which is right when that character is the new line the writers
-  // mostly put there and drops a full stop or a letter when it is not:
+  // mostly put there and drops a full stop or a letter when the writers put
+  // something else there:
   // "A vision appears before yo", "with a proud demeanor", and "..." as
   // "..". Seen on Mac OS 8.5 (bugs.md, *The character before a pause*). 126
   // places in the shipped file, found here rather than listed: every `*` in
@@ -1695,8 +1698,8 @@ const DATA_FIXES = [
   // top bits over the number, and the interpreter's bitwise_and
   // (TInterp::DoExpr's case for 0x56) masks two plain numbers only, taking
   // another path for a tagged word. The victim's type it can read, as the
-  // helper already reads its square. So a hatched guard costs karma too,
-  // being a person, and a hatched chicken does not.
+  // helper already reads its square. So a hatched guard, being a person,
+  // costs karma too, and a hatched chicken costs none.
   { id: 'karma', group: 'design', stage: 'apart', title: 'Killing a townsperson now costs one karma, instead of adding one',
     played: 'fork, 68K, 10 October 2026, alone: Apis, her health set to 1 by an edit, killed by the hero in Cademia; karma saved as 54 from 55, against 56 unpatched; Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie over “All Fixes”: Apis killed, karma saved as 54 from 55, against 56 unpatched. Read from a save copied out of the machine',
     edits: (() => {
@@ -1749,7 +1752,7 @@ const DATA_FIXES = [
   // -- the six JoinParty is ever called for: Hector 6, Meleager 34, Ariadne
   // 53, Timon 74, Aethon 97, Dryas 98 -- and whose behaviour when they died
   // was a party one, 1 to 13, is put back in it with JoinParty, whose
-  // RebuildParty hatches them at once. Death does not touch the behaviour
+  // RebuildParty hatches them immediately. Death does not touch the behaviour
   // byte (neither Die nor CharEntry::DeathRites writes it), and with no
   // creature on the map the `behavior` field reads it straight from the
   // record. The party writes 1 (following) and 2 (leading) when it rebuilds,
@@ -1992,8 +1995,8 @@ const DATA_FIXES = [
      on what Use answered; a monster with SpellsKnown casts free, so most
      are unchanged. A caster without it who cannot pay, or whose spell
      fails, now has Use answer and UseOn reject, so the cast task's
-     method 0x43 on the target runs where it did not; it ran for every
-     cast that succeeded. Not played. */
+     method 0x43 on the target now runs for these failed casts too, as it
+     always ran for every cast that succeeded. Not played. */
   // Eating to heal (9 October 2026, at the maintainer's word). The helper
   // 0xE46(thing, worth, quality) is an earlier way of eating that no script
   // of any release calls: the player alone eats, a meal raises health by
@@ -2032,7 +2035,7 @@ const DATA_FIXES = [
       return [
         // Nobody in the party is hungry: the default EveryTurn's test,
         // nutrition below 4, under which a member ate from the pack or said
-        // "I'm starving", is made a test for below 0, which is never so.
+        // "I'm starving", is made a test for below 0, which is never true.
         // (Until 9 October 2026, an hour after it shipped, this took out the
         // eating alone and left the lines; the maintainer had meant both.)
         { what: 'nobody in the party is hungry', resid: 0x3020, at: 0x01B3, replaceOp: true,
@@ -2478,11 +2481,11 @@ function dataFixSpellingEdits(chosen) {
    This reads each pair, resolves the words around it to the game's
    wording, and looks for those words in the game's text as it stands with
    the collection's markup allowed between them -- the game's strings have
-   quotes, the click marks (*) and the @ of a highlighted word where the
-   collection does not. A pair found once, or the same number of times as the
+   quotes, the click marks (*) and the @ of a highlighted word, and the
+   collection's have none of these. A pair found once, or the same number of times as the
    game has the phrase, is an edit; one found nowhere is tried with fewer
    words around it, then with the misspelt word alone when the game has it
-   exactly once; what is still not found is reported and left. Found with the
+   in exactly one place; what is still not found is reported and left. Found with the
    corrected wording in the same place instead, it is the collection's own
    slip in transcribing, and the game is right already. So the edits are the
    collection's, found in the file, not typed in here; and since they are

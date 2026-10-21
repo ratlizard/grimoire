@@ -26,7 +26,7 @@
    every figure is either read out of the open archive by the functions above,
    or computed from those numbers by js/delv-mechanics.js, which is checked
    against an independent simulation by utilities/mech_check.mjs. And **a
-   figure must say something the table does not**; where it would only repeat
+   figure must say something the table leaves out**; where it would only repeat
    a column, there is no figure. Weapons get bars because the ordering is the
    point, shops have a price distribution because the range is the point, and
    the skill table has none.
@@ -145,7 +145,7 @@ function mechNumberLine(spec) {
     '</div>';
 }
 
-/* THE DICE GAME, ALL 216 THROWS AT ONCE. Six rows for the innkeeper's first
+/* THE DICE GAME, ALL 216 THROWS IN ONE GRID. Six rows for the innkeeper's first
    die, six columns for the second, and inside each cell the six faces your
    own die could show, left to right. Red is a lost obol, grey a push, green
    a win and the brighter the more. Nothing is sampled and nothing is
@@ -276,7 +276,7 @@ function diceSimHtml() {
     t ? 'After <b>' + t.games.toLocaleString() + '</b> games you are <b>' + (t.net > 0 ? '+' : '') + t.net.toLocaleString() +
         '</b> obols, <b>' + (t.mean >= 0 ? '+' : '') + t.mean.toFixed(3) + '</b> a game against the exact <b>' +
         (exact.mean >= 0 ? '+' : '') + exact.mean.toFixed(3) + '</b>.'
-      : 'Nothing played yet. The exact figure is <b>' + (exact.mean >= 0 ? '+' : '') + exact.mean.toFixed(3) + '</b> obols a game.');
+      : 'No games played. The exact figure is <b>' + (exact.mean >= 0 ? '+' : '') + exact.mean.toFixed(3) + '</b> obols a game.');
   if (t && t.curve.length > 2) {
     const ys = t.curve.map(p => p[1]);
     const lo = Math.min(-0.6, Math.min.apply(null, ys)), hi = Math.max(0.9, Math.max.apply(null, ys));
@@ -353,7 +353,7 @@ function mechAspectContrast() {
   const own = propDisplayName(weapon.pt) || 'weapon';
   return 'So ' + w(propWordHex(weapon.word)) + ', ' + svLink(svEsc(own), 'propWordOpen(' + weapon.pt + ',' + weapon.aspect + ')') + ' at aspect ' + weapon.aspect + ', is a ' + w(svEsc(weapon.name)) + ' in picture and name and a ' + svEsc(own) + ' in every number' + (weapon.numbers ? ' (' + weapon.numbers + ')' : '') +
     ', while ' + w(propWordHex(food.word)) + ', ' + svLink(svEsc(food.name), 'propWordOpen(' + food.pt + ',1)') + ' at aspect 1, is a ' + w(svEsc(food.v1.name)) + ' that feeds ' + srcNum(food.v1.src, '+' + food.v1.plus) + (food.v1.says ? ' and says ' + srcNum(food.v1.saysSrc, '“' + food.v1.says + '”') : '') +
-    ', against ' + srcNum(food.v0.src, '+' + food.v0.plus) + (food.v0.says && food.v0.says !== food.v1.says ? ' and ' + srcNum(food.v0.saysSrc, '“' + food.v0.says + '”') : '') + ' at aspect 0, because that class reads the aspect and the ' + svEsc(own) + '’s does not.';
+    ', against ' + srcNum(food.v0.src, '+' + food.v0.plus) + (food.v0.says && food.v0.says !== food.v1.says ? ' and ' + srcNum(food.v0.saysSrc, '“' + food.v0.says + '”') : '') + ' at aspect 0, because that class reads the aspect and the ' + svEsc(own) + '’s ignores it.';
 }
 function mechGearFigure(gear) {
   const hue = {};
@@ -367,7 +367,7 @@ function mechGearFigure(gear) {
     .map(g => ({ label: g.name, value: g.block, colour: MECH_INK.parry, text: String(g.block) }));
   if (!arms.length) return '';
   // Whether the resolver's skill term works, off the same reading as the
-  // Combat section (combatRules().skillOffLoop): as shipped it does not.
+  // Combat section (combatRules().skillOffLoop): as shipped it has no effect.
   let offLoop = null;
   try { const cr = combatRules(); offLoop = cr && cr.skillOffLoop; } catch (e) { offLoop = null; }
   return mechFig(offLoop ? 'Damage, the most a blow can do' : 'Damage, the most a blow can do before the skill',
@@ -914,7 +914,7 @@ function renderPatchReport() {
   else for (const r of rep.reasons) verdicts.push('Magpie would reject it: ' + svEsc(r) + '.');
   if (rep.willAdd.length) verdicts.push('<b>' + rep.willAdd.length + '</b> resource' + (rep.willAdd.length === 1 ? '' : 's') +
     ' in the patch ' + (rep.willAdd.length === 1 ? 'is' : 'are') + ' not in this file, and the patch would add them.');
-  if (rep.disagreed.length) verdicts.push('<b>' + rep.disagreed.length + '</b> would be rejected, because one of the two has the resource encrypted and the other does not.');
+  if (rep.disagreed.length) verdicts.push('<b>' + rep.disagreed.length + '</b> would be rejected, because the resource is encrypted in one of the two and plain in the other.');
   if (rep.unchanged.length) verdicts.push('<b>' + rep.unchanged.length + '</b> are already identical to the ones in this file.');
   host.appendChild(el('ul', 'ruleList', verdicts.map(v => '<li>' + v + '</li>').join('')));
 
@@ -2665,7 +2665,7 @@ function renderDataFixMaker() {
     presets.appendChild(c);
   }
   host.appendChild(presets);
-  host.appendChild(el('p', 'mechSub', now === 'all' ? 'Every fix, tested or not. Design Changes are left for you to choose.'
+  host.appendChild(el('p', 'mechSub', now === 'all' ? 'Every fix, including the untested ones. Design Changes are left for you to choose.'
     : now === 'tested' ? 'Every fix seen working in the game. Design Changes are left for you to choose.' : ''));
   const q = el('input', 'fixSearch');
   q.type = 'search'; q.id = 'fixSearch';
@@ -3236,7 +3236,7 @@ function renderPatchBar() {
    1.0.4 is two files and a button.
 
    THE ORDER IS OLD, NEW. Added and removed are named from the first file's
-   point of view, so "added" means the second has it and the first does not.
+   point of view, so "added" means only the second has it.
 
    ON EXPORTING A PATCH, AND THIS HAS TO BE STATED PLAINLY. What comes out is a
    real Delver archive shaped like a Magpie patch: grimoire reads it, the
@@ -3259,7 +3259,7 @@ function compareEdits() {
   const say = (m, bad) => { if (note) { note.textContent = m; note.className = bad ? 'mechSub patchBad' : 'mechSub'; } };
   const pristine = window.PRISTINE_BYTES;
   if (!pristine || !ARCHIVE) { say('No file is open.', true); return false; }
-  if (pristine === ARCHIVE.bytes) { say('You have not edited this file yet.', true); return false; }
+  if (pristine === ARCHIVE.bytes) { say('This file has no edits.', true); return false; }
   const a = compareSpecOf(pristine), b = compareSpecOf(ARCHIVE.bytes);
   if (!a || !b) { say('The page could not read that file as a Delver Archive.', true); return false; }
   window.COMPARE_REPORT = Object.assign(describeDelverDiff(a, b),
@@ -3352,7 +3352,7 @@ function compareForget() { window.COMPARE_REPORT = null; window.COMPARE_APP = nu
 /* An application inside whatever file was chosen, with both its forks.
 
    A Cythera installer has the data file AND the application, so opening one
-   can answer two questions at once: what the scenario data changed, and what
+   can answer two questions: what the scenario data changed, and what
    the program changed. This finds the second. Everything it looks in is
    something the page already opens -- an Installer VISE archive, a StuffIt
    archive, or a plain MacBinary-ish wrapper -- and it returns null rather
@@ -5393,7 +5393,7 @@ function mechGo(id) {
   el.open = true;
   if (el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-// Every card on the sheet that is showing, open or shut at once.
+// Opens or shuts every card showing on the sheet, all together.
 function mechOpenAll(open) {
   const grid = document.getElementById('sheetGrid');
   const all = grid && grid.querySelectorAll ? grid.querySelectorAll('details.mechSec') : [];

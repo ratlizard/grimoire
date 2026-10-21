@@ -422,7 +422,7 @@ function loadSchedules() {
    byte 8 (0 to 7), the halfword at 6 (8 to 23) and byte 26 (24 to 31). A
    roll counts as holding when at least half the numbers it can come up
    pass, so the picture does not change from one drawing to the next. A
-   schedule with no conditions is its posts, as before. */
+   schedule with no conditions is just its posts. */
 /* A save's quest state, read out of its 0x0400 segment: the stream's first
    block is tagged Char, and from the tag the 32 quest values are one byte
    each at +16 and the 256 quest flags eight big-endian longs at +48
@@ -666,13 +666,13 @@ function drawCharacterLayer(lensCtx, lensTS) {
     const [pox, poy] = propOffsetFor(c.proptype, c.aspect, 0);
     const dx = -pox * scale, dy = -poy * scale;
     // Large props span several squares, flagged by bits 0xC0 of attribute
-    // byte 3. Characters do NOT: Alaric's frames 0x0710-0x071F all have
+    // byte 3. Characters are never flagged: Alaric's frames 0x0710-0x071F all have
     // byte3 = 0x00, so this call returns null for every character in the
     // game and nothing below it runs. Kept because a modded archive could
     // author a multi-square character, but it is not why characters draw
     // correctly today.
     const nx = (c.nudgeX || 0) * TS, ny = (c.nudgeY || 0) * TS;
-    // Square-aligned, seated or not. A seated figure was once pushed half
+    // Square-aligned, seated figures included. A seated figure was once pushed half
     // a tile down on the theory that the sitting pose sat in the top half of
     // its cell; it does not (Alaric's frame 0x713 inks rows 5-26 of 32), so
     // the shift put Magpie in the square BELOW her chair. The pose already
@@ -2251,8 +2251,8 @@ function drawLighting(lensCtx, lensTS, rect) {
     washX = 0; washY = 0; washW = lc.width; washH = lc.height;
   }
   const t = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
-  // The zone's level where the file gives one, the hand-written curve
-  // where it does not. 32 is the engine's "no darkening at all".
+  // The zone's level where the file gives one, and the hand-written curve
+  // otherwise. 32 is the engine's "no darkening at all".
   const lvl = zoneAmbientLevel(cm.resid);
   const alpha = lvl === null ? nightAlpha(t) : (32 - ambientBase(lvl, t)) / 32;
   if (alpha <= 0.02) { if (!lensCtx) scheduleLensPaint(); return; }
@@ -2307,7 +2307,7 @@ function drawLighting(lensCtx, lensTS, rect) {
    word has 0x200, byte 2's 0x02. Water has 0x200 as well; the flag that
    lets a swimmer or a flyer through is not a person's.
 
-   Two things this page got wrong before: it tested the terrain and the
+   Two things this page used to get wrong: it tested the terrain and the
    placed props but not the terrain's faux props (the trees and rocks drawn
    on a square by its tile), and it let a door through only by an aspect
    test. The engine's door is a prop whose tile has 0x20000000: when a
@@ -2599,7 +2599,8 @@ function drawBarks(ctx, people, TS, ox, oy) {
   for (const c of people) {
     const lines = by.get(c.index);
     if (!lines || !lines.length) continue;
-    // Staggered by speaker, so the town does not change its lines at once.
+    // Staggered by speaker, so the people of a town do not all change their
+    // lines together.
     const text = lines[barkMillis() ? (bucket + c.index) % lines.length : 0];
     // Two lines when one would not fit, broken at the space nearest the middle.
     let rows = [text];
@@ -2683,7 +2684,7 @@ function walkingPosition(entries, t, m, keys) {
   // Long enough for one square per frame at 1x, and never longer than the
   // interval itself -- so they still arrive at the next post on the hour, and
   // still stand at the old one until it is time to leave.
-  // One square per MAP_TICK_HOURS, as before: the smoothing is in the
+  // Still one square per MAP_TICK_HOURS: the smoothing is in the
   // animation timer, which now ticks four times per square and draws the
   // fractional position (fx, fy) below. Making the walk itself four times
   // longer was tried first and broke the seating -- a long walk then filled
@@ -2743,7 +2744,7 @@ function walkingPosition(entries, t, m, keys) {
    into an end table at frame 4, so an aspect past the chair's name run is
    not a chair aspect at all. Those fall back to the placement itself: a seat
    with exactly one blocking neighbour faces away from it, and one with none is
-   left facing the reader and is marked so.
+   left facing the reader, its facing given as not known.
 --------------------------------------------------------------------------- */
 // ...but the throne's single frame turned out to be the exception, not the
 // rule. That record proves aspect 0 of a ONE-frame seat means south -- it
@@ -3093,7 +3094,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
   const propResid = resid + 0x0100;
   const propDataRaw = getResourceBytes(ARCHIVE, propResid);
   let propCount = 0;
-  // Every record, drawn or not. The ones that are NOT drawn are the
+  // Every record, the undrawn ones included. The ones that are NOT drawn are the
   // interesting half: 990 of the archive's prop records are inside a chest, a
   // dresser or somebody's pack rather than on the floor.
   let allRecs = [];
@@ -3144,7 +3145,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
       /* What the engine's passes never draw (enginePass): a record with any
          of flags 0x9E set, unless it is flagged 4. On the maps that is 0x02,
          the hidden traps -- loose rock, spikes, fine wire -- and 0x80, what
-         is down or not there yet: the twelve raised portcullises, the
+         is lowered or has still to appear: the twelve raised portcullises, the
          boulders and the stretches of shore, wall and stepping stone a
          script brings in. They were all drawn until 22 September 2026, so a
          raised portcullis stood across its gate. The square's panel still
@@ -3153,7 +3154,7 @@ function* renderMapVisualSteps(resid, mapData, opts) {
       if (r.x >= m.width || r.y >= m.height) continue;
       // Interior walls are props, not terrain, on most indoor maps. Hiding
       // them is the indoor equivalent of lifting the roof: the floor plan,
-      // the furniture and who is standing where all become visible at once.
+      // the furniture and who is standing where all become visible together.
       if (!window.MAP_WALLS && isWallLikeProp(r.proptype)) { suppressed.push([r.x, r.y]); continue; }
       const baseTile = propTiles[r.proptype];
       if (baseTile === undefined) continue;

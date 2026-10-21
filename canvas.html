@@ -1858,7 +1858,8 @@ function rampFromStops(stops, n) {
 
 /* ================= pooling ==============================================
  * The region is either what the seed is joined to, or -- with Everywhere on
- * -- every pixel on the canvas near enough to it, joined or not.
+ * -- every pixel on the canvas near enough to it, including pixels not joined
+ * to it.
  */
 function region(sx, sy, tol) {
   var seed = idx[sy * W + sx], sc = PAL[seed] || [0, 0, 0];

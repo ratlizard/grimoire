@@ -86,7 +86,7 @@
 
    Everything on the volume is there and readable -- the window lists it all,
    which also shows the index nodes above are right -- so this was
-   written down as cosmetic. It is not. **The alert is modal**: it captures the
+   written down as cosmetic, and that was wrong. **The alert is modal**: it captures the
    keyboard until someone presses OK, and the mobile shell (now in ratlizard/alchemy)'s Install drives the
    Finder by typing at it, so every keystroke goes into a dialog that ignores
    them and the install silently does nothing. That was found by running the

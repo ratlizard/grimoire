@@ -111,7 +111,7 @@ function readArtPack(zipBytes) {
   files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   return { files, zip: zipBytes, nearest: new Map(), chosen: new Map() };
 }
-// A file's pixels, decoded once; null when it is not 32 by 32 or does not read.
+// A file's pixels, decoded on first use and kept on the file; null when it is not 32 by 32 or does not read.
 function artPackImage(pack, file) {
   if (file.image !== undefined) return file.image;
   let img = null;
@@ -119,7 +119,7 @@ function artPackImage(pack, file) {
   return (file.image = img);
 }
 
-/* Which of the pack's words a Cythera word may also be read as. Left of
+/* For each Cythera word, the pack's words that may stand in for it. Left of
    the colon is the game's word as 0xF004 or a prop's name has it; right is
    what the Dungeon Crawl tiles call the nearest thing they have. A word
    with no line is looked for as itself, and as itself without a final s. */

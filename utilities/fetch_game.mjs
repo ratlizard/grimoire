@@ -26,7 +26,7 @@
 //
 // The download is cached in outdir, so a second run costs nothing. A failure
 // to reach the network is reported and is not fatal: the caller falls back to
-// skipping, which is what a checkout without the game did before.
+// skipping, which is what a checkout without the game always did.
 //
 // This is a convenience, not an oracle. It gives no independent evidence about
 // the decoders -- the bytes are the same game -- and vise_check.mjs is what

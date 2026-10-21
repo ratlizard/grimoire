@@ -43,8 +43,8 @@
    so every frame is painted fresh. There is nothing to keep registered, which
    is why the entire class of bug that produced "the labels slide when I pan"
    and "the country splits off to the left" cannot occur here: those were
-   layers painted once in screen space and transformed to catch up. Nothing
-   here is painted once.
+   layers painted once in screen space and transformed to catch up. Here
+   every layer is painted again on every frame.
 
    NO CROSSING. There is no moment when one map is exchanged for another, so
    there is nothing to fade, nothing to land, nothing to hold, and nothing to
@@ -69,7 +69,8 @@ window.ATLAS = (() => {
   return true;
 })();
 
-/* How many world squares a node's built part covers, and where.
+/* How many world squares a node's built part covers, and its position in the
+   world.
 
    One function, and that is the point: the miniature's size, the country's
    scale and the landing view were three separate expressions of this same
@@ -293,7 +294,7 @@ function mapIsLocated(resid) { return !!mapWorldAnchor(resid); }
    on the square the archive does give, and a step. That is what the
    maintainer asked for on 5 September 2026 -- treat it like a tunnel rather
    than mask the data -- and it is how the file reads. 17 maps make the
-   surface; 6 that are located do not: the Temple, Harpy Abyss, the bridge,
+   surface; 6 others that are located are kept off it: the Temple, Harpy Abyss, the bridge,
    Pnyx upstairs, Tavara without its fortress, and the underground under
    Catamarca. The mouths are named from the editor's list where it has a
    name (editorZoneName), since the scripts call Tavara without its
@@ -1717,7 +1718,8 @@ function atlasPeople(ctx, node, r, ppt) {
    the node is big enough for the ring to mean a square.
 
    One colour for every ring since 9 September 2026 (the maintainer): a
-   way up, down or across is a way, and the name beside it shows where. */
+   way up, down or across is a way, and the name beside it shows where it
+   leads. */
 /* The width of a label, measured once per name per face.
 
    measureText is not free and the names do not change: at mid zoom this pass
@@ -3271,7 +3273,7 @@ function squareCard(level, e, tx, ty, placeName, asked) {
 
 /* A character's face, for the card and the inspector: the portrait where
    there is one -- 0x8800 + index - 1, the same join the dossier makes -- and
-   the sprite where there is not. A selected character was once shown by the
+   the sprite for anyone without one. A selected character was once shown by the
    sprite alone, which identifies a class ("a man") where the face identifies
    the person. Decoded once per character and kept as a canvas and as a data
    URL, since the inspector's cards are strings. Dropped with the derived

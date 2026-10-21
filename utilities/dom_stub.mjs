@@ -2,7 +2,8 @@
 //
 // Three harnesses -- decoder_snapshot.mjs, loader_test.mjs and export_test.mjs
 // -- each had a separate copy of this stub, near-identical but drifted in
-// small ways (one memoised getElementById, two did not; one stubbed
+// small ways (one memoised getElementById and the other two looked it up on
+// every call; one stubbed
 // URL.createObjectURL, two took the real URL). All three shared one flaw:
 // getContext() returned null.
 //
@@ -66,7 +67,7 @@ export function makeCanvasContext(cv) {
     // A row at a time through a 32-bit view rather than a byte at a time:
     // the map renderer fills every square of every map it draws, and the
     // byte loop was 70% of the UI smoke's four minutes (profiled
-    // 18 September 2026). Same pixels; the swatch grids hash as before.
+    // 18 September 2026). Same pixels; the swatch grids hash the same.
     fillRect(x, y, w, h) {
       if (!cv.width || !cv.height) return;
       if (!cv._px) cv._px = im(cv.width, cv.height);

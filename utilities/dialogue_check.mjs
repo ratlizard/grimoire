@@ -190,7 +190,7 @@ if (existsSync(oracleDir)) {
   }
   // Known divergence, one character, and it is the archive's rather than
   // ours -- corrected 12 September 2026. This used to say the Student-group
-  // call sat in code the extractor could not reach. It does not: 0x186F is
+  // call sat in code the extractor could not reach. That was wrong: 0x186F is
   // 357 bytes, three objects, all three resolved, with no desync and no
   // reference to 0x810 anywhere in it. The oracle's header lists Protesilaus
   // as answering Student prompts because the game presents him as a student
@@ -251,7 +251,7 @@ if (delvPath && dataPath) {
     if (both < 100) fail('delvmod', `only ${both} characters could be compared`);
     // Measured 108 of 108 on the shipped archive, so the floor is exact
     // agreement: these are two walks over the same bytes and there is no
-    // reason for either to see a keyword the other does not. A single
+    // reason for either to see a keyword the other misses. A single
     // character diverging means one of them has desynced.
     if (same !== both)
       fail('delvmod', `${same}/${both} characters match; ` + diffs.join(' | '));

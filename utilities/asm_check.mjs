@@ -21,7 +21,7 @@
       afresh: it must have the same objects four bytes on, the same
       instructions in each, and every target a jump, a case, a subroutine
       call, a response or a near word prints, and every `here:` pointer,
-      four more than before. This compares the disassembler's text,
+      four more than in the original. This compares the disassembler's text,
       not the relinker's list of sites, so a kind of site the relinker does
       not handle shows up here as a target that did not move.
 

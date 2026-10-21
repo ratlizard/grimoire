@@ -65,7 +65,7 @@ if (savePath && !onlyCat) {
        parseArchiveBytes, so a changed field is only changed if it comes back
        out of the rebuilt file. The names are the borrowed ones -- this run
        opened Cythera Data first, which is also how a visitor comes here -- so
-       the sheet has to say so. */
+       the sheet has to say that the names are borrowed. */
     ctx.showCategory('SAVEGAME');
     const sheet = REGISTRY.get('sheetGrid').innerHTML || '';
     const heroBefore = ctx.loadCharacterTable()[1];
@@ -195,7 +195,7 @@ if (savePath && !onlyCat) {
        2026): on this save, every add-on save the suite unpacks, and every
        save of the playthrough kit when it is on the disk. Each part's leaves
        must cover it exactly, the counted total must be the files' bytes,
-       and the sheet must say so. The scenario is opened before each save,
+       and the sheet must show the total. The scenario is opened before each save,
        as a visitor's page would have it, so the map memory has its rows. */
     try {
       const saves = [[savePath, savePath + '/..namedfork/rsrc']];

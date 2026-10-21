@@ -16,8 +16,8 @@
    WHAT HAPPENS. Ask Tlepolemus about pan pipes and say yes. Before 18:00
    he says what he always said. From 18:00 he has them, for fifteen oboloi,
    with a warning; the set is the panpipes with Data1 2, so they play the
-   notes of every set but Philinus's, and his flag 0 is set, so his own
-   "I hope you enjoyed them" answers after. Play them (Use) in Odemia, his
+   notes of every set but Philinus's, and his flag 0 is set, so he answers
+   with "I hope you enjoyed them" once they have played. Play them (Use) in Odemia, his
    town and his harbour, and four tentacles come up through the ground
    around the party and fight; play them anywhere else and a line reads
    something in Odemia's harbour heard. Killing the last tentacle closes it

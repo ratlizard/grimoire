@@ -75,7 +75,7 @@ try {
   if (!/convBadge">if its bit flags has bit 6 \(InParty\)</.test(demo) || /calls InParty/.test(demo))
     fail('conversation', 'Aethon\u2019s "demo" card does not say its condition: ' + demo.replace(/<[^>]+>/g, ' ').slice(0, 200));
   // And each line shows the conditions that pick it, an otherwise as the
-  // negation of the if before it, without a doubled not.
+  // negation of the if before it, without a double negative.
   const aeText = REGISTRY.get('dlgWrap').innerHTML.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"');
   if (!/if not \(its bit flags has bit 6 \(InParty\)\): "Fine, be that way\."/.test(aeText) || !/if its bit flags has bit 6 \(InParty\): "Maybe it is time/.test(aeText) || /not \(not/.test(aeText))
     fail('conversation', 'Aethon\u2019s lines are not tied to their conditions: ' + (/[^\n]{0,80}Fine, be that way[^\n]{0,80}/.exec(aeText) || [''])[0]);
@@ -356,7 +356,7 @@ try {
     /* A tap anywhere in a town's circle goes in (29 September 2026), not
        only inside its map's rectangle: a point in the circle's rim beside
        the rectangle is tapped, and the town flies in; a point just past the
-       circle does not. Testing the rectangle again (atlasAt) fails it. */
+       circle leaves the view alone. Testing the rectangle again (atlasAt) fails it. */
     {
       // Near enough that the towns are drawn, each still ringed.
       peek('atlasFit')();
@@ -542,7 +542,7 @@ try {
 
     /* The 17 it does not locate are reached through a mouth: a ring on the
        square the archive gives, and a step rather than a zoom, because a
-       doorway is what the file has and a position is not. */
+       the file gives a doorway and no position. */
     {
       const cadN = sc.nodes.find(n => n.resid === 0x8008);
       const mouths = peek('atlasMouths')(cadN);
@@ -963,7 +963,7 @@ try {
       }
       // On a screen taller than the island, the circle hint is shown from
       // the start in the sea below the land (the maintainer, 17 October
-      // 2026); on one the island fills, it is not. Tried: with
+      // 2026); on one the island fills, it stays hidden. Tried: with
       // atlasEnterHintAtFit returning at once the first part fails, and
       // with its room test dropped the second.
       {

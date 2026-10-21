@@ -339,7 +339,7 @@ const UD = {
  * argument and never reads it, so every pass after the first recomputes an
  * identical result. The sweep shows it exactly -- 11.945 for one pass, two,
  * three and four. UD retains 3 so that its output is the byte-for-byte thing it
- * always was; this one does the same work once.
+ * always was; this one does the same work in a single pass.
  */
 const UD_MEASURED = Object.assign({}, UD, {
   strength: 0.9, sens: 0.8, passes: 1
@@ -647,7 +647,7 @@ function itemFramePixels(corner, edge, W, H) {
 
    There was once a third: pixels the encoder emitted as a long
    run or a distant copy were treated as deliberate structure and
-   locked. That was wrong, and measurably so. In dithered artwork
+   locked. That was wrong, and the measurements showed it. In dithered artwork
    the dither is itself what compresses into long copies — the
    encoder is matching one patch of noise against another — so
    trusting copies pinned the dither in place instead of the
@@ -1838,7 +1838,8 @@ function heroRecolour(image, labels, tables) {
    in each the left foot forward, standing, the right foot forward and seated
    (the map view's gait reading, confirmed by Alaric on his throne at frame
    11). Every person in the file is laid out the same way, so their sixteen
-   frames go straight onto the hero's. A monster is not: the program sets a
+   frames go straight onto the hero's. A monster's frames are laid out
+   differently: the program sets a
    monster's frame in TActiveMonster::AdjustAspect(facing, step), switching on
    a per-class property, and the layouts it can choose include facing * 2 +
    (step & 1), two strides a facing, and facing alone, one frame a facing,
@@ -1848,8 +1849,8 @@ function heroRecolour(image, labels, tables) {
    a body has no frame for either) and a four-frame one shows its one frame
    for all four. Sixteen-frame monsters are not worn: AdjustAspect has more
    than one sixteen-frame layout, the gator's frames visibly change facing
-   every two, and which a class uses is the class's property 55, which
-   nothing here reads yet. */
+   every two, and which a class uses is the class's property 55, and nothing
+   here reads that property. */
 const HERO_WEAR_POSE = { 1: [0, 0, 0, 0], 2: [0, 0, 1, 0], 4: [0, 1, 2, 3] };
 function heroWearFrames(body, perFacing) {
   const map = HERO_WEAR_POSE[perFacing];

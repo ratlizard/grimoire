@@ -16,7 +16,7 @@
  *
  * The sources are synthetic and are chosen to be the cases that matter rather
  * than to be pretty: smooth ramps, where dither appears and where the filter
- * must remove it; fine linework, where it must not; and a grey-to-warm hue
+ * must remove it; fine linework, which it must leave alone; and a grey-to-warm hue
  * sweep, because the artwork's dither is a checkerboard in WHICH RAMP a pixel
  * comes from -- greys interleaved with warm browns, close in lightness and far
  * in hue -- which a luminance-only view cannot see at all.

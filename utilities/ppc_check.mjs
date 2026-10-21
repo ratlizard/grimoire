@@ -10,7 +10,7 @@
 // field layouts; LLVM's (`llvm-mc --disassemble --triple=powerpc`) was
 // written from LLVM's instruction tables, by other people, for other
 // reasons. Two readings that match on every word are evidence; one reading
-// checked against itself is not.
+// checked against itself proves nothing.
 //
 // WHAT IS COMPARED. Three sets of words, each handed to both:
 //

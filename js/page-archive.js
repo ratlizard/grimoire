@@ -207,8 +207,8 @@ let lastArchiveError = '';
 //   1. archive.org's copy (tucows_205568_Cythera), a StuffIt 5 archive with
 //      the installer's data fork stored uncompressed, which mac-stuffit.js
 //      extracts. Through archive.org's /cors/ path, not /download/: the
-//      same bytes, but that path answers with Access-Control-Allow-Origin
-//      and the other does not. This is the one that works from
+//      same bytes, but only that path answers with
+//      Access-Control-Allow-Origin. This is the one that works from
 //      ratlizard.github.io today.
 //   2. Bryce Schroeder's Cythera.bin, a MacBinary of the same installer.
 //      As of 2 September 2026 his server sends no CORS header, so a browser
@@ -349,9 +349,9 @@ function adoptArchive(raw, sourceName, opts) {
   // opts first, then what the unwrap found. The other way round, a remembered
   // installer -- stored with `rsrc: null` because the installer has its
   // own fork -- had that null override the fork just taken out of it, so the
-  // first visit had a resource fork and every return visit did not: Data ›
+  // first visit had a resource fork and every return visit had none: Data ›
   // Data Fork showed "no resource fork came with it" and the fork gallery was
-  // empty, for the same bytes that had worked the day before.
+  // empty, for the same bytes that had worked on the previous visit.
   /* A MAGPIE PATCH IS A DELVER ARCHIVE AS MUCH AS THE SCENARIO IS, and one
      dropped here opened AS the archive: the galleries came up holding the
      handful of resources it replaces, the map had no maps in it, and the one
@@ -368,7 +368,7 @@ function adoptArchive(raw, sourceName, opts) {
   }
   applyNamesDefault(opts.cached ? opts.source === 'local file' : !opts.url);
   parseArchiveBytes(found.bytes, sourceName, Object.assign({}, opts, { via: found.via, rsrc, finder }));
-  // After parseArchiveBytes, not before: resetDerivedCaches() drops the
+  // After parseArchiveBytes, because resetDerivedCaches() drops the
   // application's fork along with everything else keyed to the old archive.
   if (found.installer) {
     const app = found.installer.archive.entries.find(e => e.type === 'APPL' && e.creator === 'Delv');
@@ -387,7 +387,7 @@ function adoptArchive(raw, sourceName, opts) {
   }
   if (opts.store) {
     // The installer is stored as it came, so that the next visit has
-    // every file back; anything else is remembered as its forks, as before.
+    // every file back; anything else is remembered as its forks.
     const rec = found.installer
       ? { name: window.INSTALLER.sourceName, bytes: raw, via: found.via, rsrc: null, pick: found.installer.picked }
       : found.container
@@ -1015,7 +1015,7 @@ function onCategoryChangeImpl() {
     return;
   }
   // The Rules tab draws the combat vocabulary out of the application's fork
-  // even without the installer; fetch the fork if it is not here yet.
+  // even without the installer; fetch the fork if it has not been loaded.
   if (rawval === 'AIRULES' && !window.INSTALLER && !window.APP_RSRC) loadApplicationFork();
   // The Data tab's views: not subindexes, no resources to list.
   if (rawval === 'DATAFORK' || rawval === 'CHANGES' || rawval === 'TOOLS' || rawval === 'INSTALLER' || rawval === 'MECHANICS' || rawval === 'BARKS' || rawval === 'SKILLS' || rawval === 'SPELLS' || rawval === 'SCHEDULES' ||

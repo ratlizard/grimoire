@@ -289,7 +289,7 @@ const RESHINTS = {
 // (`pushc`) as a NUL-terminated C string. Map 0x80nn pairs with script
 // 0x14nn, and the prop list 0x81nn with the same nn. This gives the game's
 // names ("Land King Hall", "Kosha Grotto", "Omen's Test") instead of the
-// hand-annotated labels shipped before.
+// hand-annotated labels the page used to ship.
 DERIVED.ZONE_NAMES = null;
 /* A second set of names, the editor's, from the resource fork: STR# 135 in
    Cythera Data has every zone in map order, one entry per map from map 1
@@ -300,7 +300,7 @@ DERIVED.ZONE_NAMES = null;
    the specific one: "Headwater Ruins", "Tyrant's Tomb", "Scylla Temple",
    "Crab Cove", "Eioneus Cave", "Tavara Fortress". Spellings are the
    file's -- "North Short Vinyard", "Inner Broutherhood Dungeon" [sic] --
-   and stay so. The alignment was checked entry by entry against the script
+   and are kept as the file has them. The alignment was checked entry by entry against the script
    names (LKH / Land King Hall, Catamarca Springs / the underground under
    Catamarca, Cademia Sewers / Sewers, and so on down the list).
 
@@ -927,7 +927,7 @@ const spriteCountCache = derivedMap('spriteCountCache');
 // How many frames a character actually owns is set by the prop->tile table:
 // a proptype's sprite block runs from its base tile up to the next proptype's
 // base tile. Most characters get a full 16 (4 facings x 4 poses) and their
-// base is 16-aligned -- Alaric starts at 0x710. Some do not: Ignae starts at
+// base is 16-aligned -- Alaric starts at 0x710. Some are off that grid: Ignae starts at
 // 0x7D8 and Ur-Sylph at 0x89C, so they own only the tail of a block. And a
 // proptype of 0 is the null prop, which is why Omen has no sprite at all.
 // A sprite block runs from its base tile to the end of that 16-tile SHEET.
@@ -1070,8 +1070,8 @@ function animateSpriteTile(host, info, rec, opts) {
   // rest, which read as twitching rather than walking.
   // Half a sprite-width per move, twice as often: the sprite still steps
   // rather than slides, and changes walk frame at every step, but a step is
-  // now half the figure's width and the gait cycles twice per width -- it
-  // read as lurching a whole body-length at a time before. Reflex sets how
+  // now half the figure's width and the gait cycles twice per width -- the
+  // old step of a whole body-length read as lurching. Reflex sets how
   // long each step lasts.
   const reflex = Math.max(4, Math.min(24, (rec && rec.reflex) || 12));
   const stepMs = Math.round((620 - reflex * 16) * 0.7);  // ~160ms fast, ~390ms slow

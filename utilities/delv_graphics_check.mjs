@@ -112,7 +112,7 @@ for (const ref of REF) {
     differed++;
     problems.push(`0x${resid.toString(16).toUpperCase()} (sub ${subindex}) pixels differ: ` +
                   `viewer ${mine}, delvmod ${ref.sha256} (${got.image.length} bytes). ` +
-                  `Dump both with delv_graphics_ref.py and diff them to find where.`);
+                  `Dump both with delv_graphics_ref.py and diff them to find the differing pixels.`);
   }
 }
 

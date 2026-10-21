@@ -399,7 +399,7 @@ export function refCast({ casting = 0, level = 0 } = {}, trials = 200000, rng = 
 //     because no figure anyone has measured depends on it, and adding it would
 //     be modelling something the check has nothing to check against.)
 //   - A regenerating character -- Omen's ring, flag 12 -- gains 1 every six
-//     minutes whether fed or not.
+//     minutes, hungry or fed.
 //   - A poisoned character loses 1 every six minutes.
 //   - Nothing rises past fullHealth.
 //
@@ -415,8 +415,8 @@ export function refCast({ casting = 0, level = 0 } = {}, trials = 200000, rng = 
 // except at 1 health, where going first spares them. The alternative kills them.
 // Confirmed as written.
 //
-// AMBIGUITY: death. "Dies when the next point would take them below 1" is read
-// as: at 1 health a poison tick kills, and the run stops there with health left
+// AMBIGUITY: death. "Dies when the next point would take them below 1" is taken
+// to mean that at 1 health a poison tick kills, and the run stops there with health left
 // at 1 and died set. The alternative is to report health 0. Nothing downstream
 // reads the number after death, so this is a reporting choice, not a rule one.
 export function healPeriodMinutes(level) {

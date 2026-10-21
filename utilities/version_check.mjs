@@ -24,8 +24,8 @@
      matters is this tree against the deployed one.
    - It does not fail outside a git checkout, or without a baseline ref to
      compare against. A session handed these files without their history has
-     nothing to measure and states it; a skip reads honestly where a pass
-     invented from no evidence does not.
+     nothing to measure and states it; a skip reads honestly, and a pass
+     invented from no evidence would mislead.
 
    Only four paths count as visitor-facing: index.html, canvas.html, js/ and
    res/. utilities/ is this directory, and a check changing does not change

@@ -360,12 +360,12 @@ try {
   const arms = ctx.spriteFrameInfo(0, 0x116), body = ctx.spriteFrameInfo(0, 0x117);
   if (ctx.spriteBlockSize(0x116) !== 32 || arms.present.length !== 32) fail('frame blocks', 'the hydra’s arm class owns ' + ctx.spriteBlockSize(0x116) + ' frames, ' + arms.present.length + ' present, not 32');
   else if (ctx.spriteBlockSize(0x117) > 16) fail('frame blocks', 'the hydra’s body class runs past its sheet');
-  // And the program is read for it once. Until 27 September 2026 every
+  // And the program is read for it in a single pass. Until 27 September 2026 every
   // prop type's frame count called exeMonsterKinds for every other prop type
   // and the program was read again each time: the Props tab drew in half a
   // minute here and in about as long on the maintainer's phone. With the
   // arm table and the program's answers dropped, drawing Props must
-  // read CreateMonster exactly once: none would mean the path was not
+  // read CreateMonster a single time, no more and no less: none would mean the path was not
   // taken, and more that something stopped keeping the answer.
   {
     let reads = 0;
@@ -545,10 +545,10 @@ try {
   else {
     /* Hide it first and require opening a script to reveal it. The markup has
        `display:none` but the DOM stub does not parse an inline style attribute,
-       so a fresh element reads as `''` and a test for `'none'` can never fire --
-       which it did not: deleting the line in paintDecodedPane that shows the
+       so a fresh element reads as `''` and a test for `'none'` can never fire,
+       and it never did: deleting the line in paintDecodedPane that shows the
        switch failed nothing at all. Setting the sentinel makes the assertion
-       about what the page DOES rather than about what it started as. */
+       about what the page DOES rather than about its starting state. */
     const sw = ctx.document.getElementById('listingSwitch');
     if (!sw) fail('listing toggle', 'there is no #listingSwitch in the markup');
     else {
@@ -804,7 +804,7 @@ try {
   if (!lkh.length || lkh.some(s => s.sky) || !/Land King Hall/.test(ctx.landscapeSetterName(lkh[0].resid)))
     fail('landscapes', 'strip 1 is not set by Land King Hall with no sky: ' + JSON.stringify(lkh));
   else if (![12, 13, 15].every(n => set(n).length) || set(17).length)
-    fail('landscapes', 'strips 12, 13 and 15 should be set and 17 not: ' + [12, 13, 15, 17].map(n => n + '=' + set(n).length).join(' '));
+    fail('landscapes', 'strips 12, 13 and 15 should be set and 17 unset: ' + [12, 13, 15, 17].map(n => n + '=' + set(n).length).join(' '));
   else if (!(set(9).some(s => s.sky) && set(9).some(s => !s.sky)))
     fail('landscapes', 'strip 9 is set both over the sky and without it, and was not read so');
   else console.log('  landscapes: strip 1 is Land King Hall with no sky, 12, 13 and 15 are set, 17 by nothing, 9 both ways');

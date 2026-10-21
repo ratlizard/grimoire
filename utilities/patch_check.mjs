@@ -176,7 +176,7 @@ for (const [label, msg] of refusals) {
 
    The 55 changed tiles are the figure worth pinning hardest: nothing in this
    project derived it from the pixels until now. It was counted by hand off
-   the patch's advertising and has stood in the notes since; decoding both
+   the patch's advertising and the notes have carried it unchecked; decoding both
    sides and comparing them tile by tile reaches the same number. */
 const desc = ev(`(() => {
   const B = delverArchiveSpec(__base), P = delverArchiveSpec(__patch);
@@ -514,7 +514,7 @@ else ok('one flipped byte of the descriptor changes it', cv.oneByteBent.slice(0,
    DOES, and the answer is almost nothing -- which is the sort of claim that
    invites being wrong, so it is derived here rather than asserted in prose.
  *
- * WHAT IS ASSERTED HERE AND WHAT IS NOT. The load-bearing claim is that the
+ * WHAT IS ASSERTED HERE, AND WHAT IS LEFT OUT. The load-bearing claim is that the
  * byte never reaches any location other than +98 of some record: eight loads,
  * one store, and the store is a field-by-field record copy that puts it back
  * at the SAME displacement. That is mechanically checkable and it is what

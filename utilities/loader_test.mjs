@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Exercises the viewer's archive-opening path: the BinHex 4.0 decoder, the
 // MacBinary / AppleSingle / AppleDouble unwrappers, the "is this actually a
-// Delver archive" test, and the messages produced when it is not.
+// Delver archive" test, and the messages produced for a file that fails it.
 //
 //   python3 utilities/binhex_decode.py "reference/game/Cythera Data.hqx" "$TMPDIR"
 //   node utilities/loader_test.mjs index.html \
@@ -312,7 +312,7 @@ if (visePath) {
   // (it has its fork), handed back through adoptArchive exactly as
   // loadDefaultArchive hands it. That null used to override the fork the
   // unwrap had just produced, so the first visit had a resource fork and
-  // every later one did not.
+  // every later one had none.
   const firstVisitFork = ctx.window.CYTHERA_RSRC_RAW ? ctx.window.CYTHERA_RSRC_RAW.length : 0;
   ctx.window.CYTHERA_RSRC_RAW = null;
   peek('adoptArchive')(vise, 'Cythera.bin', { cached: true, savedAt: 1, rsrc: null, pick: undefined });
