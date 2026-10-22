@@ -291,7 +291,7 @@ function exePlainLines(r) {
     } else if (mn === 'slwi') s = 'Multiply a value by ' + Math.pow(2, d.sh) + '.';
     else if (mn === 'srwi') s = 'Divide a value by ' + Math.pow(2, d.mb) + '.';
     else if (bare === 'srawi') s = 'Divide a value by ' + Math.pow(2, d.sh) + '.';
-    else if (bare === 'addze') s = 'Round that division towards zero.';
+    else if (bare === 'addze') s = 'Round that division toward zero.';
     else if (bare === 'rlwinm' || bare === 'rlwimi') s = bare === 'rlwimi' ? 'Put one field into a packed value.' : 'Take one field out of a packed value.';
     else if (bare === 'mr') s = 'Copy a value.';
     else if (bare === 'extsh') s = 'Read a value as a two-byte number.';
@@ -691,7 +691,7 @@ function renderAppPefSheet() {
   h += '<p class="mechLede" style="margin-top:10px">The page decodes each name from the compiler’s shorthand, and leaves it as written where it cannot.</p>';
   box.innerHTML = h;
   grid.appendChild(box);
-  out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '; ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
+  out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '. ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
 }
 
 /* Cythera Preferences, the file the game stores its settings in, on a
@@ -719,7 +719,7 @@ const PREF_HELP = {
   Music: ['sound', 'Preferences dialog', 'How loud the music is, in eighths of full volume: 8 is full, 0 is silent.'],
   Ambient: ['sound', 'Preferences dialog', 'Background sounds, such as animals and ocean waves.'],
   movement: ['movement', 'Preferences dialog', 'How the game draws a step from one square to the next: in four stages (Smoother), in two (Faster), or as one jump (Fastest). It takes the same game time in all three. The dialog’s Graphics Quality slider sets the same thing.'],
-  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second; these three come from the game’s hidden Preferences menu. The file can hold others, down to no limit at all. A higher limit plays each step’s animation faster; holding a key still walks at the pace of the Mac’s key repeat.'],
+  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second. These three come from the game’s hidden Preferences menu. The file can hold others, down to no limit at all. A higher limit plays each step’s animation faster, but holding a key still walks at the pace of the Mac’s key repeat.'],
   motionFilters: ['movement', 'Preferences dialog', 'Leaves blowing on the trees and waves rippling across the ocean.'],
   walkAround: ['movement', 'Preferences dialog', 'The hero steps around things in the way rather than stopping at them.'],
   liveDrag: ['windows', 'Preferences dialog', 'Lets you drag the game’s windows around the screen.'],
@@ -729,7 +729,7 @@ const PREF_HELP = {
   switch256: ['startup', 'Startup prompt', 'On a screen set to more than 256 colors, the game switches it to 256 when it starts. Off, it runs in the colors the screen already has.'],
   noPrompt: ['startup', 'Startup prompt', 'The game shows no 256-color prompt when it starts. Off, it shows the prompt on a screen set to more than 256 colors, and the answer replaces the switch above.'],
   cheats: ['startup', 'Not in the game', null],
-  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if you held Command, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu; the right-click fix on the Patches tab puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
+  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if you held Command, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu. The right-click fix in the Patch Generator puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
 };
 /* The License tab, a stub by the maintainer's word (6 October 2026): what
    the file is, where it goes, a link to the thing that makes one, and a
@@ -928,7 +928,7 @@ function renderPrefsSheet() {
   pbtns.className = 'prefSave';
   const saveNote = document.createElement('div');
   saveNote.className = 'prefSaveNote';
-  saveNote.textContent = 'Tested in the game: the game read a file this page wrote, and cheat mode activated.';
+  saveNote.textContent = 'Tested in the game. The game read a file this page wrote, and cheat mode came on.';
   saveBox.appendChild(pbtns);
   saveBox.appendChild(saveNote);
   save.appendChild(saveBox);
@@ -1063,7 +1063,7 @@ function renderToolsSheet() {
     const q = document.createElement('details');
     q.className = 'quietLog';
     const n = QUIET_FAILURES.size;
-    const line = n ? n + (n === 1 ? ' thing' : ' things') + ' fell back quietly since the page loaded' : 'Nothing has fallen back quietly since the page loaded';
+    const line = n ? n + (n === 1 ? ' thing' : ' things') + ' have fallen back quietly since the page loaded' : 'Nothing has fallen back quietly since the page loaded';
     q.innerHTML = '<summary>' + line + '</summary>';
     if (n) {
       const ul = document.createElement('div');
@@ -1557,11 +1557,11 @@ function soundUsageRows(resid, subn) {
     if (lists.length) rows.push(['Default in', lists.map(r => svChip(r, 'for anyone with no sounds set')), '']);
     const eggs = u.eggs.get(n) || [];
     if (eggs.length) rows.push(['Heard in', zoneSquareChips(eggs), '']);
-    if (!rows.length) rows.push(['Played by', [], 'Nothing plays this sound; no script, class, list or egg in the file names it.']);
+    if (!rows.length) rows.push(['Played by', [], 'Nothing plays this sound. No script, class, list or egg in the file names it.']);
   } else if (subn === 143) {
     const chips = chipsFor(u.music.get(resid - 0x9000));
     rows.push(['Played by', chips, chips.length ? '' :
-      'No script refers to this music by number; the program starts some music itself.']);
+      'No script refers to this music by number. The program starts some music itself.']);
   }
   return rows;
 }
@@ -2381,7 +2381,7 @@ function showMonsterDetail(idx) {
     const still = sites.filter(s => s.beh === 0);
     if (r.proptype === 297 && still.length === 1 && sites.length > 1) {
       const shownText = srcQuoteText(0x187F, 'Instead, he just sits in his mountain strongholds, awaiting a death that will never truly come.');
-      if (/<button/.test(shownText)) h += '<div class="sv-note">The one that stands still is taken for Tavara. Ur-Sylph, of the traitor who destroyed a colony: ' + shownText + '</div>';
+      if (/<button/.test(shownText)) h += '<div class="sv-note">The page takes the one that stands still for Tavara. Ur-Sylph, of the traitor who destroyed a colony: ' + shownText + '</div>';
     }
   }
   panel.innerHTML = h;
@@ -2409,10 +2409,10 @@ function showMonsterDetail(idx) {
         (u.rule && u.rule.aspectStep ? srcNum(u.rule.aspectStep, String(u.step)) : String(u.step)) +
         ' (the frames for one direction) on the ' + (u.rule ? srcNum(u.rule.dx, 'eight squares') : 'eight squares') + ' around it' +
         '.' + (app ? ' ' + pefChip('TOctoMonster::TOctoMonster') : '');
-      else if (u.kind === 'crawl') how.innerHTML = lay + ': <b>a head with its tail behind it</b>; the tail is a second record at the head’s aspect plus ' + (u.rule ? srcNum(u.rule.tailOffset, '8') : '8') +
+      else if (u.kind === 'crawl') how.innerHTML = lay + ': <b>a head with its tail behind it</b>. The tail is a second record at the head’s aspect plus ' + (u.rule ? srcNum(u.rule.tailOffset, '8') : '8') +
         '. The layout sets which kind it is.' + (app ? ' ' + pefChip('TCrawlMonster::TCrawlMonster') + pefChip('TActiveMonster::CreateMonster') : '');
       else if (u.kind === 'span') how.innerHTML = lay + ': one record, and <b>its tiles span ' + whole.cols + ' by ' + whole.rows + '</b> according to their attributes, as a thing placed in the world does.';
-      else how.innerHTML = lay + ': one record, one tile; the layout sets the frame.' + (app ? ' ' + pefChip('TActiveMonster::AdjustAspect') : '');
+      else how.innerHTML = lay + ': one record and one tile, and the layout sets the frame.' + (app ? ' ' + pefChip('TActiveMonster::AdjustAspect') : '');
       box.appendChild(how);
       panel.appendChild(box);
     }
@@ -2718,7 +2718,7 @@ function renderText(sameResource) {
         if (qtPlayBtn) qtPlayBtn.style.display = '';
         if (midiInBtn) midiInBtn.style.display = '';
       } catch(e) {
-        head += "(could not decode as a QTMA tune: " + e.message + ")\n\n";
+        head += "(the page could not decode this as a QTMA tune: " + e.message + ")\n\n";
       }
       content = head + content;
     }
@@ -2745,7 +2745,7 @@ function renderText(sameResource) {
           scriptText = 'name: "' + named.name + '"\n\n' +
                        'The body starts at +0x' + named.bodyOffset.toString(16).toUpperCase() +
                        ' and runs ' + (resData.length - named.bodyOffset) + ' bytes.\n' +
-                       'It is not Delver script code; running the disassembler over it\n' +
+                       'It is not Delver script code. Running the disassembler over it\n' +
                        'produces meaningless output, and its real format is unknown.\n' +
                        'The bytes are in the raw dump below.';
         } else {
@@ -2766,7 +2766,7 @@ function renderText(sameResource) {
           if (render !== dvmRender) rawText = dvmRender(ARCHIVE, resData, resid) || '';
         }
       } catch (e) {
-        scriptText = '// disassembly failed: ' + e.message;
+        scriptText = '// the page could not disassemble this: ' + e.message;
       }
     }
     const sv = document.getElementById('scriptView');
@@ -2811,7 +2811,7 @@ function renderText(sameResource) {
       (wasDecrypted ? " (auto-decrypted)" : " (no decryption applied)");
     currentResid = resid;
     window.CUR_RAW_BYTES = resDataRaw;
-  } catch(err) { out.textContent = "Text render error: " + err.message; }
+  } catch(err) { out.textContent = "The page could not show this resource: " + err.message; }
 }
 
 // --- Readable dialogue pane -------------------------------------------
@@ -3341,8 +3341,8 @@ function startResourceEdit() {
   document.getElementById('editBytesText').value = hex.trimEnd();
   document.getElementById('editBytesNote').textContent =
     'Plaintext bytes of 0x' + currentResid.toString(16).toUpperCase() +
-    (dec.wasDecrypted ? ' (stored encrypted; re-encrypted on rebuild)' : '') +
-    '. The page ignores spaces and the length may change; emptying it removes the ' +
+    (dec.wasDecrypted ? ' (the file stores it encrypted, and the rebuild encrypts it again)' : '') +
+    '. The page ignores spaces, and the length may change. Emptying it removes the ' +
     'resource from the file.';
   document.getElementById('editBytesWrap').style.display = '';
 }
@@ -3363,7 +3363,7 @@ function codeEditBytes() {
   const b = smartDecrypt(raw, resid).data;
   const num = id => { const v = document.getElementById(id).value.trim(); if (!v) return null; const n = /^0x/i.test(v) ? parseInt(v, 16) : parseInt(v, 16); if (!Number.isFinite(n)) throw new Error(v + ' is not an offset'); return n; };
   const at = num('editCodeAt'), to = num('editCodeTo');
-  if (at === null) throw new Error('say where the new code goes');
+  if (at === null) throw new Error('give the offset where the new code goes');
   // Both ends must be where an instruction starts, in one function.
   const fn = dvmExtents(b, resid).find(([st, en, kind]) => kind === 'function' && at >= st && at < en);
   if (!fn) throw new Error('0x' + at.toString(16).toUpperCase() + ' is not in a function');
@@ -3423,7 +3423,7 @@ function parseHexBytes(text) {
 
 function applyResourceEditFromText() {
   const bytes = parseHexBytes(document.getElementById('editBytesText').value);
-  if (!bytes) { setStatus('That is not hex. Enter pairs of 0–9 and a–f; the page ignores spaces, and the count must be even.', true); return; }
+  if (!bytes) { setStatus('That is not hex. Enter pairs of 0–9 and a–f. The page ignores spaces, and the count must be even.', true); return; }
   if (applyResourceEdit(currentResid, bytes)) cancelResourceEdit();
 }
 
@@ -3480,7 +3480,7 @@ function togglePropEdit(propResid, index) {
   if (!host) return;
   if (host.style.display !== 'none') { host.style.display = 'none'; host.innerHTML = ''; return; }
   const raw = getResourceBytes(ARCHIVE, propResid);
-  if (!raw) { setStatus('Prop list 0x' + propResid.toString(16).toUpperCase() + ' is not readable.', true); return; }
+  if (!raw) { setStatus('The page could not read prop list 0x' + propResid.toString(16).toUpperCase() + '.', true); return; }
   const rec = parseDelverPropList(smartDecrypt(raw, propResid).data)[index];
   if (!rec) return;
   const fld = (label, id, val, size) =>
@@ -3495,7 +3495,7 @@ function togglePropEdit(propResid, index) {
     fld('d3 0x', 'd3', rec.d3.toString(16).padStart(4, '0').toUpperCase()) +
     fld('ref 0x', 'storeref', rec.storeref.toString(16).padStart(4, '0').toUpperCase()) +
     '<button class="sv-chip" onclick="applyPropEditForm(' + propResid + ',' + index + ')">Apply</button>' +
-    '<div class="inspDim">x and y are the location in the file; for a prop that is carried or inside something, ' +
+    '<div class="inspDim">x and y are the location in the file. For a prop that is carried or inside something, ' +
     'they give the holder, not a square. Apply rebuilds the whole file.</div>';
   host.style.display = '';
 }
@@ -3514,7 +3514,7 @@ function applyPropEditForm(propResid, index) {
     storeref: num('storeref', 16, 0xFFFF)
   };
   for (const [k, v] of Object.entries(fields)) {
-    if (v === null) { setStatus('Bad value for ' + k + ', nothing changed.', true); return; }
+    if (v === null) { setStatus('The page cannot use that value for ' + k + ', so nothing changed.', true); return; }
   }
   applyPropRecordEdit(propResid, index, fields);
 }
@@ -3581,6 +3581,6 @@ const DISK_ARCHIVE_NAME = 'Cythera Data';
 function missingForkWarning(rsrc) {
   if (rsrc && rsrc.length) return null;
   return 'You opened this file without its resource fork, so the disk will not ' +
-         'work in the game: Cythera rejects it with “Unable to open RT”. Open the ' +
+         'work in the game. Cythera rejects it with “Unable to open RT”. Open the ' +
          '.hqx (or a MacBinary copy) instead of the data fork alone, and export again.';
 }
