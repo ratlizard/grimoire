@@ -1770,6 +1770,27 @@ const DATA_FIXES = [
           'return', 'byte 0x00', 'end',
           'pressed:'].join('\n') },
     ] },
+  // The torch at the end of Omen's Test (0x8128 record 97, in the crate at
+  // (56,31); 22 October 2026, bugs.md, from 453 and Selax@t1997, "sometimes
+  // spent when its crate is opened"). A torch's Data1 is its burn time:
+  // 0 for a fresh one, which lighting sets to 20, and the time left with
+  // 0x80 set for one put out. TGameViewer::DoTicks counts Data1 down on
+  // every record of a timed class while it is above 0 without 0x80, wherever
+  // the record lies, and at 0 sends GetMessage 260, which the torch's class
+  // (0x1026) answers by setting aspect 2, spent, whether it is lit or unlit.
+  // This one is unlit with Data1 3 and no 0x80, the only one of the game's
+  // nine unlit torches not at 0, so it burned down in the crate, and was
+  // spent or whole by how long the test had run. It is given 0, as the
+  // others have.
+  { id: 'omens-torch', group: 'items', stage: 'found', title: 'The torch in the crate at the end of Omen’s Test is no longer spent before you find it',
+    played: 'in part: fork, 68K, 22 October 2026, the behaviour in a save from Omen’s Test: with the torch’s Data1 3, as shipped, 110 passed turns leave it saved spent, aspect 2, still unlit in its crate; with Data1 0 set by an edit, saved whole. A save made inside the test already has the zone’s list, so the patched file changes the torch only for a new game, which was not played. Not played on Mac OS',
+    dataEdits: [
+      { what: 'the torch in Omen’s crate', resid: 0x8128, fn: (b) => {
+          const r = b.subarray(97 * 16, 97 * 16 + 16);
+          if (((r[4] << 8 | r[5]) & 0x3FF) !== 38 || r[0] !== 0x08 || r[6] !== 3) throw new Error('record 97 is not an unlit torch in a crate with Data1 3');
+          r[6] = 0; return 'record 97 given Data1 0';
+      } },
+    ] },
   // The first Stronghold's kitchen (map 0x801F): the metal door at (22,18)
   // stands on tile 145, "wall", which blocks, so opening it shows a wall and
   // the step is rejected; the seven squares behind it are reached by nothing

@@ -812,7 +812,14 @@ function exePatchFiles() {
    with the player's position in hex.
 
    `myprintf` writes to the status window and `mygetnum` reads a number typed
-   there, in the base the call is handed. */
+   there, in the base the call is handed.
+
+   The lede quotes Glenn Andreas in the livestream's chat at 1:42:36, after
+   his "There was also a debug mode that let me create arbitrary objects,
+   teleport to any location, etc..." at 1:41:48 (the workbench's
+   livestream-2019-chat.md, read off the video; the note is the
+   maintainer's request of 22 October 2026). The code is still in both shipped builds, gated
+   rather than removed, as the sheet's first sentence has it. */
 // The option layer of a US keyboard, by Mac Roman code: which keys make the
 // characters the key routine tests. Layout knowledge, not the program's.
 const US_OPTION_KEYS = { 0xA9: 'option-g', 0xC6: 'option-j', 0xEF: 'option-shift-j', 0xA7: 'option-s', 0xB9: 'option-p',
@@ -970,6 +977,7 @@ function renderCheatsSheet() {
   const noApp = 'Open the game from its installer, under Settings, to read the program’s code here.';
   let h = '<h3 class="cheatH">Cheat Mode</h3>' +
     '<div class="mechLede">Cythera has a cheat mode that no released copy can switch on; its code works only with a preference set that nothing in the game sets.' +
+    ' Glenn Andreas wrote in the chat of Cythera Guides’ 2019 anniversary livestream that this debug mode “should have been removed” (1:42:36).' +
     (kr ? '' : ' ' + noApp) + '</div>';
 
   // The helpers a key's sentence is built with, over one case.
