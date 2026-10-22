@@ -750,7 +750,7 @@ function renderSchedulesSheet() {
     const rows = list.map((e, k) => {
       const c = scheduleCondition(e);
       if (c && c.stop) return '<tr><td></td><td colspan="3" class="inspDim">' + svEsc(c.text) + '</td></tr>';
-      if (scheduleIsHead(e)) return '<tr><td></td><td colspan="3">' + (c ? conditionHTML(c) : 'always') + ', the posts below up to the matching stop; otherwise skip them</td></tr>';
+      if (scheduleIsHead(e)) return '<tr><td></td><td colspan="3">' + (c ? conditionHTML(c) : 'always') + ', the posts below up to the matching stop apply, and otherwise the game skips them</td></tr>';
       const where = e.level === 255 ? '<span class="inspDim">off every map</span>'
         : svLink(zoneDisplayName(e.level) || ('zone ' + e.level), 'atlasOpenSquare(' + (0x8000 + e.level) + ',' + e.x + ',' + e.y + ')', e.x + ', ' + e.y);
       return '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + where + '</td><td>' + (c ? (programmed && sameHour(k, -1) ? 'instead, ' : '') + conditionHTML(c) : programmed && sameHour(k, 1) ? 'otherwise' : '') + '</td>' +
@@ -819,7 +819,7 @@ function renderSpellsSheet() {
     .sort((a, b) => a.level - b.level || a.cost - b.cost || a.name.localeCompare(b.name));
   const shown = spells.filter(x => !q || x.name.toLowerCase().includes(q) || x.description.toLowerCase().includes(q));
   const clockNow = appImage() ? exeClockRules() : null;
-  const unitsNote = clockNow && clockNow.unitsPerHour ? '; ' + srcNum(clockNow.unitsPerHour) + ' is an hour' : '';
+  const unitsNote = clockNow && clockNow.unitsPerHour ? ', ' + srcNum(clockNow.unitsPerHour) + ' to an hour' : '';
   const box = document.createElement('div');
   box.className = 'mechView';
   const intro = document.createElement('p'); intro.className = 'mechLede';
@@ -898,7 +898,7 @@ function renderBarksSheet() {
   const distinct = new Set(barks.flatMap(b => b.words.concat(b.then || []))).size;
   out.textContent = barks.length
     ? barks.length + ' places in the scripts put a line over a character’s head, ' + distinct + ' distinct lines' +
-      (q ? '; ' + shown.length + ' shown' : '') + '. How the balloon works is in the card above.'
+      (q ? ', ' + shown.length + ' shown' : '') + '. How the balloon works is in the card above.'
     : 'No script in this file sets a talk balloon.';
 }
 
@@ -1692,7 +1692,7 @@ function damageRowWords(r) {
   if (r.types.length) bits.push('the damage changed by its type');
   if (r.rule === 'door') bits.push('bashed as a door' + (r.strength ? ' of strength ' + srcNum(r.strength) : ''));
   else if (r.rule === 'chest') bits.push('bashed as a chest' + (r.strength ? ' of strength ' + srcNum(r.strength) : ''));
-  else if (r.rule === 'lock') bits.push('a lock of strength ' + srcNum(r.strength) + ', which a blow above what is left opens' + (r.wear ? ' and loses one to a blow above what is left ÷ ' + srcNum(r.wear) : '') + (r.deletes ? '; destroyed when struck closed and unlocked' : ''));
+  else if (r.rule === 'lock') bits.push('a lock of strength ' + srcNum(r.strength) + ', which a blow above what is left opens' + (r.wear ? ' and loses one to a blow above what is left ÷ ' + srcNum(r.wear) : '') + (r.deletes ? ', and a blow destroys it while it is closed and unlocked' : ''));
   else if (r.rule === 'data2') bits.push('breaks when a blow is above its Data2' + (r.data2Default ? ', ' + srcNum(r.data2Default) + ' until set' : ''));
   if (r.becomes) bits.push('becomes ' + svEsc(propDisplayName(r.becomes.v) || 'prop type') + ' (prop type ' + srcNum(r.becomes) + ')');
   else if (r.aspects.length && r.rule !== 'lock') bits.push('shows aspect ' + r.aspects.filter((a, i, all) => all.findIndex(b => b.v === a.v) === i).map(a => srcNum(a)).join(' or '));

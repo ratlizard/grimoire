@@ -517,7 +517,7 @@ function downloadCytheraPrefs(kind) {
     const image = buildPrefsDiskImage(opts);
     dlBlob(new Blob([image], { type: 'application/octet-stream' }), PREFS_VOLUME_NAME + '.dsk');
     setStatus('Wrote a ' + fmtBytes(image.length) + ' disk image with ' + how + '. Drop it on an ' +
-      'emulated Mac; it mounts as “' + PREFS_VOLUME_NAME + '” and has an ' +
+      'emulated Mac. It mounts as “' + PREFS_VOLUME_NAME + '” and has an ' +
       PREFS_SCRIPT_NAME + ' script.');
     return;
   }
@@ -535,10 +535,10 @@ function buildInstallScript(archiveName, note) {
     '--',
     '-- Finds the folder holding the Cythera application on any mounted disk,',
     '-- replaces the "' + archiveName + '" in it with the edited one on this',
-    '-- disk, and starts the game. Press Run, or Command-R -- or press Install',
-    '-- from the disk itself, so you need not select anything inside the Mac.',
+    '-- disk, and starts the game. Press Run or Command-R, or open Install',
+    '-- on the disk itself, so you do not have to select anything inside the Mac.',
     '--',
-    '-- Keep a backup of the original first; the replacement cannot be undone.',
+    '-- Keep a backup of the original first. You cannot undo the replacement.',
     '-- By hand instead: drag "' + archiveName + '" into the game\u2019s folder.',
     '--'].concat((note || []).map(line => '-- ' + line)).concat([
     '',
@@ -652,8 +652,8 @@ function downloadEditedDiskImage(file, edited) {
   if (!built) return null;
   dlBlob(new Blob([built.image], { type: 'application/octet-stream' }), built.fileName);
   if (built.forkWarning) return { built, message: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image, but ' + built.forkWarning, bad: true };
-  return { built, message: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac: ' +
-    'it mounts as \u201c' + DISK_VOLUME_NAME + '\u201d and contains an Install and Play script that replaces the ' +
+  return { built, message: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac. ' +
+    'It mounts as \u201c' + DISK_VOLUME_NAME + '\u201d and contains an Install and Play script that replaces the ' +
     'file in the game\u2019s folder and starts Cythera.' };
 }
 
@@ -807,7 +807,7 @@ function downloadCurrentMidi(){
   } catch(e) {
     // An alert() is a modal interruption for something the page can simply
     // say; every other failure in this file reports through #output.
-    document.getElementById('output').textContent = 'MIDI conversion failed: ' + e.message;
+    document.getElementById('output').textContent = 'The page could not make a MIDI file of this tune: ' + e.message;
   }
 }
 
@@ -1257,7 +1257,7 @@ function renderImage() {
     const lbl = labelFor(resid);
     out.textContent = "Rendered resource 0x" + resid.toString(16).toUpperCase() +
       (lbl ? " (" + lbl + ")" : "") + " - " + W + "x" + H + " (zoom " + z + "x)";
-  } catch(err) { out.textContent = "Decode error: " + err.message; }
+  } catch(err) { out.textContent = "The page could not decode this: " + err.message; }
 }
 
 // The indexed-PNG writer, the zlib stream and the metadata stripper are in

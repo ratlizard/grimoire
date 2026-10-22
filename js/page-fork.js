@@ -84,7 +84,7 @@ function fontSwapPanel() {
               sw.mapped + ' of the characters the game uses are in it, in a format ' + sw.format + ' character map, ' +
               (sw.bytes / 1024).toFixed(0) + ' KB of outlines.</blockquote>' : '') +
         '<div id="fontSwapNote" class="mechSub"></div>'
-      : '<p class="mechLede">No font resource is open. Open Cythera Data from a file that includes its resource fork: a .hqx, MacBinary or AppleSingle file.</p>') +
+      : '<p class="mechLede">No font resource is open. Open Cythera Data from a file that includes its resource fork, such as a .hqx, MacBinary or AppleSingle file.</p>') +
     '</section>';
   setTimeout(() => {
     const f = document.getElementById('fontSwapFile');
@@ -96,8 +96,8 @@ function fontSwapPanel() {
       const note = document.getElementById('fontSwapNote');
       if (!file) return;
       const fail = e => {
-        if (note) note.textContent = 'That font could not be used: ' + e.message;
-        setStatus('That font could not be used: ' + e.message, true);
+        if (note) note.textContent = 'The page could not use that font: ' + e.message;
+        setStatus('The page could not use that font: ' + e.message, true);
       };
       file.arrayBuffer().then(buf => {
         const r = swapGameFont(new Uint8Array(buf), file.name);
@@ -115,7 +115,7 @@ function fontSwapPanel() {
 }
 function undoFontSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The original resource fork is no longer in the page; open the file again to get it back.', true); return; }
+  if (!rec) { setStatus('The original resource fork is no longer in the page. Open the file again to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.FONT_SWAP = null;
@@ -346,7 +346,7 @@ function swapSeldane(bytes, filename) {
 }
 function undoStrikeSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The original resource fork is no longer in the page; open the file again to get it back.', true); return; }
+  if (!rec) { setStatus('The original resource fork is no longer in the page. Open the file again to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.STRIKE_SWAP = null;
@@ -389,7 +389,7 @@ function exportStrikeTrueType(id) {
       note: 'Drawn from NFNT ' + id + ', a bitmap strike in a Delver archive. ' +
             'Cythera is copyright Ambrosia Software, Inc. and Glenn Andreas.' });
     downloadBlob(ttf, family + '.ttf');
-    setStatus(family + '.ttf written: ' + (spec.ascent + spec.descent) + ' pixels to the em, ' +
+    setStatus('Wrote ' + family + '.ttf at ' + (spec.ascent + spec.descent) + ' pixels to the em, ' +
               'so it draws these pixels at ' + (spec.ascent + spec.descent) + 'px and at every multiple of it.');
   } catch (err) {
     setStatus('The page could not save that size as a TrueType font: ' + err.message, true);
@@ -427,8 +427,8 @@ function strikeSwapPanel() {
       const note = document.getElementById('strikeSwapNote');
       if (!file) return;
       const fail = e => {
-        if (note) note.textContent = 'That font could not be used: ' + e.message;
-        setStatus('That font could not be used: ' + e.message, true);
+        if (note) note.textContent = 'The page could not use that font: ' + e.message;
+        setStatus('The page could not use that font: ' + e.message, true);
       };
       file.arrayBuffer().then(buf => swapSeldane(new Uint8Array(buf), file.name)).then(r => {
         setStatus(file.name + ' is the Seldane script in this copy, in ' + r.strikes + ' sizes.');
@@ -533,7 +533,7 @@ function forkPictureRGBA(fork, id) {
   const e = ((fork && fork.resourcesByType.PICT) || []).find(x => x.id === id);
   if (!e) throw new Error('PICT ' + id + ' is not in the file.');
   const data = fork.dataOf('PICT', e), d = decodePict(data);
-  if (!d || d.kind !== 'canvas') throw new Error('PICT ' + id + ' could not be drawn.');
+  if (!d || d.kind !== 'canvas') throw new Error('The page could not draw PICT ' + id + '.');
   const px = d.canvas.getContext('2d').getImageData(0, 0, d.width, d.height).data;
   return { rgba: new Uint8ClampedArray(px), W: d.width, H: d.height, data };
 }
@@ -594,7 +594,7 @@ function gameFontReady() {
 }
 function carveStartButtons() {
   if (!window.CYTHERA_RSRC) return Promise.reject(new Error('no resource fork is open'));
-  if (!window.ARCHIVE_ORIGINAL_RSRC) return Promise.reject(new Error('the file as it was opened is no longer in the page; open it again'));
+  if (!window.ARCHIVE_ORIGINAL_RSRC) return Promise.reject(new Error('the file as it was opened is no longer in the page. Open it again'));
   return gameFontReady().then(() => {
     const orig = openResourceFork(window.ARCHIVE_ORIGINAL_RSRC);
     const made = startButtonPictures(orig, startWords(), 'ArgosGame');
@@ -614,7 +614,7 @@ function restoreStartButtons() {
     if (e) bytes.set(id, orig.dataOf('PICT', e));
   }
   try { setForkPictures(bytes); }
-  catch (e) { setStatus('The buttons were not put back. ' + e.message, true); return; }
+  catch (e) { setStatus('The page could not put the buttons back. ' + e.message, true); return; }
   for (const id of bytes.keys()) window.RSRC_PICTURES.delete(forkImageKey('PICT', id));
   setStatus('Put back the start screen’s buttons.');
   renderMacRsrcSheet();
@@ -623,11 +623,11 @@ function startButtonsCarve() {
   const note = document.getElementById('startButtonsNote');
   if (note) note.textContent = 'Carving…';
   carveStartButtons().then(() => {
-    setStatus('Carved the start screen’s buttons in ' + (window.FONT_SWAP ? window.FONT_SWAP.name : 'the game’s font') + '. To download them, go to the Patch Generator, Your Patch.');
+    setStatus('Carved the start screen’s buttons in ' + (window.FONT_SWAP ? window.FONT_SWAP.name : 'the game’s font') + '. To download them, use Your Patch in Tools › Patch Generator.');
     renderMacRsrcSheet();
   }).catch(e => {
-    if (note) note.textContent = 'The buttons were not carved: ' + e.message;
-    setStatus('The buttons were not carved: ' + e.message, true);
+    if (note) note.textContent = 'The page could not carve the buttons: ' + e.message;
+    setStatus('The page could not carve the buttons: ' + e.message, true);
   });
 }
 function startButtonsPanel() {
@@ -883,7 +883,7 @@ function installGameFont() {
   if (!entry) { window.GAME_FONT_STATE = 'the resource fork has no sfnt'; return; }
   let ttf;
   try { ttf = sfntToTrueType(fork.dataOf('sfnt', entry)); }
-  catch (e) { window.GAME_FONT_STATE = 'sfnt ' + entry.id + ': could not make a TrueType file of it: ' + e.message; return; }
+  catch (e) { window.GAME_FONT_STATE = 'the page could not make a TrueType file of sfnt ' + entry.id + ': ' + e.message; return; }
   window.GAME_FONT_TTF = ttf;
   if (typeof FontFace === 'undefined' || !document.fonts) { window.GAME_FONT_STATE = 'this browser cannot load a font from bytes'; return; }
   try {
@@ -1069,9 +1069,9 @@ function renderRsrcSheet() {
 
   const inv = rsrcInventory();
   if (!inv) {
-    out.textContent = 'No resource fork. It comes from the file you opened Cythera Data from: ' +
-      'a .hqx, MacBinary or AppleSingle file includes both forks, but a bare data fork leaves it out. ' +
-      'Open the file again from "Cythera Data.hqx" to get it.';
+    out.textContent = 'No resource fork. Only some kinds of file carry one. ' +
+      'A .hqx, MacBinary or AppleSingle file includes both forks, but a bare data fork leaves the resource fork out. ' +
+      'Open "Cythera Data.hqx" again to get it.';
     return;
   }
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
@@ -1195,8 +1195,8 @@ function showRsrcDetail(type, id) {
     type + ' ' + entry.id + ': ' + RSRC_DELVER_TYPES[type] + ', ' + data.length + ' bytes' +
     (pat ? ', ' + pat.tiles.length + ' tiles in a ' + pat.cols + '×' + pat.rows + ' grid' : '') +
     (pat && pat.extraBytes ? '\n' + pat.extraBytes + ' bytes past the end of the grid, unaccounted for' : '') +
-    (pat && pat.guessedShape ? '\nThe grid shape is inferred; the file has only a list of tiles.' : '') +
-    '\nUsed only by the editor; according to the wiki, changing or deleting these has no effect on the game.';
+    (pat && pat.guessedShape ? '\nThe file has only a list of tiles, so the grid shape is a guess.' : '') +
+    '\nOnly the editor uses these. According to the wiki, changing or deleting them has no effect on the game.';
   head.appendChild(cap);
   grid.appendChild(head);
 
@@ -1377,8 +1377,8 @@ function renderMacRsrcSheet() {
     if (!fork) {
       missing.push(src === 'app'
         ? (window.APP_RSRC_STATE === 'loading' ? 'Loading the program…'
-           : window.APP_RSRC_STATE || 'The program’s fork has not been opened.')
-        : 'No resource fork came with the file. It comes from the file you opened Cythera Data from: a .hqx, MacBinary or AppleSingle file includes both forks, but a bare data fork leaves it out.');
+           : window.APP_RSRC_STATE || 'The program’s fork is not open.')
+        : 'No resource fork came with the file. A .hqx, MacBinary or AppleSingle file includes both forks, but a bare data fork leaves the resource fork out.');
       continue;
     }
     total += fork.total();
@@ -1553,7 +1553,7 @@ function restoreForkImage(side, type, id) {
   const k = forkImageKey(type, id);
   if (side === 'app') {
     const rec = window.APP_RSRC_EDITS.get(k);
-    if (!rec) throw new Error(type + ' ' + id + ' was not replaced.');
+    if (!rec) throw new Error('The page could not replace ' + type + ' ' + id + '.');
     setForkImage(side, type, id, rec.was);
     window.APP_RSRC_EDITS.delete(k);
     return;
@@ -1594,9 +1594,9 @@ function forkPicturePicked(input, side, type, id) {
   f.arrayBuffer().then(buf => {
     input.value = '';
     try { replaceForkImage(side, type, id, new Uint8Array(buf), f.name); }
-    catch (e) { setStatus(type + ' ' + id + ' was not replaced. ' + e.message, true); return; }
+    catch (e) { setStatus('The page could not replace ' + type + ' ' + id + '. ' + e.message, true); return; }
     showMacRsrcDetail(type, id, side);
-    setStatus('Replaced ' + type + ' ' + id + ' with ' + f.name + '. To download it, go to the Patch Generator, Your Patch.');
+    setStatus('Replaced ' + type + ' ' + id + ' with ' + f.name + '. To download it, use Your Patch in Tools › Patch Generator.');
   }).catch(e => setStatus('The page could not read ' + f.name + ': ' + e.message, true));
 }
 function forkPictureRestore(side, type, id) {
@@ -1723,7 +1723,7 @@ function showMacRsrcDetail(type, id, source) {
 
   out.textContent = arts.length
     ? type + ' ' + entry.id + ': ' + arts.length + ' decoded view' + (arts.length === 1 ? '' : 's') + '.'
-    : type + ' ' + entry.id + ': this page cannot decode this type; the bytes are below.';
+    : type + ' ' + entry.id + ': the page cannot decode this type, so the bytes are below.';
 }
 
 
@@ -1992,7 +1992,7 @@ function showCharacterDetail(i) {
                (behaviorWordHTML(e.mode) ? ', ' + behaviorWordHTML(e.mode) : '') + '</span></div>';
       }).join('');
   } else {
-    sh.innerHTML = '<div style="color:#dcd8cc;font-size:0.8125rem">No schedule entries; this character stands in a map\u2019s prop list rather than moving by the clock.</div>';
+    sh.innerHTML = '<div style="color:#dcd8cc;font-size:0.8125rem">No schedule entries. This character stands in a map\u2019s prop list instead of moving by the clock.</div>';
   }
   // Jump to where this character currently stands.
   if (r.zone) {
@@ -2025,8 +2025,8 @@ function heroPortraitCard() {
   const head = '<b style="color:#f0ede4">Portrait</b> ';
   if (!pc) {
     card.innerHTML = head + (isSave
-      ? 'The portrait above is this file\u2019s 0x8800, chosen when you made the character. '
-      : 'The portrait above is the scenario\u2019s 0x8800 and is never shown in play. ') +
+      ? 'The portrait above is this file\u2019s 0x8800, which you chose when you made the character. '
+      : 'The portrait above is the scenario\u2019s 0x8800, which the game never shows in play. ') +
       'Which portraits the game offers when you make a character, and where it writes the chosen one, are in the program, and the program is not open.';
     return card;
   }
@@ -2035,8 +2035,8 @@ function heroPortraitCard() {
   const slots = [];
   for (let r = first; r < first + 64 && getResourceBytes(ARCHIVE, r); r++) slots.push(r);
   let text = head + (isSave
-    ? 'The portrait above is the one chosen when you made this character, ' + srcNum(pc.writes, 'saved') + ' in this file. '
-    : 'The portrait above is never shown in play; the game uses the one you choose when you make the character, which is ' + srcNum(pc.writes, 'saved') + ' in the saved game file. ');
+    ? 'The portrait above is the one you chose when you made this character, ' + srcNum(pc.writes, 'saved') + ' in this file. '
+    : 'The game never shows the portrait above in play. It uses the one you choose when you make the character, and ' + srcNum(pc.writes, 'saves') + ' it in the saved game file. ');
   const choices = 'The ' + srcNum(pc.first, 'choices') + ' at character creation';
   if (!slots.length) { card.innerHTML = text + choices + ' are not in this file.'; return card; }
   // Which of the run the list draws: column c, row r is the first plus the

@@ -104,7 +104,7 @@ function propNameHTML(pt, base) {
   const hidden = PROP_TYPE_NAMES[pt] || null;
   return '<span class="lblText" style="color:#dcd8cc">unnamed</span>' +
     (hidden ? '<span class="nameOffTag" title="The wiki calls this \u201c' + svEsc(hidden) +
-      '\u201d. Switch tool-supplied names on under \u201cSettings\u201d to show it.">name hidden</span>' : '');
+      '\u201d. Turn on Names from outside the game\u2019s text in Settings to show it.">name hidden</span>' : '');
 }
 function itemNameHTML(pt, base) { return propNameHTML(pt, base); }
 
@@ -937,7 +937,7 @@ function renderPropTypeSheet() {
     grid.appendChild(cell);
   }
   out.textContent = scenery
-    ? entries.length + ' placed things that are neither units nor carried. The page draws each whole, covering the squares its tiles span; where the scenario puts several of the same class side by side at different aspects, it draws the whole group as it stands' + (q ? ', matching \u201c' + q + '\u201d' : '') + '.'
+    ? entries.length + ' placed things that are neither units nor carried. The page draws each whole, covering the squares its tiles span. Where the scenario puts several of the same class side by side at different aspects, it draws the whole group as it stands' + (q ? ', matching \u201c' + q + '\u201d' : '') + '.'
     : entries.length + ' prop types with artwork' + (q ? ' matching \u201c' + q + '\u201d' : '') + '.';
 }
 
@@ -1889,7 +1889,7 @@ function propWordRender() {
   if (rules) {
     const reader = rules.readers.find(r => r.pt === pt), ex = rules.examines.find(e => e.pt === pt);
     if (rules.melee.has(pt) && rules.ench && rules.ench.guarded && rules.ench.added) {
-      m = 'Data1 is the enchantment: ' + svLink('the script that settles a blow', 'jumpToResource(0xE87)', '0xE87') + ' reads it from the weapon and adds it to the damage of every blow' + (rules.ench.magic ? ', and a blow with any enchantment counts as magical' : '') + '.';
+      m = 'Data1 is the enchantment. ' + svLink('The script that settles a blow', 'jumpToResource(0xE87)', '0xE87') + ' reads it from the weapon and adds it to the damage of every blow' + (rules.ench.magic ? ', and a blow with any enchantment counts as magical' : '') + '.';
       if (ex && ex.hiVal && ex.loVal) m += st.d1 > ex.hiVal.v ? ' Examine shows “' + svEsc(ex.above2) + '”' : st.d1 > ex.loVal.v ? ' Examine shows “' + svEsc(ex.above0) + '”' : ' Examine reports it once it is above ' + srcNum(ex.loVal) + '.';
       if (reader) m += ' The class script also ' + propWordOps(reader.ops) + '.';
     } else if (reader) m = 'The class script ' + propWordOps(reader.ops) + (reader.ops.some(o => /data3/.test(o)) ? ' (Data3 is both bytes read as one value)' : '') + '. What they mean depends on this class.';
@@ -2048,7 +2048,7 @@ function renderItemSheet() {
   const withWeight = entries.filter(e => e.weight !== null).length;
   out.textContent = entries.length + ' items' +
     (q ? ' matching \u201c' + q + '\u201d' : '') + ', ' + withWeight + ' with a weight in their class script' +
-    (orphans.length ? '; ' + orphans.length + ' picture' + (orphans.length === 1 ? '' : 's') + ' no class owns' : '') + '.';
+    (orphans.length ? ', and ' + orphans.length + ' picture' + (orphans.length === 1 ? '' : 's') + ' that no class owns' : '') + '.';
 }
 
 /* Each one placed, and what distinguishes them.
@@ -2223,7 +2223,7 @@ function classCacheBlock(pt) {
   const looked = ic ? [...new Set(ic.has.map(h => h.key).concat(ic.bits.map(x => x.key), ic.tables.map(t => t.key)))].map(itemFieldLabel) : [];
   const noted = [...new Set(cw.bits.map(b => b.key).concat(cw.tables.map(t => t.key)))].map(itemFieldLabel);
   const none = !cw.bits.length && !cw.tables.length;
-  const lede = 'When the game starts, the program notes a few things about each kind of thing, so it need not look them up in the script again (' + pefChip('FillIntfCache') + ')' +
+  const lede = 'When the game starts, the program notes a few things about each kind of thing, so it does not have to look them up in the script again (' + pefChip('FillIntfCache') + ')' +
     (looked.length ? '. It looks for ' + looked.map(svEsc).join(', ') + '.' : '.') +
     (none ? ' None of them applies to this kind, so nothing about it is noted.' : '');
   return {
@@ -2329,13 +2329,13 @@ function showItemDetail(pt) {
     // The scythe's block runs on into fourteen other things, so the list is
     // capped -- the point is that the block is not all one item, not to
     // enumerate a sheet.
-    note.innerHTML = 'The rest of this part of the sheet is other things: ' +
+    note.innerHTML = 'The rest of this part of the sheet holds other things, ' +
       strangers.slice(0, 6).map(r => '<b style="color:#fff">' + svEsc(r.name || 'unnamed') + '</b> (frame' +
         (r.frames.length === 1 ? ' ' + r.frames[0] : 's ' + r.frames[0] + ' to ' + r.frames[r.frames.length-1]) + ')'
       ).join(', ') +
       (strangers.length > 6 ? ' and ' + (strangers.length - 6) + ' more' : '') +
-      '. A frame block ends where the 16-tile sheet does, not where the item does; ' +
-      'the names come from 0xF004.';
+      '. A frame block ends where the 16-tile sheet does, not where the item does. ' +
+      'The names come from 0xF004.';
     panel.appendChild(note);
   }
 
@@ -2516,8 +2516,8 @@ function showItemDetail(pt) {
           (ll.length ? ll.map(lockLocationChip).join(' ') : '<span class="inspDim">nothing found</span>') +
           '</div>';
       }).join('') +
-      '<div class="sv-note">' + lockedNoKey + ' further lock numbers have no matching key; ' +
-      'the lockpick, magic or a script opens those locks.</div>');
+      '<div class="sv-note">' + lockedNoKey + ' further lock numbers have no matching key. ' +
+      'The lockpick, magic or a script opens those locks.</div>');
   }
   {
     const all = document.createElement('div');
