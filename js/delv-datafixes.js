@@ -1193,6 +1193,38 @@ const DATA_FIXES = [
       dataFixReplaceOp(s, 'Halos away from his office', 0x183E,
         ['arg Arg00', 'get_field behavior', 'word 144', 'ne', 'arg Arg00', 'get_field behavior', 'word 138', 'eq', 'and', 'sys GetSkill'], 7, 'ne'),
     ] }) },
+  // Halos on the kidnapping (0x183E, "kidn"; 22 October 2026, bugs.md,
+  // *Found outside the compendium's bug section*, from 453@t2044): the 20
+  // experience is guarded by `not SetCharacterFlag(Halos, 3)` and then sets
+  // flag 3, so the guard is meant to test whether the flag is set already.
+  // SetCharacterFlag (0xF00) answers 0 whatever it did, so the guard passed
+  // every time and the topic gave 20 more on each visit. 0xF02 beside it is
+  // the test, the call every other guard in the scripts makes; this is the
+  // one place a setter stands in a guard.
+  { id: 'halos-kidnapping', group: 'talk', stage: 'further', title: 'Halos gives experience for his account of the kidnapping once, instead of on every telling',
+    played: 'fork, 68K, 22 October 2026, alone and on “All Fixes”: quest value 1 set and the flags of Halos (1) and Mantinea (1) by edits, the clock at eleven, "kidn" to Halos twice in one conversation, the hero’s experience 20 after, against 40 unpatched; both tellings print in full on all three. Not played on Mac OS',
+    plan: (s) => ({ edits: [
+      dataFixReplaceOp(s, 'Halos tests his flag 3', 0x183E,
+        ['if_not', 'call_resource SetCharacterFlag', 'arg Arg00', 'byte 0x03', 'end', 'not', 'then ->', 'call_resource GainExp'], 1, 'call_resource 0xF02'),
+    ] }) },
+  // Neoptolemus (0x1821; bugs.md, the same section, from Buzzzzy@t1617):
+  // his greeting chooses between his yard (behaviour 146), "Get off my
+  // yard!", and anywhere else, where he is "busy eating". Local 0 is the
+  // closed conversation, where every topic draws "None of your business!"
+  // or the like until "demo" sets his flag 7 and opens it. The yard opens
+  // it only with flag 7 set ("Oh, it's you."); the eating branch opened it
+  // with no test, so away from his yard every topic of his was open without
+  // the Demodocus keyword. The eating branch is given the yard's test.
+  { id: 'neoptolemus-eating', group: 'talk', stage: 'further', title: 'Neoptolemus stays closed while eating until you mention Demodocus, as he does in his yard',
+    played: 'fork, 68K, 22 October 2026, alone and on “All Fixes”: at six in the evening, at his table at (44,101), "name" drew "None of your business!", then "neop" and "demo" opened him and "name" drew "Neoptolemus - and show a little respect to your elders!", against that line at the first "name" unpatched. Not played on Mac OS',
+    plan: (s) => {
+      const what = 'Neoptolemus eating, opened by flag 7', p = dataPatchPlace(s, what, 0x1821,
+        ['string(implicit) "\\"What do you', 'set_local 0x00', 'word False', 'end', 'exit']);
+      return { edits: [{ what, resid: 0x1821, at: p.at(1), to: p.at(4), expect: p.expect, code: [
+        'if_not', 'call_resource 0xF02', 'arg Arg00', 'byte 0x07', 'end', 'then -> shut',
+        'set_local 0x00', 'word False', 'end',
+        'shut:'].join('\n') }] };
+    } },
   // Thoas's "Please come again" (0x1844): the local it waits on is set once
   // his shop has been opened.
   { id: 'thoas-farewell', group: 'talk', stage: 'further', title: 'Thoas now says \u201cPlease come again\u201d after you\u2019ve shopped with him',
@@ -1729,7 +1761,7 @@ const DATA_FIXES = [
   // with the fix the button's Use does nothing when whoever uses it stands
   // west of it.
   { id: 'hall-button-side', group: 'world', stage: 'found', title: 'The Hall of Truth’s last pattern button works only from the room it faces, instead of also from the corridor behind its wall',
-    played: 'fork, 22 October 2026, alone, the hero put in zone 19: from the corridor at (34,37), U and the right arrow, the door at (28,56) stays shut on the 68K and PowerPC slices, and a click with U armed leaves it shut on 68K, where unpatched all three open it; from the room at (36,37), U and the left arrow open it on both slices, patched and unpatched. Not played on Mac OS',
+    played: 'fork, 22 October 2026, alone, the hero put in zone 19, on the 68K and PowerPC slices: from the corridor at (34,37), U and the right arrow, or U and a click on the button, leave the door at (28,56) shut, where unpatched both open it; from the room at (36,37), U and the left arrow, or U and a click, open it patched and unpatched. Not played on Mac OS',
     edits: [
       { what: 'the button looks at who presses it', resid: 0x1107, at: 0x003E,
         expect: { 0x003E: 'if_not', 0x003F: 'arg Arg00', 0x0040: 'get_field data1' },
