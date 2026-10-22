@@ -108,14 +108,14 @@ const APP_FIXES = [
     bug: 'A one-square drag to the north-west does nothing',
     sites: [{ at: 0x28838, was: [0x41820064], asm: ['beq @0x28858          ; cursor 22 slides too'] }] },
 
-  { id: 'theft-moved', kind: 'fix', title: 'Moving someone else’s stuff along the ground before taking it no longer gets around the theft check',
+  { id: 'theft-moved', kind: 'fix', title: 'Taking someone else’s stuff after moving it along the ground is caught by the theft check',
     bug: 'Moving an item before taking it avoids the theft check',
     sites: [
       { at: 0x54FFC, was: [0x540007FF], asm: ['andi. 0, 0, 17        ; free if it was free, or carried'] },
       { at: 0x54258, was: [0x28000000, 0x41820010, 0x881E0000, 0x28000008, 0x40820094],
         asm: ['andi. 0, 0, 223       ; the moved bit aside', 'beq @0x5426C', 'cmplwi 0, 8', 'bne @0x542FC', 'nop'] }] },
 
-  { id: 'weight-contents', kind: 'fix', title: 'The scale and the shops weigh an item correctly, instead of adding in whatever an unrelated character or thing is carrying',
+  { id: 'weight-contents', kind: 'fix', title: 'The scale and the shops weigh only the item, without adding in the contents of an unrelated character or thing',
     bug: 'The scale gives wrong weights',
     sites: [{ at: 0x958A4, was: [0x4BFC01B5], asm: ['li 3, 0               ; was bl GetCurInvEncumb'] }] },
 
