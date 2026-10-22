@@ -145,8 +145,8 @@ if (lifts.length) {
 // darkened by the stroke's weight; its left end is lighter than its right
 // when the across weight is negative, as it is for the buttons on PICT 132,
 // and darker when it is positive, as for the lit pictures (Onward's cut, as
-// the workbench's tools/plaques/ measured it), which is what holds the port
-// of the cut from Python to its sign; and an empty cover changes nothing.
+// the workbench's tools/plaques/ measured it), so a sign lost in porting the
+// cut from Python fails here; and an empty cover changes nothing.
 if (lifts.length) {
   const L = lifts[0].L, cover = new Float32Array(W * H), cutOf = peek('START_PLAQUES').cut;
   for (let y = 12; y < 18; y++) for (let x = 50; x < 100; x++) cover[y * W + x] = 1;
@@ -160,7 +160,7 @@ if (lifts.length) {
       if (!near(x, y) && light(cut, x, y) !== light(L.rgba, x, y)) outside++;
     if (outside) fail('carve ' + lighting, outside + ' pixels more than a pixel from the cover changed');
     const inside = mean(cut, 52, 97, 13, 16) / mean(L.rgba, 52, 97, 13, 16);
-    if (inside > 1 + wts[0] / 2) fail('carve ' + lighting, 'the bar\u2019s inside keeps ' + inside.toFixed(2) + ' of its lightness, against a stroke weight of ' + wts[0]);
+    if (inside > 1 + wts[0] / 2) fail('carve ' + lighting, 'the bar\u2019s inside is at ' + inside.toFixed(2) + ' of its lightness, against a stroke weight of ' + wts[0]);
     const left = mean(cut, 50, 50, 13, 16) - mean(L.rgba, 50, 50, 13, 16), right = mean(cut, 99, 99, 13, 16) - mean(L.rgba, 99, 99, 13, 16);
     if (Math.sign(right - left) !== Math.sign(wts[1])) fail('carve ' + lighting, 'the bar\u2019s left end moved ' + left.toFixed(1) + ' and its right ' + right.toFixed(1) + ', against an across weight of ' + wts[1]);
     const none = G('plaqueCarve')(L, new Float32Array(W * H), W, H, lighting);
