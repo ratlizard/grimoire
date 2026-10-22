@@ -1713,6 +1713,31 @@ const DATA_FIXES = [
      its neighbour first and stops the build if either is not the tile the
      reading found. */
 
+  // The Hall of Truth's last pattern button (22 October 2026; the
+  // maintainer's report, bugs.md, *Found outside the compendium's bug
+  // section*). Button 160 at (35,37) of zone 19, the one record of its class
+  // (0x1107), sends signal 206, which opens the door on to the riddles; it is
+  // meant to be pressed from the room past the fifth pattern door, east of
+  // it. It stands in wall tile 225, whose attributes have 0x4000, and the
+  // program reads that bit as "what is in this wall can be reached from the
+  // west": TDroppableWindow::CanSearch for a click, TDroppableWindow::
+  // XDirection for a key, stop a thing in a wall square to the east only
+  // when the square lacks it. West is the corridor at x 32 to 34, open once
+  // its force walls are broken with the Crolna, so the button could be
+  // pressed from there and the five rooms skipped. The tile cannot be
+  // changed for one square without changing every wall drawn with it, so
+  // with the fix the button's Use does nothing when whoever uses it stands
+  // west of it.
+  { id: 'hall-button-side', group: 'world', stage: 'found', title: 'The Hall of Truth’s last pattern button works only from the room it faces, instead of also from the corridor behind its wall',
+    played: 'fork, 22 October 2026, alone, the hero put in zone 19: from the corridor at (34,37), U and the right arrow, the door at (28,56) stays shut on the 68K and PowerPC slices, and a click with U armed leaves it shut on 68K, where unpatched all three open it; from the room at (36,37), U and the left arrow open it on both slices, patched and unpatched. Not played on Mac OS',
+    edits: [
+      { what: 'the button looks at who presses it', resid: 0x1107, at: 0x003E,
+        expect: { 0x003E: 'if_not', 0x003F: 'arg Arg00', 0x0040: 'get_field data1' },
+        code: [
+          'if_not', 'global CurrentCharacter', 'get_field x (0x1)', 'arg Arg00', 'get_field x (0x1)', 'lt', 'then -> pressed',
+          'return', 'byte 0x00', 'end',
+          'pressed:'].join('\n') },
+    ] },
   // The first Stronghold's kitchen (map 0x801F): the metal door at (22,18)
   // stands on tile 145, "wall", which blocks, so opening it shows a wall and
   // the step is rejected; the seven squares behind it are reached by nothing
