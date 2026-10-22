@@ -2912,8 +2912,11 @@ function basketSay(m, bad) {
 function basketEdits() {
   const applied = window.BASKET_APPLIED || new Set();
   const resids = [...(window.EDITED_RESIDS || [])].filter(r => !applied.has(r)).sort((a, b) => a - b);
-  const fonts = [window.FONT_SWAP && 'the swapped font', window.STRIKE_SWAP && 'the redrawn Seldane script'].filter(Boolean);
-  return { resids, fonts, count: resids.length + fonts.length };
+  // What changed in the resource fork, by name: it is in Replacement Files
+  // and the disk image and has no place in a Magpie patch (basketLeftOut).
+  const fork = [window.FONT_SWAP && 'the swapped font', window.STRIKE_SWAP && 'the redrawn Seldane script'].filter(Boolean)
+    .concat([...(window.RSRC_PICTURES || new Map()).keys()].sort((a, b) => a - b).map(id => 'PICT ' + id));
+  return { resids, fork, count: resids.length + fork.length };
 }
 // What the patch calls itself, which is what Magpie lists it by.
 function basketDescription() {
@@ -3027,7 +3030,7 @@ function basketPatch() {
 function basketLeftOut(where) {
   if (where === 'disk') return appFixChosen().map(f => f.title);
   if (where !== 'magpie') return [];
-  return DATA_RSRC_FIXES.filter(f => window.BACKSTAGE_CHOSEN.has(f.id)).map(f => f.title).concat(basketEdits().fonts, appFixChosen().map(f => f.title));
+  return DATA_RSRC_FIXES.filter(f => window.BACKSTAGE_CHOSEN.has(f.id)).map(f => f.title).concat(basketEdits().fork, appFixChosen().map(f => f.title));
 }
 /* As a Disk Image: Cythera Data as the replacement files have it, on a
    disk with the Install and Play script that puts it in the game's folder
@@ -3160,7 +3163,7 @@ function renderPatchBar() {
   if (ed.count) {
     const c = el('span', 'patchBarChip', ed.count + (ed.count === 1 ? ' edit' : ' edits'));
     c.title = 'What you changed on the site: ' + (ed.resids.length ? ed.resids.length + ' resource' + (ed.resids.length === 1 ? '' : 's') : '') +
-      (ed.resids.length && ed.fonts.length ? ', and ' : '') + ed.fonts.join(' and ') + '. Reloading the page drops them.';
+      (ed.resids.length && ed.fork.length ? ', and ' : '') + ed.fork.join(' and ') + '. Reloading the page drops them.';
     items.appendChild(c);
   }
   for (const p of b.parts) chip(p.label, function () { basketRemove(p.key); });

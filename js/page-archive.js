@@ -812,7 +812,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   window.ARCHIVE_SOURCE_NAME = sourceName;
   window.CYTHERA_RSRC_RAW = (meta.rsrc && meta.rsrc.length) ? meta.rsrc : null;
   // Kept so a font swap can be undone without re-opening the archive.
-  if (meta.via !== 'edit') { window.ARCHIVE_ORIGINAL_RSRC = window.CYTHERA_RSRC_RAW; window.FONT_SWAP = null; }
+  if (meta.via !== 'edit') { window.ARCHIVE_ORIGINAL_RSRC = window.CYTHERA_RSRC_RAW; window.FONT_SWAP = null; window.RSRC_PICTURES = new Map(); }
   // The pstring at 0x20 is what delvmod calls `player_name`; the scenario
   // leaves it empty and every saved game in the community's add-ons has
   // the name the file was saved under. It is what distinguishes a saved game from

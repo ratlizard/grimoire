@@ -492,6 +492,7 @@ guide carried it*.
 | unreached code | `reach_check.mjs` | every declared function is reached by the page, a handler or the player; the unreached are pinned by name |
 | decoder snapshot | `decoder_snapshot.mjs` | a hash of Cythera's decoders' output, expected value in `check_all.mjs` |
 | PICT BitsRect | `pict_bits_check.mjs` | the uncompressed PICT opcodes, synthetic, which no game resource reaches |
+| PICT write | `pict_write_check.mjs` | `pictReplacePixels` over every PICT of both forks: the same pixels back, a painted block back, another size rejected |
 | oracle currency | `oracle_check.mjs` | the delvmod submodule is at the fork's master |
 | delvmod tables | `delv_crosscheck.mjs` | the encryption lists, opcode table, symbol tables and decrypt verdicts, parsed out of delvmod's Python |
 | delvmod graphics | `delv_graphics_check.mjs` + `delv_graphics_ref.py` | `decompressDCG` pixel for pixel against delvmod |

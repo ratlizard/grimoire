@@ -114,6 +114,7 @@ function undoFontSwap() {
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.FONT_SWAP = null;
+  window.RSRC_PICTURES = new Map();   // the whole fork is put back, the pictures with it
   DERIVED.EDITOR_ZONE_NAMES = null;
   try { installGameFont(); } catch (e) { quiet(e); }
   try { installDialogueBox(); } catch (e) { quiet(e); }
@@ -344,6 +345,7 @@ function undoStrikeSwap() {
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.STRIKE_SWAP = null;
+  window.RSRC_PICTURES = new Map();   // the whole fork is put back, the pictures with it
   setStatus('Restored the file’s Seldane script.');
   renderMacRsrcSheet();
 }
@@ -1235,6 +1237,73 @@ function renderMacRsrcSheet() {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   A picture in Cythera Data's fork, replaced from a PNG.
+
+   The maintainer's request of 21 October 2026, to edit the fork's images as
+   the tunes are edited: save the picture as a PNG, change it anywhere, and
+   put it back with Replace with a PNG on the picture's page. The PNG is read
+   by pngDecode (js/delv-artpack.js), which needs no canvas, and packed into
+   the picture by pictReplacePixels (js/mac-rsrc-types.js). The picture's
+   form, colour table, mask region and other opcodes are unchanged, and a PNG
+   of another size is rejected; utilities/pict_write_check.mjs compares the
+   result with the decoder over all twenty-one PICTs. The new fork replaces
+   window.CYTHERA_RSRC_RAW, as the font swap's does, so it is in Replacement
+   Files and the disk image with no more work. A Magpie patch has no room for
+   the fork, and the pictures are in basketLeftOut's list for that reason.
+
+   Cythera Data's fork alone. The program's pictures, icons and cursors are
+   in the program's fork, which reaches a download only as the program, and
+   only when a program fix is chosen (basketProgram).
+--------------------------------------------------------------------------- */
+window.RSRC_PICTURES = new Map();   // PICT id -> the PNG's file name, for Your Patch
+function forkPictureEditable(type, fork) {
+  return type === 'PICT' && !!fork && fork === window.CYTHERA_RSRC;
+}
+function setForkPicture(id, bytes) {
+  const spec = resourceForkSpec(window.CYTHERA_RSRC);
+  const r = spec.resources.find(x => x.type === 'PICT' && x.id === id);
+  if (!r) throw new Error('PICT ' + id + ' is not in the fork.');
+  r.data = bytes;
+  const raw = writeResourceFork(spec);
+  const reopened = openResourceFork(raw);     // it must read back, or it is not written
+  window.CYTHERA_RSRC_RAW = raw;
+  window.CYTHERA_RSRC = reopened;
+  _rsrcArtifactCache.clear();
+}
+function replaceForkPicture(id, png, name) {
+  const fork = window.CYTHERA_RSRC;
+  const entry = fork && (fork.resourcesByType.PICT || []).find(e => e.id === id);
+  if (!entry) throw new Error('PICT ' + id + ' is not in the fork.');
+  const img = pngDecode(png);
+  setForkPicture(id, pictReplacePixels(fork.dataOf('PICT', entry), img.rgba, img.W, img.H));
+  window.RSRC_PICTURES.set(id, name || 'a PNG');
+}
+function restoreForkPicture(id) {
+  const orig = window.ARCHIVE_ORIGINAL_RSRC && openResourceFork(window.ARCHIVE_ORIGINAL_RSRC);
+  const entry = orig && (orig.resourcesByType.PICT || []).find(e => e.id === id);
+  if (!entry) throw new Error('The original picture is no longer in the page. Open the file again to get it back.');
+  setForkPicture(id, orig.dataOf('PICT', entry));
+  window.RSRC_PICTURES.delete(id);
+}
+function forkPicturePicked(input, id) {
+  const f = input && input.files && input.files[0];
+  if (!f) return;
+  f.arrayBuffer().then(buf => {
+    input.value = '';
+    try { replaceForkPicture(id, new Uint8Array(buf), f.name); }
+    catch (e) { setStatus('PICT ' + id + ' was not replaced. ' + e.message, true); return; }
+    showMacRsrcDetail('PICT', id, 'data');
+    setStatus('Replaced PICT ' + id + ' with ' + f.name + '. To download it, go to the Patch Generator, Your Patch.');
+  }).catch(e => setStatus('The page could not read ' + f.name + ': ' + e.message, true));
+}
+function forkPictureRestore(id) {
+  try { restoreForkPicture(id); }
+  catch (e) { setStatus(e.message, true); return; }
+  showMacRsrcDetail('PICT', id, 'data');
+  setStatus('Put back the original PICT ' + id + '.');
+}
+
 function showMacRsrcDetail(type, id, source) {
   // A view over both forks gives the fork in the link; a one-fork view retains
   // the older `TYPE:id` form, so saved links to it still open.
@@ -1294,6 +1363,31 @@ function showMacRsrcDetail(type, id, source) {
       dl.onclick = () => triggerPNGDownload(cv, base + (a.tag ? '_' + safeFileName(a.tag) : '') + '.png');
       box.appendChild(document.createElement('br'));
       box.appendChild(dl);
+      if (forkPictureEditable(type, fork)) {
+        const pick = document.createElement('input');
+        pick.type = 'file'; pick.accept = '.png,image/png'; pick.style.display = 'none';
+        pick.onchange = () => forkPicturePicked(pick, id);
+        const rep = document.createElement('button');
+        rep.className = 'secondary';
+        rep.style.cssText = 'margin-top:6px;margin-left:6px';
+        rep.textContent = 'Replace with a PNG';
+        rep.title = 'Puts a PNG of the same size in this picture’s place';
+        rep.onclick = () => pick.click();
+        box.appendChild(rep);
+        box.appendChild(pick);
+        if (window.RSRC_PICTURES.has(id)) {
+          const back = document.createElement('button');
+          back.className = 'secondary';
+          back.style.cssText = 'margin-top:6px;margin-left:6px';
+          back.textContent = 'Put the Original Back';
+          back.onclick = () => forkPictureRestore(id);
+          box.appendChild(back);
+          const said = document.createElement('div');
+          said.style.cssText = 'font-size:0.75rem;color:#f0ede4;margin-top:4px';
+          said.textContent = 'Replaced with ' + window.RSRC_PICTURES.get(id) + '. It is in Your Patch.';
+          box.appendChild(said);
+        }
+      }
     } else if (a.text) {
       const pre = document.createElement('pre');
       pre.style.cssText = 'text-align:left;max-width:820px;margin:0 auto;white-space:pre-wrap;' +

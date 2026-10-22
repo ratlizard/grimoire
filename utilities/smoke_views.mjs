@@ -8,6 +8,7 @@
 import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsrcPath, rsrcFork, missingIds,
          El, REGISTRY, catSel, optionSource, CATEGORY_VALUES, body, documentStub, rafQueue, drainRaf, sandbox,
          ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally, readoptApp } from './smoke_boot.mjs';
+import { deflateSync, crc32 } from 'node:zlib';
 
 
 // The detail views that are not resource-backed.
@@ -239,6 +240,49 @@ if (!rsrcFork) {
         fail('mac resources', 'deep link landed on ' + JSON.stringify(ctx.DETAIL_VIEW));
       else console.log(`  mac resources: #c=MACRSRC&d=macrsrc:PICT:${pict.entry.id} reopens that picture`);
       ctx.location.hash = '';
+      /* A picture replaced from a PNG (Replace with a PNG, 21 October 2026):
+         PICT 139's pixels with a block painted in, as an RGBA PNG made
+         here, go into the fork; the picture's page then has Put the
+         Original Back and says so, Your Patch counts it, Replacement Files
+         has the new fork, and Put the Original Back puts the shipped bytes
+         back. pict_write_check.mjs covers the packing over every picture. */
+      try {
+        const png = (W, H, rgba) => {
+          const chunk = (tag, body) => { const len = Buffer.alloc(4); len.writeUInt32BE(body.length); const tb = Buffer.concat([Buffer.from(tag), body]); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(tb)); return Buffer.concat([len, tb, crc]); };
+          const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4); ihdr[8] = 8; ihdr[9] = 6;
+          const raw = Buffer.alloc((W * 4 + 1) * H);
+          for (let y = 0; y < H; y++) Buffer.from(rgba.buffer, rgba.byteOffset + y * W * 4, W * 4).copy(raw, y * (W * 4 + 1) + 1);
+          return new Uint8Array(Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]));
+        };
+        const was = peek(`(() => { const e = CYTHERA_RSRC.resourcesByType.PICT.find(x => x.id === 139); const d = CYTHERA_RSRC.dataOf('PICT', e); const r = decodePict(d); return { d, W: r.width, H: r.height, px: r.canvas._px.data }; })()`);
+        const px = new Uint8Array(was.px);
+        for (let y = 10; y < 20; y++) for (let x = 60; x < 90; x++) px.set([0, 0, 0], (y * was.W + x) * 4);
+        ctx.SMOKE_PNG = png(was.W, was.H, px);
+        const r = peek(`(() => {
+          replaceForkPicture(139, window.SMOKE_PNG, 'smoke.png');
+          showMacRsrcDetail('PICT', 139, 'data');
+          const text = (function all(el) { return (el.textContent || '') + (el.children || []).map(all).join(''); })(document.getElementById('sheetGrid'));
+          const now = CYTHERA_RSRC.dataOf('PICT', CYTHERA_RSRC.resourcesByType.PICT.find(x => x.id === 139));
+          const drawn = decodePict(now).canvas._px.data;
+          const ed = basketEdits();
+          const keep = new Set(APPFIX_STATE.off); APPFIX_STATE.off = new Set(APP_FIXES.map(f => f.id));
+          const files = basketFiles();
+          APPFIX_STATE.off = keep;
+          const inFiles = !!files && (() => { const f = openResourceFork(files.entries[0].rsrc); const d = f.dataOf('PICT', f.resourcesByType.PICT.find(x => x.id === 139)); return d.length === now.length && d.every((x, i) => x === now[i]); })();
+          forkPictureRestore(139);
+          const back = CYTHERA_RSRC.dataOf('PICT', CYTHERA_RSRC.resourcesByType.PICT.find(x => x.id === 139));
+          return { buttons: /Replace with a PNG/.test(text) && /Put the Original Back/.test(text) && /Replaced with smoke\.png/.test(text),
+                   drawn: Array.from(drawn), counted: ed.fork.includes('PICT 139'), inFiles, back: Array.from(back), left: RSRC_PICTURES.size,
+                   note: (document.getElementById('patchBarNote') || {}).textContent || '' };
+        })()`);
+        const sameAs = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+        if (!r.buttons) fail('picture replaced', 'the picture\u2019s page does not offer Replace with a PNG and Put the Original Back, or does not name the PNG');
+        else if (!sameAs(r.drawn, Array.from(px))) fail('picture replaced', 'the replaced picture does not draw the PNG');
+        else if (!r.counted) fail('picture replaced', 'Your Patch does not count the picture');
+        else if (!r.inFiles) fail('picture replaced', 'Replacement Files does not have the new picture: ' + r.note);
+        else if (!sameAs(r.back, Array.from(was.d)) || r.left) fail('picture replaced', 'Put the Original Back did not put back the shipped bytes');
+        else console.log('  picture replaced: PICT 139 from a PNG with a block painted in, drawn as the PNG, counted in Your Patch, in Replacement Files, and the shipped bytes put back');
+      } catch (e) { fail('picture replaced', e); }
     }
   }
 } catch (e) { fail('resource fork', e); }

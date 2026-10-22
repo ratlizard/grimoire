@@ -972,7 +972,9 @@ function decodePictPackBits(data,pre){
     const W=pm.bounds.right-pm.bounds.left, H=pm.bounds.bottom-pm.bounds.top;
     if(W<=0||H<=0||pm.rowBytes<=0) throw new Error(`Unsupported DirectBits PixMap (${W}×${H})`);
     if(pm.pixelSize!==16 && pm.pixelSize!==32) throw new Error(`Unsupported DirectBits pixel depth (${pm.pixelSize}-bit)`);
-    const {rows,end}=decodeDirectBitsRows(data,p,pm);
+    // decodeDirectBitsRows names where the rows end `p`; read as `end`, it
+    // was undefined for every direct picture until 21 October 2026.
+    const {rows,p:end}=decodeDirectBitsRows(data,p,pm);
     return {canvas:renderPictDirect(pm,rows),width:W,height:H,pixelSize:pm.pixelSize,mode,opcode:foundOp,opcodeOffset:found.p-2,colorSpace:`${pm.pixelSize}-bit direct`,dst,end};
   }
 }
@@ -1001,6 +1003,156 @@ function decodePict(data){
     if(embedded){const blob=new Blob([embedded.bytes],{type:embedded.type==='jpeg'?'image/jpeg':'image/png'});return {kind:'embedded',blob,ext:embedded.type==='jpeg'?'jpg':'png'};}
   }
   const parsed=decodePictPackBits(data,found);return {kind:'canvas',...parsed};
+}
+
+// ---- A PICT's pixels written back ----
+/* pictReplacePixels(data, rgba, W, H) is the PICT with its image's pixels
+   replaced by `rgba` (W*H*4 bytes, in the order of a canvas's ImageData) and
+   every other byte as it was: the frame, the opcodes before the image, the
+   colour table, the source and destination rectangles, the transfer mode,
+   the mask region and whatever follows the image. The picture's form is
+   unchanged as well, so an 8-bit picture stays 8-bit in the same colour
+   table and a 16-bit one stays 16-bit, and whatever drew the old pixels
+   draws the new ones the same way. Written for a person who saves a picture
+   as a PNG, edits it and puts it back.
+
+   An indexed picture can hold only the colours in its table. A pixel whose
+   colour is the one already there is given the index it had, so an
+   unchanged pixel comes back as the same byte even where one colour is in
+   the table at two indices; any other colour is given the first index with
+   that exact colour, and failing that the nearest by RGB distance. Alpha is
+   ignored: a PICT has no transparency apart from a mask region, and the
+   mask region is not changed.
+
+   The size must be the picture's. A picture is drawn into a rectangle the
+   program gives, and pixels of another size would be stretched into it.
+   The rows are packed with PackBits as Apple's encoder packs them (a run of
+   three or more repeats, anything shorter is a literal), so the bytes need
+   not match the original's, only decode to the same pixels. */
+function packBitsUnits(src, unit){
+  const n=src.length/unit, out=[];
+  const same=(a,b)=>{ for(let k=0;k<unit;k++) if(src[a*unit+k]!==src[b*unit+k]) return false; return true; };
+  const copy=(from,to)=>{ for(let b=from*unit;b<to*unit;b++) out.push(src[b]); };
+  let i=0;
+  while(i<n){
+    let run=1; while(i+run<n && run<128 && same(i,i+run)) run++;
+    if(run>=3){ out.push(257-run); copy(i,i+1); i+=run; continue; }
+    let j=i;
+    while(j<n && j-i<128){ let r=1; while(j+r<n && r<3 && same(j,j+r)) r++; if(r>=3) break; j++; }
+    out.push(j-i-1); copy(i,j); i=j;
+  }
+  return out;
+}
+// Where a PICT's one image is and what form it has: the opcode, the pixel
+// map, the colour table for an indexed one, the offset its rows start at and
+// the offset they end at. The header is walked as decodePictPackBits walks
+// it, field for field.
+function pictImageLayout(data){
+  const found=findPictImageOpcode(data);
+  if(!found) throw new Error('This PICT has no image in it.');
+  if(found.quicktime) throw new Error('This PICT is a QuickTime image, which cannot be replaced.');
+  const op=found.op; let p=found.p; const L={op,v2:u16be(data,10)===0x0011};
+  if(op===0x9A||op===0x9B){ L.pm=readPictPixmap(data,p,true); p=L.pm.p; L.kind='direct'; }
+  else if((op===0x98||op===0x99)&&(u16be(data,p)&0x8000)){
+    L.pm=readPictPixmap(data,p,false); p=L.pm.p;
+    const ct=readColorTable(data,p); p=ct.p; L.palette=ct.palette; L.kind='indexed';
+  } else {
+    const rowBytes=u16be(data,p)&0x3fff, bounds=readRect(data,p+2); p+=10;
+    L.pm={rowBytes,bounds,pixelSize:1,packType:(op===0x90||op===0x91)?1:0};
+    L.palette=[[255,255,255],[0,0,0]]; L.kind='indexed';
+  }
+  p+=18;                                   // srcRect, dstRect, mode
+  if(op&1) p+=u16be(data,p);               // the Rgn opcodes' mask region, its size first
+  const pm=L.pm; L.W=pm.bounds.right-pm.bounds.left; L.H=pm.bounds.bottom-pm.bounds.top;
+  if(L.W<=0||L.H<=0||pm.rowBytes<=0) throw new Error(`This PICT's image is ${L.W}×${L.H}.`);
+  if(L.kind==='indexed'&&pm.pixelSize>8) throw new Error(`An indexed image of ${pm.pixelSize} bits cannot be written.`);
+  if(L.kind==='direct'&&pm.pixelSize!==16&&pm.pixelSize!==32) throw new Error(`A direct image of ${pm.pixelSize} bits cannot be written.`);
+  L.rowsAt=p; L.rows=[];
+  const raw=pictRowsRaw(L);
+  for(let y=0;y<L.H;y++){
+    if(raw==='raw'){ if(L.kind==='indexed') L.rows.push(data.slice(p,p+pm.rowBytes)); p+=pm.rowBytes; }
+    else if(raw==='rgb'){ p+=L.W*3; }
+    else {
+      const plen=pm.rowBytes>250?u16be(data,p):data[p]; p+=pm.rowBytes>250?2:1;
+      if(L.kind==='indexed') L.rows.push(unpackBitsPict(data,p,plen,pm.rowBytes));
+      p+=plen;
+    }
+  }
+  if(p>data.length) throw new Error('This PICT’s rows run past its end.');
+  L.rowsEnd=p;
+  return L;
+}
+// How the rows are stored: unpacked at rowBytes, unpacked RGB at three
+// bytes a pixel (packType 2), or packed with a count before each row.
+function pictRowsRaw(L){
+  const pm=L.pm;
+  if(pm.rowBytes<8||pm.packType===1) return 'raw';
+  if(L.kind==='direct'&&pm.packType===2) return 'rgb';
+  return 'packed';
+}
+function pictReplacePixels(data, rgba, W, H){
+  const L=pictImageLayout(data), pm=L.pm;
+  if(W!==L.W||H!==L.H) throw new Error(`The picture is ${L.W}×${L.H} and the image given is ${W}×${H}.`);
+  if(!rgba||rgba.length<W*H*4) throw new Error(`The image given has fewer than ${W}×${H} pixels.`);
+  const raw=pictRowsRaw(L), body=[];
+  const put=(row,unit)=>{
+    if(raw!=='packed'){ for(const b of row) body.push(b); return; }
+    const packed=packBitsUnits(row,unit);
+    if(pm.rowBytes>250) body.push(packed.length>>8,packed.length&0xff); else body.push(packed.length);
+    for(const b of packed) body.push(b);
+  };
+  if(L.kind==='indexed'){
+    const pal=L.palette, bits=pm.pixelSize, ppb=8/bits, mask=(1<<bits)-1;
+    const key=(r,g,b)=>(r<<16)|(g<<8)|b, exact=new Map(), near=new Map();
+    for(let i=0;i<pal.length;i++) if(pal[i]&&i<=mask&&!exact.has(key(...pal[i]))) exact.set(key(...pal[i]),i);
+    const nearest=k=>{
+      if(near.has(k)) return near.get(k);
+      const r=k>>16,g=(k>>8)&0xff,b=k&0xff; let best=0,bd=Infinity;
+      for(let i=0;i<pal.length&&i<=mask;i++){ const c=pal[i]; if(!c) continue; const d=(c[0]-r)**2+(c[1]-g)**2+(c[2]-b)**2; if(d<bd){bd=d;best=i;} }
+      near.set(k,best); return best;
+    };
+    for(let y=0;y<H;y++){
+      const was=L.rows[y], row=new Uint8Array(pm.rowBytes);
+      for(let x=0;x<W;x++){
+        const o=(y*W+x)*4, k=key(rgba[o],rgba[o+1],rgba[o+2]);
+        const sh=(ppb-1-(x%ppb))*bits, old=(was[Math.floor(x/ppb)]>>sh)&mask;
+        const idx=(pal[old]&&key(...pal[old])===k)?old:exact.has(k)?exact.get(k):nearest(k);
+        row[Math.floor(x/ppb)]|=idx<<sh;
+      }
+      put(row,1);
+    }
+  } else {
+    const cmp=pm.cmpCount||3;
+    for(let y=0;y<H;y++){
+      const px=x=>{ const o=(y*W+x)*4; return [rgba[o],rgba[o+1],rgba[o+2]]; };
+      if(pm.pixelSize===16){
+        // 0RRRRRGGGGGBBBBB, the five bits rounded as renderPictDirect widens them
+        const row=new Uint8Array(pm.rowBytes);
+        for(let x=0;x<W;x++){ const [r,g,b]=px(x).map(v=>Math.round(v*31/255)); const w=(r<<10)|(g<<5)|b; row[x*2]=w>>8; row[x*2+1]=w&0xff; }
+        put(row,pm.packType===3?2:1);
+      } else if(raw==='rgb'){
+        const row=new Uint8Array(W*3); for(let x=0;x<W;x++) row.set(px(x),x*3); put(row,1);
+      } else if(raw==='packed'&&pm.packType===4){
+        // one PackBits stream of the planes in turn, alpha first when there is one
+        const row=new Uint8Array(W*cmp), base=cmp===4?W:0;
+        if(cmp===4) row.fill(255,0,W);
+        for(let x=0;x<W;x++){ const c=px(x); for(let k=0;k<3;k++) row[base+k*W+x]=c[k]; }
+        put(row,1);
+      } else {
+        const row=new Uint8Array(pm.rowBytes); for(let x=0;x<W;x++) row.set(px(x),x*4+1); put(row,1);
+      }
+    }
+  }
+  // Version 2 opcodes start on a word, so the image's end is padded to one,
+  // and the opcodes after it are copied from where they started, also on a word.
+  const head=data.subarray(0,L.rowsAt);
+  let at=head.length+body.length; const pad=L.v2&&(at&1)?1:0;
+  const restAt=L.v2?(L.rowsEnd+(L.rowsEnd&1)):L.rowsEnd, rest=data.subarray(Math.min(restAt,data.length));
+  const out=new Uint8Array(at+pad+rest.length);
+  out.set(head,0); out.set(body,head.length); out.set(rest,at+pad);
+  // picSize is the low word of the picture's length.
+  out[0]=(out.length>>8)&0xff; out[1]=out.length&0xff;
+  return out;
 }
 
 // ---- clut (color table) — same on-disk layout as a PICT's embedded color table ----
