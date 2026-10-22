@@ -629,7 +629,7 @@ const CHECKS = [
    expect: 'midi import: 11 shipped headers rebuilt byte for byte; 13401 notes and 7835 controllers back from MIDI where they were (a controller\'s value within 89 of 65536); the controls caught'},
   {page: 'viewer', name: 'resource snapshot', requiredInputs: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
-   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT 4021e54b5427'},   // the Mac readers' text in plain US English, 22 October 2026: the text of DATA, FOND, LINF, styl, TILE and TxSt moved, no pixels
+   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT 1662debd95c1'},   // the Mac readers' text in plain US English, 22 October 2026: the text of DATA, FOND, LINF, styl, TILE and TxSt moved, no pixels; then CODE's text lost its dash (the old hash came back with the two dashes put back alone)
 
   // The HFS disk-image writer index.html exports with: structural here, and
   // in the row after it every volume round-tripped through systemless's

@@ -414,7 +414,7 @@ function sitxCyanide(packed, length) {
   while (!g.full()) {
     const marker = sitxByte(r);
     if (marker === 0xff) break;
-    if (marker !== 0x77) throw new Error('StuffIt X: a Cyanide block begins wrongly');
+    if (marker !== 0x77) throw new Error('StuffIt X: a Cyanide block with the wrong start');
     const blocksize = sitxU32(r), firstindex = sitxU32(r), numsymbols = sitxByte(r);
     const sorted = new Uint8Array(blocksize), block = new Uint8Array(blocksize), table = new Uint32Array(blocksize);
     // the ternary-coded block
