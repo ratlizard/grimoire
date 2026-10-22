@@ -271,19 +271,44 @@ const SPANISH_BUILD = `(async () => { try {
    levels or more against the lifted stone, and an empty word, the negative
    control, must leave the box as lifted. Then the eight pictures are
    written into the fork, Your Patch has them as one edit, and Restore the
-   Buttons puts the shipped bytes back. */
+   Buttons puts the shipped bytes back. And the cut itself, measured on
+   Onward by the workbench's tools/plaques/ and written into
+   START_PLAQUES.cut: Onward cut in the shipped face onto the two Onward
+   buttons must match the shipped carving, both taken as a difference from
+   the lifted stone and smoothed over three pixels, at a correlation of 0.7
+   or more (0.84 and 0.89 on 22 October 2026), and the control, the same
+   cut with its light and shade reversed, at least 0.4 below that (-0.32
+   and 0.20). */
 const START_BUTTONS_RUN = `(async () => { try {
   await gameFontReady();
   const orig = openResourceFork(window.ARCHIVE_ORIGINAL_RSRC), { W, H } = START_PLAQUES, out = { buttons: [] };
   const boxLight = (rgba, k) => { let s = 0, n = 0; for (let y = k.y0; y <= k.y1; y++) for (let x = k.x0; x <= k.x1; x++) { const i = (y * W + x) * 4; s += plaqueLum(rgba[i], rgba[i + 1], rgba[i + 2]); n++; } return s / n; };
   for (const b of START_PLAQUES.buttons.filter(b => !b.greyed)) {
     const L = plaqueLift(forkPictureRGBA(orig, b.id).rgba, W, H, b.id), k = L.ink;
-    const cover = plaqueCover(b.word, 'ArgosGame', k, 1.5);
+    const cover = plaqueCover(b.word, 'ArgosGame', k, START_PLAQUES.cut.lit.place);
     let x0 = W, x1 = -1, y0 = H, y1 = -1;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (cover[y * W + x] > 0.3) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
-    const empty = plaqueCarve(L, new Float32Array(W * H), W, H, 0.5);
+    const empty = plaqueCarve(L, new Float32Array(W * H), W, H, 'lit');
     out.buttons.push({ id: b.id, dx: (x0 + x1) / 2 - (k.x0 + k.x1) / 2, dy: (y0 + y1) / 2 - (k.y0 + k.y1) / 2,
-      darker: boxLight(L.rgba, k) - boxLight(plaqueCarve(L, cover, W, H, 0.5), k), emptyMoved: boxLight(L.rgba, k) - boxLight(empty, k) });
+      darker: boxLight(L.rgba, k) - boxLight(plaqueCarve(L, cover, W, H, 'lit'), k), emptyMoved: boxLight(L.rgba, k) - boxLight(empty, k) });
+  }
+  // Onward cut in the shipped face onto the Onward buttons, against the
+  // shipped carving: both as a difference from the lifted stone, smoothed
+  // over three pixels (the speckle differs), correlated over the old word's
+  // box. The control reverses the cut's light and shade.
+  const smooth3 = (a, w, h) => { const o = new Float32Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let s = 0, n = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const yy = y + j, xx = x + i; if (yy >= 0 && yy < h && xx >= 0 && xx < w) { s += a[yy * w + xx]; n++; } } o[y * w + x] = s / n; } return o; };
+  const corrOf = (a, b) => { let ma = 0, mb = 0; for (let i = 0; i < a.length; i++) { ma += a[i]; mb += b[i]; } ma /= a.length; mb /= b.length; let ab = 0, aa = 0, bb = 0; for (let i = 0; i < a.length; i++) { const x = a[i] - ma, y = b[i] - mb; ab += x * y; aa += x * x; bb += y * y; } return ab / Math.sqrt(aa * bb); };
+  const onward = START_PLAQUES.buttons.find(b => b.word === 'Onward' && !b.greyed), board = forkPictureRGBA(orig, START_PLAQUES.board);
+  out.match = [];
+  for (const [lighting, px] of [['lit', forkPictureRGBA(orig, onward.id).rgba], ['board', plaqueCrop(board.rgba, board.W, onward.x, onward.y, W, H)]]) {
+    const L = plaqueLift(px, W, H, onward.id), k = L.ink, cover = plaqueCover('Onward', 'ArgosGame', k, START_PLAQUES.cut[lighting].place);
+    const diff = rgba => { const d = new Float32Array(W * H); for (let i = 0; i < W * H; i++) d[i] = plaqueLum(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]) - plaqueLum(L.rgba[i * 4], L.rgba[i * 4 + 1], L.rgba[i * 4 + 2]); return smooth3(d, W, H); };
+    const inBox = d => { const v = []; for (let y = k.y0 - 2; y <= k.y1 + 2; y++) for (let x = k.x0 - 2; x <= k.x1 + 2; x++) v.push(d[y * W + x]); return v; };
+    const shipped = inBox(diff(px)), cut = inBox(diff(plaqueCarve(L, cover, W, H, lighting)));
+    const wts = START_PLAQUES.cut[lighting].weights, kept = wts.slice();
+    wts[1] = -kept[1]; wts[2] = -kept[2];
+    let reversed; try { reversed = inBox(diff(plaqueCarve(L, cover, W, H, lighting))); } finally { wts[1] = kept[1]; wts[2] = kept[2]; }
+    out.match.push({ lighting, corr: corrOf(cut, shipped), control: corrOf(reversed, shipped) });
   }
   out.written = await carveStartButtons();
   out.patch = basketEdits().fork;
@@ -326,7 +351,9 @@ if (archive && existsSync(resolve(ROOT, archive))) {
       else if (sb.written !== 8) fail('start buttons', sb.written + ' pictures were written, not 8');
       else if (!(sb.patch || []).includes('the carved start screen buttons') || (sb.patch || []).some(k => /^PICT /.test(k))) fail('start buttons', 'Your Patch does not have them as one edit: ' + (sb.patch || []).join(', '));
       else if (!sb.restored) fail('start buttons', 'Restore the Buttons did not put the shipped pictures back');
-      else { plaques = 'the start screen\u2019s six words drawn in the game\u2019s font sit where the old ones did and darken their boxes by ' + Math.min(...sb.buttons.map(b => b.darker)).toFixed(0) + ' levels or more, an empty word changes nothing, and the eight pictures are written and put back'; console.log('  ' + plaques); }
+      else if (!sb.match || sb.match.some(m => !(m.corr >= 0.7) || !(m.control <= m.corr - 0.4))) fail('start buttons', 'Onward cut in the shipped face does not match the shipped carving: ' + JSON.stringify(sb.match));
+      else { console.log('  start buttons, Onward against the shipped carving: ' + sb.match.map(m => m.lighting + ' ' + m.corr.toFixed(2) + ' (reversed ' + m.control.toFixed(2) + ')').join(', '));
+        plaques = 'the start screen\u2019s six words drawn in the game\u2019s font sit where the old ones did and darken their boxes by ' + Math.min(...sb.buttons.map(b => b.darker)).toFixed(0) + ' levels or more, an empty word changes nothing, and the eight pictures are written and put back'; console.log('  ' + plaques); }
     }
     opened = `the archive opens over http in ${r.ms} ms (${title.slice(0, 60)}), ${quiet.length} quiet failures on the way`;
     console.log('  ' + opened);
@@ -358,8 +385,8 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     // Data > Patches, at the scenario in Spanish.
     ['spanish', "showCategory('PATCHES'); const d = document.getElementById('spanishMaker').closest('details'); if (d) d.open = true; document.getElementById('spanishMaker').scrollIntoView()"],
     ['tools', "showCategory('TOOLS')"],
-    // Components > Fonts, at the start screen's buttons.
-    ['buttons', "showCategory('FONTS'); const sb = document.getElementById('startButtons'); if (sb) sb.scrollIntoView()"],
+    // Components > Fonts, at the start screen's buttons, carved in the game's font.
+    ['buttons', "showCategory('FONTS'); await carveStartButtons(); renderMacRsrcSheet(); await new Promise(r => setTimeout(r, 300)); const sb = document.getElementById('startButtons'); if (sb) sb.scrollIntoView()"],
     // Data > License, a stub: two short sections, a picker and one link out.
     ['license', "showCategory('LICENSE')"],
     // Data > Saved Game with the scenario open: Make a Save, under the records.
@@ -426,7 +453,8 @@ if (archive && existsSync(resolve(ROOT, archive))) {
       for (const [name, drive] of VIEWS) {
         // A drive that throws leaves the page where it was, and the shot is
         // then of the wrong place with nothing shown; so it is shown.
-        if (drive) { const went = await page.evaluate(`(() => { try { ${drive}; } catch (e) { return String(e); } return 'ok'; })()`); if (went !== 'ok') console.log(`  view ${name}: its drive did not run: ${went}`); }
+        // A drive may await (the carved buttons); the evaluation waits for it.
+        if (drive) { const went = await page.evaluate(`(async () => { try { ${drive}; } catch (e) { return String(e); } return 'ok'; })()`); if (went !== 'ok') console.log(`  view ${name}: its drive did not run: ${went}`); }
         await page.evaluate('new Promise(r => setTimeout(r, 400))');
         const m = await page.evaluate(MEASURE);
         const path = await page.shot(join(SHOTS, name + '.png'));

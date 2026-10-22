@@ -37,20 +37,28 @@
    lighting, in rows 7 to 23 only, since the four rivets sit in rows 4 and 5
    and 25 and 26, taken as the run of columns around the middle.
 
-   How a word is cut. The shipped lettering is Argos A Nouveau, its
-   ascenders some 13 pixels tall and its letters a pixel further apart than
-   the face sets them, which is where plaqueCover puts a new word. Read
-   pixel by pixel against the lighting, each shipped stroke is dark on its
-   upper-left side and light on its lower-right, but copying those values
-   made the new words illegible: two rounds on 22 October 2026 went first
-   too faint, at Ambrosia's stroke width, and then, thickened and with both
-   edges strengthened, too contrasty, the bright edge breaking every letter
-   up. The maintainer's reading of the buttons is the one used: the words
-   are a subtle darkening of the stone. So the stroke is thickened when it
-   is drawn (plaqueCover's `weight`, 1.5 pixels unless the visitor picks
-   another), the stone under it is darkened to half its lightness with its
-   speckle left in (`depth`), its upper-left edge is a fifth darker again,
-   and there is no highlight. */
+   How a word is cut: as Onward is, measured. The workbench's
+   tools/plaques/ subtracts each button's lifted stone from the shipped
+   button (the maintainer's idea, 22 October 2026: the Difference of the
+   plain and the original rock), draws the file's Argos A Nouveau over the
+   result, and fits by least squares where the word sits and how it is
+   cut: the stroke's darkening, and the light and shade on its left and
+   right sides and on its top and bottom (plaqueCarve's three parts), each
+   part in each colour. The buttons on PICT 132 are lit otherwise than the
+   pictures of them alone, so there are two cuts, START_PLAQUES.cut's
+   `board` and `lit`. Onward is the button whose cut the maintainer judged
+   best, round after round, and its two cuts serve every button. With a cut
+   measured on each button, Preferences came out visibly out of step with
+   the rest: its fit is the weakest, since its P is a character the file's
+   Argos does not have and its word covers nearly all the stone. On top of
+   the measured cut, the edge of the word's coverage is steepened a little,
+   the lightening alone is made a quarter stronger, and a third of the
+   stone's speckle comes out under a stroke: the maintainer chose those
+   three by eye over fourteen rounds, and the rest of what was tried (a
+   heavier or a lighter cut, smoother, sharper, thinner, cleaner walls,
+   brighter light) is in the workbench's log under
+   grimoire/start-buttons-0lv64i. The P is the one letter that cannot come
+   back, in the file's face. */
 
 const START_PLAQUES = {
   board: 132,
@@ -73,7 +81,33 @@ const START_PLAQUES = {
   rows: [7, 23],       // where a word can be; the rivets are above and below
   room: 110,           // the straight part of the stone, which a word must fit
   // Where a word goes on a button the search found none on.
-  ink: { x0: 40, y0: 9, x1: 110, y1: 21 }
+  ink: { x0: 40, y0: 9, x1: 110, y1: 21 },
+  /* Onward's cut, in each lighting, as the workbench's tools/plaques/fit.py
+     and variants.py measure it on the shipped file (the header has how).
+     `place`: the word's ascenders `ink_h` pixels tall, `track` pixels
+     between letters beyond the face's spacing, each stroke `bold` pixels
+     wider, and the ink's middle `dx` and its top `dy` pixels from the old
+     word's shadows' box. `weights`: the stroke, across and down
+     (plaqueCarve), as a share of the stone's lightness. `balance`: each
+     part's weight in red, green and blue over its weight in lightness, a
+     row a colour and a column a part. `bright`, `smooth` and the edge's
+     steepening (`edge`, coverage from edge[0] ramping over edge[1]) are the
+     maintainer's choices by eye. */
+  cut: {
+    lit: {
+      place: { ink_h: 15.5, track: 0.5, bold: 1, dx: 1.5, dy: -0.5 },
+      weights: [-0.381, 0.395, -0.365],
+      balance: [[1.133, 0.942, 0.984], [0.992, 0.986, 1.005], [0.694, 1.225, 1.017]]
+    },
+    board: {
+      place: { ink_h: 16, track: 0, bold: 0.5, dx: 0, dy: -1 },
+      weights: [-0.506, -0.301, 0.281],
+      balance: [[1.07, 0.928, 0.937], [0.997, 0.986, 0.955], [0.831, 1.259, 1.4]]
+    },
+    bright: 1.25,
+    smooth: 0.3,
+    edge: [0.1, 0.8]
+  }
 };
 
 // The stone: a pixel is in it when its centre is inside the outline.
@@ -195,19 +229,32 @@ function plaqueLift(rgba, W, H, seed) {
   return { rgba: out, light, stone, ink };
 }
 /* A word cut into a lifted button. `cover` is the word's coverage, W*H
-   numbers from 0 to 1, drawn where the word should go; `depth` is the share
-   of the stone's lightness left in the cut (0.5 unless given). */
-function plaqueCarve(lifted, cover, W, H, depth) {
-  const { rgba, stone } = lifted, out = new Uint8ClampedArray(rgba);
-  const share = depth > 0 && depth < 1 ? depth : 0.5;
-  const M = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? 0 : cover[y * W + x] * stone[y * W + x];
+   numbers from 0 to 1, drawn where the word should go; `lighting` is
+   'board' for a button on PICT 132 and 'lit' for a picture of one alone,
+   and picks the cut in START_PLAQUES.cut. */
+function plaqueCarve(lifted, cover, W, H, lighting) {
+  const { rgba, light, stone } = lifted, out = new Uint8ClampedArray(rgba);
+  const cut = START_PLAQUES.cut, own = cut[lighting] || cut.lit;
+  const [e0, e1] = cut.edge;
+  const M = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? 0
+    : Math.min(1, Math.max(0, (cover[y * W + x] * stone[y * W + x] - e0) / e1));
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const m = M(x, y);
-    if (!m) continue;
+    // The three parts: the stroke itself, the coverage to the left less the
+    // coverage to the right (a stroke's left side against its right), and
+    // above less below.
+    const f = [M(x, y), M(x - 1, y) - M(x + 1, y), M(x, y - 1) - M(x, y + 1)];
+    if (!f[0] && !f[1] && !f[2]) continue;
     const i = y * W + x;
-    const lip = Math.max(0, m - M(x - 1, y - 1));         // the stroke's upper-left edge
-    const k = (1 - (1 - share) * m) * (1 - 0.2 * lip);
-    for (let c = 0; c < 3; c++) out[i * 4 + c] = rgba[i * 4 + c] * k;
+    for (let c = 0; c < 3; c++) {
+      let r = 0;
+      for (let p = 0; p < 3; p++) r += f[p] * own.weights[p] * own.balance[c][p];
+      if (r > 0) r *= cut.bright;
+      // The stone's lighting moved by the cut, and its speckle darkened with
+      // the cut but never lightened by it, a share of it taken out under
+      // the stroke.
+      const l = light[i * 3 + c], speck = (rgba[i * 4 + c] - l) * (1 - cut.smooth * f[0]);
+      out[i * 4 + c] = l * (1 + r) + speck * (1 + Math.min(r, 0));
+    }
   }
   return out;
 }

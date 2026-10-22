@@ -459,8 +459,6 @@ function strikeSwapPanel() {
 --------------------------------------------------------------------------- */
 const START_BUTTONS = 'Start Screen Buttons';
 window.START_WORDS = {};        // a word typed on the panel, by picture id
-window.START_WEIGHT = 1.5;      // pixels added to a stroke's width when it is drawn
-window.START_DARKNESS = 0.5;    // the share of the stone's lightness a cut takes away
 function startButtonsCarved() {
   return [...(window.RSRC_PICTURES || new Map()).values()].includes(START_BUTTONS);
 }
@@ -476,12 +474,14 @@ function startWords() {
   return w;
 }
 /* A word's coverage on a button, W*H numbers from 0 to 1: drawn eight times
-   over on a canvas and averaged down, its ascenders as tall as the old
-   word's ink and its middle where the old word's middle was, its letters a
-   pixel further apart than the face sets them, as Ambrosia's are, and each
-   stroke `weight` pixels wider (a stroke round the fill). A word wider than
-   the stone's straight part is drawn smaller to fit it. */
-function plaqueCover(word, family, ink, weight) {
+   over on a canvas and averaged down, where `place` (START_PLAQUES.cut's,
+   measured on Onward) puts it against `ink`, the old word's shadows' box:
+   its ascenders `ink_h` pixels tall with their top `dy` from the box's top,
+   its ink's middle `dx` from the box's middle, `track` pixels between its
+   letters beyond the face's spacing, and each stroke `bold` pixels wider (a
+   stroke round the fill). A word wider than the stone's straight part is
+   drawn smaller to fit it, its top where it was. */
+function plaqueCover(word, family, ink, place) {
   const { W, H, room } = START_PLAQUES, S = 8;
   const c = document.createElement('canvas');
   c.width = W * S; c.height = H * S;
@@ -492,13 +492,13 @@ function plaqueCover(word, family, ink, weight) {
   const m = ctx.measureText('Hdlbk');
   const up = m && m.actualBoundingBoxAscent, down = (m && m.actualBoundingBoxDescent) || 0;
   if (!(up > 0)) return null;
-  const chars = [...word], track = 1;
+  const chars = [...word], track = place.track, weight = place.bold;
   const wide = px => { ctx.font = face(px); let w = 0; for (const ch of chars) w += ctx.measureText(ch).width; return w / S + track * (chars.length - 1) + weight; };
-  let px = (ink.y1 - ink.y0 + 1) * 100 / (up + down);
+  let px = place.ink_h * 100 / (up + down);
   let w = wide(px);
   if (w > room) { px *= room / w; w = wide(px); }
-  const cx = (ink.x0 + ink.x1 + 1) / 2, cy = (ink.y0 + ink.y1 + 1) / 2;
-  const base = cy - (up + down) * px / 200 + up * px / 100;
+  const cx = (ink.x0 + ink.x1 + 1) / 2 + place.dx;
+  const base = ink.y0 + place.dy + up * px / 100;
   const draw = from => {
     ctx.clearRect(0, 0, W * S, H * S);
     ctx.font = face(px);
@@ -539,24 +539,25 @@ function forkPictureRGBA(fork, id) {
 }
 // The eight pictures carved: a Map from picture id to {rgba, W, H, data},
 // `data` the picture as the file has it, which the pixels are written into.
-function startButtonPictures(orig, words, family, weight, darkness) {
+function startButtonPictures(orig, words, family) {
   const { W, H, board, buttons } = START_PLAQUES, out = new Map();
-  const cut = (rgba, word, seed) => {
+  // `lighting` is 'lit' for a picture of a button alone, 'board' for one on PICT 132.
+  const cut = (rgba, word, seed, lighting) => {
     const L = plaqueLift(rgba, W, H, seed), w = (word || '').trim();
     if (!w) return L.rgba;
-    const cover = plaqueCover(w, family, L.ink || START_PLAQUES.ink, weight);
+    const cover = plaqueCover(w, family, L.ink || START_PLAQUES.ink, START_PLAQUES.cut[lighting].place);
     if (!cover) throw new Error('this browser could not draw the font');
-    return plaqueCarve(L, cover, W, H, 1 - darkness);
+    return plaqueCarve(L, cover, W, H, lighting);
   };
   for (const b of buttons) {
     const p = forkPictureRGBA(orig, b.id);
     if (p.W !== W || p.H !== H) throw new Error('PICT ' + b.id + ' is ' + p.W + '×' + p.H + ', not a button.');
-    out.set(b.id, Object.assign(p, { rgba: cut(p.rgba, words[b.id], b.id) }));
+    out.set(b.id, Object.assign(p, { rgba: cut(p.rgba, words[b.id], b.id, 'lit') }));
   }
   const s = forkPictureRGBA(orig, board);
   for (const b of buttons) {
     if (b.greyed) continue;
-    plaquePaste(s.rgba, s.W, cut(plaqueCrop(s.rgba, s.W, b.x, b.y, W, H), words[b.id], 1000 + b.id), b.x, b.y, W, H);
+    plaquePaste(s.rgba, s.W, cut(plaqueCrop(s.rgba, s.W, b.x, b.y, W, H), words[b.id], 1000 + b.id, 'board'), b.x, b.y, W, H);
   }
   out.set(board, s);
   return out;
@@ -596,7 +597,7 @@ function carveStartButtons() {
   if (!window.ARCHIVE_ORIGINAL_RSRC) return Promise.reject(new Error('the file as it was opened is no longer in the page; open it again'));
   return gameFontReady().then(() => {
     const orig = openResourceFork(window.ARCHIVE_ORIGINAL_RSRC);
-    const made = startButtonPictures(orig, startWords(), 'ArgosGame', window.START_WEIGHT, window.START_DARKNESS);
+    const made = startButtonPictures(orig, startWords(), 'ArgosGame');
     const bytes = new Map();
     for (const [id, p] of made) bytes.set(id, rsrcReplaceImage('PICT', p.data, p.rgba, p.W, p.H));
     setForkPictures(bytes);
@@ -643,9 +644,6 @@ function startButtonsPanel() {
         '<ul class="ruleList"><li>To see them in the game, download <b>Your Patch</b> in the ' + actionChip('Patch Generator', "showCategory('CHANGES')") + ' as a disk image.</li></ul>' +
         '<div class="mkRow">' + START_PLAQUES.buttons.filter(b => !b.greyed).map(b =>
           '<label class="mkField">' + svEsc(b.word) + ' <input type="text" maxlength="24" value="' + svEsc(words[b.id]) + '" oninput="window.START_WORDS[' + b.id + '] = this.value"></label>').join('') + '</div>' +
-        '<div class="mkRow"><label class="mkField">Stroke <input type="range" min="0" max="3" step="0.5" value="' + window.START_WEIGHT + '" oninput="window.START_WEIGHT = +this.value; this.nextElementSibling.textContent = this.value + \' px\'"><span>' + window.START_WEIGHT + ' px</span></label>' +
-        '<label class="mkField">Darkness <input type="range" min="0.2" max="0.8" step="0.05" value="' + window.START_DARKNESS + '" oninput="window.START_DARKNESS = +this.value; this.nextElementSibling.textContent = Math.round(this.value * 100) + \'%\'"><span>' + Math.round(window.START_DARKNESS * 100) + '%</span></label>' +
-        '<span class="mechSub" style="display:inline">Thicker letters read better at the game’s size.</span></div>' +
         '<div class="mechStats"><button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="startButtonsCarve()">Carve the Buttons</button>' +
         (carved ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="restoreStartButtons()">Restore the Buttons</button>' : '') +
         '</div><div id="startButtonsNote" class="mechSub"></div>' +

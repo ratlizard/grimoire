@@ -27,8 +27,10 @@
 //     lighting) than that stone;
 //   - every pixel outside the box is as it was, and a lift with the same
 //     seed gives the same bytes;
-//   - plaqueCarve darkens only where the cover is, and leaves the rest
-//     alone.
+//   - plaqueCarve reaches a pixel past the cover and no further, darkens
+//     the stroke, lights and shades its two ends the way round the
+//     measured cut has them in each lighting, and leaves the stone alone
+//     for an empty cover.
 //
 // What it cannot see: whether a carved word reads well, which is a person's
 // call (the maintainer judged two rounds illegible on 22 October 2026), or
@@ -137,19 +139,33 @@ if (lifts.length) {
   if (!judge(where, px, Object.assign({}, L, { rgba: dark })).length) fail('negative control', 'a lift twelve levels too dark passed');
 }
 
-// The cut: a bar of cover across the middle of a lifted button.
+// The cut: a bar of cover across the middle of a lifted button, in each
+// lighting. The cut's parts reach a pixel past the cover (across and down
+// compare a pixel's two neighbours) and no further; the bar's inside is
+// darkened by the stroke's weight; its left end is lighter than its right
+// when the across weight is negative, as it is for the buttons on PICT 132,
+// and darker when it is positive, as for the lit pictures (Onward's cut, as
+// the workbench's tools/plaques/ measured it), which is what holds the port
+// of the cut from Python to its sign; and an empty cover changes nothing.
 if (lifts.length) {
-  const L = lifts[0].L, cover = new Float32Array(W * H);
+  const L = lifts[0].L, cover = new Float32Array(W * H), cutOf = peek('START_PLAQUES').cut;
   for (let y = 12; y < 18; y++) for (let x = 50; x < 100; x++) cover[y * W + x] = 1;
-  const cut = G('plaqueCarve')(L, cover, W, H, 0.5);
-  let outside = 0, lighter = 0;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const i = (y * W + x) * 4, a = lum(L.rgba[i], L.rgba[i + 1], L.rgba[i + 2]), b = lum(cut[i], cut[i + 1], cut[i + 2]);
-    if (cover[y * W + x]) { if (b > a * 0.5 + 1) lighter++; }
-    else if (a !== b) outside++;
+  const near = (x, y) => x >= 49 && x <= 100 && y >= 11 && y <= 18;
+  const light = (px, x, y) => { const i = (y * W + x) * 4; return lum(px[i], px[i + 1], px[i + 2]); };
+  const mean = (px, x0, x1, y0, y1) => { let s = 0, n = 0; for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { s += light(px, x, y); n++; } return s / n; };
+  for (const lighting of ['board', 'lit']) {
+    const cut = G('plaqueCarve')(L, cover, W, H, lighting), wts = cutOf[lighting].weights;
+    let outside = 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
+      if (!near(x, y) && light(cut, x, y) !== light(L.rgba, x, y)) outside++;
+    if (outside) fail('carve ' + lighting, outside + ' pixels more than a pixel from the cover changed');
+    const inside = mean(cut, 52, 97, 13, 16) / mean(L.rgba, 52, 97, 13, 16);
+    if (inside > 1 + wts[0] / 2) fail('carve ' + lighting, 'the bar\u2019s inside keeps ' + inside.toFixed(2) + ' of its lightness, against a stroke weight of ' + wts[0]);
+    const left = mean(cut, 50, 50, 13, 16) - mean(L.rgba, 50, 50, 13, 16), right = mean(cut, 99, 99, 13, 16) - mean(L.rgba, 99, 99, 13, 16);
+    if (Math.sign(right - left) !== Math.sign(wts[1])) fail('carve ' + lighting, 'the bar\u2019s left end moved ' + left.toFixed(1) + ' and its right ' + right.toFixed(1) + ', against an across weight of ' + wts[1]);
+    const none = G('plaqueCarve')(L, new Float32Array(W * H), W, H, lighting);
+    if (!none.every((v, i) => v === L.rgba[i])) fail('carve ' + lighting, 'an empty cover changed the stone');
   }
-  if (outside) fail('carve', outside + ' pixels outside the cover changed');
-  if (lighter) fail('carve', lighter + ' pixels under the cover are lighter than half their lightness');
 }
 
 if (failures) { console.error(`plaques: ${failures} failures`); process.exit(1); }
