@@ -2915,8 +2915,11 @@ function basketEdits() {
   const resids = [...(window.EDITED_RESIDS || [])].filter(r => !applied.has(r)).sort((a, b) => a - b);
   // What changed in the resource fork, by name: it is in Replacement Files
   // and the disk image and has no place in a Magpie patch (basketLeftOut).
-  const fork = [window.FONT_SWAP && 'the swapped font', window.STRIKE_SWAP && 'the redrawn Seldane script'].filter(Boolean)
-    .concat([...(window.RSRC_PICTURES || new Map()).keys()].sort(byName));
+  // The eight pictures of the carved start screen buttons are one edit.
+  const pictures = [...(window.RSRC_PICTURES || new Map())];
+  const fork = [window.FONT_SWAP && 'the swapped font', window.STRIKE_SWAP && 'the redrawn Seldane script',
+                pictures.some(([, v]) => v === START_BUTTONS) && 'the carved start screen buttons'].filter(Boolean)
+    .concat(pictures.filter(([, v]) => v !== START_BUTTONS).map(([k]) => k).sort(byName));
   // And in the program's fork, which goes out as the program (basketProgram).
   const prog = [...(window.APP_RSRC_EDITS || new Map()).keys()].sort(byName).map(k => k + ' in the program');
   return { resids, fork, prog, count: resids.length + fork.length + prog.length };

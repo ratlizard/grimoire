@@ -300,6 +300,11 @@ const CHECKS = [
   {page: 'viewer', name: 'image write', want: [DATA_RSRC, APP_RSRC],
    cmd: ['utilities/image_write_check.mjs', 'index.html', DATA_RSRC, APP_RSRC],
    grep: /image write: 139 images/},
+  // The start screen's buttons: their carved words lifted off clean, against
+  // the shipped pictures; the new words are drawn in browser_check.mjs.
+  {page: 'viewer', name: 'start buttons', want: [DATA_RSRC],
+   cmd: ['utilities/plaque_check.mjs', 'index.html', DATA_RSRC],
+   grep: /plaques: 12 buttons lifted clean[^\n]*/},
   /* Is the oracle current? delvmod is a fork this project pushes fixes to,
      and a fix to it is worth nothing if the copy the suite compares against
      is older. Placed before the delvmod checks so that a stale oracle is read

@@ -263,11 +263,40 @@ const SPANISH_BUILD = `(async () => { try {
   if (!r) return { error: document.getElementById('spanishNote') ? document.getElementById('spanishNote').textContent : 'nothing built' };
   return { done: r.report.done, missing: r.report.missing.length, keys: r.report.keys };
 } catch (e) { return { error: e.message }; } })()`;
-let opened = 'no archive given', seldane = 'not run', spanish = 'not run';
+/* The start screen's buttons carved in a real browser, the one place a word
+   can be drawn in the game's font (plaque_check.mjs has the rest). The word
+   carved on each button is drawn again in the shipped face and must sit
+   where the old word sat, the middle of its ink's box within two pixels
+   of the old one's either way; cut in, it must darken the old word's box by three
+   levels or more against the lifted stone, and an empty word, the negative
+   control, must leave the box as lifted. Then the eight pictures are
+   written into the fork, Your Patch has them as one edit, and Restore the
+   Buttons puts the shipped bytes back. */
+const START_BUTTONS_RUN = `(async () => { try {
+  await gameFontReady();
+  const orig = openResourceFork(window.ARCHIVE_ORIGINAL_RSRC), { W, H } = START_PLAQUES, out = { buttons: [] };
+  const boxLight = (rgba, k) => { let s = 0, n = 0; for (let y = k.y0; y <= k.y1; y++) for (let x = k.x0; x <= k.x1; x++) { const i = (y * W + x) * 4; s += plaqueLum(rgba[i], rgba[i + 1], rgba[i + 2]); n++; } return s / n; };
+  for (const b of START_PLAQUES.buttons.filter(b => !b.greyed)) {
+    const L = plaqueLift(forkPictureRGBA(orig, b.id).rgba, W, H, b.id), k = L.ink;
+    const cover = plaqueCover(b.word, 'ArgosGame', k, 1.5);
+    let x0 = W, x1 = -1, y0 = H, y1 = -1;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (cover[y * W + x] > 0.3) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const empty = plaqueCarve(L, new Float32Array(W * H), W, H, 0.5);
+    out.buttons.push({ id: b.id, dx: (x0 + x1) / 2 - (k.x0 + k.x1) / 2, dy: (y0 + y1) / 2 - (k.y0 + k.y1) / 2,
+      darker: boxLight(L.rgba, k) - boxLight(plaqueCarve(L, cover, W, H, 0.5), k), emptyMoved: boxLight(L.rgba, k) - boxLight(empty, k) });
+  }
+  out.written = await carveStartButtons();
+  out.patch = basketEdits().fork;
+  restoreStartButtons();
+  const same = id => { const a = forkPictureRGBA(window.CYTHERA_RSRC, id).data, e = orig.resourcesByType.PICT.find(x => x.id === id), b = orig.dataOf('PICT', e); return a.length === b.length && a.every((v, i) => v === b[i]); };
+  out.restored = [START_PLAQUES.board].concat(START_PLAQUES.buttons.map(b => b.id)).every(same) && !startButtonsCarved();
+  return out;
+} catch (e) { return { error: e.message }; } })()`;
+let opened = 'no archive given', seldane = 'not run', spanish = 'not run', plaques = 'not run';
 if (archive && existsSync(resolve(ROOT, archive))) {
   const r = await load(base + indexPage + '?cache=skip&loud=1&src=' + encodeURIComponent(archive),
     '/^(Title: |Archive error)/.test(document.getElementById("output").textContent) || document.getElementById("sourceStatus").classList.contains("failed")', 90000,
-    { then: async ({evaluate}) => Object.assign({}, await evaluate(SELDANE_ROUND_TRIP), { spanish: await evaluate(SPANISH_BUILD) }) });
+    { then: async ({evaluate}) => Object.assign({}, await evaluate(SELDANE_ROUND_TRIP), { spanish: await evaluate(SPANISH_BUILD), plaques: await evaluate(START_BUTTONS_RUN) }) });
   const errs = errors(r.console), quiet = quietOnes(r.console);
   const title = text((/id="output"[^>]*>([\s\S]*?)<\/pre>/.exec(r.dom) || ['', ''])[1]).trim();
   const status = text((/id="sourceStatus"[^>]*>([\s\S]*?)<\/(?:pre|div|span)>/.exec(r.dom) || ['', ''])[1]).trim();
@@ -286,6 +315,19 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     if (!es || es.error) fail('spanish', 'the Spanish file was not written in the browser: ' + (es ? es.error : 'no result'));
     else if (es.missing) fail('spanish', es.missing + ' pieces of the shipped file have no Spanish');
     else { spanish = `the Spanish table loads on demand and writes ${es.done} pieces and ${es.keys} keyword lists`; console.log('  ' + spanish); }
+    const sb = r.more.plaques;
+    if (!sb || sb.error) fail('start buttons', 'they were not carved in the browser: ' + (sb ? sb.error : 'no result'));
+    else {
+      const off = sb.buttons.filter(b => Math.abs(b.dx) > 2 || Math.abs(b.dy) > 2), faint = sb.buttons.filter(b => b.darker < 3), moved = sb.buttons.filter(b => Math.abs(b.emptyMoved) > 0.01);
+      if (sb.buttons.length !== 6) fail('start buttons', sb.buttons.length + ' buttons were tried, not 6');
+      else if (off.length) fail('start buttons', 'a word is drawn away from the old one: ' + off.map(b => 'PICT ' + b.id + ' by ' + b.dx.toFixed(1) + ', ' + b.dy.toFixed(1)).join('; '));
+      else if (faint.length) fail('start buttons', 'a word cut in darkens its box by less than three levels: ' + faint.map(b => 'PICT ' + b.id + ' ' + b.darker.toFixed(1)).join('; '));
+      else if (moved.length) fail('start buttons', 'the negative control, an empty word, changed the stone: ' + moved.map(b => 'PICT ' + b.id).join(', '));
+      else if (sb.written !== 8) fail('start buttons', sb.written + ' pictures were written, not 8');
+      else if (!(sb.patch || []).includes('the carved start screen buttons') || (sb.patch || []).some(k => /^PICT /.test(k))) fail('start buttons', 'Your Patch does not have them as one edit: ' + (sb.patch || []).join(', '));
+      else if (!sb.restored) fail('start buttons', 'Restore the Buttons did not put the shipped pictures back');
+      else { plaques = 'the start screen\u2019s six words drawn in the game\u2019s font sit where the old ones did and darken their boxes by ' + Math.min(...sb.buttons.map(b => b.darker)).toFixed(0) + ' levels or more, an empty word changes nothing, and the eight pictures are written and put back'; console.log('  ' + plaques); }
+    }
     opened = `the archive opens over http in ${r.ms} ms (${title.slice(0, 60)}), ${quiet.length} quiet failures on the way`;
     console.log('  ' + opened);
     for (const l of quiet.slice(0, 8)) console.log('    ' + l.text.slice(0, 140));
@@ -316,6 +358,8 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     // Data > Patches, at the scenario in Spanish.
     ['spanish', "showCategory('PATCHES'); const d = document.getElementById('spanishMaker').closest('details'); if (d) d.open = true; document.getElementById('spanishMaker').scrollIntoView()"],
     ['tools', "showCategory('TOOLS')"],
+    // Components > Fonts, at the start screen's buttons.
+    ['buttons', "showCategory('FONTS'); const sb = document.getElementById('startButtons'); if (sb) sb.scrollIntoView()"],
     // Data > License, a stub: two short sections, a picker and one link out.
     ['license', "showCategory('LICENSE')"],
     // Data > Saved Game with the scenario open: Make a Save, under the records.

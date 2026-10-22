@@ -102,7 +102,12 @@ function fontSwapPanel() {
       file.arrayBuffer().then(buf => {
         const r = swapGameFont(new Uint8Array(buf), file.name);
         setStatus(file.name + ' is the game’s font in this copy. ' + r.mapped + ' characters mapped.');
-        renderMacRsrcSheet();
+        // Buttons already carved follow the font.
+        if (!startButtonsCarved()) { renderMacRsrcSheet(); return; }
+        return carveStartButtons().then(() => {
+          setStatus(file.name + ' is the game’s font in this copy, and the start screen’s buttons are carved in it.');
+          renderMacRsrcSheet();
+        });
       }).catch(fail);
     };
   }, 0);
@@ -432,6 +437,245 @@ function strikeSwapPanel() {
     };
   }, 0);
   return box;
+}
+
+/* ---------------------------------------------------------------------------
+   The start screen's buttons, carved in the game's font.
+
+   js/delv-plaques.js lifts the carved words off the start screen's buttons
+   and cuts new ones in. This part draws the words, in the game's font as it
+   is in this copy: ArgosGame, which installGameFont makes from sfnt 7289,
+   swapped or not, so the Font Replacer's font is the one carved. It then
+   writes the eight pictures into Cythera Data's fork in a single write.
+
+   The carving always starts from the pictures as the file was opened
+   (ARCHIVE_ORIGINAL_RSRC), so carving again after a font swap lifts
+   Ambrosia's words and not the last carving. The pictures are entered in
+   RSRC_PICTURES under START_BUTTONS, and that entry is the only record that
+   they are carved: every path that puts the fork back (opening a file,
+   Restore the game's font) empties the map, and in Your Patch the eight
+   are one edit (basketEdits). A font swapped after the buttons were carved
+   is carved into them again (fontSwapPanel).
+--------------------------------------------------------------------------- */
+const START_BUTTONS = 'Start Screen Buttons';
+window.START_WORDS = {};        // a word typed on the panel, by picture id
+window.START_WEIGHT = 1.5;      // pixels added to a stroke's width when it is drawn
+window.START_DARKNESS = 0.5;    // the share of the stone's lightness a cut takes away
+function startButtonsCarved() {
+  return [...(window.RSRC_PICTURES || new Map()).values()].includes(START_BUTTONS);
+}
+// The word for each picture: the panel's, or the one Ambrosia carved; the
+// greyed Onward has Onward's.
+function startWords() {
+  const w = {};
+  for (const b of START_PLAQUES.buttons) if (!b.greyed) w[b.id] = b.id in window.START_WORDS ? window.START_WORDS[b.id] : b.word;
+  for (const b of START_PLAQUES.buttons) if (b.greyed) {
+    const twin = START_PLAQUES.buttons.find(o => !o.greyed && o.x === b.x && o.y === b.y);
+    w[b.id] = twin ? w[twin.id] : b.word;
+  }
+  return w;
+}
+/* A word's coverage on a button, W*H numbers from 0 to 1: drawn eight times
+   over on a canvas and averaged down, its ascenders as tall as the old
+   word's ink and its middle where the old word's middle was, its letters a
+   pixel further apart than the face sets them, as Ambrosia's are, and each
+   stroke `weight` pixels wider (a stroke round the fill). A word wider than
+   the stone's straight part is drawn smaller to fit it. */
+function plaqueCover(word, family, ink, weight) {
+  const { W, H, room } = START_PLAQUES, S = 8;
+  const c = document.createElement('canvas');
+  c.width = W * S; c.height = H * S;
+  const ctx = c.getContext('2d');
+  if (!ctx || !ctx.measureText) return null;
+  const face = px => (px * S) + 'px "' + family + '"';
+  ctx.font = '100px "' + family + '"';
+  const m = ctx.measureText('Hdlbk');
+  const up = m && m.actualBoundingBoxAscent, down = (m && m.actualBoundingBoxDescent) || 0;
+  if (!(up > 0)) return null;
+  const chars = [...word], track = 1;
+  const wide = px => { ctx.font = face(px); let w = 0; for (const ch of chars) w += ctx.measureText(ch).width; return w / S + track * (chars.length - 1) + weight; };
+  let px = (ink.y1 - ink.y0 + 1) * 100 / (up + down);
+  let w = wide(px);
+  if (w > room) { px *= room / w; w = wide(px); }
+  const cx = (ink.x0 + ink.x1 + 1) / 2, cy = (ink.y0 + ink.y1 + 1) / 2;
+  const base = cy - (up + down) * px / 200 + up * px / 100;
+  const draw = from => {
+    ctx.clearRect(0, 0, W * S, H * S);
+    ctx.font = face(px);
+    ctx.fillStyle = ctx.strokeStyle = '#fff';
+    ctx.lineWidth = weight * S; ctx.lineJoin = 'round';
+    ctx.textBaseline = 'alphabetic';
+    let x = from;
+    for (const ch of chars) {
+      ctx.fillText(ch, x, base * S);
+      if (weight > 0) ctx.strokeText(ch, x, base * S);
+      x += ctx.measureText(ch).width + track * S;
+    }
+    return ctx.getImageData(0, 0, W * S, H * S).data;
+  };
+  // Drawn once to find where its ink falls, and again with the ink, not the
+  // advances, centred on the old word's middle: a face's side bearings put
+  // a word a pixel or more off centre otherwise.
+  let from = (cx - w / 2 + weight / 2) * S, a = draw(from);
+  let lo = W * S, hi = -1;
+  for (let x = 0; x < W * S; x++) for (let y = 0; y < H * S; y++) if (a[(y * W * S + x) * 4 + 3] > 64) { if (x < lo) lo = x; hi = x; break; }
+  if (hi >= 0) { from += cx * S - (lo + hi + 1) / 2; a = draw(from); }
+  const out = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x0 = 0; x0 < W; x0++) {
+    let s = 0;
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) s += a[((y * S + j) * W * S + x0 * S + i) * 4 + 3];
+    out[y * W + x0] = s / (S * S * 255);
+  }
+  return out;
+}
+// A picture of a fork as RGBA, with its size and its bytes.
+function forkPictureRGBA(fork, id) {
+  const e = ((fork && fork.resourcesByType.PICT) || []).find(x => x.id === id);
+  if (!e) throw new Error('PICT ' + id + ' is not in the file.');
+  const data = fork.dataOf('PICT', e), d = decodePict(data);
+  if (!d || d.kind !== 'canvas') throw new Error('PICT ' + id + ' could not be drawn.');
+  const px = d.canvas.getContext('2d').getImageData(0, 0, d.width, d.height).data;
+  return { rgba: new Uint8ClampedArray(px), W: d.width, H: d.height, data };
+}
+// The eight pictures carved: a Map from picture id to {rgba, W, H, data},
+// `data` the picture as the file has it, which the pixels are written into.
+function startButtonPictures(orig, words, family, weight, darkness) {
+  const { W, H, board, buttons } = START_PLAQUES, out = new Map();
+  const cut = (rgba, word, seed) => {
+    const L = plaqueLift(rgba, W, H, seed), w = (word || '').trim();
+    if (!w) return L.rgba;
+    const cover = plaqueCover(w, family, L.ink || START_PLAQUES.ink, weight);
+    if (!cover) throw new Error('this browser could not draw the font');
+    return plaqueCarve(L, cover, W, H, 1 - darkness);
+  };
+  for (const b of buttons) {
+    const p = forkPictureRGBA(orig, b.id);
+    if (p.W !== W || p.H !== H) throw new Error('PICT ' + b.id + ' is ' + p.W + '×' + p.H + ', not a button.');
+    out.set(b.id, Object.assign(p, { rgba: cut(p.rgba, words[b.id], b.id) }));
+  }
+  const s = forkPictureRGBA(orig, board);
+  for (const b of buttons) {
+    if (b.greyed) continue;
+    plaquePaste(s.rgba, s.W, cut(plaqueCrop(s.rgba, s.W, b.x, b.y, W, H), words[b.id], 1000 + b.id), b.x, b.y, W, H);
+  }
+  out.set(board, s);
+  return out;
+}
+// Several pictures of Cythera Data's fork replaced in one write.
+function setForkPictures(bytes) {
+  const spec = resourceForkSpec(window.CYTHERA_RSRC);
+  for (const [id, data] of bytes) {
+    const r = spec.resources.find(x => x.type === 'PICT' && x.id === id);
+    if (!r) throw new Error('PICT ' + id + ' is not in the fork.');
+    r.data = data;
+  }
+  const raw = writeResourceFork(spec);
+  const reopened = openResourceFork(raw);     // it must read back, or it is not written
+  window.CYTHERA_RSRC_RAW = raw;
+  window.CYTHERA_RSRC = reopened;
+  _rsrcArtifactCache.clear();
+}
+// The game's font as a face the canvas can draw. It is loaded when the
+// fork opens, and loaded again a moment after a swap.
+function gameFontReady() {
+  return new Promise((resolve, reject) => {
+    let n = 0;
+    const look = () => {
+      if (window.GAME_FONT_FACE && !window.GAME_FONT_STATE) { resolve(); return; }
+      if (++n > 100 || (window.GAME_FONT_STATE && window.GAME_FONT_STATE !== 'loading')) {
+        reject(new Error('the game’s font is not loaded (' + (window.GAME_FONT_STATE || 'no font') + ')'));
+        return;
+      }
+      setTimeout(look, 50);
+    };
+    look();
+  });
+}
+function carveStartButtons() {
+  if (!window.CYTHERA_RSRC) return Promise.reject(new Error('no resource fork is open'));
+  if (!window.ARCHIVE_ORIGINAL_RSRC) return Promise.reject(new Error('the file as it was opened is no longer in the page; open it again'));
+  return gameFontReady().then(() => {
+    const orig = openResourceFork(window.ARCHIVE_ORIGINAL_RSRC);
+    const made = startButtonPictures(orig, startWords(), 'ArgosGame', window.START_WEIGHT, window.START_DARKNESS);
+    const bytes = new Map();
+    for (const [id, p] of made) bytes.set(id, rsrcReplaceImage('PICT', p.data, p.rgba, p.W, p.H));
+    setForkPictures(bytes);
+    for (const id of bytes.keys()) window.RSRC_PICTURES.set(forkImageKey('PICT', id), START_BUTTONS);
+    return bytes.size;
+  });
+}
+function restoreStartButtons() {
+  const orig = window.ARCHIVE_ORIGINAL_RSRC && openResourceFork(window.ARCHIVE_ORIGINAL_RSRC);
+  if (!orig) { setStatus('The original pictures are no longer in the page. Open the file again to get them back.', true); return; }
+  const bytes = new Map();
+  for (const [k, v] of window.RSRC_PICTURES) if (v === START_BUTTONS) {
+    const id = +k.split(' ')[1], e = (orig.resourcesByType.PICT || []).find(x => x.id === id);
+    if (e) bytes.set(id, orig.dataOf('PICT', e));
+  }
+  try { setForkPictures(bytes); }
+  catch (e) { setStatus('The buttons were not put back. ' + e.message, true); return; }
+  for (const id of bytes.keys()) window.RSRC_PICTURES.delete(forkImageKey('PICT', id));
+  setStatus('Put back the start screen’s buttons.');
+  renderMacRsrcSheet();
+}
+function startButtonsCarve() {
+  const note = document.getElementById('startButtonsNote');
+  if (note) note.textContent = 'Carving…';
+  carveStartButtons().then(() => {
+    setStatus('Carved the start screen’s buttons in ' + (window.FONT_SWAP ? window.FONT_SWAP.name : 'the game’s font') + '. To download them, go to the Patch Generator, Your Patch.');
+    renderMacRsrcSheet();
+  }).catch(e => {
+    if (note) note.textContent = 'The buttons were not carved: ' + e.message;
+    setStatus('The buttons were not carved: ' + e.message, true);
+  });
+}
+function startButtonsPanel() {
+  const box = document.createElement('div');
+  box.className = 'mechView';
+  box.id = 'startButtons';
+  const fork = window.CYTHERA_RSRC;
+  const pics = fork && (fork.resourcesByType.PICT || []);
+  const have = pics && [START_PLAQUES.board].concat(START_PLAQUES.buttons.map(b => b.id)).every(id => pics.some(e => e.id === id));
+  const words = startWords(), carved = startButtonsCarved();
+  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Start Screen Buttons</h3></div>' +
+    (have
+      ? '<p class="mechLede">Carve the words on the start screen’s buttons in the game’s font as it is in this copy. To carve them in another font, choose it in Font Replacer first.</p>' +
+        '<ul class="ruleList"><li>To see them in the game, download <b>Your Patch</b> in the ' + actionChip('Patch Generator', "showCategory('CHANGES')") + ' as a disk image.</li></ul>' +
+        '<div class="mkRow">' + START_PLAQUES.buttons.filter(b => !b.greyed).map(b =>
+          '<label class="mkField">' + svEsc(b.word) + ' <input type="text" maxlength="24" value="' + svEsc(words[b.id]) + '" oninput="window.START_WORDS[' + b.id + '] = this.value"></label>').join('') + '</div>' +
+        '<div class="mkRow"><label class="mkField">Stroke <input type="range" min="0" max="3" step="0.5" value="' + window.START_WEIGHT + '" oninput="window.START_WEIGHT = +this.value; this.nextElementSibling.textContent = this.value + \' px\'"><span>' + window.START_WEIGHT + ' px</span></label>' +
+        '<label class="mkField">Darkness <input type="range" min="0.2" max="0.8" step="0.05" value="' + window.START_DARKNESS + '" oninput="window.START_DARKNESS = +this.value; this.nextElementSibling.textContent = Math.round(this.value * 100) + \'%\'"><span>' + Math.round(window.START_DARKNESS * 100) + '%</span></label>' +
+        '<span class="mechSub" style="display:inline">Thicker letters read better at the game’s size.</span></div>' +
+        '<div class="mechStats"><button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="startButtonsCarve()">Carve the Buttons</button>' +
+        (carved ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="restoreStartButtons()">Restore the Buttons</button>' : '') +
+        '</div><div id="startButtonsNote" class="mechSub"></div>' +
+        '<canvas id="startButtonsBoard"></canvas><canvas id="startButtonsLit"></canvas>'
+      : '<p class="mechLede">The start screen’s pictures are not open. Open Cythera Data from a file that includes its resource fork.</p>') +
+    '</section>';
+  if (have) setTimeout(() => {
+    try { drawStartButtons(); } catch (e) { quiet(e, 'the start screen’s buttons'); }
+  }, 0);
+  return box;
+}
+// The buttons as they are in the fork: the screen around them, and under
+// it the seven pictures of the buttons alone, two to a row.
+function drawStartButtons() {
+  const fork = window.CYTHERA_RSRC, { W, H, buttons } = START_PLAQUES;
+  const put = (id, rgba, w, h) => {
+    const cv = document.getElementById(id);
+    if (!cv) return;
+    cv.width = w; cv.height = h;
+    const im = cv.getContext('2d').createImageData(w, h);
+    im.data.set(rgba); cv.getContext('2d').putImageData(im, 0, 0);
+  };
+  const s = forkPictureRGBA(fork, START_PLAQUES.board);
+  const x0 = Math.max(0, Math.min(...buttons.map(b => b.x)) - 8), y0 = Math.max(0, Math.min(...buttons.map(b => b.y)) - 8);
+  const x1 = Math.min(s.W, Math.max(...buttons.map(b => b.x)) + W + 8), y1 = Math.min(s.H, Math.max(...buttons.map(b => b.y)) + H + 8);
+  put('startButtonsBoard', plaqueCrop(s.rgba, s.W, x0, y0, x1 - x0, y1 - y0), x1 - x0, y1 - y0);
+  const gap = 4, cols = 2, rows = Math.ceil(buttons.length / cols), PW = cols * W + gap, PH = rows * (H + gap) - gap;
+  const sheet = new Uint8ClampedArray(PW * PH * 4);
+  buttons.forEach((b, k) => plaquePaste(sheet, PW, forkPictureRGBA(fork, b.id).rgba, (k % cols) * (W + gap), Math.floor(k / cols) * (H + gap), W, H));
+  put('startButtonsLit', sheet, PW, PH);
 }
 
 /* THE DIALOGUE BOX, from the file (10 September 2026) and, since 11
@@ -1121,7 +1365,7 @@ function renderMacRsrcSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   const view = FORK_VIEWS[window.CUR_SUBN] || null;
-  if (window.CUR_SUBN === 'FONTS') { grid.appendChild(fontSwapPanel()); grid.appendChild(strikeSwapPanel()); }
+  if (window.CUR_SUBN === 'FONTS') { grid.appendChild(fontSwapPanel()); grid.appendChild(strikeSwapPanel()); grid.appendChild(startButtonsPanel()); }
   const kinds = view ? view.kinds.map(id => RSRC_KINDS.find(k => k.id === id)) : null;
   const sources = view ? (view.source === 'both' ? ['data', 'app'] : [view.source]) : [window.RSRC_SOURCE === 'app' ? 'app' : 'data'];
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
