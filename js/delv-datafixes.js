@@ -2789,8 +2789,11 @@ const DATA_FIX_TEXT = [
    the reading of every line. The Golem Hunter's notes (semius-notes) are a
    puzzle's key, not a slip, and stay a separate fix. Legendary Beasts
    breaks off mid-word with a stray quotation mark, "playing in the waves
-   at a gr\"": the sentence ends at "waves", since what followed is not in
-   the file. */
+   at a gr\"": the quotation mark becomes "...", as several of the books
+   already end, since what followed is not in the file (21 October 2026,
+   the maintainer's choice). The entry is the longest in 0x021D, and two
+   more characters are safe: the scroll window copies its text into a
+   string that grows to fit and draws it on a canvas 32,000 pixels tall. */
 const DATA_FIX_WRITINGS = [
   dataFixT('"City of Mistery"', 0x021D, 'City of Mistery', 'City of Mystery', 1),
   dataFixT('"diverisified"', 0x021D, 'diverisified', 'diversified', 1),
@@ -2817,7 +2820,7 @@ const DATA_FIX_WRITINGS = [
   dataFixT('Lifecycle of Scylla, "barrels shaped"', 0x021D, 'barrels shaped with', 'barrel-shaped, with', 1),
   dataFixT('Common Beasts, "than that ratlizard"', 0x021D, 'than that ratlizard', 'than the ratlizard', 1),
   dataFixT('Legendary Beasts, "tail are"', 0x021D, 'or their tail are rumored', 'or their tail is rumored', 1),
-  dataFixT('Legendary Beasts, the end', 0x021D, 'in the waves at a gr"', 'in the waves.', 1),
+  dataFixT('Legendary Beasts, the end', 0x021D, 'in the waves at a gr"', 'in the waves at a gr...', 1),
   dataFixT('Magickal Beasts, "pure theoretical"', 0x021D, 'is pure theoretical', 'is purely theoretical', 1),
   dataFixT('"existance"', 0x021D, 'existance', 'existence', 4),
   dataFixT('the prophecies, "Prophesy"', 0x021D, 'Prophesy of Neleneus', 'Prophecy of Neleneus', 3),
