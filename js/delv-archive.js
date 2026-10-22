@@ -1393,7 +1393,7 @@ function mergeDelverPatch(baseBytes, patchBytes) {
   const patch = delverArchiveSpec(patchBytes);
   if (!patch) throw new Error('that file is not a Delver Archive, so it is not a Magpie patch');
   if (patch.playerName)
-    throw new Error('that is a saved game (' + patch.playerName + '), not a patch; import it as a character instead');
+    throw new Error('that is a saved game (' + patch.playerName + '), not a patch. Import it as a character instead');
   if (patch.scenarioTitle !== base.scenarioTitle)
     throw new Error('that patch is for ' + JSON.stringify(patch.scenarioTitle) +
                     ', and this game is ' + JSON.stringify(base.scenarioTitle));
@@ -1425,8 +1425,8 @@ function mergeDelverPatch(baseBytes, patchBytes) {
     replaced.push(r.resid);
   }
   if (!replaced.length && !added.length)
-    throw new Error('none of that patch\'s ' + patch.resources.length +
-                    ' resource(s) could be applied to the game archive');
+    throw new Error('the page could apply none of that patch\'s ' + patch.resources.length +
+                    ' resource(s) to the game archive');
   return { bytes: writeDelverArchive(base), replaced, added, skipped, disagreed,
            title: patch.scenarioTitle };
 }

@@ -1842,7 +1842,7 @@ function dvmProseOperator(n, args, ctx) {
     }
     if (infix === '|') { const m = /^\(1 << (\w+)\)$/.exec(args[1]); if (m) return args[0] + ' with bit ' + m[1]; }
     if ((infix === '!=' || infix === '==') && args[1] === '0' && / has bit \w+(?: \(\w+\))?$/.test(args[0]))
-      return infix === '!=' ? args[0] : args[0].replace(/ has bit /, ' has not got bit ');
+      return infix === '!=' ? args[0] : args[0].replace(/ has bit /, ' does not have bit ');
     const w = DVM_PROSE_INFIX[infix];
     const rhs = (infix === '==' || infix === '!=') && /\bbehavior$/.test(args[0]) ? dvmProseBehavior('behavior', args[1], ctx) : args[1];
     return w ? args[0] + ' ' + w + ' ' + rhs : '(' + args[0] + ' ' + infix + ' ' + args[1] + ')';
@@ -2265,7 +2265,7 @@ function dvmProseTree(tree, ctx, loops) {
     switch (n.kind) {
       case 'stmt': {
         const s = n.stmt, word = exits.get(s);
-        const go = word === 'break' ? 'stop the loop' : word === 'continue' ? 'go round again'
+        const go = word === 'break' ? 'stop the loop' : word === 'continue' ? 'go around again'
           : (s.targets.length === 1 ? 'go to ' + ctx.label('0x' + (n.goes !== undefined ? n.goes : s.targets[0]).toString(16).toUpperCase().padStart(4, '0')) : null);
         if (s.kind === 'cond' && go) push('if ' + dvmProseCond(s, ctx, true) + ', ' + go, null, s.abs, { test: true });
         else if (s.kind === 'jump' && go) push(go, null, s.abs);
@@ -2294,7 +2294,7 @@ function dvmProseTree(tree, ctx, loops) {
       }
       case 'dowhile': {
         const kids = dvmProseTree(n.body, ctx, loops);
-        push('repeat, and go round again while ' + dvmProseCond(n.cond, ctx, true) + ':', kids, dvmFirstAbs(n), { test: true });
+        push('repeat, and go around again while ' + dvmProseCond(n.cond, ctx, true) + ':', kids, dvmFirstAbs(n), { test: true });
         break;
       }
       case 'loop': push('repeat:', dvmProseTree(n.body, ctx, loops), dvmFirstAbs(n)); break;

@@ -87,7 +87,7 @@ function decompressDCG(data, width, height) {
   decompressDCG.lastWarning = null;
   while (dcursor < len) {
     if (++iterations > 300000) {
-      decompressDCG.lastWarning = 'Stopped after 300000 opcodes; image may be incomplete.';
+      decompressDCG.lastWarning = 'Stopped after 300,000 opcodes, so the image may be incomplete.';
       break;
     }
     const opcode = data[dcursor];
@@ -119,8 +119,8 @@ function decompressDCG(data, width, height) {
       const literals = opcode & 0x03;
       if (opcode & 0x0C) {
         decompressDCG.lastWarning = 'Short Data opcode 0x' + opcode.toString(16) +
-          ' at 0x' + (dcursor-1).toString(16) + ' sets the two undocumented bits; ' +
-          'literal count read as ' + literals + ' (low 2 bits only).';
+          ' at 0x' + (dcursor-1).toString(16) + ' sets the two undocumented bits. ' +
+          'The page reads the literal count as ' + literals + ' (low 2 bits only).';
       }
       cdata(data.slice(dcursor, dcursor+literals)); dcursor += literals;
     } else if (opcode < 0xF0) {
@@ -146,7 +146,7 @@ function decompressDCG(data, width, height) {
       // Return what decoded successfully rather than discarding the whole
       // image; a single bad byte used to blank the entire resource.
       decompressDCG.lastWarning = 'Unknown opcode 0x' + opcode.toString(16) +
-        ' at 0x' + dcursor.toString(16) + '; showing partial image.';
+        ' at 0x' + dcursor.toString(16) + ', so this is only part of the image.';
       break;
     }
   }

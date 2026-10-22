@@ -270,7 +270,7 @@ const DATA_FIXES = [
   // The bartenders' rumours (0x813): the choice between the town's
   // rumours and the general ones rolled Random(0, 1), which is always 0; it
   // rolls Random(0, 2), so both are heard.
-  { id: 'rumours', group: 'talk', stage: 'found', title: 'Bartenders now able to tell Cythera\u2019s general rumors, not just local ones',
+  { id: 'rumours', group: 'talk', stage: 'found', title: 'Bartenders can now tell Cythera\u2019s general rumors, not just local ones',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: eight rounds bought from Apis in Cademia; alone and on “All Fixes” one of them drew a rumour of the general list, "They say that a bunch of those old ruins were found down in a swamp to the south." alone, against the town’s list only unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: eight rounds bought from Apis, among them "They say that a bunch of those old ruins were found down in a swamp to the south." and four more of the general list, against the town’s list only in eight rounds unpatched',
     edits: [
       { what: 'the bartenders’ rumours', resid: 0x813, at: 0x02AB, replaceOp: true, expect: { 0x02A8: 'sys Random', 0x02A9: 'byte 0x00', 0x02AB: 'byte 0x01' }, code: 'byte 0x02' },
@@ -393,7 +393,7 @@ const DATA_FIXES = [
   // keyword lists that the board reported (0x1828, 0x1829, 0x182A, 0x1818,
   // 0x080F), and two this project found (0x186D Demodocus's "fish, tlep",
   // 0x1878 Sabinate's "form, shap"), which were built in the found stage.
-  { id: 'keyword-spaces', group: 'talk', title: 'Seven keywords no longer require a space preceding them to be recognized',
+  { id: 'keyword-spaces', group: 'talk', title: 'The game now recognizes seven keywords without a space before them',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, in part (Crito and Apis of the seven): "crit" to Crito in Odemia drew his innkeeper’s offer, which opens "Yes - are you interested in a", against "My cousin Crito runs the Titan’s Head in Odemia." unpatched, and "apis" to Apis in Cademia the innkeeper’s offer there, against "My cousin Apis runs the Two-Taled Rat in Cademia."; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "crit" to Crito and "apis" to Apis each drew the innkeeper’s offer; the same save and word with no patch installed, 11 October 2026: "crit" drew "My cousin Crito runs the Titan’s Head in Odemia."',
     parts: [
       { stage: 'found', edits: [
@@ -1095,7 +1095,7 @@ const DATA_FIXES = [
   // Paris's and Diomede's names (0x1857, 0x182E). Their "name" topics set
   // their own character flag 7, as every other character's does, so the
   // scripts that test it use their names.
-  { id: 'paris-diomede-names', group: 'talk', stage: 'bugfix', title: 'Hero now remembers Paris\u2019s and Diomede\u2019s names once they\u2019ve given them',
+  { id: 'paris-diomede-names', group: 'talk', stage: 'bugfix', title: 'The hero now remembers Paris\u2019s and Diomede\u2019s names once they\u2019ve given them',
     played: 'fork, 3 October 2026: after "name", Diomede in Cademia and Paris in Pnyx were labelled by name in the conversation, and unpatched they stayed unnamed; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: Diomede is labelled by name after "name"; Paris was not played there',
     edits: [
       { what: 'Paris keeps his name', resid: 0x1857, at: 0x013D,
@@ -1150,7 +1150,7 @@ const DATA_FIXES = [
   // The Books of Wisdom (0x1851): the task is struck at ten books, not five.
   // The eleventh To Do line, the one AddQuest shows at ten, reads "All ten of
   // the Sapphire Books of Wisdom have been retrieved".
-  { id: 'books-of-wisdom', group: 'quests', stage: 'further', title: 'The Books of Wisdom task is now struck off at ten books, instead of five',
+  { id: 'books-of-wisdom', group: 'quests', stage: 'further', title: 'The Books of Wisdom task now comes off the To Do list at ten books, instead of five',
     played: 'Mac OS 8.5, 11 October 2026, the fix alone and “All Fixes”, each installed by Magpie: five Sapphire Books handed to Selinus leave "Retrieve Books of Wisdom (5/10)" unticked, and ten tick it at (10/10), against ticked at (5/10) unpatched. The books were put in the hero’s pack by an edit. Not played in the fork',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'the Books of Wisdom struck at ten', 0x1851,
@@ -1234,7 +1234,7 @@ const DATA_FIXES = [
     ] }) },
   // Paris and Parium (the family group, 0x0805): "pari" took Parium's answer
   // first, so Paris's could not be given; Parium's is keyed "pariu".
-  { id: 'paris-parium', group: 'talk', stage: 'further', title: 'Paris no longer mistaken for Parium when asked about in conversation',
+  { id: 'paris-parium', group: 'talk', stage: 'further', title: 'The game no longer mistakes Paris for Parium when you ask about him',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, the person brought to the hero by the in-party bit: "paris" to Apis drew "Paris is married to my cousin Helen.", against "My cousin Parium runs the Green Goat Tavern and Inn in Catamarca - fine place." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "paris" to Apis drew "Paris is married to my cousin Helen."',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Parium keyed apart from Paris', 0x0805, 'pari', 'pariu', ['string(implicit) "\\"My cousin Parium']),
@@ -1439,7 +1439,7 @@ const DATA_FIXES = [
   // drawn the speech by then and reads nothing from it. Each place is found
   // by as much of the text before it as makes it the only one, or the only
   // ones, in its script.
-  { id: 'pause-keeps-letter', group: 'text', stage: 'further', title: 'The full stop or letter before a pause is now drawn, instead of dropped',
+  { id: 'pause-keeps-letter', group: 'text', stage: 'further', title: 'The game now draws the period or letter before a pause, instead of dropping it',
     played: 'in part: Mac OS 8.5, 13 October 2026, installed by Magpie alone and as \u201cAll Fixes\u201d: Hadrian met for the first time, "You see an older warrior, with a proud demeanor." with its full stop, against the same line without it unpatched from the same save. One place of 126; fork, 68K, 13 October 2026, alone and on \u201cAll Fixes\u201d: the same line, with and without its full stop',
     plan: (s) => {
       const texts = dataPatchTexts(s), textEdits = [];
@@ -1472,7 +1472,7 @@ const DATA_FIXES = [
   // *Found checking the 2025 StormThalion video*). The two other "^" in the
   // middle of a line (0x1856, 0x185B) come before the hero's name, which has
   // no article, and are left.
-  { id: 'missed-capital', group: 'text', stage: 'further', title: 'Misses and parries in combat are written “missed a ruffian”, instead of “missed A ruffian”',
+  { id: 'missed-capital', group: 'text', stage: 'further', title: 'Misses and parries in combat now read “missed a ruffian”, instead of “missed A ruffian”',
     plan: () => ({ textEdits: [
       { what: 'the target of a miss in small letters', resid: 0x0E87, find: ' missed ^', replace: ' missed ', count: 1 },
       { what: 'the attacker in a parry in small letters', resid: 0x0E87, find: ' parries ^', replace: ' parries ', count: 1 },
@@ -1708,7 +1708,7 @@ const DATA_FIXES = [
   // part a separate string: Selinus's line with the hero's name in it, and
   // a computer character's cast with no target, "X casts Y" (0xC4B,
   // 0xEA3), where the cast with a target (0xC4C) has one.
-  { id: 'printed-name-stops', group: 'text', stage: 'further', title: 'Three lines that end on a name or a spell end with a full stop, and a potion\u2019s line ends with a line break',
+  { id: 'printed-name-stops', group: 'text', stage: 'further', title: 'Three lines that end on a name or a spell end with a period, and a potion\u2019s line ends with a line break',
     plan: (s) => ({ edits: [
       // The Mage's Friend Potion's first "Nothing seems to happen." ends
       // without the line break its second has, so the next message runs on
@@ -1727,7 +1727,7 @@ const DATA_FIXES = [
   // this is a reading, which is why it is a design change. No bust has
   // Data1 3, so the inscription stays unseen.
   { id: 'bust-subjects', group: 'design', stage: 'further', title: 'Every bust has a line when examined, instead of twelve of the seventeen showing nothing',
-    note: 'The busts with Data1 1 are described as poor craftsmanship, and those with Data1 2 as busts of Alaric. Which line belongs to which bust is inferred from the busts placed, not stated in the file.',
+    note: 'The busts with Data1 1 get the line about poor craftsmanship, and those with Data1 2 the line about Alaric. The file does not say which line belongs to which bust, so the fix works it out from the busts placed.',
     plan: (s) => {
       const what = 'the bust’s tests', seq = ['if_not', 'arg Arg00', 'get_field data2', 'byte 0x01', 'eq', 'then ->', 'string(implicit) "The craftsmanship isn\'t very good',
         'branch', 'if_not', 'arg Arg00', 'get_field data3', 'byte 0x02', 'eq', 'then ->', 'string(implicit) "It is a bust of Alaric',
@@ -2133,7 +2133,7 @@ const DATA_FIXES = [
   // picture moves to aspect 1, the red cloth's picture, recoloured yellow,
   // is given aspect 0, and Ake's sale list is renamed to match. Red cloth
   // leaves the game.
-  { id: 'cloth-colours', group: 'design', stage: 'apart', title: 'Thread is now woven into cloth of the thread\u2019s colour, yellow, blue or green, instead of blue, red or green',
+  { id: 'cloth-colours', group: 'design', stage: 'apart', title: 'Thread is now woven into cloth of the thread\u2019s color, yellow, blue or green, instead of blue, red or green',
     played: 'fork, 68K, 10 October 2026, alone: cloth of aspects 0, 1 and 2 laid on a floor by an edit draws yellow, blue and green, against blue, red and green unpatched; fork, 68K, 16 October 2026, alone and with the other design changes: yellow thread used on a loom by a hero given the weaving skill makes cloth drawn yellow, against blue unpatched, and blue thread cloth drawn blue, against red; Ake, at her shop at noon, sells “Yellow Cloth”, “Blue Cloth” and “Green Cloth” with yellow, blue and green pictures, against “Blue Cloth”, “Red Cloth” and “Green Cloth” unpatched; Mac OS 8.5, 11 October 2026, a patch of the design changes installed by Magpie over “All Fixes”: cloth of aspects 0, 1 and 2 on a floor draws yellow, blue and green, against blue, red and green unpatched. The loom and Ake’s list were not seen on Mac OS',
     dataEdits: [
       { what: 'the cloth redrawn', resid: 0x8E2B, fn: (b) => {
@@ -2247,7 +2247,7 @@ const DATA_FIXES = [
   // the one step better than 0, which has no line; the mushroom steak's
   // three take the verdicts their script gives them as talk balloons,
   // "Not very good" 3, "Yetch!" 4 and "Not bad" 2.
-  { id: 'eat-to-heal', group: 'design', stage: 'apart', title: 'Food is eaten by the hero at once and restores health, with a line on how it tasted, instead of being fed to someone to stave off hunger; nobody in the party goes hungry',
+  { id: 'eat-to-heal', group: 'design', stage: 'apart', title: 'The hero eats food immediately and it restores health, with a line on how it tasted, instead of feeding someone to stave off hunger, and nobody in the party goes hungry',
     played: 'fork, 68K, 9 October 2026, alone and with every other fix: a hero at 10 of 28 health uses a stack of steak, "That was very good." and "That was tasty." and then "You aren\u2019t hungry." at full health with the rest of the stack kept, against "Feed to whom?" unpatched; a pomegranate, hand-baked bread, a mushroom steak and a dried jellyfish ("Yuck, that wasn\u2019t very good.", worth nothing) were eaten the same way; a starving Aethon with five flatbreads ate none and said nothing of hunger in five hundred turns, where unpatched he ate one within sixty; the steak run repeated on PowerPC; Mac OS 8.5, 11 October 2026, a patch of the design changes installed by Magpie over “All Fixes”: a hero at 10 of 28 uses a stack of six steaks four times, a line on the taste and then "You aren’t hungry." twice, 28 of 28 and four steaks left',
     edits: (() => {
       const eat = (worth, quality) => ['call_resource 0xE46', 'arg Arg00', ...worth, quality, 'end'].join('\n');
@@ -2286,7 +2286,7 @@ const DATA_FIXES = [
         { what: 'the mushroom steak is used on the hero', resid: 0x10D5, at: 0x00E0, to: 0x00F8, expect: { ...at(0x00E0, feed), 0x00F5: 'byte 0x01', 0x00F8: 'return' }, code: use },
       ];
     })() },
-  { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'The magic for a targeted spell is now spent once you choose the target, so a cancelled cast costs nothing, instead of before',
+  { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'A targeted spell now takes its magic once you choose the target, so a canceled cast costs nothing, instead of before',
     played: 'fork, 68K, 10 October 2026, alone: Awaken, given as an ability by an edit, performed and cancelled with Escape at "Cast ‘Awaken’ on whom?"; the hero’s magic saved as 30 of 60, untouched, against 29 unpatched; cast on its target, 29 on both. One spell of the 33; Mac OS 8.5, 11 October 2026, a patch of the design changes installed by Magpie over “All Fixes”: Awaken cancelled at its question leaves 30 of 60 magic, against 29 unpatched',
     plan: (s) => {
       const edits = [];
@@ -3450,7 +3450,7 @@ const DATA_FIX_COMMUNITY_TYPOS = [
    list in that place, is rejected rather than overwritten. */
 const DATA_RSRC_FIXES = [
   { id: 'editor-map-names', group: 'hidden', title: 'The Map Editor’s Names',
-    note: 'Three of the map editor’s names for the maps are misspelt; the signs and characters in the game have them right. The game never shows the editor’s names, so a player sees no change.',
+    note: 'Three of the map editor’s names for the maps are misspelled. The signs and characters in the game have them right. The game never shows the editor’s names, so a player sees no change.',
     rsrc: [
       { type: 'STR#', id: 135, index: 18, was: 'North Short Vinyard', now: 'North Shore Vineyard' },
       { type: 'STR#', id: 135, index: 20, was: 'Southland Vinyard', now: 'Southland Vineyard' },

@@ -88,10 +88,10 @@ function spellsMechSection() {
     // figures, and the roll is the first line here.
     sp.spells.length ? '' : 'No spell in this file is cast through the shared script.',
     sp.spells.length ? [
-      'The game adds two random numbers below the caster’s Casting figure, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>: the only number below 1 is 0. The caster spends the magic points even when the cast fails.',
+      'The game adds two random numbers below the caster’s Casting figure, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>, because the only number below 1 is 0. The caster spends the magic points even when the cast fails.',
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
       sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The caster pays the cost.',
-      'Spell damage works like a blow’s; the victim’s resistance applies, and the caster earns experience as usual.',
+      'Spell damage works like a blow’s. The victim’s resistance applies, and the caster earns experience as usual.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.character)) ? '<b>Fireball hurts only the character on the square it targets</b>, although by its description it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Non-magical damage, whether fire, electric, blunt or edged, does <b>nothing at all</b> to monsters that resist non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike count as magical, which is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
       'Spell damage prints no message, and <b>every enemy</b> means every hostile character on the loaded map, on screen or not, so Tremor hurts enemies you cannot see.',
@@ -100,7 +100,7 @@ function spellsMechSection() {
         if (!et || !et.alignmentByte || !et.enemy) return '';
         const rows = [];
         for (let a = 0; a < et.side; a++) rows.push(a + ': ' + et.table.v.slice(a * et.side, (a + 1) * et.side).join(' '));
-        return 'Who is an enemy comes from a ' + srcNum(et.table, et.side + '×' + et.side) + ' table of alignments, the caster’s down the side and the other character’s across, where ' + srcNum(et.enemy) + ' means enemy: <b>' + rows.join('; ') + '</b>.' +
+        return 'Who is an enemy comes from a ' + srcNum(et.table, et.side + '×' + et.side) + ' table of alignments, the caster’s down the side and the other character’s across, where ' + srcNum(et.enemy) + ' means enemy: <b>' + rows.join(' · ') + '</b>.' +
           (et.peace && et.peaceKey ? ' A cheat key ' + srcNum(et.peaceKey, 'makes nobody an enemy') + '.' : '');
       })(),
       'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune or the map.',
@@ -109,7 +109,7 @@ function spellsMechSection() {
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
         if (!t.length) return '';
         const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that need a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>: the target has to be in one of the eight squares around the caster. You can aim the rest anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
+        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that need a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>. The target has to be in one of the eight squares around the caster. You can aim the rest anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
       })()
     ].filter(Boolean) : [],
     '', '');
@@ -160,9 +160,9 @@ function libraryMechSection(lib) {
       '<b>' + countLink(passages + ' passages', 'The ' + passages + ' passages', lib.flatMap(d => d.entries.map(e => passageLink(d, e)))) + '</b> across <b>' +
         countLink(lib.length + ' arrays', 'The ' + lib.length + ' arrays of passages', resChips(lib.map(d => d.resid))) + '</b>, shown by ' + [...new Set(lib.flatMap(d => d.readers.map(r => r.name)))].join(', ') + '.',
       unshown.length ? '<b>' + countLink(String(unshown.length), 'The ' + unshown.length + ' passages that appear nowhere in play',
-        unshown.map(u => passageLink(u.d, u.e))) + ' appear nowhere in play</b>: no prop in the world and no script points to them. They exist in the file, but you cannot read them.' : '',
+        unshown.map(u => passageLink(u.d, u.e))) + ' appear nowhere in play</b>. No prop in the world and no script points to them. They exist in the file, but you cannot read them.' : '',
       dangling.length ? '<b>' + countLink(String(dangling.length), 'The ' + dangling.length + ' Data1 values that point to no passage',
-        dangling.map(x => svLink('Data1 ' + x.k, 'jumpToResource(' + x.d.resid + ')', '0x' + x.d.resid.toString(16).toUpperCase()))) + '</b> are the other way round: a thing in the world whose Data1 points to no passage.' : ''
+        dangling.map(x => svLink('Data1 ' + x.k, 'jumpToResource(' + x.d.resid + ')', '0x' + x.d.resid.toString(16).toUpperCase()))) + '</b> are the opposite case, a thing in the world whose Data1 points to no passage.' : ''
     ].filter(Boolean) : [],
     mechTable(['#passages', 'array', 'shown by', '#shown', '#not shown'], rows) +
     (unshown.length ? '<div class="partsTitle">Written, never shown</div>' +
@@ -192,7 +192,7 @@ function talkMechSection() {
     '<td class="mechSub">' + svEsc(s.character.slice(0, 5).map(c => c.name).join(', ') +
       (s.character.length > 5 ? ', and ' + (s.character.length - 5) + ' more' : '')) + '</td></tr>');
   return mechSectionEl('talk', 'Who Answers as Whom', null, '',
-    cv.chars.length ? 'A character answers from their topics first, then from topics shared with others: Naxos answers as 0x804, then 0x80E, then 0x801.'
+    cv.chars.length ? 'A character answers from their topics first, then from topics shared with others. Naxos, for one, answers as 0x804, then 0x80E, then 0x801.'
                     : 'No conversation in this file.',
     cv.chars.length ? [
       '<b>' + countLink(cv.chars.length + ' characters', 'The ' + cv.chars.length + ' characters with topics', cv.chars.map(c => charChip(c))) + '</b> hold <b>' +

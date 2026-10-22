@@ -108,14 +108,14 @@ const APP_FIXES = [
     bug: 'A one-square drag to the north-west does nothing',
     sites: [{ at: 0x28838, was: [0x41820064], asm: ['beq @0x28858          ; cursor 22 slides too'] }] },
 
-  { id: 'theft-moved', kind: 'fix', title: 'Taking someone else’s stuff after moving it along the ground is caught by the theft check',
+  { id: 'theft-moved', kind: 'fix', title: 'The theft check catches you taking someone else’s stuff after you move it along the ground',
     bug: 'Moving an item before taking it avoids the theft check',
     sites: [
       { at: 0x54FFC, was: [0x540007FF], asm: ['andi. 0, 0, 17        ; free if it was free, or carried'] },
       { at: 0x54258, was: [0x28000000, 0x41820010, 0x881E0000, 0x28000008, 0x40820094],
         asm: ['andi. 0, 0, 223       ; the moved bit aside', 'beq @0x5426C', 'cmplwi 0, 8', 'bne @0x542FC', 'nop'] }] },
 
-  { id: 'weight-contents', kind: 'fix', title: 'The scale and the shops weigh only the item, without adding in the contents of an unrelated character or thing',
+  { id: 'weight-contents', kind: 'fix', title: 'The scale and the shops weigh only the item, not the contents of an unrelated character or thing',
     bug: 'The scale gives wrong weights',
     sites: [{ at: 0x958A4, was: [0x4BFC01B5], asm: ['li 3, 0               ; was bl GetCurInvEncumb'] }] },
 
@@ -184,7 +184,7 @@ const APP_FIXES = [
   // tail's two middle words swap places, so the timing store has a separate
   // entry, and the party member's branch is taken; the others, and
   // behaviour 146, which enters the tail at its start, are unchanged.
-  { id: 'target-hunger', kind: 'fix', title: 'A companion whose target is gone goes back to following without its hunger set to 30',
+  { id: 'target-hunger', kind: 'fix', title: 'A companion whose target is gone goes back to following, and the game leaves its hunger alone instead of setting it to 30',
     played: 'fork, PowerPC, 30 September 2026: two companions saved at behavior 113 follow again with their food as it was',
     bug: 'Followers\' hunger and poison clear on their own',
     sites: [
@@ -218,7 +218,7 @@ const APP_FIXES = [
   // free: the clrlwi. before sets cr0 for the branch at 0x34170, and both
   // ways from it write r0 before reading it (workbench GRIMOIRE-NOTES,
   // grimoire/roster-art-fnlojp).
-  { id: 'roster-pose', kind: 'fix', title: 'A party member whose type has no figure frame is drawn at its first frame, or blank, instead of the tile before its sheet',
+  { id: 'roster-pose', kind: 'fix', title: 'The game draws a party member whose type has no figure frame at its first frame, or blank, instead of the tile before its sheet',
     played: 'fork, PowerPC, 3 October 2026: Aeneas and Omen forced into the party, Aeneas drawn as his corpse and Omen blank, against a golem and static unpatched',
     sites: [{ at: 0x34160, was: [0x54632036, 0x7C632670, 0x7C630734],
       asm: ['srwi 0, 3, 23          ; 0 for a number, 160 for None, True or False', 'slw 3, 3, 0           ; the frame, or 0 when the shift is 32 or more', 'extsh 3, 3'] }] },
@@ -380,7 +380,7 @@ const APP_FIXES = [
   // click was on a thing (312(1)), to the square the click named (318(1),
   // 316(1), which the branch passes to the Attack of a square), and ends
   // as before, which disarms the command: press the key again to go on.
-  { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach makes the hero step toward it, instead of doing nothing; so does a touch spell, which is still canceled',
+  { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach makes the hero step toward it, instead of doing nothing, and so does a touch spell, which the game still cancels',
     played: 'fork, PowerPC, 30 September 2026: Use from the popup and by U, Take by G; Paralyze on a student two squares off steps once and cancels, as the unpatched game cancels without the step',
     bug: 'Touch spells only work on someone next to you',
     sites: [{ at: 0x50E5C, was: [0x38600000], asm: ['b @cave               ; was li 3, 0 (and blr)'] },
@@ -423,7 +423,7 @@ const APP_FIXES = [
   // nothing has stored it there yet, so the cave does, as a glue stub would.
   // Packing a row into fewer bytes was the other design, and only moves the
   // limit.
-  { id: 'journal-rows', kind: 'fix', title: 'In a long journal the newest lines stay readable, the oldest dropped from the window, instead of new ones drawn blank',
+  { id: 'journal-rows', kind: 'fix', title: 'In a long journal the newest lines stay readable and the oldest leave the window, instead of the game drawing new ones blank',
     bug: 'The journal breaks when it gets too long',
     sites: [
       { at: 0x78684, was: [0x4804A4B5], asm: ['bl @cave              ; was bl LAddRow, the entry’s header'] },
@@ -509,7 +509,7 @@ const APP_FIXES = [
   // constant 0, which the first build of this did and so read record 0,
   // the night guards keeping the hero's unit until a trace showed r12 at
   // 0x3FF; add and a displacement load take r0 as the register it is.
-  { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit is given one, the night guard a guard’s, instead of reading its stats and corpse from nowhere',
+  { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit gets one (the night guard gets a guard’s), instead of reading its stats and corpse from nowhere',
     played: 'fork, PowerPC, 30 September 2026: Odemia’s night guards hatch with a guard’s stats and side and leave a guard’s body, where they had 1 health and left none',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [
@@ -616,7 +616,7 @@ const APP_FIXES = [
   // lock and every path through it, music-revert's too, are unchanged.
   // Read, not reproduced (no moved block was forced): the board's "wrong instruments, distorted timing"
   // after long play fits it and nothing here shows it is the cause.
-  { id: 'music-lock', kind: 'fix', title: 'The music a zone starts is held in place before the old tune is let go, so it is never played from memory that has moved',
+  { id: 'music-lock', kind: 'fix', title: 'The game holds the music a zone starts in place before it lets the old tune go, so it never plays music from memory that has moved',
     bug: 'Music stops after a revert, and MIDI gets corrupted in long play',
     sites: [{ at: 0x1BBE4, was: [0x4BFFEF75], asm: ['b @hold               ; was bl GMSPlayAmbient'] }],
     cave: ['hold:', 'lwz 3, -30396(2)      ; the cache, as GMSPlayAmbient finds it', 'lwz 3, 0(3)', 'lwz 3, 0(3)', 'mr 4, 31              ; the tune\'s data',
