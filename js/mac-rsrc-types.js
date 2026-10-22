@@ -91,7 +91,7 @@ function decodeLite(data){
   ctx.putImageData(img,0,0);
   const mid=n>>1;
   const row=[]; for(let x=0;x<n;x++) row.push(data[1+mid*n+x]);
-  return { canvas:c, side:n, max:mx, centre:data[1+mid*n+mid],
+  return { canvas:c, side:n, max:mx, center:data[1+mid*n+mid],
     text:'A light cone '+n+' squares across, brightness 0 to '+mx+'.\n'+
       'Middle row: '+row.join(' ')+'\n\n'+
       Array.from({length:n},(_,y)=>Array.from({length:n},(_,x)=>{

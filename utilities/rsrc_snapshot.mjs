@@ -116,7 +116,7 @@ function describe(type, entry, data) {
     // The engine's types, and Cythera's. Lite arrived with the light cones
     // and was never added here, so twenty-five resources were being drawn by a
     // decoder nothing guarded; the rest landed together on 7 September 2026.
-    case 'Lite': { const l = G.decodeLite(data); return l ? `lite:${l.side}:${l.max}:${l.centre}:${canvasSig(l.canvas)}:${hash(l.text)}` : null; }
+    case 'Lite': { const l = G.decodeLite(data); return l ? `lite:${l.side}:${l.max}:${l.center}:${canvasSig(l.canvas)}:${hash(l.text)}` : null; }
     case 'TILE': { const t = G.decodeTileSheetResource(data); return t ? `tile:${canvasSig(t.canvas)}:${hash(t.text)}` : null; }
     case 'TxSt': { const s = G.decodeTxSt(data);
       if (s) return `txst:${s.size}:${s.face}:${s.font}`;

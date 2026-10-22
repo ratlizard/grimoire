@@ -233,7 +233,7 @@ try {
       let drawn = 0;
       for (const e of list) {
         const l = ctx.decodeLite(app.dataOf('Lite', e));
-        if (l && l.canvas.width === l.side && l.canvas.height === l.side && l.max === 32 && l.centre === 32) { drawn++; sides.push(l.side); }
+        if (l && l.canvas.width === l.side && l.canvas.height === l.side && l.max === 32 && l.center === 32) { drawn++; sides.push(l.side); }
       }
       if (drawn !== list.length) fail('light cones', drawn + ' of ' + list.length + ' decoded');
       else if (Math.min(...sides) !== 8 || Math.max(...sides) !== 120) fail('light cones', 'the sides are not 8 to 120: ' + sides.join(','));
