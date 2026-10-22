@@ -10,7 +10,7 @@
 //
 //   calls       every syscall and method the function's ops call is written, by
 //               its name taken apart the way the Read view splits it
-//               (dvmSayName) -- a call left out of a sentence is a thing the
+//               (dvmProseName) -- a call left out of a sentence is a thing the
 //               function does that the reader is not shown;
 //   conditions  every test in the recovered tree -- each if, if-else, while,
 //               for, do-while and each conditional jump left over -- is a
@@ -63,23 +63,23 @@ sandbox.__a = new Uint8Array(readFileSync(dataPath));
 ev('parseArchiveBytes(__a, {name: "Cythera Data"})');
 
 const CONTROLS = {
-  calls: {say: 'every syscall written as nothing',
-    code: `(() => { const was = dvmSayCall; dvmSayCall = function (n, c) { return /^sys /.test(n.mn) ? '' : was(n, c); }; })();`},
-  conditions: {say: 'every block’s heading dropped, its body kept',
-    code: `(() => { const was = dvmSayTree; dvmSayTree = function (t, c, l) { return was(t, c, l).flatMap(x => x.kids ? x.kids : [x]); }; })();`},
-  self: {say: 'no function taken to be a method',
+  calls: {description: 'every syscall written as nothing',
+    code: `(() => { const was = dvmProseCall; dvmProseCall = function (n, c) { return /^sys /.test(n.mn) ? '' : was(n, c); }; })();`},
+  conditions: {description: 'every block’s heading dropped, its body kept',
+    code: `(() => { const was = dvmProseTree; dvmProseTree = function (t, c, l) { return was(t, c, l).flatMap(x => x.kids ? x.kids : [x]); }; })();`},
+  self: {description: 'no function taken to be a method',
     code: `(() => { const was = dvmReadRender; dvmReadRender = function (a, b, r) { return was(a, b, r).map(f => f.self ? Object.assign({}, f, { self: true, clauses: JSON.parse(JSON.stringify(f.clauses).split('"it"').join('"Arg00"').split(' it ').join(' Arg00 ').split('its ').join('Arg00\u2019s ')) }) : f); }; })();`},
-  helpers: {say: 'a helper read through without its name',
+  helpers: {description: 'a helper read through without its name',
     code: `(() => { const was = dvmFoldNote; dvmFoldNote = function (c, t) { if (typeof t === 'string' && /^(0x[0-9A-F]+|[A-Z]\\w+)$/.test(t)) return; return was(c, t); }; })();`},
-  prompts: {say: 'every follow-up prompt flattened into its parent',
-    code: `(() => { const was = dvmSayConversation; dvmSayConversation = function (s, c) { return was(s, c).map(x => x.kids ? Object.assign({}, x, { kids: x.kids.filter(k => k.prompt === undefined) }) : x); }; })();`},
-  strings: {say: 'every print clause dropped',
-    code: `(() => { const was = dvmSayTree; dvmSayTree = function (t, c, l) { return was(t, c, l).filter(x => !/^print /.test(x.text)); }; })();`},
+  prompts: {description: 'every follow-up prompt flattened into its parent',
+    code: `(() => { const was = dvmProseConversation; dvmProseConversation = function (s, c) { return was(s, c).map(x => x.kids ? Object.assign({}, x, { kids: x.kids.filter(k => k.prompt === undefined) }) : x); }; })();`},
+  strings: {description: 'every print clause dropped',
+    code: `(() => { const was = dvmProseTree; dvmProseTree = function (t, c, l) { return was(t, c, l).filter(x => !/^print /.test(x.text)); }; })();`},
 };
 if (control) {
   if (!CONTROLS[control]) { console.error(`no control called ${control}; there are ${Object.keys(CONTROLS).join(', ')}`); process.exit(2); }
   ev(CONTROLS[control].code);
-  console.log(`  (control: ${CONTROLS[control].say})`);
+  console.log(`  (control: ${CONTROLS[control].description})`);
 }
 
 const fails = {calls: [], conditions: [], strings: [], words: [], self: [], prompts: [], helpers: []};
@@ -116,7 +116,7 @@ const stats = ev(`(() => {
           let name = null;
           if (/^sys /.test(mn)) name = dvmSyscallShown(mn.slice(4));
           else if (mn === 'method') name = dvmPlainName(dvmBareOperand(o[3]));
-          if (name) { out.calls++; if (text.indexOf(dvmSayName(name)) < 0) out.fails.calls.push(where + ': ' + name); }
+          if (name) { out.calls++; if (text.indexOf(dvmProseName(name)) < 0) out.fails.calls.push(where + ': ' + name); }
           if (mn === 'call_resource') {
             const id = /0x([0-9A-F]{2,4})\\b/i.exec(String(o[3] || ''));
             const rid = id ? parseInt(id[1], 16) : null;
@@ -128,9 +128,9 @@ const stats = ev(`(() => {
           if (mn === 'string' || mn === 'string(implicit)') { out.strings++; const lit = dvmBareOperand(o[3]); if (text.indexOf(lit) < 0) out.fails.strings.push(where + ': ' + lit.slice(0, 40)); }
         }
         if (f.tree) {
-          const want = tests(f.tree), have = heads(f.clauses);
-          out.conditions += want;
-          if (want !== have) out.fails.conditions.push(where + ': ' + want + ' tests, ' + have + ' clauses');
+          const expected = tests(f.tree), have = heads(f.clauses);
+          out.conditions += expected;
+          if (expected !== have) out.fails.conditions.push(where + ': ' + expected + ' tests, ' + have + ' clauses');
         }
         if (f.self) { out.methods++; if (/\\bArg00\\b/.test(text)) out.fails.self.push(where + ' reads Arg00'); }
         const bad = /\\bundefined\\b|\\bnull\\b|\\/\\*under\\*\\//.exec(text);

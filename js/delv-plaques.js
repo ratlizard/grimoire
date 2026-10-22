@@ -74,7 +74,7 @@ const START_PLAQUES = {
     { id: 142, word: 'Preferences', x: 431, y: 102 },
     { id: 143, word: 'About', x: 431, y: 179 },
     { id: 144, word: 'Quit', x: 431, y: 255 },
-    { id: 145, word: 'Onward', x: 167, y: 102, greyed: true }
+    { id: 145, word: 'Onward', x: 167, y: 102, grayed: true }
   ],
   // The stone, a long hexagon inside the bronze frame; the same in all seven.
   outline: [[20, 1], [131, 1], [147, 15], [131, 29], [20, 29], [4, 15]],

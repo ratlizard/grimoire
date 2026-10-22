@@ -30,7 +30,7 @@
    of its bytes -- which is what they are, length-prefixed. Who says it is
    the character whose dialogue script it is in; a line in a shared or an
    object script is anyone's. */
-function buildBarkCatalogue() {
+function buildBarkCatalog() {
   if (DERIVED.BARKS) return DERIVED.BARKS;
   const out = [];
   const runsOf = bytes => {
@@ -85,7 +85,7 @@ function buildBarkCatalogue() {
           }
           return runsOf(data.subarray(at + 1, Math.min(data.length, at + 1 + 2 + len)));
         };
-        const who = subn === 23 ? ri : null;
+        const character = subn === 23 ? ri : null;
         for (let k = 0; k < ops.length; k++) {
           const [, depth, mn, txt] = ops[k];
           if (mn === 'set_field' && /talk_balloon/.test(String(txt))) {
@@ -103,14 +103,14 @@ function buildBarkCatalogue() {
               }
               break;
             }
-            if (words && words.length) out.push({ resid, who, how, words });
+            if (words && words.length) out.push({ resid, character, how, words });
           } else if (mn === 'call_resource' && /0xC8[45]\b|\(0xC8[45]\)/i.test(String(txt))) {
             const lists = [];
             for (let j = k + 1; j < ops.length; j++) {
               if (ops[j][1] <= depth && ops[j][2] === 'end') break;
               if (ops[j][2] === 'data') lists.push(dataWords(j));
             }
-            if (lists[0] && lists[0].length) out.push({ resid, who, how: 'one of', words: lists[0], then: lists[1] || null,
+            if (lists[0] && lists[0].length) out.push({ resid, character, how: 'one of', words: lists[0], then: lists[1] || null,
               helper: /C84/i.test(String(txt)) ? 'wine' : 'food' });
           }
         }
@@ -221,7 +221,7 @@ function diceGame() {
 function diceOpts() { try { return (diceGame() || {}).opts || {}; } catch (e) { return {}; } }
 
 /* ---- Components > Text > Barks ------------------------------------------
-   The catalogue buildBarkCatalogue makes, as a table: who says it, the
+   The catalog buildBarkCatalog makes, as a table: who says it, the
    words, and the script it is in. A person is a chip to their dossier; a
    line in a shared or an object script is anyone's and is a chip to the
    script. The rule the lines obey is under Entities > Mechanics. */
@@ -305,7 +305,7 @@ function skillKind(resid) { const k = SKILL_KINDS.find(k => resid >= k[0] && res
 // Which Mechanics section a skill is part of, by what its rule is read from.
 const SKILL_RULES = { Attack: 'combat', Defense: 'combat', Sword: 'combat', Axe: 'combat', Mace: 'combat', Barehand: 'combat', Missile: 'combat', Shield: 'combat',
   Mana: 'experience', Casting: 'spells', Gambling: 'dice', Haggling: 'shops', 'Lock Picking': 'locks' };
-function skillCatalogue() {
+function skillCatalog() {
   const out = [];
   const tr = trainingRules(), sk = skillConsultations(), gear = gearTable();
   for (let r = 0x1AC0; r < 0x1B00; r++) {
@@ -315,8 +315,8 @@ function skillCatalogue() {
     out.push({ resid: r, id, name, kind: skillKind(r),
       description: dvmDescriptionOf(r),
       lessons: dvmLessonLines(r),
-      teachers: tr.teachers.filter(t => t.skills.has(id)).map(t => ({ who: t.who, resid: t.resid, mastery: !!t.skills.get(id) })),
-      askedBy: [...(sk.by.get(id) || [])].sort((a, b) => a - b),
+      teachers: tr.teachers.filter(t => t.skills.has(id)).map(t => ({ character: t.character, resid: t.resid, mastery: !!t.skills.get(id) })),
+      checkedBy: [...(sk.by.get(id) || [])].sort((a, b) => a - b),
       weapons: gear.filter(g => g.skill === name) });
   }
   return out;
@@ -385,7 +385,7 @@ function renderSkillsSheet() {
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
-  const all = skillCatalogue();
+  const all = skillCatalog();
   const shown = all.filter(x => !q || x.name.toLowerCase().includes(q) || x.description.toLowerCase().includes(q));
   const box = document.createElement('div');
   box.className = 'mechView';
@@ -418,8 +418,8 @@ function renderSkillsSheet() {
       if (x.description) { const p = document.createElement('p'); p.className = 'mechLede'; p.innerHTML = svEsc(x.description); sec.appendChild(p); }
       const rows = [];
       if (kind !== 'command') {
-        rows.push(['Taught by', x.teachers.length ? x.teachers.map(t => (t.who !== null && characterRecord(t.who) ? characterChip(t.who) : svChip(t.resid)) + (t.mastery ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') : '<span class="inspDim">no teacher in this file</span>']);
-        if (x.askedBy.length) rows.push(['Checked by', x.askedBy.map(r => svChip(r)).join(' ')]);
+        rows.push(['Taught by', x.teachers.length ? x.teachers.map(t => (t.character !== null && characterRecord(t.character) ? characterChip(t.character) : svChip(t.resid)) + (t.mastery ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') : '<span class="inspDim">no teacher in this file</span>']);
+        if (x.checkedBy.length) rows.push(['Checked by', x.checkedBy.map(r => svChip(r)).join(' ')]);
         if (x.weapons.length) rows.push(['Swung with it', x.weapons.map(w => propChip(w.pt, w.name)).join(' ')]);
         const rule = SKILL_RULES[x.name];
         rows.push(['The rule', (rule ? ruleLink(rule) + ' ' : '') + mechLink('training', 'Mechanics › Training')]);
@@ -488,7 +488,7 @@ function renderSkillsSheet() {
    nothing further, so a record with that bit clear reads as dead whatever
    its health (Peirithous, at 21 of 21, and the empty records 187 to 191 a
    conversation borrows a portrait from). The same bit ScheduleTime tests
-   (exeScheduleWho's aliveBit). The load and the test, as exe values; null
+   (exeScheduleRules's aliveBit). The load and the test, as exe values; null
    with no application open or when the shape is not found. */
 function exeCharWindowAlive() {
   const ops = exeOpsNamed('TCharacterWindow::DrawStatPart');
@@ -499,7 +499,7 @@ function exeCharWindowAlive() {
   }
   return null;
 }
-function exeScheduleWho() {
+function exeScheduleRules() {
   const ops = exeOpsNamed('ScheduleTime');
   if (!ops.length) return null;
   const out = {};
@@ -535,9 +535,9 @@ function exeScheduleWho() {
    that lands on the default, does nothing by itself, except 176 to 255,
    which the default hands to PerformAI as a combat program. Null with no
    application open. */
-function exeBehaviours() {
+function exeBehaviors() {
   if (!appImage()) return null;
-  if (DERIVED.BEHAVIOURS !== undefined) return DERIVED.BEHAVIOURS;
+  if (DERIVED.BEHAVIORS !== undefined) return DERIVED.BEHAVIORS;
   let out = null;
   try {
     const ops = exeOpsNamed('TActiveMonster::DoMove'), img = appImage();
@@ -583,12 +583,12 @@ function exeBehaviours() {
       }) };
     }
   } catch (e) { quiet(e, 'the behaviors, off DoMove'); }
-  return (DERIVED.BEHAVIOURS = out);
+  return (DERIVED.BEHAVIORS = out);
 }
 // What behaviour v does, in this page's words for the routines its
 // handler calls; null where the program is not open.
-function behaviourDoes(v) {
-  const b = exeBehaviours();
+function behaviorDoes(v) {
+  const b = exeBehaviors();
   if (!b) return null;
   if (v >= 176 && v <= 255) return { does: 'fights by combat program ' + v, at: null };
   const c = v < b.count ? b.cases[v] : null;
@@ -618,19 +618,19 @@ function behaviourDoes(v) {
   return { does, at: c.at, wait: c.wait };
 }
 // A behaviour's words as a sheet shows them: the game's word for it
-// (dvmBehaviourWords) or else what the handler does; the other, and the
+// (dvmBehaviorWords) or else what the handler does; the other, and the
 // wait, in the title. Empty when neither is known.
-function behaviourWordHTML(v) {
+function behaviorWordHTML(v) {
   let word = null;
-  try { word = ARCHIVE && refExists(0x3007) ? dvmBehaviourWords(ARCHIVE).get(v) : null; } catch (e) { quiet(e); }
-  const d = behaviourDoes(v);
+  try { word = ARCHIVE && refExists(0x3007) ? dvmBehaviorWords(ARCHIVE).get(v) : null; } catch (e) { quiet(e); }
+  const d = behaviorDoes(v);
   const shown = word || (d && d.does);
   const title = [word && d ? d.does : null, d && d.wait ? 'waits ' + d.wait.v + ' between turns' : null].filter(Boolean).join(', ');
   return shown ? '<span' + (title ? ' title="' + svEsc(title) + '"' : '') + '>' + svEsc(shown) + '</span>' : '';
 }
 // The number too, linked to its handler where the program is open.
-function behaviourHTML(v) {
-  const d = behaviourDoes(v), w = behaviourWordHTML(v);
+function behaviorHTML(v) {
+  const d = behaviorDoes(v), w = behaviorWordHTML(v);
   return (d && d.at ? srcNum({ v, exe: d.at.exe }, String(v)) : svEsc(String(v))) + (w ? ' ' + w : '');
 }
 // Every script site that sets a character's behaviour to `value`: a
@@ -664,19 +664,19 @@ function renderSchedulesSheet() {
   const scheds = loadSchedules();
   const box = document.createElement('div');
   box.className = 'mechView';
-  // Who is scheduled at all, read off ScheduleTime (exeScheduleWho); with
+  // Who is scheduled at all, read off ScheduleTime (exeScheduleRules); with
   // no application open, the sheet shows only where the rule comes from,
   // not the rule itself.
   {
-    const who = appImage() ? exeScheduleWho() : null;
+    const character = appImage() ? exeScheduleRules() : null;
     const lede = document.createElement('p');
     lede.className = 'mechLede';
-    if (who) {
-      const waits = behaviorSetSites(who.waiting.value.v);
-      lede.innerHTML = 'Each hour, everyone goes to their next place except ' + srcNum(who.partyBit.bit, 'the party') + ', ' +
-        srcNum(who.aliveBit.mask, 'the dead') + ', companions ' + srcNum(who.waiting.value, 'told to wait') +
+    if (character) {
+      const waits = behaviorSetSites(character.waiting.value.v);
+      lede.innerHTML = 'Each hour, everyone goes to their next place except ' + srcNum(character.partyBit.bit, 'the party') + ', ' +
+        srcNum(character.aliveBit.mask, 'the dead') + ', companions ' + srcNum(character.waiting.value, 'told to wait') +
         (waits.length ? ' (by ' + waits.map(w => srcNum({ resid: w.resid, at: w.at }, labelFor(w.resid) || propWordHex(w.resid))).join(', ') + ')' : '') +
-        ', and anyone ' + srcNum(who.monsterWord.disp, 'in a fight') + '. ' + pefChip('ScheduleTime');
+        ', and anyone ' + srcNum(character.monsterWord.disp, 'in a fight') + '. ' + pefChip('ScheduleTime');
     } else lede.innerHTML = 'The program is not open, so the page cannot show who each hour skips. The days below come from the file.';
     box.appendChild(lede);
   }
@@ -754,7 +754,7 @@ function renderSchedulesSheet() {
       const where = e.level === 255 ? '<span class="inspDim">off every map</span>'
         : svLink(zoneDisplayName(e.level) || ('zone ' + e.level), 'atlasOpenSquare(' + (0x8000 + e.level) + ',' + e.x + ',' + e.y + ')', e.x + ', ' + e.y);
       return '<tr><td class="num">' + ampm(e.hour) + '</td><td>' + where + '</td><td>' + (c ? (programmed && sameHour(k, -1) ? 'instead, ' : '') + conditionHTML(c) : programmed && sameHour(k, 1) ? 'otherwise' : '') + '</td>' +
-        '<td>' + behaviourHTML(e.mode) + '</td></tr>';
+        '<td>' + behaviorHTML(e.mode) + '</td></tr>';
     }).join('');
     const d = document.createElement('div'); d.className = 'mechBody';
     d.innerHTML = '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">from</th><th>where</th><th>when</th><th>behavior</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
@@ -844,7 +844,7 @@ function renderSpellsSheet() {
     if (x.description) { const p = document.createElement('p'); p.className = 'mechLede'; p.innerHTML = svEsc(x.description); sec.appendChild(p); }
     const rows = [];
     if (x.fx) {
-      for (const d of x.fx.damage) rows.push(['Damage', '<b>' + srcNum({ resid: x.resid, at: d.at }, amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.who]);
+      for (const d of x.fx.damage) rows.push(['Damage', '<b>' + srcNum({ resid: x.resid, at: d.at }, amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.character]);
       for (const h of x.fx.heals) rows.push(['Heals', '<b>' + srcNum({ resid: x.resid, at: h.at }, h.text) + '</b>']);
     }
     if (x.status.length) rows.push(['Applies', x.status.join(', ') + ' <span class="inspDim">(clock units' + (unitsNote || '') + ')</span>']);
@@ -873,18 +873,18 @@ function renderBarksSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
-  const barks = buildBarkCatalogue();
+  const barks = buildBarkCatalog();
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
   const shown = barks.filter(b => !q || b.words.concat(b.then || []).some(w => w.toLowerCase().includes(q)) ||
-    (b.who !== null && characterName(b.who).toLowerCase().includes(q)));
+    (b.character !== null && characterName(b.character).toLowerCase().includes(q)));
   const rows = [];
   for (const b of shown) {
-    const who = b.who !== null && characterRecord(b.who) ? characterChip(b.who)
+    const character = b.character !== null && characterRecord(b.character) ? characterChip(b.character)
       : '<span class="inspDim">anyone, </span>' + svChip(b.resid);
     const words = b.words.map(w => '“' + svEsc(w) + '”').join(', ');
-    rows.push('<tr><td>' + who + '</td><td>' + (b.how === 'one of' ? '<span class="inspDim">one of</span> ' : '') + words +
+    rows.push('<tr><td>' + character + '</td><td>' + (b.how === 'one of' ? '<span class="inspDim">one of</span> ' : '') + words +
       (b.then && b.then.length ? '<div class="inspDim">then, when the ' + b.helper + ' comes: ' + b.then.map(w => '“' + svEsc(w) + '”').join(', ') + '</div>' : '') +
-      '</td><td>' + (b.who !== null ? svChip(b.resid) : '') + '</td></tr>');
+      '</td><td>' + (b.character !== null ? svChip(b.resid) : '') + '</td></tr>');
   }
   const scroll = document.createElement('div');
   scroll.className = 'tableScroll';
@@ -917,18 +917,18 @@ function gearTable() {
     const f = k => { const e = cls.data.find(x => x.key === k); return e ? e.words.map(w => (w & 0xF0000000) ? null : (w & 0x0FFFFFFF)) : null; };
     // Where each entry sits in the class script, for the table's links.
     const at = k => { const e = cls.data.find(x => x.key === k); return e ? { resid: cls.resid, at: e.off } : null; };
-    const melee = f(0x2A), thrown = f(0x2B), armour = f(0x2C), ammo = f(0x2D), ranged = f(0x2E), shield = f(0x2F);
-    if (!(melee || thrown || armour || ammo || ranged || shield)) continue;
+    const melee = f(0x2A), thrown = f(0x2B), armor = f(0x2C), ammo = f(0x2D), ranged = f(0x2E), shield = f(0x2F);
+    if (!(melee || thrown || armor || ammo || ranged || shield)) continue;
     const skillName = id => (id !== null && id !== undefined && refExists(0x1A00 + id) && selfNameFor(0x1A00 + id)) || (id !== null && id !== undefined ? 'skill ' + id : '');
     rows.push({ pt, name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)), weight: itemWeight(pt),
-      melee, thrown, armour, ammo, ranged, shield,
+      melee, thrown, armor, ammo, ranged, shield,
       damage: melee ? melee[0] : thrown ? thrown[0] : ammo ? ammo[1] : null,
       thrownDamage: thrown ? thrown[0] : null, thrownRange: thrown ? thrown[1] : null,
       reach: melee ? melee[1] : thrown ? thrown[1] : ranged ? ranged[1] : null,
       type: melee ? melee[2] : ammo ? ammo[2] : null,
       skill: melee ? skillName(melee[3]) : shield ? skillName(shield[1]) : '',
       ammoClass: ranged ? ranged[0] : ammo ? ammo[0] : null,
-      block: shield ? shield[0] : null, protection: armour ? armour[0] : null,
+      block: shield ? shield[0] : null, protection: armor ? armor[0] : null,
       src: { weight: at(0x24), damage: melee ? at(0x2A) : thrown ? at(0x2B) : ammo ? at(0x2D) : null, thrown: at(0x2B),
              reach: melee ? at(0x2A) : thrown ? at(0x2B) : ranged ? at(0x2E) : null, type: melee ? at(0x2A) : ammo ? at(0x2D) : null,
              ammoClass: ranged ? at(0x2E) : ammo ? at(0x2D) : null, block: at(0x2F), protection: at(0x2C) } });
@@ -1057,11 +1057,11 @@ function heroCreationRules() {
   const e = dvmScriptEntry(0x1801);
   if (!e) return null;
   const ops = dvmOpsOf(e), first = ops.length ? ops[0].obj : 0;
-  const mine = ops.filter(o => o.obj === first);
+  const firstOps = ops.filter(o => o.obj === first);
   const numAfter = (re, from) => {
-    for (let i = from || 0; i < mine.length; i++) {
-      if (!re.test(mine[i].text)) continue;
-      for (let k = i + 1; k < Math.min(mine.length, i + 5); k++) if (DVM_NUM.test(mine[k].text)) return { val: dvmVal(0x1801, mine[k]), i: k };
+    for (let i = from || 0; i < firstOps.length; i++) {
+      if (!re.test(firstOps[i].text)) continue;
+      for (let k = i + 1; k < Math.min(firstOps.length, i + 5); k++) if (DVM_NUM.test(firstOps[k].text)) return { val: dvmVal(0x1801, firstOps[k]), i: k };
       return null;
     }
     return null;
@@ -1169,9 +1169,9 @@ function effectSummary(entry) {
     }
     else if (/sys SpecialView/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); out.push({ text: 'a special view' + (m ? ' (' + parseInt(m[1]) + ')' : ''), src: at(i) }); }
   }
-  const said = /string\(implicit\) "([^"\\]{3,80})/.exec(text);
+  const quotedText = /string\(implicit\) "([^"\\]{3,80})/.exec(text);
   const effects = out.filter((x, i) => out.findIndex(y => y.text === x.text) === i);
-  return { does: effects.map(x => x.text), effects, says: said ? said[1] : '' };
+  return { does: effects.map(x => x.text), effects, message: quotedText ? quotedText[1] : '' };
 }
 function foodRules() {
   const idx = buildScriptTextIndex();
@@ -1216,7 +1216,7 @@ function foodRules() {
       const base = tiles[pt];
       // The line the eater says: one string for every variant, or a table
       // of strings indexed by the aspect like the nutrition is.
-      let says = '', saysPer = null;
+      let message = '', messagePerVariant = null;
       const balloon = /set_field talk_balloon[\s\S]{0,160}?(?=set_field nutrition)/.exec(lines.join(' '));
       if (balloon) {
         const c = /string "([^"]*)"/.exec(balloon[0]);
@@ -1226,21 +1226,21 @@ function foodRules() {
             // The block is 0x45, a length, 0x90, a count, then drefs
             // (0x80000000 | resid << 16 | offset) back into this resource,
             // each at a string.
-            for (let k = 0; k + 6 < d.length && !saysPer; k++) {
+            for (let k = 0; k + 6 < d.length && !messagePerVariant; k++) {
               if (d[k] !== 0x45 || d[k + 3] !== 0x90) continue;
               const n = d[k + 4], strs = [];
               for (let q = 0; q < n; q++) { const p = k + 5 + q * 4; if (p + 4 > d.length) break; const wv = u32be(d, p); if (!(wv & 0x80000000) || ((wv & 0x7FFF0000) >>> 16) !== e.resid) break; const v = dvmDataValue(d, wv & 0xFFFF); if (typeof v !== 'string') break; strs.push(v); }
-              if (n && strs.length === n) saysPer = strs;
+              if (n && strs.length === n) messagePerVariant = strs;
             }
-          } catch (err) { saysPer = null; }
-        } else if (c) says = c[1];
+          } catch (err) { messagePerVariant = null; }
+        } else if (c) message = c[1];
       }
       // A line from the table is not at an instruction, so it links to the
       // one that shows the balloon.
       const bop = balloon ? dvmOpsOf(e).find(o => /^set_field talk_balloon/.test(o.text)) : null;
-      const saysSrc = bop ? { resid: e.resid, at: bop.at } : null;
-      const variants = table ? table.map((v, a) => ({ aspect: a, name: base !== undefined ? (terrainNameFor(base + a) || '') : '', plus: v * mul, src: tableSrc, says: saysPer ? (saysPer[a] || '') : says, saysSrc })) : [];
-      foods.push({ pt, name, variants, mul, says, saysPer: !!saysPer });
+      const messageSrc = bop ? { resid: e.resid, at: bop.at } : null;
+      const variants = table ? table.map((v, a) => ({ aspect: a, name: base !== undefined ? (terrainNameFor(base + a) || '') : '', plus: v * mul, src: tableSrc, message: messagePerVariant ? (messagePerVariant[a] || '') : message, messageSrc })) : [];
+      foods.push({ pt, name, variants, mul, message, messagePerVariant: !!messagePerVariant });
       continue;
     }
     foods.push({ pt, name, plus: null });
@@ -1389,7 +1389,7 @@ function srcQuote(sv) { return sv ? srcNum(sv, '“' + sv.v.replace(/\*/g, ' ').
 // A line a reader already has, quoted as given and linked to the first
 // string of `resids` (a script or several) that contains it; unlinked when
 // none does, so a reader that rewrote its words still prints them.
-function srcSaid(resids, text) {
+function srcQuoteText(resids, text) {
   if (!text) return '';
   const words = String(text).replace(/\*/g, ' ').trim();
   for (const r of [].concat(resids)) { const sv = r === null || r === undefined ? null : dvmStringVal(r, words); if (sv) return srcNum(sv, '“' + words + '”'); }
@@ -1400,13 +1400,13 @@ function srcSaid(resids, text) {
 // or null.
 function dvmSeq(ops, i, pat) {
   if (i < 0 || i + pat.length > ops.length) return null;
-  const got = [];
+  const matchingOps = [];
   for (let k = 0; k < pat.length; k++) {
     const op = ops[i + k];
     if (pat[k] && !pat[k].test(op.text)) return null;
-    got.push(op);
+    matchingOps.push(op);
   }
-  return got;
+  return matchingOps;
 }
 function dvmSeqFirst(ops, pat, from) {
   for (let i = from || 0; i < ops.length; i++) { const g = dvmSeq(ops, i, pat); if (g) return g; }
@@ -1481,9 +1481,9 @@ window.TABLE_AT = null;
    (jumpToForkBytes), so the chain reads Scenario, Components, Data rather
    than Scenario, Data. */
 function jumpToTableAt(resid, byte, stride) {
-  let known = false;
-  try { known = recordTables().some(t => t.resid === resid); } catch (e) { known = false; }
-  if (known) {
+  let isRecordTable = false;
+  try { isRecordTable = recordTables().some(t => t.resid === resid); } catch (e) { isRecordTable = false; }
+  if (isRecordTable) {
     window.RECORD_AT = { resid, byte };
     if (!showCategory('RECORDS')) return false;
     showRecordDetail(resid, byte);
@@ -1645,7 +1645,7 @@ function bashRule(resid) {
   // magically locked one only that way: the condition is
   // locked || (magically locked && damage > strength x factor).
   const magicOnlyDestroyed = !!dvmSeqFirst(ops, [/^eq$/, /^or$/, /^arg Arg01$/, /^arg Arg00$/, /^class_member 0x3400$/, DVM_NUM, /^mul$/, /^gt$/, /^and$/, /^or$/]);
-  const says = ops.map(dvmOpString).filter(Boolean);
+  const message = ops.map(dvmOpString).filter(Boolean);
   const spills = ops.some(o => o.text === 'call_resource 0xE48');
   // Anything inside it flagged 2 is used on the one attacking and removed
   // before the blow is judged.
@@ -1668,8 +1668,8 @@ function bashRule(resid) {
   const destroyG = byClass || byArg;
   return { resid, destroy, opens: opens ? { resid, at: opens[0].at } : null,
            wear: wear ? dvmVal(resid, wear[3]) : null, step: step ? dvmVal(resid, step[5]) : null,
-           magicOnlyDestroyed, says, spills, setsOff,
-           saysDestroyed: lineAfter(destroyG), saysOpened: lineAfter(opens), saysWorn: lineAfter(wear), saysHeld: lineAfter(wear, 1) };
+           magicOnlyDestroyed, message, spills, setsOff,
+           messageDestroyed: lineAfter(destroyG), messageOpened: lineAfter(opens), messageWorn: lineAfter(wear), messageHeld: lineAfter(wear, 1) };
 }
 // The weapons whose damage type passes `test`, off their classes, and a
 // bare hand where the outcome routine's type for one passes it too.
@@ -1739,7 +1739,7 @@ function damageTakers() {
     const aspects = dvmSeqAll(ops, [/^set_field aspect/, /^arg Arg00$/, /^end$/, DVM_NUM]).map(g => val(g[3]));
     const deletes = !!dvmSeqFirst(ops, [/^sys Delete$/, /^arg Arg00$/]);
     const spillAt = ops.findIndex(o => o.text === 'call_resource 0xE48');
-    const says = ops.map(dvmOpString).filter(Boolean);
+    const message = ops.map(dvmOpString).filter(Boolean);
     let strength = null;
     if (door || ownLock) {
       const lk = cls.data.find(x => x.key === 0x34);
@@ -1751,7 +1751,7 @@ function damageTakers() {
       rule: door ? 'door' : chest ? 'chest' : ownLock ? 'lock' : dataDefault || overData2 ? 'data2' : 'own',
       strength, data2Default: dataDefault ? val(dataDefault[9]) : null, wear: wear ? val(wear[3]) : null,
       becomes: becomes ? val(becomes[3]) : null, aspects, deletes, spills: spillAt >= 0 ? dvmOpString(dvmCallArgs(ops, spillAt).find(o => /^string/.test(o.mn))) || '' : null,
-      says });
+      message });
   }
   return { rows, door: bashRule(0xE49), chest: bashRule(0xE4A) };
 }
@@ -1821,8 +1821,8 @@ function dvmCallSites(target) {
         if (disc.kinds[off] !== 'function') continue;
         let end = data.length; for (const o2 of offs) if (o2 > off && o2 < end) end = o2;
         let ops; try { ops = dvmDisassemble(data.slice(off, end), 3).ops; } catch (e) { continue; }
-        const want = new RegExp('0x' + target.toString(16).toUpperCase().padStart(3, '0') + '\\b|\\(0x' + target.toString(16).toUpperCase() + '\\)', 'i');
-        ops.forEach((op, k) => { if (op[2] === 'call_resource' && want.test(String(op[3]))) out.push({ resid, subn, data, off, ops, k }); });
+        const targetPattern = new RegExp('0x' + target.toString(16).toUpperCase().padStart(3, '0') + '\\b|\\(0x' + target.toString(16).toUpperCase() + '\\)', 'i');
+        ops.forEach((op, k) => { if (op[2] === 'call_resource' && targetPattern.test(String(op[3]))) out.push({ resid, subn, data, off, ops, k }); });
       }
     }
   }
@@ -1849,14 +1849,14 @@ function lockRules() {
   const rule = pick ? { breaks: /The lockpick broke/.test(pick.text), keyFits: /The key doesn't fit/.test(pick.text),
     formula: !!(f && /get_field reflex/.test(pick.text)), numbers,
     lk: numbers ? { pickRoll: numbers.pickRoll.v, base: numbers.base.v, lockRoll: numbers.lockRoll.v, addend: numbers.addend.v, per: numbers.per.v, step: numbers.step.v } : null } : null;
-  const needsSkill = !!(item && /GetSkill[\s\S]{0,140}short 0x00D5/.test(item.text));
+  const requiresSkill = !!(item && /GetSkill[\s\S]{0,140}short 0x00D5/.test(item.text));
   const classes = [];
   for (let pt = 1; pt < 512; pt++) {
     const cls = parseItemClass(pt); if (!cls) continue;
     const f = cls.data.find(x => x.key === 0x34);
     if (f) classes.push({ pt, name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)), words: f.words.map(w => w & 0x0FFFFFFF), src: { resid: cls.resid, at: f.off } });
   }
-  return { rule, needsSkill, classes };
+  return { rule, requiresSkill, classes };
 }
 
 /* SHOPS. Every vendor calls one helper, 0xEA5, with a name for the shop, a
@@ -1875,7 +1875,7 @@ function shopRules() {
     const goods = (gb ? gb.value : []).filter(g => Array.isArray(g) && g.length >= 3)
       .map(g => ({ word: g[0], name: String(g[1]), price: g[2], count: g[3], src: { resid, at: gb.at } }));
     const tb = blocks.find(b => Array.isArray(b.value) && b.value.length === 4 && b.value.every(x => typeof x === 'number')) || null;
-    if (goods.length) shops.push({ resid, who: subn === 23 ? resid & 0xFF : null, title, goods, terms: tb ? tb.value : null, termsSrc: tb ? { resid, at: tb.at } : null });
+    if (goods.length) shops.push({ resid, character: subn === 23 ? resid & 0xFF : null, title, goods, terms: tb ? tb.value : null, termsSrc: tb ? { resid, at: tb.at } : null });
   }
   // Haggling: after GetSkill of skill 0xCC, a Random(0, n) taken off the figure.
   const ho = dvmOpsOf(dvmScriptEntry(0xEA5));
@@ -1896,9 +1896,9 @@ function trainingRules() {
   const byTeacher = new Map();
   for (const site of dvmCallSites(0xEB1)) {
     const { resid, subn, data, off, ops, k } = site;
-    const who = subn === 23 ? resid & 0xFF : null;
+    const character = subn === 23 ? resid & 0xFF : null;
     const key = resid;
-    if (!byTeacher.has(key)) byTeacher.set(key, { resid, who, skills: new Map() });
+    if (!byTeacher.has(key)) byTeacher.set(key, { resid, character, skills: new Map() });
     const t = byTeacher.get(key);
     const args = ops.slice(k + 1, k + 8);
     const mastery = args.some(o => o[2] === 'word' && /True/.test(String(o[3])));
@@ -2166,7 +2166,7 @@ function terrainRules() {
   const chance = dvmSeqFirst(ops, [/^sys Random$/, DVM_NUM, DVM_NUM, /^end$/, DVM_NUM, /^eq$/]);
   const bite = dvmSeqFirst(ops, [/^method TakeDamage/, /^arg Arg00$/, DVM_NUM, DVM_NUM]);
   const poison = dvmSeqFirst(ops, [/^sys SetFlag$/, /^arg Arg00$/, DVM_NUM]);
-  const saysBit = ops.map(dvmOpString).filter(Boolean);
+  const bitLines = ops.map(dvmOpString).filter(Boolean);
   // Lava: one code, a separate flag, and a roll for the damage.
   const lavaAt = dvmSeqFirst(ops, [/^arg Arg01$/, DVM_NUM, /^eq$/]);
   const lavaGuard = lavaAt ? guard(ops.indexOf(lavaAt[2])) : null;
@@ -2180,13 +2180,13 @@ function terrainRules() {
       chance: chance ? { lo: val(chance[1]), hi: val(chance[2]), is: val(chance[4]) } : null,
       damage: val(bite[2]), type: val(bite[3]),
       poison: poison ? val(poison[2]) : null, poisonName: poison ? flagName(poison[2]) : null,
-      says: saysBit[0] || ''
+      message: bitLines[0] || ''
     } : null,
     lava: lavaAt && burn ? {
       code: val(lavaAt[1]),
       flag: lavaGuard ? val(lavaGuard[2]) : null, flagName: lavaGuard ? flagName(lavaGuard[2]) : null,
       roll: { lo: val(burn[3]), hi: val(burn[4]) }, plus: val(burn[6]), type: val(burn[8]),
-      says: saysBit[1] || ''
+      message: bitLines[1] || ''
     } : null,
     onProp
   };
@@ -2217,7 +2217,7 @@ function springRules() {
   for (let i = 0; i < tests.length; i++) {
     const from = tests[i].at, to = i + 1 < tests.length ? tests[i + 1].at : ops.length;
     const span = ops.slice(from, to);
-    const says = span.map(dvmOpString).filter(Boolean);
+    const message = span.map(dvmOpString).filter(Boolean);
     const heal = dvmSeqFirst(span, [/^set_field health/, /^local Var\w+$/, /^end$/, /^local Var\w+$/, /^get_field health/, /^sys Random$/, DVM_NUM, DVM_NUM]);
     const food = dvmSeqFirst(span, [/^set_field nutrition/, /^local Var\w+$/, /^end$/, /^local Var\w+$/, /^get_field nutrition/, DVM_NUM, /^add$/]);
     const cap = dvmSeqFirst(span, [/^get_field nutrition/, DVM_NUM, /^lt$/]);
@@ -2226,7 +2226,7 @@ function springRules() {
     const hurt = dvmSeqFirst(span, [/^call_resource 0x3041$/, /^global CurrentCharacter/, /^sys Random$/, DVM_NUM, DVM_NUM, /^end$/, DVM_NUM, /^add$/, DVM_NUM]);
     const wish = span.some(o => /^sys OpenConversation$/.test(o.text));
     const chance = wish ? dvmSeqFirst(span, [/^sys Random$/, DVM_NUM, DVM_NUM, /^end$/, DVM_NUM, /^eq$/]) : null;
-    kinds.push({ kind: tests[i].kind, val: tests[i].val, says,
+    kinds.push({ kind: tests[i].kind, val: tests[i].val, message,
       heal: heal ? { lo: val(heal[6]), hi: val(heal[7]) } : null,
       food: food ? { plus: val(food[5]), below: cap ? val(cap[1]) : null } : null,
       sets, clears, wish,
@@ -2297,9 +2297,9 @@ function grantRules() {
     if (!cls || !cls.code.length) continue;
     const ops = dvmOpsOf(dvmScriptEntry(cls.resid));
     for (const m of cls.code) {
-      const mine = ops.filter(o => o.obj === m.off);
-      if (!mine.length) continue;
-      const sets = dvmSeqAll(mine, [/^sys SetFlag$/, /^arg Arg\d+$/, DVM_NUM]).map(g => g[2]);
+      const firstOps = ops.filter(o => o.obj === m.off);
+      if (!firstOps.length) continue;
+      const sets = dvmSeqAll(firstOps, [/^sys SetFlag$/, /^arg Arg\d+$/, DVM_NUM]).map(g => g[2]);
       if (!sets.length) continue;
       for (const op of sets) {
         const name = dvmFlagNameOfOp(op);
@@ -2309,8 +2309,8 @@ function grantRules() {
         let clearedBy = null;
         for (const other of cls.code) {
           if (other.key === m.key) continue;
-          const theirs = ops.filter(o => o.obj === other.off);
-          if (dvmSeqAll(theirs, [/^sys ClearFlag$/, /^arg Arg\d+$/, DVM_NUM]).some(g => dvmNum(g[2]) === dvmNum(op))) { clearedBy = itemFieldLabel(other.key); break; }
+          const otherOps = ops.filter(o => o.obj === other.off);
+          if (dvmSeqAll(otherOps, [/^sys ClearFlag$/, /^arg Arg\d+$/, DVM_NUM]).some(g => dvmNum(g[2]) === dvmNum(op))) { clearedBy = itemFieldLabel(other.key); break; }
         }
         rows.push({ pt, resid: cls.resid, key: m.key, method: itemFieldLabel(m.key), clearedBy,
                     name: propDisplayName(pt) || ('prop 0x' + pt.toString(16)),
@@ -2339,7 +2339,7 @@ function blastRules() {
   const hit = dvmSeqFirst(ops, [/^call_resource 0xEB8$/, /^local Var\w+$/, /^local Var\w+$/, DVM_NUM]);
   const span = dvmSeqFirst(ops, [/^sys RangeIterator$/, /^word &Var\w+$/, DVM_NUM, DVM_NUM, DVM_NUM]);
   if (!both || !hit) return null;
-  return { resid: 0x1142, centre: val(both[10]), edge: either ? val(either[10]) : null, corner: rest.length ? val(rest[0]) : null,
+  return { resid: 0x1142, center: val(both[10]), edge: either ? val(either[10]) : null, corner: rest.length ? val(rest[0]) : null,
            type: val(hit[3]), side: span ? val(span[4]) : null,
            fuse: (dvmSeqFirst(ops, [/^set_field data1/, /^arg Arg00$/, /^end$/, DVM_NUM]) || [])[3] ? val(dvmSeqFirst(ops, [/^set_field data1/, /^arg Arg00$/, /^end$/, DVM_NUM])[3]) : null };
 }
@@ -2720,7 +2720,7 @@ function libraryRules() {
   // redraws far more often than the Mechanics sheet ever did.
   if (DERIVED.LIBRARY_RULES) return DERIVED.LIBRARY_RULES;
   const docs = new Map();
-  const want = new Map();
+  const fieldsByType = new Map();
   const sent = new Map();
   const doc = tid => {
     if (!docs.has(tid)) docs.set(tid, { resid: tid, readers: [], entries: [], placed: new Map(), made: new Map() });
@@ -2744,8 +2744,8 @@ function libraryRules() {
       if (d.readers.some(r => r.pt === pt && r.field === field)) return;
       d.readers.push({ pt, resid: cls.resid, field, at: g[0].at,
                        name: propDisplayName(pt) || ('prop ' + pt) });
-      if (!want.has(pt)) want.set(pt, []);
-      want.get(pt).push({ d, field });
+      if (!fieldsByType.has(pt)) fieldsByType.set(pt, []);
+      fieldsByType.get(pt).push({ d, field });
     };
     for (const g of dvmSeqAll(ops, [/^call_resource 0xE6[45]$/, /^arg Arg\d+$/, /\[\d+\]\s*$/, /^arg Arg\d+$/, /^get_field data[12]\b/, /^add$/])) wire(g, 2, 4);
     for (const g of dvmSeqAll(ops, [/^print$/, /\[\d+\]\s*$/, /^arg Arg\d+$/, /^get_field data[12]\b/, /^add$/])) wire(g, 1, 3);
@@ -2776,7 +2776,7 @@ function libraryRules() {
     for (let z = 1; z < 0x100; z++) {
       if (!refExists(0x8100 + z)) continue;
       for (const r of parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, 0x8100 + z), 0x8100 + z).data)) {
-        const ws = want.get(r.proptype);
+        const ws = fieldsByType.get(r.proptype);
         if (!ws || r.flags === 0xFF || (r.flags & 0x40)) continue;
         for (const w of ws) {
           const k = w.field === 'd2' ? r.d2 : r.d1;
@@ -2793,7 +2793,7 @@ function libraryRules() {
     let ops = [];
     try { ops = dvmOpsOf(e); } catch (err) { continue; }
     for (const g of dvmSeqAll(ops, [/^sys Create$/, CREATE_RECIPIENT, DVM_NUM, DVM_NUM])) {
-      const ws = want.get(dvmNum(g[2]) & 0x3FF);
+      const ws = fieldsByType.get(dvmNum(g[2]) & 0x3FF);
       if (!ws) continue;
       const d1 = dvmNum(g[3]);
       for (const w of ws) {
@@ -2932,18 +2932,18 @@ function looseEnds() {
       };
       const isHelper = !(e.resid >= 0x1800 && e.resid < 0x1900);
       for (const g of dvmSeqAll(ops, [/^call_resource 0xF02$/, null, VAL])) {
-        const who = own(g[1]);
-        if (who) for (const c of who) putSite(cfTests, c + ':' + dvmNum(g[2]), e.resid, g[2].at);
+        const character = own(g[1]);
+        if (character) for (const c of character) putSite(cfTests, c + ':' + dvmNum(g[2]), e.resid, g[2].at);
       }
       for (const g of dvmSeqAll(ops, [/^call_resource (?:SetCharacterFlag \(0xF00\)|0xF00)$/, null, VAL])) {
-        const who = own(g[1]), bit = dvmNum(g[2]);
-        if (who) who.forEach(c => cfSets.add(c + ':' + bit));
+        const character = own(g[1]), bit = dvmNum(g[2]);
+        if (character) character.forEach(c => cfSets.add(c + ':' + bit));
         else if (isHelper && /^arg Arg00$/.test(g[1].text)) { if (!cfHelperSelf.has(e.resid)) cfHelperSelf.set(e.resid, new Set()); cfHelperSelf.get(e.resid).add(bit); }
         else cfWild.add(bit);
       }
       for (const g of dvmSeqAll(ops, [/^sys AddTask$/, null, /^(?:byte|short|word) (?:167|0xA7)$/i, null, VAL])) {
-        const who = own(g[3]), bit = dvmNum(g[4]);
-        if (who) { who.forEach(c => cfSets.add(c + ':' + bit)); continue; }
+        const character = own(g[3]), bit = dvmNum(g[4]);
+        if (character) { character.forEach(c => cfSets.add(c + ':' + bit)); continue; }
         const lv = /^local Var([0-9A-F]+)$/i.exec(g[3].text);
         const it = lv && dvmSeqFirst(ops, [new RegExp('^set_local 0x' + lv[1] + '$', 'i'), /^sys ArrayIterator$/, null, VAL, /^arg Arg\w+$/]);
         if (isHelper && it) {
@@ -2981,7 +2981,7 @@ function looseEnds() {
     if (!made.size) continue;
     for (const s of set) {
       const t = JSON.parse(s);
-      if (t.v !== 0 && !made.has(t.v)) unreachable.push({ state: k, want: t, assigned: [...made].sort((a, b) => a - b) });
+      if (t.v !== 0 && !made.has(t.v)) unreachable.push({ state: k, testedValue: t, assigned: [...made].sort((a, b) => a - b) });
     }
   }
   const only = (a, b) => [...a.keys()].filter(k => !b.has(k)).sort((x, y) => x - y);
@@ -2991,9 +2991,9 @@ function looseEnds() {
     const self = cfHelperSelf.get(call.helper);
     if (self) {
       const a0 = call.args[0];
-      const who = a0 && /^arg Arg00$/.test(a0.text) && call.caller >= 0x1800 && call.caller < 0x1900 ? [call.caller - 0x1800]
+      const character = a0 && /^arg Arg00$/.test(a0.text) && call.caller >= 0x1800 && call.caller < 0x1900 ? [call.caller - 0x1800]
                 : a0 && VAL.test(a0.text) ? [dvmNum(a0)] : null;
-      if (who) for (const c of who) for (const b of self) cfSets.add(c + ':' + b);
+      if (character) for (const c of character) for (const b of self) cfSets.add(c + ':' + b);
       else for (const b of self) cfWild.add(b);
     }
     for (const t of cfHelperTask.get(call.helper) || []) {
@@ -3188,8 +3188,8 @@ function looseEnds() {
       for (let i = 0; i + 2 < fo.length; i++) {
         const m = fo[i].text === 'if_not' && /^local Var([0-9A-F]+)$/i.exec(fo[i + 1].text);
         if (!m || !/^then /.test(fo[i + 2].text)) continue;
-        const got = sets.get(parseInt(m[1], 16)) || [];
-        if (got.length && got.every(t => /^(?:word False|word None|byte 0x00)$/.test(t))) localOnlyFalse.push({ resid: e.resid, at: fo[i + 1].at });
+        const setValues = sets.get(parseInt(m[1], 16)) || [];
+        if (setValues.length && setValues.every(t => /^(?:word False|word None|byte 0x00)$/.test(t))) localOnlyFalse.push({ resid: e.resid, at: fo[i + 1].at });
       }
     }
   }
@@ -3209,13 +3209,13 @@ function looseEnds() {
     const alive = j => ops[j + 2] && /^get_field status_flags\b/.test(ops[j + 1].text) && /^byte (?:0x01|1)$/.test(ops[j + 2].text);
     for (let i = 0; i < ops.length; i++) {
       if (ops[i].text !== 'word Character.' + selfName) continue;
-      if (alive(i)) { selfAlive.push({ resid: e.resid, at: ops[i].at, who: e.resid - 0x1800 }); continue; }
+      if (alive(i)) { selfAlive.push({ resid: e.resid, at: ops[i].at, character: e.resid - 0x1800 }); continue; }
       const m = i > 0 && /^set_local 0x([0-9A-F]+)$/i.exec(ops[i - 1].text);
       if (!m) continue;
       const local = 'local Var' + m[1].toUpperCase().padStart(2, '0');
       for (let j = i + 1; j < ops.length; j++) {
         if (ops[j].text === 'set_local 0x' + m[1]) break;
-        if (ops[j].text === local && alive(j)) { selfAlive.push({ resid: e.resid, at: ops[i].at, who: e.resid - 0x1800 }); break; }
+        if (ops[j].text === local && alive(j)) { selfAlive.push({ resid: e.resid, at: ops[i].at, character: e.resid - 0x1800 }); break; }
       }
     }
   }
@@ -3280,7 +3280,7 @@ function spriteRepeats() {
    lit ones. The three that go dark properly are the reader's control. */
 function goesDarkStillLit() {
   const VAL = /^(?:byte|short|word) (?:-?0x[0-9A-F]+|-?\d+)$/i;
-  const SAYS_DARK = /stops glowing|goes out|burn(?:s|ed)? out|extinguish|snuff|turning gr[ae]y|goes dark|put out/i;
+  const GOES_DARK = /stops glowing|goes out|burn(?:s|ed)? out|extinguish|snuff|turning gr[ae]y|goes dark|put out/i;
   const out = [];
   let attrs = null, props = null;
   try { attrs = getTileAttributes(ARCHIVE); props = getPropTileList(); } catch (e) { return out; }
@@ -3291,10 +3291,10 @@ function goesDarkStillLit() {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
     for (let i = 0; i + 3 < ops.length; i++) {
       if (!/^set_field aspect\b/.test(ops[i].text) || !VAL.test(ops[i + 3].text)) continue;
-      const said = ops.slice(Math.max(0, i - 8), i).map(o => dvmOpString(o)).filter(Boolean).join(' ');
-      if (!SAYS_DARK.test(said)) continue;
+      const quotedText = ops.slice(Math.max(0, i - 8), i).map(o => dvmOpString(o)).filter(Boolean).join(' ');
+      if (!GOES_DARK.test(quotedText)) continue;
       const k = dvmNum(ops[i + 3]);
-      out.push({ pt, aspect: dvmVal(e.resid, ops[i + 3]), tile: base + k, light: (attrs[base + k] || 0) & 3, said });
+      out.push({ pt, aspect: dvmVal(e.resid, ops[i + 3]), tile: base + k, light: (attrs[base + k] || 0) & 3, message: quotedText });
     }
   }
   return out;
@@ -3319,15 +3319,15 @@ function scheduleCollisions() {
     for (const e of list) { if (e.hour < last) segs.push([]); segs[segs.length - 1].push(e); last = e.hour; }
     for (const seg of segs) {
       const real = seg.filter(e => e.mode !== 0);
-      real.forEach((e, k) => { const end = k + 1 < real.length ? real[k + 1].hour : 24; if (end > e.hour) spans.push({ who: i, level: e.level, x: e.x, y: e.y, mode: e.mode, from: e.hour, to: end }); });
+      real.forEach((e, k) => { const end = k + 1 < real.length ? real[k + 1].hour : 24; if (end > e.hour) spans.push({ character: i, level: e.level, x: e.x, y: e.y, mode: e.mode, from: e.hour, to: end }); });
     }
   });
   const out = [];
   for (let a = 0; a < spans.length; a++) for (let b = a + 1; b < spans.length; b++) {
     const p = spans[a], q = spans[b];
-    if (p.who === q.who || p.level !== q.level || p.x !== q.x || p.y !== q.y || p.mode !== q.mode) continue;
+    if (p.character === q.character || p.level !== q.level || p.x !== q.x || p.y !== q.y || p.mode !== q.mode) continue;
     const from = Math.max(p.from, q.from), to = Math.min(p.to, q.to);
-    if (from < to) out.push({ a: p.who, b: q.who, level: p.level, x: p.x, y: p.y, from, to });
+    if (from < to) out.push({ a: p.character, b: q.character, level: p.level, x: p.x, y: p.y, from, to });
   }
   return out;
 }
@@ -3347,7 +3347,7 @@ function nameNeverKept() {
     if (!name) continue;
     const kept = ops.some((o, i) => /^call_resource (?:SetCharacterFlag \(0xF00\)|0xF00)$/.test(o.text) && ops[i + 2] && /^byte (?:0x07|7)$/.test(ops[i + 2].text) &&
       (/^arg Arg00$/.test(ops[i + 1].text) || dvmNum(ops[i + 1]) === self));
-    if (!kept) out.push({ who: self, resid: e.resid, at: name.at });
+    if (!kept) out.push({ character: self, resid: e.resid, at: name.at });
   }
   return out;
 }
@@ -3368,15 +3368,15 @@ function askedOfNobody() {
     if (!a || a.words.length < 2 || ((a.words[1] >>> 28) & 0xF) !== 0x9) continue;
     const arr = dvmArrayWords(c.bytes, a.words[1] & 0xFFFF);
     if (!arr) continue;
-    for (const w of arr) { const who = w & 0xFFFF; if (!written.has(who)) written.set(who, []); written.get(who).push(pt); }
+    for (const w of arr) { const character = w & 0xFFFF; if (!written.has(character)) written.set(character, []); written.get(character).push(pt); }
   }
   const out = [];
-  for (const [who, pts] of written) {
-    const e = dvmScriptEntry(0x1800 + who);
+  for (const [character, pts] of written) {
+    const e = dvmScriptEntry(0x1800 + character);
     if (!e) continue;
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
     if (ops.some(o => /^call_resource (?:AskAbout \()?0xEB6\)?$/.test(o.text))) continue;
-    out.push({ who, items: pts, resid: 0x1800 + who });
+    out.push({ character, items: pts, resid: 0x1800 + character });
   }
   return out;
 }
@@ -3436,15 +3436,15 @@ function answersThatRunOn() {
     for (let i = 0; i < ops.length; i++) {
       const m = RESP.exec(ops[i].text);
       if (!m) continue;
-      let reach = 0, says = false, stops = false, j = i + 1;
+      let reach = 0, message = false, stops = false, j = i + 1;
       for (; j < ops.length && !RESP.test(ops[j].text); j++) {
         const t = ops[j].text;
         const th = /^then -> 0x([0-9A-F]+)$/i.exec(t);
         if (th) reach = Math.max(reach, parseInt(th[1], 16));
-        if (/^string/.test(t)) says = true;
+        if (/^string/.test(t)) message = true;
         if (/^(?:branch |exit|conversation_prompt)/.test(t) || (/^return/.test(t) && reach <= ops[j].at)) { stops = true; break; }
       }
-      if (stops || j >= ops.length || !says) continue;
+      if (stops || j >= ops.length || !message) continue;
       let then = null;
       for (const kw of m[1].split(',')) if ((then = answerFor(j, kw))) break;
       if (!then && (m[1] === 'y' || m[1] === 'n' || !/^string/.test(ops[j - 1].text))) continue;
@@ -3475,14 +3475,14 @@ function answersThatRunOn() {
    need instructions?" for a hero with no oboloi. */
 function linesReplacedAtOnce() {
   const out = [];
-  const said = t => { const m = /^string(?:\(implicit\))? "(.*)"$/s.exec(t); if (!m) return null; try { return JSON.parse('"' + m[1] + '"'); } catch (err) { return null; } };
+  const quotedText = t => { const m = /^string(?:\(implicit\))? "(.*)"$/s.exec(t); if (!m) return null; try { return JSON.parse('"' + m[1] + '"'); } catch (err) { return null; } };
   const RESP = /^conversation_response "([^"]*)" -> 0x([0-9A-F]+)$/i;
   const STOP = /^(?:conversation_prompt|return|exit|print|gui_|method |local Var|sys (?!TalkParticipant|SetFlag|ClearFlag|TestFlag|AddQuest|CompleteQuest|Random|GetState|SetState|IsInParty|WhoHasItem|GetSkill)|call_resource (?!SetCharacterFlag|0xF0[12]\b|CountMoneyInParty))/;
   for (const e of buildScriptTextIndex()) {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
     const index = new Map(ops.map((o, k) => [o.at, k]));
     for (let i = 0; i < ops.length; i++) {
-      const a = said(ops[i].text);
+      const a = quotedText(ops[i].text);
       if (a === null) continue;
       const pair = /"\s*"/.exec(a);
       if (pair && (a.slice(0, pair.index).split('"').length - 1) % 2 === 1)
@@ -3497,7 +3497,7 @@ function linesReplacedAtOnce() {
       let speaker = false;
       for (let j = i + 1, steps = 0; j !== undefined && j < ops.length && steps < 400; steps++) {
         const t = ops[j].text;
-        const b = said(t);
+        const b = quotedText(t);
         if (b !== null) {
           if (b.startsWith('"')) out.push({ resid: e.resid, at: ops[i].at, line: a, next: b, nextAt: ops[j].at, oneString: false, speaker });
           break;
@@ -3547,11 +3547,11 @@ function selfToldByGroup() {
       if (!gops) continue;
       const i = gops.findIndex(x => { const m = RESP.exec(x.text); return m && m[1].split(',').includes(k); });
       if (i < 0) continue;
-      const said = [];
-      for (let j = i + 1; j < gops.length && !RESP.test(gops[j].text); j++) { const t = dvmOpString(gops[j]); if (t) said.push(t); }
+      const quotedText = [];
+      for (let j = i + 1; j < gops.length && !RESP.test(gops[j].text); j++) { const t = dvmOpString(gops[j]); if (t) quotedText.push(t); }
       // The group's answer has to be about this character, by name; Paris
       // asked "Paris" is told about his cousin Parium, which is shadowed's.
-      if (said.some(t => t.includes(name))) out.push({ who: n, key: k, resid: group, at: gops[i].at, said: said[0] });
+      if (quotedText.some(t => t.includes(name))) out.push({ character: n, key: k, resid: group, at: gops[i].at, message: quotedText[0] });
       break;
     }
   }
@@ -3610,11 +3610,11 @@ function refusalOnEveryCheck() {
     // The carcass's is a line and a bare return, which the listing shows as
     // the line alone (dvmProseHead), so it has no ops to find.
     const ph = dvmProseHead(c.bytes.subarray(span[0] + 3, span[1]));
-    if (ph && ph.bare) { out.push({ pt, resid: 0x1000 + pt, at: span[0] + 3, said: decodeMacRoman(ph.head) }); continue; }
+    if (ph && ph.bare) { out.push({ pt, resid: 0x1000 + pt, at: span[0] + 3, message: decodeMacRoman(ph.head) }); continue; }
     const e = dvmScriptEntry(0x1000 + pt);
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
-    const said = ops.find(o => o.at >= span[0] && o.at < span[1] && dvmOpString(o));
-    if (said) out.push({ pt, resid: 0x1000 + pt, at: said.at, said: dvmOpString(said) });
+    const quotedText = ops.find(o => o.at >= span[0] && o.at < span[1] && dvmOpString(o));
+    if (quotedText) out.push({ pt, resid: 0x1000 + pt, at: quotedText.at, message: dvmOpString(quotedText) });
   }
   return out;
 }
@@ -3660,9 +3660,9 @@ function highlightsUnanswered() {
         const w = m[1].toLowerCase();
         if (keys.some(k => w.startsWith(k))) continue;
         const id = r + ':' + o.at + ':' + w;
-        if (!lines.has(id)) lines.set(id, { resid: r, at: o.at, word: m[1], who: [] });
+        if (!lines.has(id)) lines.set(id, { resid: r, at: o.at, word: m[1], character: [] });
         const l = lines.get(id);
-        if (!l.who.includes(n)) l.who.push(n);
+        if (!l.character.includes(n)) l.character.push(n);
       }
     }
   }
@@ -3755,7 +3755,7 @@ function leaveNeverLeaves() {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
     const leave = ops.find(o => /^conversation_response "(?:[^"]*,)?leav/.test(o.text));
     if (leave && ops.some(o => o.text === 'sys JoinParty') && !ops.some(o => o.text === 'sys LeaveParty'))
-      out.push({ who: e.resid - 0x1800, resid: e.resid, at: leave.at });
+      out.push({ character: e.resid - 0x1800, resid: e.resid, at: leave.at });
   }
   return out;
 }
@@ -3930,11 +3930,11 @@ function puzzleRules() {
     const val = op => dvmVal(0x113F, op);
     const step = dvmSeqFirst(ops, [/^get_field data1/, /^sys GetState$/, VAL_ANY, /^end$/, VAL_ANY, /^add$/, /^eq$/]);
     const last = dvmSeqFirst(ops, [/^get_field data1/, VAL_ANY, /^eq$/]);
-    const says = ops.map(dvmOpString).filter(Boolean);
+    const message = ops.map(dvmOpString).filter(Boolean);
     if (step) out.braziers = { resid: 0x113F, state: val(step[2]), plus: val(step[4]),
                                last: last ? val(last[1]) : null,
-                               say: says.filter(s => s.length > 60)[0] || null,
-                               lit: says.filter(s => /lit|extinguish/i.test(s)) };
+                               say: message.filter(s => s.length > 60)[0] || null,
+                               lit: message.filter(s => /lit|extinguish/i.test(s)) };
   }
   const bt = dvmScriptEntry(0x1104);
   if (bt) {
@@ -4473,8 +4473,8 @@ function convRules() {
     shapes.get(key).push(ch);
   }
   return DERIVED.CONV_RULES = { chars, groups, gname,
-           shapes: [...shapes.entries()].map(([k, who]) => ({ shape: k, who }))
-                     .sort((a, b) => b.who.length - a.who.length) };
+           shapes: [...shapes.entries()].map(([k, character]) => ({ shape: k, character }))
+                     .sort((a, b) => b.character.length - a.character.length) };
 }
 
 /* WHAT THE SCRIPTS LEAN ON. The archive's call graph is small and lopsided:
@@ -4716,8 +4716,8 @@ function exeClockRules() {
   }
   if (r.hourShift) r.unitsPerHour = { v: 1 << r.hourShift.v, exe: r.hourShift.exe };
   // The model's parameters, when everything it needs was read.
-  const need = [r.unitsPerHour, r.levelShift, r.levelCap, r.hungerIndex, r.poisonIndex, r.fall, r.deathAt, r.poisonStep, r.regenStep];
-  r.model = need.every(Boolean) ? { unitsPerHour: r.unitsPerHour.v, periods, levelShift: r.levelShift.v, levelCap: r.levelCap.v,
+  const requiredFields = [r.unitsPerHour, r.levelShift, r.levelCap, r.hungerIndex, r.poisonIndex, r.fall, r.deathAt, r.poisonStep, r.regenStep];
+  r.model = requiredFields.every(Boolean) ? { unitsPerHour: r.unitsPerHour.v, periods, levelShift: r.levelShift.v, levelCap: r.levelCap.v,
     hungerIndex: r.hungerIndex.v, poisonIndex: r.poisonIndex.v, fall: r.fall.v, deathAt: r.deathAt.v,
     poisonStep: r.poisonStep.v, regenStep: r.regenStep.v } : null;
   return r;
@@ -4759,7 +4759,7 @@ function exeClockWords(units, perHour) {
 const QD_PATTERN_FIELDS = { 162: 'dkGray', 170: 'ltGray', 178: 'gray', 186: 'black', 194: 'white' };
 // QuickDraw's eight old-style colours (Inside Macintosh: Imaging With
 // QuickDraw, "Color QuickDraw" constants), as RGB.
-const QD_OLD_COLOURS = { 33: [0, 0, 0], 30: [255, 255, 255], 205: [255, 0, 0], 341: [0, 255, 0],
+const QD_OLD_COLORS = { 33: [0, 0, 0], 30: [255, 255, 255], 205: [255, 0, 0], 341: [0, 255, 0],
                          409: [0, 0, 255], 273: [0, 255, 255], 137: [255, 0, 255], 69: [255, 255, 0] };
 // The standard patterns' eight rows, set bit = foreground (Inside Macintosh).
 const QD_PATTERNS = { white: [0,0,0,0,0,0,0,0], black: [255,255,255,255,255,255,255,255],
@@ -5516,17 +5516,17 @@ function characterFlagSites() {
           if (!f || seenF.has(f)) continue;
           seenF.add(f);
           if (!by.has(f)) by.set(f, { flag: f, set: [], clear: [], test: [], effect: [] });
-          by.get(f)[verb].push({ resid: e.resid, at: ops[i].at, who: null, record: { resid: p.resid, at: p.at } });
+          by.get(f)[verb].push({ resid: e.resid, at: ops[i].at, character: null, record: { resid: p.resid, at: p.at } });
         }
         continue;
       }
       if (!lit) { unknown++; continue; }
       const f = parseInt(lit[1]);
       if (!by.has(f)) by.set(f, { flag: f, set: [], clear: [], test: [], effect: [] });
-      // `who` is the character the call gives when it gives one by number,
-      // which is how a script reaches another character's flag.
-      const whoLit = kids[0] && LIT.exec(kids[0].text);
-      by.get(f)[verb].push({ resid: e.resid, at: kids[1].at, who: whoLit ? parseInt(whoLit[1]) : null });
+      // `character` is the character's number when the call gives one. This
+      // is how a script reaches another character's flag.
+      const characterLit = kids[0] && LIT.exec(kids[0].text);
+      by.get(f)[verb].push({ resid: e.resid, at: kids[1].at, character: characterLit ? parseInt(characterLit[1]) : null });
     }
   }
   return (DERIVED.CHAR_FLAG_SITES = { flags: [...by.values()].sort((a, b) => a.flag - b.flag), unknown });
@@ -6003,7 +6003,7 @@ function spellEffects() {
         // the lines before compare its square with the target's (Fireball)
         const before = ls.slice(Math.max(0, i - 14), i).join(' ');
         const area = /^local Var/.test(victim) ? (/get_field x \(0x1\) arg Arg01 eq/.test(before) ? 'the one on the target square' : /EnemyIterator/.test(ls.slice(Math.max(0, i - 40), i).join(' ')) ? 'every enemy' : 'everything in the effect') : 'the target';
-        fx.damage.push({ who: area, amount, type, at: ops[i].at });
+        fx.damage.push({ character: area, amount, type, at: ops[i].at });
       }
       if (/^set_field health \(0x1C\)$/.test(ls[i])) {
         const seg = ls.slice(i + 1, i + 14);
@@ -6059,9 +6059,9 @@ function sleepRules() {
   for (const e of idx) {
     if (e.resid < 0x1800 || e.resid >= 0x1A00) continue;
     const g = dvmSeqFirst(dvmOpsOf(e), [/^write_far_word 0x03010016$/i, DVM_NUM]);
-    if (g) { const slot = dvmNum(g[1]); inns.push({ who: e.resid - 0x1800, slot, slotVal: dvmVal(e.resid, g[1]), quality: table && table[slot] !== undefined ? table[slot] : null, qualitySrc: table ? { resid: 0x301, at: 0 } : null }); }
+    if (g) { const slot = dvmNum(g[1]); inns.push({ character: e.resid - 0x1800, slot, slotVal: dvmVal(e.resid, g[1]), quality: table && table[slot] !== undefined ? table[slot] : null, qualitySrc: table ? { resid: 0x301, at: 0 } : null }); }
   }
-  inns.sort((a, b) => a.who - b.who);
+  inns.sort((a, b) => a.character - b.character);
   /* The magic half of the bonus reads full HEALTH twice where the health half
      reads it for health: once in the guard (magic under full health, and
      above what it was) and once in the cap, where a figure past full magic
@@ -6087,7 +6087,7 @@ function sleepRules() {
    for 0x7000 tests no spell effect but whether the nutrition at byte 27 is
    below a number (its `cmplwi`); `li 25, 0` is the default. The first test
    that passes is used, in the order read. */
-function exePartyColours() {
+function exePartyColors() {
   const ops = exeOpsNamed('TStatusWindow::DrawCharStatus');
   if (!ops.length) return null;
   const rows = [];
@@ -6098,9 +6098,9 @@ function exePartyColours() {
     if (!d || d.mn !== 'li' || d.rd !== 25) continue;
     if (d.imm === 0) { plain = exeVal(ops[i], 0); continue; }
     const t = exeFindBack(ops, i - 1, 3, oneBit);
-    if (t >= 0) { rows.push({ colour: exeVal(ops[i], d.imm), flag: exeVal(ops[t], 8 + 31 - ops[t].d.mb) }); continue; }
+    if (t >= 0) { rows.push({ color: exeVal(ops[i], d.imm), flag: exeVal(ops[t], 8 + 31 - ops[t].d.mb) }); continue; }
     const a = exeFindBack(ops, i - 1, 14, x => x.mn === 'li' && x.rd === 4 && x.imm === 0x7000);
-    if (a >= 0) rows.push({ colour: exeVal(ops[i], d.imm), hunger: true });
+    if (a >= 0) rows.push({ color: exeVal(ops[i], d.imm), hunger: true });
   }
   const h = exeOpsNamed('TSpellFX::HasAbility');
   const c = exeFind(h, 0, 12, x => x.mn === 'cmpwi' && x.imm === 0x7000);

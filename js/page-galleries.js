@@ -41,7 +41,7 @@ async function exportGallery() {
   const resids = window.CUR_RESIDS;
   const btn = document.getElementById('exportBtn');
   const note = document.getElementById('exportNote');
-  const say = m => { if (note) note.textContent = m; };
+  const setNote = m => { if (note) note.textContent = m; };
   if (btn) { btn.disabled = true; }
   const isText = (subn === 0 || subn === 1 || subn === 128 || subn === 239 ||
                   (!CANONICAL_SIZE[subn] && !HAS_HEADER[subn] && !UNCOMPRESSED[subn] && !SOUND_CATEGORIES.has(subn)));
@@ -89,7 +89,7 @@ async function exportGallery() {
     }
     index.push(hex + '  ' + (lbl || '(no label)') + '  ' + rlen + ' bytes  [' + wrote.join(', ') + ']');
     if ((i & 7) === 0) {
-      say('Packing ' + (i + 1) + ' of ' + resids.length + '…');
+      setNote('Packing ' + (i + 1) + ' of ' + resids.length + '…');
       await new Promise(r => setTimeout(r, 0));   // keep the page responsive
     }
   }
@@ -100,7 +100,7 @@ async function exportGallery() {
 
   const blob = buildZip(files);
   dlBlob(blob, safeFileName('cythera ' + (CATEGORY_NAMES[subn] || ('subindex ' + subn))) + '.zip');
-  say(files.length + ' files, ' + fmtBytes(blob.size) + (failed ? ', ' + failed + ' undecodable' : ''));
+  setNote(files.length + ' files, ' + fmtBytes(blob.size) + (failed ? ', ' + failed + ' undecodable' : ''));
   if (btn) btn.disabled = false;
 }
 
@@ -993,12 +993,12 @@ function showSquareOnMap(mapResid, x, y) {
     jumpToResource(mapResid);
   }
   whenMapSettled(mapResid, (cm, vp) => {
-    const need = 20 / cm.TS;   // at least 20 px a square, or the ring is a dot
-    if (mapView.scale < need) {
-      mapView.scale = need;
+    const minScale = 20 / cm.TS;   // at least 20 px a square, or the ring is a dot
+    if (mapView.scale < minScale) {
+      mapView.scale = minScale;
       const zs = document.getElementById('mapZoomSlider'), zl = document.getElementById('mapZoomLabel');
-      if (zs) zs.value = Math.round(need * 100);
-      if (zl) zl.textContent = Math.round(need * 100) + '%';
+      if (zs) zs.value = Math.round(minScale * 100);
+      if (zl) zl.textContent = Math.round(minScale * 100) + '%';
     }
     mapView.x = vp.clientWidth / 2 - (x + 0.5) * cm.TS * mapView.scale;
     mapView.y = vp.clientHeight / 2 - (y + 0.5) * cm.TS * mapView.scale;
@@ -1376,10 +1376,10 @@ function renderContactSheet() {
     if (subn === 131) {
       let zones = [];
       try { zones = landscapeZones(resid); } catch (e) { zones = []; }
-      const said = new Set(), names = [];
+      const listedNames = new Set(), names = [];
       for (const st of zones) {
         const nm = landscapeSetterName(st.resid);
-        if (!said.has(nm)) { said.add(nm); names.push(nm); }
+        if (!listedNames.has(nm)) { listedNames.add(nm); names.push(nm); }
       }
       lblDiv.className = names.length ? 'lbl' : 'lbl nolabel';
       lblDiv.textContent = names.length ? names.join(', ') : 'set by no script';

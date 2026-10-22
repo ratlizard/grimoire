@@ -69,7 +69,7 @@ function applyMapZoom(fromSlider) {
   clampMapPan();
   applyMapTransform();
   updateMapArrows();
-  rememberMapView();
+  storeMapView();
 }
 
 /* ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ window.MAP_VIEW_MEMORY = Object.create(null);
 // previous one's transform. Folding the two together let that moment write the
 // old map's scroll position into the new map's memory.
 window.MAP_SEL_MEMORY = Object.create(null);
-function rememberMapView() {
+function storeMapView() {
   const cm = window.CUR_MAP;
   if (!cm || !mapView.scale) return;
   window.MAP_VIEW_MEMORY[cm.resid] = { scale: mapView.scale, x: mapView.x, y: mapView.y };
@@ -167,7 +167,7 @@ function fitMapToView(_retry) {
   mapView.scale = f.scale; mapView.x = f.x; mapView.y = f.y;
   applyMapTransform();
   updateMapArrows();
-  rememberMapView();
+  storeMapView();
 }
 
 // Hide each hint once there is nothing further to pan to on that side.
@@ -194,7 +194,7 @@ function panMapByArrow(dx, dy) {
   clampMapPan();
   applyMapTransform();
   updateMapArrows();
-  rememberMapView();
+  storeMapView();
 }
 
 function setupMapViewportInteraction() {
@@ -229,7 +229,7 @@ function setupMapViewportInteraction() {
     const pct = Math.round(mapView.scale * 100);
     slider.value = Math.max(5, Math.min(+slider.max || 400, pct));
     document.getElementById('mapZoomLabel').textContent = slider.value + '%';
-    rememberMapView();
+    storeMapView();
   }
 
   // A click has to be distinguished from the end of a drag, or every pan would
@@ -254,7 +254,7 @@ function setupMapViewportInteraction() {
     clampMapPan();
     applyMapTransform();
   };
-  const onUp = () => { mapView.dragging = false; rememberMapView(); };
+  const onUp = () => { mapView.dragging = false; storeMapView(); };
 
   viewport.addEventListener('pointerdown', e => {
     viewport.setPointerCapture(e.pointerId);
@@ -386,14 +386,14 @@ function hideMapHover() {
   if (el) { el.style.display = 'none'; hoverSquare = ''; }
 }
 
-function updateMapHover(clientX, clientY, asked) {
+function updateMapHover(clientX, clientY, isTouch) {
   const el = document.getElementById('mapHover');
   const vp = document.getElementById('mapViewport');
   const cm = window.CUR_MAP;
   if (!el || !vp || !cm) return;
   const sq = mapSquareFromClient(clientX, clientY);
   if (!sq) { hideMapHover(); return; }
-  const key = cm.resid + ':' + sq.tx + ',' + sq.ty + (asked ? '!' : '');
+  const key = cm.resid + ':' + sq.tx + ',' + sq.ty + (isTouch ? '!' : '');
   const rect = vp.getBoundingClientRect();
   const px = clientX - rect.left, py = clientY - rect.top;
   // Same square, so only the card moves: rebuilding it on every pixel of
@@ -401,7 +401,7 @@ function updateMapHover(clientX, clientY, asked) {
   // Only while it is up, though -- a tap on the square the pointer last
   // passed over would otherwise re-place a hidden card and show nothing.
   if (key === hoverSquare && el.style.display !== 'none') {
-    placeHoverCard(el, vp, px, py, asked);
+    placeHoverCard(el, vp, px, py, isTouch);
     return;
   }
   hoverSquare = key;
@@ -409,13 +409,13 @@ function updateMapHover(clientX, clientY, asked) {
   // ordered back in front by CSS. Built the other way round -- canvas first,
   // words in an appended element -- the card's innerHTML showed nothing,
   // which is a thing no harness could then check.
-  const card = squareCard(cm.level, { result: { m: cm.m, props: cm.props } }, sq.tx, sq.ty, null, asked);
+  const card = squareCard(cm.level, { result: { m: cm.m, props: cm.props } }, sq.tx, sq.ty, null, isTouch);
   if (!card) { el.style.display = 'none'; return; }
   el.innerHTML = card.html;
   if (card && card.person) appendFaceOrSprite(el, card.person);
-  el.classList.toggle('hvPinned', !!asked);
+  el.classList.toggle('hvPinned', !!isTouch);
   el.style.display = 'flex';
-  placeHoverCard(el, vp, px, py, asked);
+  placeHoverCard(el, vp, px, py, isTouch);
 }
 
 /* A tap that lands on a pinned card belongs to the card. Both cards are
@@ -447,7 +447,7 @@ try { guardHoverCardTaps(); } catch (e) { quiet(e); }
    the point by a thumb's width upwards instead, and where there is no room
    above it goes to the foot of the panel rather than under the hand.
 
-   `touch` is the page's `asked` flag: it is true exactly when a finger made
+   `touch` is the page's `isTouch` flag: it is true exactly when a finger made
    the request, which is also when the card shows more (see squareCard). */
 const HOVER_TOUCH_CLEAR = 64;   // px above the finger: a thumb and its shadow
 function placeHoverCard(el, vp, px, py, touch) {
@@ -702,7 +702,7 @@ function inspectMapSquare(tx, ty) {
   const exits = mapExitSquares(cm.resid).filter(e => e.x === tx && e.y === ty);
   const edges = mapExitEdges(cm.resid, cm.m).filter(e => e.cells.some(c => c[0] === tx && c[1] === ty));
   const faux = tileId ? getFauxProps().get(tileId) : null;
-  const needsRope = ropeSquares(cm.resid).has(tx + ',' + ty);
+  const requiresRope = ropeSquares(cm.resid).has(tx + ',' + ty);
 
   const parts = ['<div class="inspHead">Square ' + tx + ', ' + ty + ' <span class="inspDim">(' + gameSquare(tx, ty) + ')</span>' +
     (tileId ? ' &nbsp;·&nbsp; terrain tile 0x' + tileId.toString(16).toUpperCase() +
@@ -796,7 +796,7 @@ function inspectMapSquare(tx, ty) {
       ' leaves the map here.</div></div>');
   }
 
-  if (needsRope) {
+  if (requiresRope) {
     parts.push('<div class="inspCard"><b>Rope</b> <span class="inspDim">prop type 0x14B on this ' +
       'square</span><div class="inspDim">A rope hangs here, which is what makes the drop below ' +
       'passable. There are four in the whole scenario, all of them on ravines.</div></div>');
@@ -876,7 +876,7 @@ function inspectMapSquare(tx, ty) {
       '<div id="propEdit-' + p.rec.index + '" class="peForm" style="display:none"></div></div>');
   }
 
-  if (!hits.length && !people.length && !exits.length && !edges.length && !faux && !needsRope)
+  if (!hits.length && !people.length && !exits.length && !edges.length && !faux && !requiresRope)
     parts.push('<div class="inspDim">Nothing but terrain on this square.</div>');
 
   host.innerHTML = parts.join('');
@@ -1367,8 +1367,8 @@ function gatewayRatio(gw) {
    and a cached entry is the one the panel puts on screen. */
 function buildThumbsFor(gw, sizes) {
   if (!gw || gw.sealed) return;
-  const need = sizes.filter(sz => !worldThumbs.has(thumbKey(gw.destResid, sz, true)));
-  if (!need.length) return;
+  const missingSizes = sizes.filter(sz => !worldThumbs.has(thumbKey(gw.destResid, sz, true)));
+  if (!missingSizes.length) return;
   try {
     const e = renderMapUncached(gw.destResid);
     if (!e || !e.result) return;
@@ -1410,10 +1410,10 @@ function buildThumbsFor(gw, sizes) {
     };
     // Bare first, off the clean canvas; then the roofs go on and the same
     // sizes are taken again. One render, every variant.
-    for (const sz of need) worldThumbs.set(thumbKey(gw.destResid, sz, false), shrink(sz));
+    for (const sz of missingSizes) worldThumbs.set(thumbKey(gw.destResid, sz, false), shrink(sz));
     const rc = src.getContext('2d');
     if (rc) paintRoofsInto(rc, e.result.tileSize, e.result.m, mapRoofSections(gw.destResid));
-    for (const sz of need) worldThumbs.set(thumbKey(gw.destResid, sz, true), shrink(sz));
+    for (const sz of missingSizes) worldThumbs.set(thumbKey(gw.destResid, sz, true), shrink(sz));
   } catch (err) { quiet(err); }
 }
 

@@ -29,7 +29,7 @@ if (!files.length) {
 
 // Browser globals the top-level script body may legitimately touch. Anything
 // outside this list that resolves nowhere is worth a look, not an error.
-const KNOWN_GLOBALS = new Set([
+const HOST_GLOBALS = new Set([
   'window', 'document', 'console', 'navigator', 'location', 'history', 'screen',
   'fetch', 'Blob', 'File', 'URL', 'FileReader', 'Image', 'Audio', 'AudioContext',
   'requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout', 'clearTimeout',
@@ -86,14 +86,14 @@ function analyze(path) {
   // from, which js/page-mechanics.js adds on the Patches section's button):
   // what it declares counts as declared for 4b, since the page's code
   // calls into it once it is loaded. reach_check.mjs follows the same paths.
-  let wantedJs = '';
+  let expectedJs = '';
   {
     const have = new Set(scriptNames);
     const base = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
     for (const m of js.matchAll(/['"](js\/[\w.-]+\.js)['"]/g)) {
       if (have.has(m[1])) continue;
       have.add(m[1]);
-      try { wantedJs += '\n;\n' + readFileSync(base + m[1], 'utf8'); }
+      try { expectedJs += '\n;\n' + readFileSync(base + m[1], 'utf8'); }
       catch (e) { r.errors.push('the page loads ' + m[1] + ', which is not here'); }
     }
   }
@@ -164,7 +164,7 @@ function analyze(path) {
   r.stats.inlineHandlerCalls = [...handlers.values()].reduce((a, b) => a + b, 0);
   r.stats.inlineHandlerFns = handlers.size;
   for (const [name] of handlers) {
-    if (!declared.has(name) && !KNOWN_GLOBALS.has(name)) {
+    if (!declared.has(name) && !HOST_GLOBALS.has(name)) {
       r.errors.push(`inline handler calls "${name}()" but no such function is declared`);
     }
   }
@@ -181,7 +181,7 @@ function analyze(path) {
   // is out of scope at the call site, and it does catch the case that actually
   // happened, which is a function that exists nowhere at all.
   {
-    const src = stripJsText(js + wantedJs);
+    const src = stripJsText(js + expectedJs);
     const bound = new Set();
     const add = m => { if (m) bound.add(m); };
     for (const m of src.matchAll(/\bfunction\s*\*?\s*([A-Za-z_$][\w$]*)/g)) add(m[1]);
@@ -213,7 +213,7 @@ function analyze(path) {
       if (KEYWORDS.test(name)) continue;
       called.set(name, (called.get(name) || 0) + 1);
     }
-    const missing = [...called.keys()].filter(n => !bound.has(n) && !KNOWN_GLOBALS.has(n));
+    const missing = [...called.keys()].filter(n => !bound.has(n) && !HOST_GLOBALS.has(n));
     r.stats.jsCalls = called.size;
     for (const name of missing) {
       r.errors.push(`JS calls "${name}()" ${called.get(name)}x but nothing declares it`);

@@ -196,13 +196,13 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
     } else if (!e.planned && s.lates.has(e.resid)) {
       const list = s.lates.get(e.resid), moved = Object.assign({}, e, { at: carry(e.at, list) });
       if (e.to !== undefined) moved.to = carry(e.to, list);
-      if (e.expect) moved.expect = Object.fromEntries(Object.entries(e.expect).map(([at, want]) => [carry(+at, list), want]));
+      if (e.expect) moved.expect = Object.fromEntries(Object.entries(e.expect).map(([at, expected]) => [carry(+at, list), expected]));
       e = moved;
     }
     const b = s.bytesOf(e.resid);
-    for (const [at, want] of Object.entries(e.expect || {})) {
-      const got = dataPatchOpAt(b, e.resid, +at);
-      if (!got || !got.text.startsWith(want)) throw new Error(e.what + ': at 0x' + (+at).toString(16) + ' the listing has ' + (got && got.text) + ', not ' + want);
+    for (const [at, expected] of Object.entries(e.expect || {})) {
+      const actual = dataPatchOpAt(b, e.resid, +at);
+      if (!actual || !actual.text.startsWith(expected)) throw new Error(e.what + ': at 0x' + (+at).toString(16) + ' the listing has ' + (actual && actual.text) + ', not ' + expected);
     }
     let to = e.to;
     if (e.replaceOp) { const g = dataPatchOpAt(b, e.resid, e.at); if (!g) throw new Error(e.what + ': no instruction at 0x' + e.at.toString(16)); to = g.next; }
@@ -340,9 +340,9 @@ function finishDataPatch(s) {
    stands in for DATA_FIX_COMMUNITY_TYPOS (community_text_patch.mjs hands in
    what it read out of the collection). */
 function dataFixesChosen(ids) {
-  const want = new Set(ids), out = new Set(), taken = new Set();
+  const chosenIds = new Set(ids), out = new Set(), taken = new Set();
   for (const f of DATA_FIXES) {
-    if (!want.has(f.id)) continue;
+    if (!chosenIds.has(f.id)) continue;
     if (f.choice) { if (taken.has(f.choice)) continue; taken.add(f.choice); }
     out.add(f.id);
   }

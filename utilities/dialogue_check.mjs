@@ -175,18 +175,18 @@ if (existsSync(oracleDir)) {
     if (!m || m[2].includes('.')) continue;   // Demodocus's header is prose, not a list
     const c = byName[m[1]];
     if (!c || !c.topics) continue;
-    const want = m[2].split(/,| and /).map(s => s.trim()).filter(Boolean)
+    const expected = m[2].split(/,| and /).map(s => s.trim()).filter(Boolean)
       .map(s => short[s] || s).sort();
     // The oracle's "responds to generic X prompts" covers every generic set
     // the character can reach, catch-all or topic, so compare against
     // groupsAll. Two groups the oracle does not cover are ignored: House
     // Atussa, which has no prompts to observe in play, and the tavern-rumor
     // pool, which the oracle folds into the Bartender prompts.
-    const got = (c.groupsAll || c.groups).map(g => groupNames[g] || ('0x' + g.toString(16)))
+    const actual = (c.groupsAll || c.groups).map(g => groupNames[g] || ('0x' + g.toString(16)))
       .filter(n => n !== 'House Atussa' && n !== 'Tavern rumors').sort();
     compared++;
-    if (JSON.stringify(want) === JSON.stringify(got)) agree++;
-    else if (diffs.length < 5) diffs.push(`${m[1]}: oracle [${want}] vs code [${got}]`);
+    if (JSON.stringify(expected) === JSON.stringify(actual)) agree++;
+    else if (diffs.length < 5) diffs.push(`${m[1]}: oracle [${expected}] vs code [${actual}]`);
   }
   // Known divergence, one character, and it is the archive's rather than
   // ours -- corrected 12 September 2026. This used to say the Student-group
@@ -233,18 +233,18 @@ if (delvPath && dataPath) {
     delvmodNote = `delvmod reference did not run (${String(e.message).split('\n')[0]})`;
   }
   if (ref) {
-    const ours = {};
-    for (const [n, c] of Object.entries(charKeywords)) ours[(0x1800 | Number(n)).toString(16).toUpperCase().padStart(4, '0')] = c;
+    const pageKeywords = {};
+    for (const [n, c] of Object.entries(charKeywords)) pageKeywords[(0x1800 | Number(n)).toString(16).toUpperCase().padStart(4, '0')] = c;
     let both = 0, same = 0; const diffs = [];
     for (const [rid, events] of Object.entries(ref)) {
-      const theirs = events.map(e => e[1]).sort();
-      const mine = (ours[rid] || []).slice().sort();
-      if (!ours[rid]) continue;
+      const delvmodKeys = events.map(e => e[1]).sort();
+      const pageKeys = (pageKeywords[rid] || []).slice().sort();
+      if (!pageKeywords[rid]) continue;
       both++;
-      if (JSON.stringify(theirs) === JSON.stringify(mine)) same++;
+      if (JSON.stringify(delvmodKeys) === JSON.stringify(pageKeys)) same++;
       else if (diffs.length < 4) {
-        const missing = theirs.filter(k => !mine.includes(k)).slice(0, 4);
-        const extra = mine.filter(k => !theirs.includes(k)).slice(0, 4);
+        const missing = delvmodKeys.filter(k => !pageKeys.includes(k)).slice(0, 4);
+        const extra = pageKeys.filter(k => !delvmodKeys.includes(k)).slice(0, 4);
         diffs.push(`${rid}: delvmod-only [${missing}] ours-only [${extra}]`);
       }
     }

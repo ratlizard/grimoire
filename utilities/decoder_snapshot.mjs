@@ -55,7 +55,7 @@ for (const n of EXPORT_CONSTS) if (ctx['__' + n] !== undefined) ctx[n] = ctx['__
 const g = ctx;
 const h = b => createHash('sha256').update(Buffer.from(b)).digest('hex').slice(0, 16);
 const lines = [];
-const say = s => { lines.push(s); console.log(s); };
+const writeLine = s => { lines.push(s); console.log(s); };
 
 // ---- wire the real archive in ---------------------------------------------
 function readU32(off) {
@@ -67,7 +67,7 @@ for (let i = 0; i < 256; i++) masterIndex.push([readU32(0x88 + i * 8), readU32(0
 const arc = ctx.__bind(archive);
 if (!arc) { console.error('FATAL: the archive has no master index'); process.exit(1); }
 
-say(`archive ${archive.length} bytes, title "${new TextDecoder('latin1').decode(archive.slice(1, 1 + archive[0]))}"`);
+writeLine(`archive ${archive.length} bytes, title "${new TextDecoder('latin1').decode(archive.slice(1, 1 + archive[0]))}"`);
 
 // resource table for a subindex: cnt entries of [offset,len] u32 pairs
 function entries(subn) {
@@ -87,7 +87,7 @@ for (let s = 0; s < 256; s++) {
   const e = entries(s);
   if (e.length) populated.push([s, e.length]);
 }
-say(`populated subindexes: ${populated.length} -> ${populated.map(([s, n]) => `${s}:${n}`).join(' ')}`);
+writeLine(`populated subindexes: ${populated.length} -> ${populated.map(([s, n]) => `${s}:${n}`).join(' ')}`);
 
 // ---- exercise the decoders ------------------------------------------------
 function tryCall(name, fn) {
@@ -99,7 +99,7 @@ function tryCall(name, fn) {
 const IMG_SUBN = [135, 137, 141, 131, 142];
 for (const subn of IMG_SUBN) {
   const es = entries(subn);
-  if (!es.length) { say(`sub ${subn}: no entries`); continue; }
+  if (!es.length) { writeLine(`sub ${subn}: no entries`); continue; }
   let ok = 0, fail = 0, blank = 0;
   const digest = createHash('sha256');
   for (const [idx, off, len] of es) {
@@ -114,7 +114,7 @@ for (const subn of IMG_SUBN) {
     ok++;
     digest.update(Buffer.from(img.buffer ? img : Uint8Array.from(img)));
   }
-  say(`sub ${subn}: ${es.length} entries -> ${ok} decoded, ${fail} failed, ${blank} blank  pixels=${digest.digest('hex').slice(0, 16)}`);
+  writeLine(`sub ${subn}: ${es.length} entries -> ${ok} decoded, ${fail} failed, ${blank} blank  pixels=${digest.digest('hex').slice(0, 16)}`);
 }
 
 // sounds
@@ -126,7 +126,7 @@ for (const subn of IMG_SUBN) {
     if (r.ok && r.v) { ok++; d.update(Buffer.from(new Int16Array(r.v.samples || r.v).buffer)); }
     else fail++;
   }
-  say(`sub 144 sounds: ${es.length} -> ${ok} ok, ${fail} failed  samples=${d.digest('hex').slice(0, 16)}`);
+  writeLine(`sub 144 sounds: ${es.length} -> ${ok} ok, ${fail} failed  samples=${d.digest('hex').slice(0, 16)}`);
 }
 
 // music -> midi
@@ -147,8 +147,8 @@ for (const subn of IMG_SUBN) {
       why.set(k, (why.get(k) || 0) + 1);
     }
   }
-  say(`sub 143 music: ${es.length} -> ${ok} midi (${notes} notes), ${fail} failed  midi=${d.digest('hex').slice(0, 16)}`);
-  for (const [k, n] of why) say(`    ${n}x ${k}`);
+  writeLine(`sub 143 music: ${es.length} -> ${ok} midi (${notes} notes), ${fail} failed  midi=${d.digest('hex').slice(0, 16)}`);
+  for (const [k, n] of why) writeLine(`    ${n}x ${k}`);
 }
 
 // Decryption across the whole archive. This is one number that moves if any
@@ -174,7 +174,7 @@ for (const subn of IMG_SUBN) {
       d.update(Buffer.from(v.data));
     }
   }
-  say(`decryption: ${clear} clear, ${decrypted} decrypted, ${bytes} bytes  plaintext=${d.digest('hex').slice(0, 16)}`);
+  writeLine(`decryption: ${clear} clear, ${decrypted} decrypted, ${bytes} bytes  plaintext=${d.digest('hex').slice(0, 16)}`);
 }
 
 // The disassembly itself. Neither the decryption line above nor anything below
@@ -202,7 +202,7 @@ for (const subn of IMG_SUBN) {
       d.update(text);
     }
   }
-  say(`disassembly: ${rendered} scripts, ${chars} chars  text=${d.digest('hex').slice(0, 16)}`);
+  writeLine(`disassembly: ${rendered} scripts, ${chars} chars  text=${d.digest('hex').slice(0, 16)}`);
 }
 
 // text / strings
@@ -214,7 +214,7 @@ for (const subn of IMG_SUBN) {
     const r = tryCall('decodeMacRoman', () => g.decodeMacRoman(archive.slice(off, off + len)));
     if (r.ok && typeof r.v === 'string') { n++; d.update(r.v); }
   }
-  say(`sub 1 text: sampled ${n} -> text=${d.digest('hex').slice(0, 16)}`);
+  writeLine(`sub 1 text: sampled ${n} -> text=${d.digest('hex').slice(0, 16)}`);
 }
 
 // maps: structured decode is renderer-bound, so just checksum raw + sizes
@@ -222,7 +222,7 @@ for (const subn of IMG_SUBN) {
   const es = entries(127);
   const d = createHash('sha256');
   for (const [i, off, len] of es) d.update(Buffer.from(archive.slice(off, off + len)));
-  say(`sub 127 maps: ${es.length} entries  raw=${d.digest('hex').slice(0, 16)}`);
+  writeLine(`sub 127 maps: ${es.length} entries  raw=${d.digest('hex').slice(0, 16)}`);
 }
 
 // pure helpers, spot-checked so a refactor of them shows up here
@@ -250,8 +250,8 @@ for (const subn of IMG_SUBN) {
   ];
   for (const [label, fn] of checks) {
     const r = tryCall(label, fn);
-    say(`  ${label} = ${r.ok ? r.v : 'THREW ' + r.e}`);
+    writeLine(`  ${label} = ${r.ok ? r.v : 'THREW ' + r.e}`);
   }
 }
 
-say(`SNAPSHOT ${h(lines.join('\n'))}`);
+writeLine(`SNAPSHOT ${h(lines.join('\n'))}`);

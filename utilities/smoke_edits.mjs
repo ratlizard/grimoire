@@ -222,7 +222,7 @@ try {
   const opened = [];
   const go = v => { opened.push([v, ctx.showCategory(v)]); return walkGrid(); };
   const mech = go('MECHANICS'), skills = go('SKILLS'), spells = go('SPELLS'), barks = go('BARKS');
-  const refused = opened.filter(([, r]) => r === false).map(([v]) => v);
+  const unopenedTabs = opened.filter(([, r]) => r === false).map(([v]) => v);
   // The lede of each card, distinctive enough not to match the sheet it now
   // sits on: the Spells sheet has "spells" in every other line, so that one
   // is pinned on a phrase only the card uses.
@@ -233,7 +233,7 @@ try {
   ];
   const gone = moved.filter(([, title, html]) => !html.includes(title));
   const lingering = moved.filter(([, title]) => mech.includes(title));
-  if (refused.length) fail('section moves', 'a tab would not open, so the sheets compared are not the ones named: ' + refused.join(', '));
+  if (unopenedTabs.length) fail('section moves', 'a tab would not open, so the sheets compared are not the ones named: ' + unopenedTabs.join(', '));
   else if (!/Hackery/.test(mech)) fail('section moves', 'the Mechanics sheet did not render, so the absence checks prove nothing');
   else if (gone.length) fail('section moves', 'a card is missing from its new home: ' + gone.map(m => m[0] + ' (' + m[3] + ')').join(', '));
   else if (lingering.length) fail('section moves', 'a card is still on the Mechanics sheet, so the move is half done: ' + lingering.map(m => m[0]).join(', '));
@@ -262,17 +262,17 @@ try {
      tab stands for; it must land on the first group, whose tab the tree has a
      leaf for, or the tab row comes up blank. */
   const firstGroup = (peek('MECH_GROUPS') || [])[0];
-  for (const [hash, want] of [['135', '135'], ['MECH_COMBAT', 'MECH_COMBAT'],
+  for (const [hash, expected] of [['135', '135'], ['MECH_COMBAT', 'MECH_COMBAT'],
                               ['MECHANICS', firstGroup && firstGroup.value], ['ITEMS', 'ITEMS']]) {
     ctx.location.hash = '#c=' + hash;
     ctx.parseArchiveBytes(archive, 'Cythera Data (reloaded on ' + hash + ')', { via: 'data fork' });
-    landings.push([hash, want, REGISTRY.get('categorySelect').value]);
+    landings.push([hash, expected, REGISTRY.get('categorySelect').value]);
   }
   ctx.location.hash = '';
   ctx.parseArchiveBytes(archive, 'Cythera Data (reloaded with no hash)', { via: 'data fork' });
   const bare = REGISTRY.get('categorySelect').value;
   ctx.location.hash = was;
-  const lost = landings.filter(([, want, got]) => !want || got !== want);
+  const lost = landings.filter(([, expected, actual]) => !expected || actual !== expected);
   // The control: with no hash the world IS the right answer, so a run where
   // everything lands on WORLD proves nothing unless this one does too.
   if (bare !== 'WORLD') fail('reload stays on the tab', 'with no hash it landed on ' + bare + ', not the world, so this check is not exercising the open path');
@@ -318,7 +318,7 @@ try {
    the same build with the edits set aside, which must be rejected as empty. */
 try {
   ctx.showCategory('PATCHES');
-  const got = peek(`(() => {
+  const patchResult = peek(`(() => {
     const keep = window.EDITED_RESIDS;
     window.EDITED_RESIDS = new Set();
     const empty = basketPatch(), emptyFiles = basketFiles();
@@ -338,13 +338,13 @@ try {
     return { empty: !!empty, emptyFiles: !!emptyFiles, edits: ed.resids, inPatch: w ? w.merged.resids : null, chip,
              shown, open: !!(sec && sec.open), replaces: rep ? rep.willReplace : null };
   })()`);
-  const one = got.edits.length;
-  if (got.empty || got.emptyFiles) fail('edits in your patch', 'Your Patch built something with no edit and nothing chosen');
+  const one = patchResult.edits.length;
+  if (patchResult.empty || patchResult.emptyFiles) fail('edits in your patch', 'Your Patch built something with no edit and nothing chosen');
   else if (!one) fail('edits in your patch', 'the edit is not among Your Patch\u2019s edits');
-  else if (!got.inPatch || got.edits.some(r => got.inPatch.indexOf(r) < 0)) fail('edits in your patch', 'the Magpie patch leaves out the edits: ' + JSON.stringify(got));
-  else if (got.chip.indexOf(one + (one === 1 ? ' edit' : ' edits')) < 0) fail('edits in your patch', 'Your Patch shows no chip for the edits: ' + JSON.stringify(got.chip));
-  else if (!got.shown || !got.open) fail('edits in your patch', 'View Comparison did not open Patch Comparison: ' + JSON.stringify(got));
-  else if (got.replaces !== one) fail('edits in your patch', 'View Comparison reports ' + got.replaces + ' replaced against ' + one + ' edited');
+  else if (!patchResult.inPatch || patchResult.edits.some(r => patchResult.inPatch.indexOf(r) < 0)) fail('edits in your patch', 'the Magpie patch leaves out the edits: ' + JSON.stringify(patchResult));
+  else if (patchResult.chip.indexOf(one + (one === 1 ? ' edit' : ' edits')) < 0) fail('edits in your patch', 'Your Patch shows no chip for the edits: ' + JSON.stringify(patchResult.chip));
+  else if (!patchResult.shown || !patchResult.open) fail('edits in your patch', 'View Comparison did not open Patch Comparison: ' + JSON.stringify(patchResult));
+  else if (patchResult.replaces !== one) fail('edits in your patch', 'View Comparison reports ' + patchResult.replaces + ' replaced against ' + one + ' edited');
   else console.log('  edits in your patch: ' + one + ' edit, in the Magpie patch and its chip; View Comparison opens Patch Comparison on it; with no edit the patch is rejected as empty');
   peek('(window.PATCH_REPORT = null, window.PATCH_BYTES = null, 0)');
 } catch (e) { fail('edits in your patch', e); }
@@ -360,11 +360,11 @@ try {
     ctx.smartDecrypt(ctx.getResourceBytes(A(), propResid), propResid).data);
   const before = parse();
   const idx = before.findIndex(r => r.onMap);
-  const want = { x: before[idx].x + 1 };
-  if (!ctx.applyPropRecordEdit(propResid, idx, want)) throw new Error('applyPropRecordEdit returned false');
+  const edit = { x: before[idx].x + 1 };
+  if (!ctx.applyPropRecordEdit(propResid, idx, edit)) throw new Error('applyPropRecordEdit returned false');
   const after = parse();
   if (after.length !== before.length) fail('prop edit', `record count moved: ${before.length} -> ${after.length}`);
-  else if (after[idx].x !== want.x || after[idx].y !== before[idx].y)
+  else if (after[idx].x !== edit.x || after[idx].y !== before[idx].y)
     fail('prop edit', `record ${idx} came back at ${after[idx].x},${after[idx].y}`);
   else {
     const other = (idx + 1) % before.length;
@@ -700,19 +700,19 @@ try {
   // nothing, and the tile comparison is what this is about.
   const base = ctx.delverArchiveSpec(archive);
   const victims = [0x8E04, 0x8E34];
-  const WANT = { 0x8E04: [1, 5, 9], 0x8E34: [0, 2] };
+  const EXPECTED = { 0x8E04: [1, 5, 9], 0x8E34: [0, 2] };
   const spec = { scenarioTitle: base.scenarioTitle, playerName: '',
                  formatMajor: base.formatMajor, formatMinor: base.formatMinor, resources: [] };
-  let wantTiles = 0;
+  let expectedTiles = 0;
   for (const resid of victims) {
     const src = base.resources.find(r => r.resid === resid);
     if (!src) { fail('patches', 'the archive has no ' + resid.toString(16)); throw new Error('no sheet'); }
     const dec = ctx.decodeResource(A(), src.data, 141, resid);
     const img = dec.image.slice();
-    for (const t of WANT[resid]) {
+    for (const t of EXPECTED[resid]) {
       for (let y = t * 32; y < (t + 1) * 32; y++)
         for (let x = 0; x < dec.W; x++) img[y * dec.W + x] = ((x + y) & 1) ? 3 : 250;
-      wantTiles++;
+      expectedTiles++;
     }
     // A sheet resource is a bare DCG stream of the 32-wide column, which is
     // what decodeResource gives back, so the encoder the ditherizer uses for
@@ -759,7 +759,7 @@ try {
   else if (after.indexOf('A patch made by the smoke test') < 0) fail('patches', 'the description is not shown');
   else if (after.indexOf(rep.descriptor.uuidText) < 0) fail('patches', 'the UUID is not shown');
   else if (after.indexOf('Bug Fix') < 0) fail('patches', 'type code 0 is not named Bug Fix');
-  else if (canvases !== wantTiles * 2) fail('patches', `${canvases} tile canvases, expected ${wantTiles * 2} (a pair for each of ${wantTiles})`);
+  else if (canvases !== expectedTiles * 2) fail('patches', `${canvases} tile canvases, expected ${expectedTiles * 2} (a pair for each of ${expectedTiles})`);
   else {
     /* Applying it. The patch was made here from the archive that is open, so
        merging it must put those five redrawn tiles into the archive itself --
@@ -793,7 +793,7 @@ try {
     const host = REGISTRY.get('patchReport');
     if (host && countTag(host, 'CANVAS'))
       fail('patches', 'the tile pairs survive after the patch is forgotten');
-    else console.log(`  patches: a made patch reads back with its description, its UUID and ${wantTiles} redrawn tiles as ${canvases} canvases, and forgetting it empties the report`);
+    else console.log(`  patches: a made patch reads back with its description, its UUID and ${expectedTiles} redrawn tiles as ${canvases} canvases, and forgetting it empties the report`);
   }
 } catch (e) { fail('patches', e); }
 
@@ -869,10 +869,10 @@ try {
   else {
     ctx.MAGPIE_FORK = undefined;
     const none = ctx.noteMagpieFrom(archive);
-    const got = ctx.noteMagpieFrom(new Uint8Array(readFileSync(MAGPIE)));
+    const magpieNote = ctx.noteMagpieFrom(new Uint8Array(readFileSync(MAGPIE)));
     const icon = ctx.magpieIcon('DelP');
     if (none) fail('patch icon', 'the data file was taken for an archive holding Magpie');
-    else if (!got || !icon || !icon.width) fail('patch icon', 'the Pumpkin Patch archive gave no Magpie icon for a patch');
+    else if (!magpieNote || !icon || !icon.width) fail('patch icon', 'the Pumpkin Patch archive gave no Magpie icon for a patch');
     else {
       // The Patches tab wears it only while a patch is the file open: with
       // Cythera Data open, the cloth; with the Pumpkin Patch itself as the
@@ -934,11 +934,11 @@ try {
   const sheet = cover[1] && cover[1].sheet;
   const plainCanvases = countTag(host, 'CANVAS');
   const plainInputs = countTag(host, 'INPUT');
-  const wantInputs = 5 + cover[1].shades;
-  const wantCanvases = 2 + cover[1].shades + 32;
+  const expectedInputs = 5 + cover[1].shades;
+  const expectedCanvases = 2 + cover[1].shades + 32;
   if (peek('heroSpritePatch()') !== null) fail('hero colours', 'a patch is offered with nothing chosen');
-  else if (plainInputs !== wantInputs) fail('hero colours', `${plainInputs} inputs with nothing chosen, expected a colour for each of five parts and ${cover[1].shades} shades and no description`);
-  else if (plainCanvases !== wantCanvases) fail('hero colours', `${plainCanvases} canvases, expected 2 figures, ${cover[1].shades} shade rows and 16 pairs`);
+  else if (plainInputs !== expectedInputs) fail('hero colours', `${plainInputs} inputs with nothing chosen, expected a colour for each of five parts and ${cover[1].shades} shades and no description`);
+  else if (plainCanvases !== expectedCanvases) fail('hero colours', `${plainCanvases} canvases, expected 2 figures, ${cover[1].shades} shade rows and 16 pairs`);
   else if (!REGISTRY.get('heroBody') || !REGISTRY.get('heroOther')) fail('hero colours', 'no body or sprite list');
 
   // Blond hair and a blue top on the heroine.
@@ -973,9 +973,9 @@ try {
     const pristine = peek('window.PRISTINE_BYTES').length;
     if (!ctx.heroSpriteApply()) fail('hero colours', 'the patch would not apply');
     else {
-      const got = peek(`(() => { const d = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, ${sheet}), 141, ${sheet}); return Array.from(d.image); })()`);
-      const want = peek(`Array.from(heroRecoloured(heroFigure('heroine')).image)`);
-      if (got.length !== want.length || got.some((v, i) => v !== want[i]))
+      const actual = peek(`(() => { const d = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, ${sheet}), 141, ${sheet}); return Array.from(d.image); })()`);
+      const expected = peek(`Array.from(heroRecoloured(heroFigure('heroine')).image)`);
+      if (actual.length !== expected.length || actual.some((v, i) => v !== expected[i]))
         fail('hero colours', 'the open file does not have the recoloured sheet');
       else if (peek('window.PRISTINE_BYTES').length !== pristine) fail('hero colours', 'applying moved the file as it arrived');
       else if (peek(`heroFigure('heroine').unknown`)) fail('hero colours', 'after applying, the section reads the recoloured sheet instead of the shipped one');
@@ -1344,7 +1344,7 @@ try {
   REGISTRY.get('editCodeAt').value = '0x013E';
   REGISTRY.get('editCodeText').value = 'call_resource SetCharacterFlag (0xF00)\narg Arg00\nbyte 0x07\nend';
   ctx.previewCodeEdit();
-  const refused = REGISTRY.get('editCodePreview').textContent;
+  const previewMessage = REGISTRY.get('editCodePreview').textContent;
   REGISTRY.get('editCodeAt').value = '0x013D';
   ctx.previewCodeEdit();
   const preview = REGISTRY.get('editCodePreview').textContent;
@@ -1353,7 +1353,7 @@ try {
   const fn = ctx.dvmExtents(b, 0x1857).find(([st, en, k]) => k === 'function' && 0x13D >= st && 0x13D < en);
   const ops = fn ? ctx.dvmDisassemble(b.subarray(fn[0], fn[1]), 3).ops.map(o => [fn[0] + o[0], o[2], o[3]]) : [];
   const at = ops.find(o => o[0] === 0x13D), resp = ops.find(o => o[1] === 'conversation_response' && /^"name"/.test(o[2]));
-  if (!/not where an instruction starts/.test(refused)) fail('change code', 'an offset inside an instruction was not rejected: ' + refused.slice(0, 120));
+  if (!/not where an instruction starts/.test(previewMessage)) fail('change code', 'an offset inside an instruction was not rejected: ' + previewMessage.slice(0, 120));
   else if (!/\+7 bytes/.test(preview) || !/\+ 013D  call_resource/.test(preview)) fail('change code', 'the preview does not mark the new code: ' + preview.slice(0, 200));
   else if (!peek('window.EDITED_RESIDS').has(0x1857)) fail('change code', 'the edit did not go through the rebuild');
   else if (!at || at[1] !== 'call_resource' || !resp || !/-> 0x0147$/.test(resp[2])) fail('change code', 'Paris\u2019s rebuilt name topic does not read back: ' + JSON.stringify([at, resp]));
@@ -1393,7 +1393,7 @@ try {
   const r = peek(read);
   const text = r.ops.map(o => o[1] + (o[2] ? ' ' + o[2] : ''));
   const ret = r.ops.find(o => o[1] === 'return'), targets = r.ops.filter(o => o[1] === 'then').map(o => o[2]);
-  const refused = peek(`[{ flag: '300' }, { say: 'Café' }, { which: 'x' }, { when: 'signal', which: '' }].map(o => {
+  const formErrors = peek(`[{ flag: '300' }, { say: 'Café' }, { which: 'x' }, { when: 'signal', which: '' }].map(o => {
     window.GREMLIN_STATE = Object.assign({}, window.GREMLIN_STATE, o, { listing: null });
     try { gremlinListingFromForm(window.GREMLIN_STATE); return null; } catch (e) { return e.message; } })`);
   form({ when: 'signal', which: '3001' });
@@ -1408,7 +1408,7 @@ try {
     fail('gremlin maker', 'the method reads back as ' + text.join(' | '));
   else if (!ret || targets.length !== 2 || targets.some(t => !new RegExp('-> 0x' + ret[0].toString(16).toUpperCase().padStart(4, '0') + '$').test(t)))
     fail('gremlin maker', 'a test does not jump to the end: ' + targets.join(', ') + ', return at ' + (ret && ret[0]));
-  else if (refused.some(m => !m)) fail('gremlin maker', 'a form that cannot be written was accepted: ' + JSON.stringify(refused));
+  else if (formErrors.some(m => !m)) fail('gremlin maker', 'a form that cannot be written was accepted: ' + JSON.stringify(formErrors));
   else {
     form();
     const w = peek('gremlinPatch()'), rid = 0x1F00 + first;
@@ -1450,7 +1450,7 @@ try {
   // Bryce Schroeder's six, by name: the lists are by category since
   // 1 October 2026, and his are in three of them.
   for (const id of ['fetch', 'fishing', 'aethon-locks', 'aethon-ask-about', 'paris-diomede-names', 'green-goat-chair']) ctx.dataFixToggle(id, true);
-  const refusedParis = peek(`(() => { try { dataFixPatch(); return null; } catch (e) { return e.message; } })()`);
+  const rejectedParis = peek(`(() => { try { dataFixPatch(); return null; } catch (e) { return e.message; } })()`);
   const paris = peek(`DATA_FIXES.find(f => f.id === 'paris-diomede-names').title`);
   ctx.dataFixToggle('paris-diomede-names', false);
   ctx.dataFixToggle('text', true);
@@ -1493,7 +1493,7 @@ try {
     return { fetch: row('fetch'), fishing: row('fishing'), locks: row('aethon-locks') }; })()`);
   const text = id => peek(`(() => { const b = smartDecrypt(getResourceBytes(ARCHIVE, ${id}), ${id}).data; let t = ''; for (let i = 0; i < b.length; i++) t += String.fromCharCode(b[i]); return t; })()`);
   if (none !== null || orphan === null) fail('game fixes', 'a patch was written with nothing chosen, or none with one of the text\u2019s choices alone');
-  else if (!refusedParis || refusedParis.indexOf(paris) !== 0) fail('game fixes', 'the edited Paris topic was not rejected by the fix’s name: ' + refusedParis);
+  else if (!rejectedParis || rejectedParis.indexOf(paris) !== 0) fail('game fixes', 'the edited Paris topic was not rejected by the fix’s name: ' + rejectedParis);
   else if (changes.why || !changes.yery || !changes.landKing || !changes.british || !changes.community || changes.twoTaled)
     fail('game fixes', 'the list of the text’s changes is not the options chosen: ' + JSON.stringify(changes));
   else if (!link || link.resid !== 0x1858 || link.t !== 'Yery well' || !link.opened || !link.ringed)

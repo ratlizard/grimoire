@@ -449,12 +449,12 @@ function exePseudo(r) {
     if (blk.s === 0) for (let i = 3; i <= 10; i++) reg[i] = atom('arg' + (i - 2));
     const fresh = new Set();
     let cond = null, at = 0, to = null;
-    const say = (text, link) => lines.push({ at, text, to: link === undefined ? null : link });
+    const addLine = (text, link) => lines.push({ at, text, to: link === undefined ? null : link });
     const name = q => 'r' + q;
-    const settle = q => { if (reg[q].k === undefined && reg[q].s === name(q)) return; say(name(q) + ' = ' + str(reg[q])); reg[q] = atom(name(q)); };
+    const settle = q => { if (reg[q].k === undefined && reg[q].s === name(q)) return; addLine(name(q) + ' = ' + str(reg[q])); reg[q] = atom(name(q)); };
     // Whether a register's value is read from instruction `from` on: later
     // in the block before it is replaced, or after the block.
-    const wanted = (q, from) => {
+    const isUsedLater = (q, from) => {
       for (let j = from; j <= blk.e; j++) { const x = ud(ops[j]); if (x.u.includes(q)) return true; if (x.w.includes(q)) return false; }
       return !!(blk.out >>> q & 1);
     };
@@ -462,7 +462,7 @@ function exePseudo(r) {
     // written out if a later instruction reads its register, and otherwise
     // dropped.
     let now = blk.s;
-    const before = (test, self) => { for (let q = 0; q < 32; q++) if (vol(q) && reg[q].k === undefined && reg[q].s !== name(q) && test(reg[q])) { if (wanted(q, self ? now : now + 1)) settle(q); else reg[q] = atom(name(q)); } };
+    const before = (test, self) => { for (let q = 0; q < 32; q++) if (vol(q) && reg[q].k === undefined && reg[q].s !== name(q) && test(reg[q])) { if (isUsedLater(q, self ? now : now + 1)) settle(q); else reg[q] = atom(name(q)); } };
     // A test whose operands have since changed is printed as it stood.
     const stale = test => { if (cond && !cond.old && ((cond.a.k === undefined && test(cond.a)) || (cond.b.k === undefined && test(cond.b)))) cond.old = true; };
     const mentions = word => e => new RegExp('(^|[^A-Za-z0-9_])' + word + '($|[^A-Za-z0-9_])').test(e.s);
@@ -473,16 +473,16 @@ function exePseudo(r) {
       // An expression that reads the register it is going into is written out
       // immediately.
       if (!vol(q) || (e.k === undefined && (mentions(name(q))(e) || e.s.length > 64))) {
-        if (!(e.k === undefined && e.s === name(q))) say(name(q) + ' = ' + str(e));
+        if (!(e.k === undefined && e.s === name(q))) addLine(name(q) + ' = ' + str(e));
         reg[q] = atom(name(q));
       } else reg[q] = e;
       fresh.add(q);
     };
-    if (target[blk.s]) { at = ops[blk.s].at; say('\u0002'); }
+    if (target[blk.s]) { at = ops[blk.s].at; addLine('\u0002'); }
     for (let i = blk.s; i <= blk.e; i++) {
       const o = ops[i], d = o.d;
       at = o.at; now = i;
-      const raw = () => { before(() => true, true); say('\u0003' + o.text); };
+      const raw = () => { before(() => true, true); addLine('\u0003' + o.text); };
       if (!d) raw();
       else {
         const mn = d.mn, bare = mn.replace(/\.$/, ''), dot = bare !== mn;
@@ -492,20 +492,20 @@ function exePseudo(r) {
           if (d.lk) {
             const args = []; for (let q = 3; q <= 10 && fresh.has(q); q++) args.push(str(reg[q]));
             const callee = d.indirect ? '(*' + (d.indirect === 'ctr' ? 'address' : 'return address') + ')' : '\u0001';
-            say('r3 = ' + callee + '(' + args.join(', ') + ')', d.indirect ? null : o.to);
+            addLine('r3 = ' + callee + '(' + args.join(', ') + ')', d.indirect ? null : o.to);
             for (const q of [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) reg[q] = atom(name(q));
             fresh.clear(); cond = null;
           } else {
             for (let q = 0; q < 32; q++) if (vol(q) && (blk.out >>> q & 1) && !(d.indirect === 'lr' && q === 3)) settle(q);
             // r3 is what a routine hands back; named where the routine ever sets it.
-            if (d.indirect === 'lr') say('return' + (reg[3].k !== undefined || reg[3].s !== 'r3' ? ' ' + str(reg[3]) : B.some(x => x.def >>> 3 & 1) ? ' r3' : ''));
-            else if (d.indirect) say('goto one of several places, by a number');
+            if (d.indirect === 'lr') addLine('return' + (reg[3].k !== undefined || reg[3].s !== 'r3' ? ' ' + str(reg[3]) : B.some(x => x.def >>> 3 & 1) ? ' r3' : ''));
+            else if (d.indirect) addLine('goto one of several places, by a number');
             else if (d.conditional && /^b[tf]/.test(mn)) {
               const yes = mn[1] === 't', which = d.bi & 3;
               const opn = [yes ? '<' : '>=', yes ? '>' : '<=', yes ? '==' : '!='][which];
-              say('if (' + (cond ? (cond.old ? 'earlier: ' : '') + wrap(cond.a, 3, cond.hexy, true) + ' ' + opn + ' ' + wrap(cond.b, 3, cond.hexy, true) : 'an earlier test ' + opn + ' 0') + ') goto \u0001', o.to);
-            } else if (d.conditional) say('\u0003' + o.text + ' \u0001', o.to);
-            else say('goto \u0001', o.to);
+              addLine('if (' + (cond ? (cond.old ? 'earlier: ' : '') + wrap(cond.a, 3, cond.hexy, true) + ' ' + opn + ' ' + wrap(cond.b, 3, cond.hexy, true) : 'an earlier test ' + opn + ' 0') + ') goto \u0001', o.to);
+            } else if (d.conditional) addLine('\u0003' + o.text + ' \u0001', o.to);
+            else addLine('goto \u0001', o.to);
           }
         } else if (mn === 'nop' || mn === 'stmw' || mn === 'lmw' || mn === 'mflr' || mn === 'mtlr' || mn === 'mtctr') {
           if (mn === 'mflr') reg[d.rd] = atom('return address');
@@ -515,13 +515,13 @@ function exePseudo(r) {
           // Below the stack pointer the routine saves the registers it must hand back, and restores them.
           else if (d.d < 0) { if (m[1] === 'l') reg[d.rt] = atom(name(d.rt)); }
           else if (m[1] === 'l') { dest = d.rt; res = atom('local' + d.d); }
-          else if (reg[d.rt].s !== 'return address') { const v = str(reg[d.rt]); before(mentions('local' + d.d)); stale(mentions('local' + d.d)); say('local' + d.d + ' = ' + v); }
+          else if (reg[d.rt].s !== 'return address') { const v = str(reg[d.rt]); before(mentions('local' + d.d)); stale(mentions('local' + d.d)); addLine('local' + d.d + ' = ' + v); }
         } else if (m && d.ra === 2 && !m[5] && m[1] === 'l') { dest = d.rt; res = atom(tocName(d.d)); }
         else if (m && m[2] !== 'mw') {
           const base = m[5] ? bin('+', reg[d.ra], reg[d.rb], 3) : reg[d.ra];
           const cell = memOf(m[2], base, m[5] ? 0 : d.d);
           if (m[1] === 'l') { dest = d.rt; res = cell; }
-          else { const v = str(reg[d.rt]); before(e => e.mem); stale(e => e.mem); say(cell.s + ' = ' + v); }
+          else { const v = str(reg[d.rt]); before(e => e.mem); stale(e => e.mem); addLine(cell.s + ' = ' + v); }
         } else if (mn === 'li') { dest = d.rd; res = konst(d.imm); }
         else if (mn === 'lis') { dest = d.rd; res = konst(d.imm << 16); }
         else if (/^addi[cs]?$/.test(bare) && d.ra === 1) { if (d.rd !== 1) { dest = d.rd; res = atom('&local' + d.imm); } }
@@ -625,8 +625,8 @@ function exeListingHTML(r, ringAt, why) {
     }
     // In words: the place in the routine, as a jump's link names it, then
     // the sentence, with the jump's link standing in for the place.
-    const said = plain[i] ? svEsc(plain[i]).replace('\u0001', where) + toc : '<span class="refnote">' + t + '</span>';
-    const line = plainOn ? ('+0x' + (o.at - r.offset).toString(16).toUpperCase()).padEnd(7) + ' ' + said
+    const shownText = plain[i] ? svEsc(plain[i]).replace('\u0001', where) + toc : '<span class="refnote">' + t + '</span>';
+    const line = plainOn ? ('+0x' + (o.at - r.offset).toString(16).toUpperCase()).padEnd(7) + ' ' + shownText
       : hex(o.at) + '  ' + o.word.toString(16).toUpperCase().padStart(8, '0') + '  ' + t;
     if (o.at !== ringAt) return line;
     const note = [why ? 'You followed “' + svEsc(why) + '”. The program sets it on the line above.' : '',
@@ -727,7 +727,7 @@ const PREF_HELP = {
   zoomRects: ['windows', 'Preferences dialog', 'Windows open with a zooming outline.'],
   Backdrop: ['windows', 'Not in the game', 'The pattern that fills the screen behind every window. Nothing in the game sets it.'],
   switch256: ['startup', 'Startup prompt', 'On a screen set to more than 256 colors, the game switches it to 256 when it starts. Off, it runs in the colors the screen already has.'],
-  dontAsk: ['startup', 'Startup prompt', 'The game shows no 256-color prompt when it starts. Off, it shows the prompt on a screen set to more than 256 colors, and the answer replaces the switch above.'],
+  noPrompt: ['startup', 'Startup prompt', 'The game shows no 256-color prompt when it starts. Off, it shows the prompt on a screen set to more than 256 colors, and the answer replaces the switch above.'],
   cheats: ['startup', 'Not in the game', null],
   mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if you held Command, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu; the right-click fix on the Patches tab puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
 };
@@ -755,14 +755,14 @@ function renderLicenseSheet() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.id = 'licenseFile'; inp.accept = '*/*';
   about.appendChild(inp);
-  const said = document.createElement('div');
-  said.className = 'changesNote'; said.id = 'licenseSaid';
-  said.style.marginLeft = '0';
-  about.appendChild(said);
+  const shownText = document.createElement('div');
+  shownText.className = 'changesNote'; shownText.id = 'licenseSaid';
+  shownText.style.marginLeft = '0';
+  about.appendChild(shownText);
   inp.onchange = () => {
     const f = inp.files && inp.files[0];
     if (!f) return;
-    f.arrayBuffer().then(buf => { said.innerHTML = licenseSaidHTML(new Uint8Array(buf)); }, e => quiet(e, 'reading a license file'));
+    f.arrayBuffer().then(buf => { shownText.innerHTML = licenseReportHTML(new Uint8Array(buf)); }, e => quiet(e, 'reading a license file'));
   };
   box.appendChild(about);
   const make = document.createElement('div');
@@ -775,7 +775,7 @@ function renderLicenseSheet() {
   out.textContent = LICENSE_FILE_NAME + ', the file where the game stores its registration.';
 }
 // What the tab shows for a chosen file. The name is the file's, verbatim.
-function licenseSaidHTML(bytes) {
+function licenseReportHTML(bytes) {
   const lic = cytheraLicenseRead(bytes);
   if (!lic) return svEsc('This is not a ' + LICENSE_FILE_NAME + ' file. One is ' + LICENSE_FILE_SIZE + ' bytes, and this is ' + bytes.length + '.');
   return svEsc('The name in this file is ') + '<b>' + svEsc(lic.name) + '</b>' + svEsc(lic.hasCode ? ', with a code.' : ', with no code.');
@@ -903,7 +903,7 @@ function renderPrefsSheet() {
   // The startup question's answer and its "don't ask" as two switches, each
   // labelled with the dialog's text, so every pairing can be written. Both
   // start on: the game's recommendation, and no question in the way.
-  (layout.startup || []).forEach((x, i) => { if (PREF_STARTUP_IDS[i]) sw(['switch256', 'dontAsk'][i], PREF_STARTUP_IDS[i], x.text, true); });
+  (layout.startup || []).forEach((x, i) => { if (PREF_STARTUP_IDS[i]) sw(['switch256', 'noPrompt'][i], PREF_STARTUP_IDS[i], x.text, true); });
   sw('cheats', 'prefCheats', 'Allow the cheat keys', true,
      svEsc('Lets the cheat keys work after you type ' + layout.gate.word + '. Nothing in the game turns this on, so a copy as released cannot enter cheat mode.'));
   // No label anywhere in the game, so the row's name is one the page supplies.
@@ -1337,10 +1337,10 @@ function characterChip(i, terse) {
 // What a person says over their head, from the bark catalogue: their own
 // lines, and the shared idle script's where their dialogue hands off to it.
 function characterSays(i) {
-  let mine = [];
-  try { mine = buildBarkCatalogue().filter(b => b.who === i); } catch (e) { mine = []; }
-  if (!mine.length) return '';
-  const lines = mine.flatMap(b => b.words).map(w => '“' + svEsc(w) + '”');
+  let characterBarks = [];
+  try { characterBarks = buildBarkCatalog().filter(b => b.character === i); } catch (e) { characterBarks = []; }
+  if (!characterBarks.length) return '';
+  const lines = characterBarks.flatMap(b => b.words).map(w => '“' + svEsc(w) + '”');
   return partsStrip('Says', ['<button class="navChip" onclick="showCategory(\'BARKS\')">Barks</button>'],
     lines.join(', '));
 }
@@ -1736,11 +1736,11 @@ function ownerRows(resid, subn) {
     // Every script that refers to this strip, the zone's entry script
     // included where it is one; a negative number is the strip with no sky
     // (landscapeSetters).
-    const chips = [], said = new Set();
+    const chips = [], shownText = new Set();
     for (const st of landscapeZones(resid)) {
       const key = st.resid + (st.sky ? '' : '-');
-      if (said.has(key)) continue;
-      said.add(key);
+      if (shownText.has(key)) continue;
+      shownText.add(key);
       chips.push(relChip({ js: 'jumpToScriptAt(' + st.resid + ',' + st.at + ')',
         main: landscapeSetterName(st.resid), sub: st.sky ? 'over the sky' : 'no sky',
         title: trailForResid(st.resid) }));
@@ -1941,8 +1941,8 @@ function monsterTopFlagSites() {
   if (!f) return out;
   try {
     const named = DVM_SYM.field[String(f.field)];
-    const spelt = '(?:0x' + f.field.toString(16).toUpperCase() + '\\b' + (named ? '|' + named + '\\b' : '') + ')';
-    const hint = new RegExp('get_field ' + spelt), get = new RegExp('^get_field ' + spelt);
+    const spelled = '(?:0x' + f.field.toString(16).toUpperCase() + '\\b' + (named ? '|' + named + '\\b' : '') + ')';
+    const hint = new RegExp('get_field ' + spelled), get = new RegExp('^get_field ' + spelled);
     for (const e of buildScriptTextIndex()) {
       if (!hint.test(e.text)) continue;
       const ops = dvmOpsOf(e);
@@ -2143,8 +2143,8 @@ function monsterFlagsHTML(f, each) {
   const named = [];
   let rest = f >>> 0;
   // A bit two rules read (0x0080 is fire and lava) is not counted twice.
-  let told = 0;
-  const own = v => { if (!each) return ''; const again = (told & v) >>> 0 === v >>> 0; told = (told | v) >>> 0;
+  let describedBits = 0;
+  const own = v => { if (!each) return ''; const again = (describedBits & v) >>> 0 === v >>> 0; describedBits = (describedBits | v) >>> 0;
     return ' <span style="color:#dcd8cc">' + (again ? 'also ' : '') + propWordHex(v >>> 0) + '</span>'; };
   for (const [bit, name] of MONSTER_FLAG_NAMES)
     if (f & bit) { const s = sites.get(bit); named.push({ low: bit, html: (s ? srcNum(s, name) : svEsc(name)) + own(bit) }); rest = (rest & ~bit) >>> 0; }
@@ -2374,14 +2374,14 @@ function showMonsterDetail(idx) {
   if (sites.length) {
     h += '<div class="mechSub">Where It Hatches</div><ul class="ruleList">' + sites.map(s =>
       '<li>' + svLink(s.zone + ' (zone ' + (s.map - 0x8000) + ')', 'jumpToResource(' + s.map + ')') + ' at (' + s.x + ', ' + s.y + ')' + (s.n > 1 ? ', ' + s.n + ' of them' : '') +
-      ', hatching ' + behaviourHTML(s.beh) + '</li>').join('') + '</ul>';
+      ', hatching ' + behaviorHTML(s.beh) + '</li>').join('') + '</ul>';
     /* The lich who stands still is taken for Tavara, the mage who destroyed
        Abydos; no text names him, and this is the line players read it from,
        quoted from the file. */
     const still = sites.filter(s => s.beh === 0);
     if (r.proptype === 297 && still.length === 1 && sites.length > 1) {
-      const said = srcSaid(0x187F, 'Instead, he just sits in his mountain strongholds, awaiting a death that will never truly come.');
-      if (/<button/.test(said)) h += '<div class="sv-note">The one that stands still is taken for Tavara. Ur-Sylph, of the traitor who destroyed a colony: ' + said + '</div>';
+      const shownText = srcQuoteText(0x187F, 'Instead, he just sits in his mountain strongholds, awaiting a death that will never truly come.');
+      if (/<button/.test(shownText)) h += '<div class="sv-note">The one that stands still is taken for Tavara. Ur-Sylph, of the traitor who destroyed a colony: ' + shownText + '</div>';
     }
   }
   panel.innerHTML = h;
@@ -2610,7 +2610,7 @@ function renderText(sameResource) {
   cancelResourceEdit();
   try {
     const resDataRaw = ARCHIVE.bytes.slice(roff, roff+rlen);
-    const { data: resData, wasDecrypted, rawEntropy, decEntropy, shape, allZero, known } = smartDecrypt(resDataRaw, resid);
+    const { data: resData, wasDecrypted, rawEntropy, decEntropy, shape, allZero, inTables } = smartDecrypt(resDataRaw, resid);
 
     document.getElementById('textPreview').style.display = 'block';
     document.getElementById('zoomControls').style.display = 'none';
@@ -2622,7 +2622,7 @@ function renderText(sameResource) {
     // decryptor made, and how close it was.
     const readNote =
       (wasDecrypted ? 'decrypted' : 'read as stored') +
-      (known ? "  (from delvmod's tables)"
+      (inTables ? "  (from delvmod's tables)"
              : shape ? '  (by its shape: ' + shape + ')'
              : rawEntropy || decEntropy
                ? '  (entropy ' + Math.min(rawEntropy, decEntropy).toFixed(2) +
@@ -2960,9 +2960,9 @@ function convTextHtml(resid, e) {
   for (const t of e.text) {
     let chain = [];
     for (const l of lines) { if (l.at > t.off) break; chain = l.chain; }
-    const said = chain.join(' and ');
-    const lead = said && said !== prev ? '<span class="inspDim">' + chain.map(c => convCondHtml(resid, c)).join(' and ').replace(/ and if /g, ' and ') + ':</span> ' : '';
-    prev = said;
+    const shownText = chain.join(' and ');
+    const lead = shownText && shownText !== prev ? '<span class="inspDim">' + chain.map(c => convCondHtml(resid, c)).join(' and ').replace(/ and if /g, ' and ') + ':</span> ' : '';
+    prev = shownText;
     const body = escHtml(t.str)
       .replace(/@([A-Za-z][A-Za-z'-]*)/g,
         '<span class="convLink" onclick="convJumpWord(' + resid + ',\'$1\')">$1</span>');
@@ -3091,29 +3091,29 @@ function convCondHtml(resid, c) {
   const notes = convReadConds(resid).notes;
   const neg = /^not \((.*)\)$/.exec(c), k = neg ? neg[1] : c;
   const note = notes.get(k) || notes.get(c) || '';
-  const who = (typeof characterName === 'function' && resid >= 0x1800 && resid < 0x1900) ? characterName(resid - 0x1800) : null;
+  const character = (typeof characterName === 'function' && resid >= 0x1800 && resid < 0x1900) ? characterName(resid - 0x1800) : null;
   const m = /^\((.+?)’s conversation, asked about ([A-Z,]+) sets bit (\d+) of (.+?)’s bit flags/.exec(note);
   const own = /^its bit flags has bit (\d+)/.exec(k);
-  if (m && own && own[1] === m[3] && who && m[1] === who && m[4] === who) {
+  if (m && own && own[1] === m[3] && character && m[1] === character && m[4] === character) {
     const w = m[2].toLowerCase().split(',')[0];
     const link = '<span class="convLink" onclick="convJumpWord(' + resid + ',\'' + w + '\')">' + svEsc(w) + '</span>';
     return 'if ' + (neg ? 'not yet asked about ' + link : 'asked about ' + link + ' before');
   }
   // A note that is only the helper's number, "(0xF13)", adds nothing the
   // test has not shown.
-  const said = /^\(0x[0-9A-F]+\)$/.test(note) ? '' : note;
-  return 'if ' + svEsc(c) + (said ? ' <span class="inspDim">' + svEsc(said) + '</span>' : '');
+  const shownText = /^\(0x[0-9A-F]+\)$/.test(note) ? '' : note;
+  return 'if ' + svEsc(c) + (shownText ? ' <span class="inspDim">' + svEsc(shownText) + '</span>' : '');
 }
 function convCardHtml(resid, e, depth) {
   const kws = convPromptHtml(e);
   const badges = [];
-  const said = e.kw === '*' ? null : convReadConds(resid).get(e.at);
-  const condBadges = said ? said.slice(0, 3).map(c => convCondHtml(resid, c)) : [];
-  if (!said && e.conds.length) badges.push('depends on: ' + e.conds.map(dvmSyscallShown).join(', '));
+  const shownText = e.kw === '*' ? null : convReadConds(resid).get(e.at);
+  const condBadges = shownText ? shownText.slice(0, 3).map(c => convCondHtml(resid, c)) : [];
+  if (!shownText && e.conds.length) badges.push('depends on: ' + e.conds.map(dvmSyscallShown).join(', '));
   // A character helper (0xF00 up) the condition already reads through is
   // not repeated as a call.
   for (const a of e.actions) {
-    if (said && a.call !== undefined && (a.call >> 8) === 0x0F) continue;
+    if (shownText && a.call !== undefined && (a.call >> 8) === 0x0F) continue;
     const b = convBadgeFor(a); if (b) badges.push(b);
   }
   let html = '<div class="convCard' + (depth ? ' convSub' : '') + '" id="conv-' + resid + '-' + e.at + '">' +
@@ -3132,7 +3132,7 @@ function convCardHtml(resid, e, depth) {
    group topic the character or an earlier group already answers is not
    repeated; the group's heading shows how many. The catch-all's words
    come last, after the groups, which is when the engine reaches them. */
-function convWhoHtml(resid, conv) {
+function convSpeakerHtml(resid, conv) {
   const ci = resid - 0x1800;
   let face = null;
   try { face = typeof characterFace === 'function' ? characterFace(ci) : null; } catch (e) { face = null; }
@@ -3185,7 +3185,7 @@ function renderConversationPane(data, subn, resid) {
       ', read from the code' + (chain ? ' · generic topics: ' + chain : '');
   }
   let html = '<div class="convHead">' + head + '</div>' + dlgToolsHtml();
-  if (subn !== 8) html += convWhoHtml(resid, conv);
+  if (subn !== 8) html += convSpeakerHtml(resid, conv);
   // The catch-all last, whatever order the chain tests it in.
   const ordered = conv.entries.filter(e => e.kw !== '*').concat(conv.entries.filter(e => e.kw === '*'));
   if (subn === 8) for (const e of ordered) html += convCardHtml(resid, e, 0);

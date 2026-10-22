@@ -482,7 +482,7 @@ function scheduleHoldsAtStart(e, state) {
    condition is true. Philinus, Timon and Eudoxus open with one. */
 function scheduleIsHead(e) { return e.level === 0 && e.x === 0 && e.y === 0 && e.cond !== 1; }
 /* Why ScheduleTime would not schedule a character at all, from the record
-   as the file has it and the tests read off the routine (exeScheduleWho):
+   as the file has it and the tests read off the routine (exeScheduleRules):
    in the party, dead, or waiting. Null when the character is scheduled,
    and null with no application open, since the tests are the program's
    and the page states nothing of them without it. The fourth test, the
@@ -490,13 +490,13 @@ function scheduleIsHead(e) { return e.level === 0 && e.x === 0 && e.y === 0 && e
 function scheduleSkipReason(i) {
   const state = scheduleState();
   const c = state && state.chars && state.chars[i] ? state.chars[i] : loadCharacterTable()[i];
-  const who = c && appImage() ? exeScheduleWho() : null;
-  if (!who) return null;
+  const character = c && appImage() ? exeScheduleRules() : null;
+  if (!character) return null;
   const raw = c.raw;
-  if (raw[who.partyBit.byte.v] & who.partyBit.bit.v) return 'in the party';
-  const hw = (raw[who.aliveBit.byte.v] << 8) | raw[who.aliveBit.byte.v + 1];
-  if (!(hw & who.aliveBit.mask.v)) return 'dead';
-  if (raw[who.waiting.byte.v] === who.waiting.value.v) return 'waiting';
+  if (raw[character.partyBit.byte.v] & character.partyBit.bit.v) return 'in the party';
+  const hw = (raw[character.aliveBit.byte.v] << 8) | raw[character.aliveBit.byte.v + 1];
+  if (!(hw & character.aliveBit.mask.v)) return 'dead';
+  if (raw[character.waiting.byte.v] === character.waiting.value.v) return 'waiting';
   return null;
 }
 
@@ -1105,7 +1105,7 @@ function nightAlpha(hour) {
 window.MAP_MARKS = { doors: false, secret: false, chest: false, exits: false, grid: false, rooms: false, eggs: false, path: false, save: false };
 function toggleMapMarks(kind, on) { window.MAP_MARKS[kind] = on; drawMapMarks(); }
 // The Path mark's state, its picker and its drawing are in
-// js/delv-mapview.js: MAP_PATH_WHO, setMapPathWho, refreshPathPicker and
+// js/delv-mapview.js: MAP_PATH_CHARACTER, setMapPathCharacter, refreshPathPicker and
 // drawSchedulePath.
 
 // Prop types that are a way through something rather than a thing: the ones
@@ -1252,9 +1252,9 @@ function propTravelsTo(rec, mapResid) {
   // named -- mousehole, crack, loose board -- have no class or no such
   // member, and their zone change is an egg's. The settlement scoping
   // above is the one judgement left.
-  const known = classTravels(rec.proptype) &&
+  const isZoneport = classTravels(rec.proptype) &&
                 (mapResid === WORLD_MAP_RESID || !SETTLEMENT_PROPS.test((propTypeName(rec.proptype) || '').toLowerCase()));
-  return known ? zoneportInfo(rec.d2) : null;
+  return isZoneport ? zoneportInfo(rec.d2) : null;
 }
 
 /* Every gateway off the world map, as a footprint with a destination.
@@ -1687,7 +1687,7 @@ function drawMapMarks(lensCtx, lensTS) {
     ctx.clearRect(0, 0, mc.width, mc.height);
     TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at the layer's scale
   }
-  const colours = { doors: '#ffd166', secret: '#8fd4ff', chest: '#a8e06a', exits: '#ff9ad5', path: '#7ef0c0' };
+  const colors = { doors: '#ffd166', secret: '#8fd4ff', chest: '#a8e06a', exits: '#ff9ad5', path: '#7ef0c0' };
   // A line on every square's edge, so a coordinate can be counted off the map.
   if (M.grid) {
     const cols = Math.round(cm.width / cm.TS), rows = Math.round(cm.height / cm.TS);
@@ -1817,7 +1817,7 @@ function drawMapMarks(lensCtx, lensTS) {
   // One character's day, as the line they walk (drawSchedulePath in
   // js/delv-mapview.js, which explains why it is the whole day and not the
   // hour).
-  const drawnPath = M.path ? drawSchedulePath(ctx, TS, cm, colours.path) : null;
+  const drawnPath = M.path ? drawSchedulePath(ctx, TS, cm, colors.path) : null;
   const pathStops = drawnPath ? drawnPath.stops : 0;
   const pathName = drawnPath ? drawnPath.name : '';
 
@@ -1835,8 +1835,8 @@ function drawMapMarks(lensCtx, lensTS) {
     // The inspector still explains them when their square is clicked.
     for (const e of mapExitEdges(cm.resid, cm.m)) {
       edges++;
-      wash(e.cells, colours.exits, 0.18);
-      ring(e.cells, colours.exits, true);
+      wash(e.cells, colors.exits, 0.18);
+      ring(e.cells, colors.exits, true);
     }
   }
 
@@ -1866,8 +1866,8 @@ function drawMapMarks(lensCtx, lensTS) {
       let buried = false;
       if (kind === 'secret' || isExitProp(r.proptype, cm.resid)) {
         const later = (stack.get(r.y * 4096 + r.x) || []);
-        const mine = later.indexOf(d);
-        for (let i = mine + 1; i < later.length; i++)
+        const laterIndex = later.indexOf(d);
+        for (let i = laterIndex + 1; i < later.length; i++)
           if (tileOpacity(later[i].tileId) > 0.75) { buried = true; break; }
       }
       // Concealment beats exit-ness: a crack or a mousehole leads somewhere,
@@ -1878,7 +1878,7 @@ function drawMapMarks(lensCtx, lensTS) {
       const isExit = isExitProp(r.proptype, cm.resid) && !isConcealedProp(r.proptype);
       const isHidden = kind === 'secret' && (isConcealedProp(r.proptype) || buried ||
                                              isWallProp(r.proptype));
-      const needsRope = ropes_.has(r.x + ',' + r.y);
+      const requiresRope = ropes_.has(r.x + ',' + r.y);
 
       // One ring per square per kind, on the record's square only. A
       // door is doorway + metal door stacked on one square, each spanning
@@ -1893,8 +1893,8 @@ function drawMapMarks(lensCtx, lensTS) {
       };
       if (M.exits && isExit && !seen('e')) {
         counts.exits++;
-        ring(base, colours.exits, false);
-        wash(base, colours.exits, 0.14);
+        ring(base, colors.exits, false);
+        wash(base, colors.exits, 0.14);
       }
       if (M.secret && isHidden && !seen('s')) {
         counts.secret++;
@@ -1904,11 +1904,11 @@ function drawMapMarks(lensCtx, lensTS) {
         // climbing), so the type is the how.
         const tn = (propTypeName(r.proptype) || (buried ? 'buried' : 'other')).toLowerCase();
         secretTypes.set(tn, (secretTypes.get(tn) || 0) + 1);
-        ring(base, colours.secret, true);
+        ring(base, colors.secret, true);
         if (buried) ring(base, '#ffffff', true);
       }
-      if (M.doors && kind === 'doors' && !seen('d')) { counts.doors++; ringBox(d.cells, colours.doors); }
-      if (M.chest && kind === 'chest' && !seen('c')) { counts.chest++; ring(base, colours.chest, false); }
+      if (M.doors && kind === 'doors' && !seen('d')) { counts.doors++; ringBox(d.cells, colors.doors); }
+      if (M.chest && kind === 'chest' && !seen('c')) { counts.chest++; ring(base, colors.chest, false); }
       // A locked door or container wears a keyhole over its ring: the lock
       // id is the record's first data byte (see buildKeyLockIndex).
       if (((M.doors && kind === 'doors') || (M.chest && kind === 'chest')) &&
@@ -1916,7 +1916,7 @@ function drawMapMarks(lensCtx, lensTS) {
           !seen('l')) {
         locked++;
         ctx.save();
-        ctx.fillStyle = '#111'; ctx.strokeStyle = colours.doors;
+        ctx.fillStyle = '#111'; ctx.strokeStyle = colors.doors;
         ctx.lineWidth = Math.max(1, TS / 20);
         const cxp = r.x * TS + TS * 0.5, cyp = r.y * TS + TS * 0.32;
         ctx.beginPath(); ctx.arc(cxp, cyp, TS * 0.14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -1925,7 +1925,7 @@ function drawMapMarks(lensCtx, lensTS) {
         ctx.stroke();
         ctx.restore();
       }
-      if ((M.exits || M.secret) && needsRope && (isExit || isHidden)) {
+      if ((M.exits || M.secret) && requiresRope && (isExit || isHidden)) {
         ropes++; ropeGlyph(r.x, r.y); ropeDone.add(r.x + ',' + r.y);
       }
     }
@@ -1938,7 +1938,7 @@ function drawMapMarks(lensCtx, lensTS) {
         if (ropeDone.has(k)) continue;
         const [rx, ry] = k.split(',').map(Number);
         ropes++;
-        if (M.exits) { counts.exits++; ring([[rx, ry]], colours.exits, false); wash([[rx, ry]], colours.exits, 0.14); }
+        if (M.exits) { counts.exits++; ring([[rx, ry]], colors.exits, false); wash([[rx, ry]], colors.exits, 0.14); }
         ropeGlyph(rx, ry);
       }
     }
@@ -2050,7 +2050,7 @@ function drawMapMarks(lensCtx, lensTS) {
     const LINE = '<span class="legendSwatch line"></span>';
     const ROPE = '<svg class="legendSwatch" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">' +
       '<path d="M5 1.6V8.4M3.2 3.8H6.8M3.2 6.2H6.8" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>';
-    const chip = (k, label) => parts.push('<span style="color:' + colours[k] + '">' + BOX + counts[k] + ' ' + label + '</span>');
+    const chip = (k, label) => parts.push('<span style="color:' + colors[k] + '">' + BOX + counts[k] + ' ' + label + '</span>');
     if (M.doors) chip('doors', 'doors' + (locked ? ', ' + locked + ' locked' : ''));
     if (M.secret) {
       const breakdown = [...secretTypes.entries()].sort((a, b) => b[1] - a[1])
@@ -2067,7 +2067,7 @@ function drawMapMarks(lensCtx, lensTS) {
     }
     if (M.exits) chip('exits', (counts.exits === 1 ? 'zone exit' : 'zone exits') +
       (edges ? ' + ' + edges + (edges === 1 ? ' open edge' : ' open edges') : ''));
-    if (M.path && pathStops) parts.push('<span style="color:' + colours.path + '">' + LINE +
+    if (M.path && pathStops) parts.push('<span style="color:' + colors.path + '">' + LINE +
       svEsc(pathName) + ', ' + pathStops + (pathStops === 1 ? ' post' : ' posts') +
       ' on this map, joined by the route the game would walk; the color of each part of the route' +
       ' shows the hour it starts, and each part takes its own line where the game' +
@@ -2539,7 +2539,7 @@ function toggleCharNames(on) { window.SHOW_CHAR_NAMES = on; drawCharacterLayer()
 /* Barks on the map (the maintainer's list, 22 September 2026).
 
    A bark is a line a script puts in a character's talk balloon
-   (buildBarkCatalogue has every one). The ones drawn here are the lines a
+   (buildBarkCatalog has every one). The ones drawn here are the lines a
    character's conversation script gives it -- the vendors' cries,
    Alaric's "Yum", the diners calling for wine -- which is twelve people;
    the shared lines (sleep, hunger, a fight, a theft) are anyone's and wait
@@ -2556,10 +2556,10 @@ function barksByCharacter() {
   if (DERIVED.BARKS_BY_CHAR) return DERIVED.BARKS_BY_CHAR;
   const by = new Map();
   try {
-    for (const e of buildBarkCatalogue()) {
-      if (e.who === null || e.who === undefined) continue;
-      if (!by.has(e.who)) by.set(e.who, []);
-      for (const w of e.words) if (!by.get(e.who).includes(w)) by.get(e.who).push(w);
+    for (const e of buildBarkCatalog()) {
+      if (e.character === null || e.character === undefined) continue;
+      if (!by.has(e.character)) by.set(e.character, []);
+      for (const w of e.words) if (!by.get(e.character).includes(w)) by.get(e.character).push(w);
     }
   } catch (e) { quiet(e, 'the barks by speaker'); }
   return (DERIVED.BARKS_BY_CHAR = by);

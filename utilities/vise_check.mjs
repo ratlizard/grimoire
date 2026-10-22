@@ -243,7 +243,7 @@ if (folderSit) {
 }
 
 // Rejections.
-function refuses(bytes) { try { ctx.sniffViseInstaller(bytes); return false; } catch (e) { return true; } }
+function sniffThrows(bytes) { try { ctx.sniffViseInstaller(bytes); return false; } catch (e) { return true; } }
 check('junk is not an installer', ctx.sniffViseInstaller(new TextEncoder().encode('hello world, not SVCT')) === null);
 check('a bare Cythera Data is not an installer', !refData || ctx.sniffViseInstaller(refData) === null);
 // How a cut-short file is reported depends on the container it came in, so
@@ -253,10 +253,10 @@ check('a bare Cythera Data is not an installer', !refData || ctx.sniffViseInstal
 // name the entry it cannot reach, so it is rejected with a message rather than
 // going unrecognised.
 if (isSit) {
-  check('a truncated StuffIt archive is rejected with a message', refuses(bin.subarray(0, 4096)));
+  check('a truncated StuffIt archive is rejected with a message', sniffThrows(bin.subarray(0, 4096)));
 } else {
   check('a truncated MacBinary is simply not recognised', ctx.sniffViseInstaller(bin.subarray(0, 4096)) === null);
-  check('a truncated SVCT fork is rejected with a message', refuses(bin.subarray(128, 128 + 4096)));
+  check('a truncated SVCT fork is rejected with a message', sniffThrows(bin.subarray(128, 128 + 4096)));
 }
 
 console.log(failures ? `\nFAIL — ${failures} check(s) failed` : `\nAll installer checks passed: ${archive.entries.length} files, ${extracted} extracted, ${crcBad} CRC mismatches`);

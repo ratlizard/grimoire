@@ -66,16 +66,16 @@ const allFiles = dz => {
 };
 const dataZ = ev('qtInstallerDataZ(EXE)');
 const entries = ev('parseInstallShield3')(dataZ).entries;
-const got = allFiles(dataZ);
-if (got !== ALL_FILES) fail('unpacking', `the 21 files hash to ${got}, dclimplode's to ${ALL_FILES}`);
+const actual = allFiles(dataZ);
+if (actual !== ALL_FILES) fail('unpacking', `the 21 files hash to ${actual}, dclimplode's to ${ALL_FILES}`);
 else ok('unpacking', `${entries.length} files exploded as dclimplode explodes them`);
 
 // The controls.
 const qtx = entries.find(e => /QuickTimeMusicalInstruments\.qtx$/.test(e.path));
 const packed = dataZ.subarray(qtx.offset, qtx.offset + qtx.packedLen);
-const throws = (what, fn, want) => {
+const throws = (what, fn, expected) => {
   try { fn(); fail(what, 'did not throw'); }
-  catch (e) { if (want && !want.test(e.message)) fail(what, 'threw "' + e.message + '"'); }
+  catch (e) { if (expected && !expected.test(e.message)) fail(what, 'threw "' + e.message + '"'); }
 };
 throws('a stream cut short', () => ev('dclExplode')(packed.subarray(0, packed.length >> 1), qtx.len), /ran out of input/);
 const coded = packed.slice(0, 64); coded[0] = 1;

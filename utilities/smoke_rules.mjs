@@ -22,10 +22,10 @@ try {
   // Skills and Spells: each one a card, read off its script.
   ctx.showCategory('SKILLS');
   const skhtml = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
-  const skills = ctx.skillCatalogue();
+  const skills = ctx.skillCatalog();
   const sword = skills.find(x => x.name === 'Sword'), gambling = skills.find(x => x.name === 'Gambling'), attack = skills.find(x => x.name === 'Attack');
-  if (!(sword && sword.teachers.some(t => t.who === 4) && sword.weapons.length && /\[aptitude \/ ability\] to use a sword/.test(sword.description))) fail('skills', 'Sword is not a unit: ' + JSON.stringify(sword && [sword.description, sword.teachers, sword.weapons.length]));
-  else if (!(gambling && gambling.askedBy.includes(0x812) && gambling.lessons.length >= 2)) fail('skills', 'Gambling does not show that the dice game tests it, or has no lessons: ' + JSON.stringify(gambling && [gambling.askedBy, gambling.lessons]));
+  if (!(sword && sword.teachers.some(t => t.character === 4) && sword.weapons.length && /\[aptitude \/ ability\] to use a sword/.test(sword.description))) fail('skills', 'Sword is not a unit: ' + JSON.stringify(sword && [sword.description, sword.teachers, sword.weapons.length]));
+  else if (!(gambling && gambling.checkedBy.includes(0x812) && gambling.lessons.length >= 2)) fail('skills', 'Gambling does not show that the dice game tests it, or has no lessons: ' + JSON.stringify(gambling && [gambling.checkedBy, gambling.lessons]));
   else if (!(attack && /\[aptitude \/ training\]/.test(attack.description))) fail('skills', 'the inline alternative was not read: ' + (attack && attack.description));
   else if (!/openCharacter\(4\)/.test(skhtml) || !/Thievery/.test(skhtml) || !/Regroup/.test(skhtml)) fail('skills', 'the Skills sheet does not show the teacher chip, Thievery, or the commands');
   else {
@@ -66,10 +66,10 @@ try {
   // land in themselves, zone 40 also titled Omen's Test.
   try {
     const pw = ctx.passwordRules(), lv = ctx.leverRules(), mz = ctx.teleportMazes();
-    const said = pw ? pw.words.filter(w => w.word) : [];
+    const shownWords = pw ? pw.words.filter(w => w.word) : [];
     const bed = lv && lv.levers.find(l => l.zone === 8 && l.x === 34 && l.y === 84);
-    if (said.length !== 5 || said.some(w => !w.word.v.toLowerCase().startsWith(w.key) || w.doors.length !== 1 || !w.gate || w.gate.v !== w.n.v) || !pw.every || pw.every.v !== 2)
-      fail('puzzles', 'the passwords are not five words, each with its door and gate: ' + JSON.stringify(said.map(w => [w.key, w.word && w.word.v, w.doors.length, w.gate && w.gate.v])));
+    if (shownWords.length !== 5 || shownWords.some(w => !w.word.v.toLowerCase().startsWith(w.key) || w.doors.length !== 1 || !w.gate || w.gate.v !== w.n.v) || !pw.every || pw.every.v !== 2)
+      fail('puzzles', 'the passwords are not five words, each with its door and gate: ' + JSON.stringify(shownWords.map(w => [w.key, w.word && w.word.v, w.doors.length, w.gate && w.gate.v])));
     else if (!lv || lv.levers.length < 30 || !bed || bed.reach.length !== 1 || bed.reach.some(o => ctx.propDisplayName(o.pt) === 'bed'))
       fail('puzzles', 'the levers are not read, or a bed answers one: ' + JSON.stringify(bed && bed.reach));
     else if (mz.map(m => m.zone).join() !== '14,40' || !mz[1].titles.some(t => t.v === "Omen's Test"))
@@ -188,36 +188,36 @@ try {
       ctx.undoFontSwap();
       if (peek('window.CYTHERA_RSRC_RAW').length !== before) fail('font swap', 'undo did not put the original fork back');
     }
-    let refused = '';
-    try { ctx.trueTypeToSfnt(new Uint8Array([0x4F, 0x54, 0x54, 0x4F, 0, 1, 0, 0, 0, 0, 0, 0])); } catch (e) { refused = e.message; }
+    let rejectionMessage = '';
+    try { ctx.trueTypeToSfnt(new Uint8Array([0x4F, 0x54, 0x54, 0x4F, 0, 1, 0, 0, 0, 0, 0, 0])); } catch (e) { rejectionMessage = e.message; }
     if (!peek('window.CYTHERA_RSRC')) fail('font swap', 'no resource fork to swap a font into');
-    else if (!/PostScript/.test(refused)) fail('font swap', 'an .otf was not rejected with a reason: ' + refused);
+    else if (!/PostScript/.test(rejectionMessage)) fail('font swap', 'an .otf was not rejected with a reason: ' + rejectionMessage);
     else if (!tried) console.log('  font swap: no test font on this machine, only the rejection checked');
     else console.log('  font swap: ' + tried + ' font(s) put in the fork and taken back out, each with a Mac Roman map');
   }
   // Questions, answered from the tables rather than by searching the text.
   {
-    const ask = q => { let a = null; try { a = ctx.answerQuestion(q); } catch (e) { a = null; } return a ? String(a).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ') : null; };
-    const want = [['who teaches axe', /Thersites/], ['what does fireball do', /burst of flame/],
+    const answerText = q => { let a = null; try { a = ctx.answerQuestion(q); } catch (e) { a = null; } return a ? String(a).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ') : null; };
+    const questions = [['who teaches axe', /Thersites/], ['what does fireball do', /burst of flame/],
                   ['what cures poison', /clears Poisoned/], ['who says Yum', /Alaric/],
                   ['what is a lich immune to', /non-magical/], ['who is Alaric', /Land King Hall/],
                   ['how much is a sword', /45/], ['what does haggling do', /haggle better/]];
-    const bad = want.filter(([q, re]) => { const a = ask(q); return !a || !re.test(a); }).map(x => x[0]);
-    const through = ['fire', 'who teaches basketry', 'what does xyzzy do'].filter(q => ask(q));
+    const bad = questions.filter(([q, re]) => { const a = answerText(q); return !a || !re.test(a); }).map(x => x[0]);
+    const through = ['fire', 'who teaches basketry', 'what does xyzzy do'].filter(q => answerText(q));
     if (bad.length) fail('ask', 'these questions were not answered from the file: ' + bad.join('; '));
     else if (through.length) fail('ask', 'these should have fallen through to the text search: ' + through.join('; '));
-    else console.log('  ask: ' + want.length + ' question shapes answered off the tables, and a word search still falls through');
+    else console.log('  ask: ' + questions.length + ' question shapes answered off the tables, and a word search still falls through');
   }
   // A link can name what the file does not have, and a GIF needs a frame.
   {
     let threw = null;
     try { ctx.showCharacterDetail(999); } catch (e) { threw = e.message; }
-    const said = /no character 999/i.test(REGISTRY.get('sheetGrid').textContent || '');
-    let gifRefused = '';
-    try { ctx.encodeGIF(2, 2, [], {}); } catch (e) { gifRefused = e.message; }
+    const shownWords = /no character 999/i.test(REGISTRY.get('sheetGrid').textContent || '');
+    let gifRejected = '';
+    try { ctx.encodeGIF(2, 2, [], {}); } catch (e) { gifRejected = e.message; }
     if (threw) fail('guards', 'a character the file does not have threw: ' + threw);
-    else if (!said) fail('guards', 'a character the file does not have showed nothing');
-    else if (!/at least one frame/.test(gifRefused)) fail('guards', 'an empty GIF was not rejected: ' + gifRefused);
+    else if (!shownWords) fail('guards', 'a character the file does not have showed nothing');
+    else if (!/at least one frame/.test(gifRejected)) fail('guards', 'an empty GIF was not rejected: ' + gifRejected);
     else console.log('  guards: a link to a character that is not there shows it, and an empty GIF is rejected');
     ctx.showCharacterDetail(2);
   }
@@ -246,10 +246,10 @@ try {
   ctx.showCharacterDetail(2);
   const dossier = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!/Says/.test(dossier) || !/Yum/.test(dossier)) fail('barks', 'Alaric’s dossier does not say “Yum”');
-  const barks = ctx.buildBarkCatalogue();
+  const barks = ctx.buildBarkCatalog();
   const words = new Set(barks.flatMap(b => b.words));
-  const need = ['Yum', 'Spare an obol?', 'Zzzz...', 'More wine!', 'Hot Kabobs!', 'Poisoned!'];
-  const missing = need.filter(w => !words.has(w));
+  const requiredWords = ['Yum', 'Spare an obol?', 'Zzzz...', 'More wine!', 'Hot Kabobs!', 'Poisoned!'];
+  const missing = requiredWords.filter(w => !words.has(w));
   if (barks.length < 40 || missing.length) fail('mechanics', `${barks.length} balloon sites; missing ${missing.join(', ') || 'nothing'}`);
   else if (!dice || dice.wins !== 96 || dice.pushes !== 50 || dice.losses !== 70) fail('mechanics', 'the dice enumeration is not 96/50/70: ' + JSON.stringify(dice && [dice.wins, dice.pushes, dice.losses]));
   else if (!/win (?:<button[^>]*>)?2(?:<\/button>)? oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
@@ -288,8 +288,8 @@ try {
   else if (!/knight’s move/.test(html) || !/hits or meets a parry/.test(html) || !/body less (?:<button[^>]*>)?12(?:<\/button>)? over (?:<button[^>]*>)?4(?:<\/button>)?/.test(html) || !/uses up one piece of ammunition per shot/.test(html)) fail('mechanics', 'the attack rules are not on the sheet');
   else if (!ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2 && r.thrownDamage === 10 && r.thrownRange === 4) || !ctx.gearTable().some(r => r.name === 'mystic spear' && r.reach === 1 && r.thrownDamage === 25 && r.thrownRange === 8) || !ctx.gearTable().some(r => r.name === 'sword' && r.thrownDamage === null)) fail('mechanics', 'the throw figures were not read off the spear classes');
   else if (ctx.spellRules().spells.length < 35 || !ctx.spellRules().spells.some(x => /Fireball/.test(x.name) && x.level === 5 && x.cost === 20) || !(ctx.spellRules().rule && ctx.spellRules().rule.failure)) fail('mechanics', 'the spells were not read: ' + ctx.spellRules().spells.length);
-  else if ((function () { const fx = ctx.spellEffects(); const sp = ctx.spellRules().spells; const by = n => fx.get((sp.find(x => x.name === n) || {}).resid); const fb = by('Fireball'), ds = by('Death Strike'), lh = by('Lesser Healing'), tr = by('Tremor'); return !(fb && fb.damage[0] && fb.damage[0].amount.base === 25 && fb.damage[0].amount.rolls[0][1] === 10 && fb.damage[0].type === 8 && /target square/.test(fb.damage[0].who)) || !(ds && ds.damage[0].amount.base === 200) || !(lh && lh.heals[0] && /health \+ 5 \+ a random number from 1 to 4/.test(lh.heals[0].text)) || !(tr && tr.damage[0].amount.rolls.length === 2 && tr.damage[0].who === 'every enemy'); })()) fail('mechanics', 'the spell effects were misread: ' + JSON.stringify([...ctx.spellEffects()].slice(0, 3)))
-  else if (!(ctx.sleepRules() && ctx.sleepRules().own === 4 && ctx.sleepRules().half && ctx.sleepRules().quarter && ctx.sleepRules().inns.some(x => x.who === 41 && x.quality === 3) && ctx.sleepRules().inns.length === 3)) fail('mechanics', 'the sleep rule was misread: ' + JSON.stringify(ctx.sleepRules()))
+  else if ((function () { const fx = ctx.spellEffects(); const sp = ctx.spellRules().spells; const by = n => fx.get((sp.find(x => x.name === n) || {}).resid); const fb = by('Fireball'), ds = by('Death Strike'), lh = by('Lesser Healing'), tr = by('Tremor'); return !(fb && fb.damage[0] && fb.damage[0].amount.base === 25 && fb.damage[0].amount.rolls[0][1] === 10 && fb.damage[0].type === 8 && /target square/.test(fb.damage[0].character)) || !(ds && ds.damage[0].amount.base === 200) || !(lh && lh.heals[0] && /health \+ 5 \+ a random number from 1 to 4/.test(lh.heals[0].text)) || !(tr && tr.damage[0].amount.rolls.length === 2 && tr.damage[0].character === 'every enemy'); })()) fail('mechanics', 'the spell effects were misread: ' + JSON.stringify([...ctx.spellEffects()].slice(0, 3)))
+  else if (!(ctx.sleepRules() && ctx.sleepRules().own === 4 && ctx.sleepRules().half && ctx.sleepRules().quarter && ctx.sleepRules().inns.some(x => x.character === 41 && x.quality === 3) && ctx.sleepRules().inns.length === 3)) fail('mechanics', 'the sleep rule was misread: ' + JSON.stringify(ctx.sleepRules()))
   else if (ctx.hungerNotes().falls || ctx.hungerNotes().complains !== 4) fail('mechanics', 'hunger was misread: ' + JSON.stringify(ctx.hungerNotes()));
   else if (!(ctx.skillConsultations().by.get(0xCF) || new Set()).has(0x812)) fail('mechanics', 'Gambling is not listed as tested by the dice game');
   else if (!ctx.karmaRules().writes.some(w => w.set === 55) || JSON.stringify(ctx.karmaRules().byAlignment) !== '[1,4,-10,0]') fail('mechanics', 'karma does not start at 55 or the kill table is not 1,4,-10,0: ' + JSON.stringify(ctx.karmaRules().byAlignment));
@@ -301,12 +301,12 @@ try {
   // lines), the flatbread class has one line for every variant, and no
   // weapon class reads the field at all.
   else if ((function () { const ar = ctx.aspectReaders(); const reads = [...ar.values()].filter(v => v.reads).length; return !(ar.size > 150 && reads >= 20 && reads < 60 && (ar.get(213) || {}).reads && (ar.get(0x1F) || {}).reads && !(ar.get(100) || {}).reads && !(ar.get(94) || {}).reads && ctx.gearTable().every(r => !(ar.get(r.pt) || {}).reads)); })()) fail('mechanics', 'the aspect readers were not counted as expected: ' + JSON.stringify([...ctx.aspectReaders()].filter(([, v]) => v.reads).map(([pt]) => pt)));
-  else if ((function () { const f = ctx.foodRules().foods.find(f => f.pt === 213), b = ctx.foodRules().foods.find(f => f.pt === 69); return !(f && f.saysPer && f.variants.length === 3 && f.variants[1].name === 'dried jellyfish' && f.variants[1].plus === 8 && f.variants[1].says === 'Yetch!' && f.variants[0].says === 'Not very good' && b && !b.saysPer && b.variants.every(v => v.says === 'Tasty')); })()) fail('mechanics', 'the foods’ lines were not read: ' + JSON.stringify(ctx.foodRules().foods.filter(f => f.variants).map(f => [f.pt, f.saysPer, f.variants.map(v => v.says)])));
+  else if ((function () { const f = ctx.foodRules().foods.find(f => f.pt === 213), b = ctx.foodRules().foods.find(f => f.pt === 69); return !(f && f.messagePerVariant && f.variants.length === 3 && f.variants[1].name === 'dried jellyfish' && f.variants[1].plus === 8 && f.variants[1].message === 'Yetch!' && f.variants[0].message === 'Not very good' && b && !b.messagePerVariant && b.variants.every(v => v.message === 'Tasty')); })()) fail('mechanics', 'the foods’ lines were not read: ' + JSON.stringify(ctx.foodRules().foods.filter(f => f.variants).map(f => [f.pt, f.messagePerVariant, f.variants.map(v => v.message)])));
   else if (!/of 180<\/b> item classes also read it/.test(html) || !/No weapon or piece of armor reads it/.test(html) || !/0x0464/.test(html) || !/dried jellyfish<\/b> that feeds <button[^>]*jumpToScriptAt[^>]*>\+8<\/button> and says <button[^>]*jumpToScriptAt[^>]*>“Yetch!”<\/button>/.test(html) || !/<button[^>]*>“Not very good”<\/button>/.test(html)) fail('mechanics', 'the prop record section does not say which classes read their aspect, or the spear and mushroom steak contrast is missing or its figures and lines are not links');
   else if (!(ctx.statusRules().applies.get('Sleep') || []).some(a => a.duration === 4096) || !(ctx.statusRules().cures.get('Poisoned') || new Set()).size) fail('mechanics', 'status effects were not read: sleep for 4096, poison cleared');
-  else if (!(ctx.lockRules().rule && ctx.lockRules().rule.formula && ctx.lockRules().needsSkill) || !ctx.lockRules().classes.some(c => c.name === 'chest' && c.words[0] === 15)) fail('mechanics', 'the lock rule or the chest’s parameter was not read');
-  else if (!ctx.shopRules().shops.some(sp => sp.who === 30 && sp.goods.some(g => g.name === 'Sword' && g.price === 45)) || !ctx.shopRules().haggling) fail('mechanics', 'Milcom’s sword at 45 or the haggling roll was not read');
-  else if (!ctx.trainingRules().teachers.some(t => t.who === 101 && t.skills.has(0xC5) && t.skills.has(0xC6)) || ctx.trainingRules().points.atStart !== 4 || !ctx.trainingRules().points.perLevel) fail('mechanics', 'Thersites’ axe and mace or the training points were not read: ' + JSON.stringify(ctx.trainingRules().points));
+  else if (!(ctx.lockRules().rule && ctx.lockRules().rule.formula && ctx.lockRules().requiresSkill) || !ctx.lockRules().classes.some(c => c.name === 'chest' && c.words[0] === 15)) fail('mechanics', 'the lock rule or the chest’s parameter was not read');
+  else if (!ctx.shopRules().shops.some(sp => sp.character === 30 && sp.goods.some(g => g.name === 'Sword' && g.price === 45)) || !ctx.shopRules().haggling) fail('mechanics', 'Milcom’s sword at 45 or the haggling roll was not read');
+  else if (!ctx.trainingRules().teachers.some(t => t.character === 101 && t.skills.has(0xC5) && t.skills.has(0xC6)) || ctx.trainingRules().points.atStart !== 4 || !ctx.trainingRules().points.perLevel) fail('mechanics', 'Thersites’ axe and mace or the training points were not read: ' + JSON.stringify(ctx.trainingRules().points));
   // The figures, and the models under them. Everything below this line was
   // added with the charts on 6 September 2026: a figure that silently draws
   // nothing looks exactly like a figure that is not there, and the sheet is
@@ -431,8 +431,8 @@ try {
   else if (!/Springs and Fountains/.test(html) || !/heavy taste of/.test(html)) fail('water', 'the sheet does not state the fountains');
   else if (!cures.length || cures[0].hi.v - cures[0].lo.v < 2) fail('cures', 'no cure with a roll behind it was read');
   else if (!grants.some(g => g.pt === 0x135 && g.flagName === 'Lava Proof') || !grants.some(g => g.clearedBy)) fail('grants', 'the worn statuses were misread: ' + JSON.stringify(grants.map(g => g.name + '/' + g.flagName)));
-  else if (!bl || !bl.centre || !bl.edge || bl.centre.v <= bl.edge.v) fail('blast', 'the bomb was misread: ' + JSON.stringify(bl && [bl.centre, bl.edge, bl.corner]));
-  else console.log(`  aim and ground: ${tg.length} scripts prompt for a target, ${reach.length} of them a neighbour; the swamp bites one step in ${swampChance} and lava does ${tn.lava.plus.v} to ${tn.lava.roll.hi.v - 1 + tn.lava.plus.v}; ${wt.kinds.length} kinds of water, ${mineral.clears.length} statuses cleared by the mineral spring; the unguent cures one time in ${cures[0].hi.v - cures[0].lo.v}; the bomb ${bl.centre.v}/${bl.edge.v}/${bl.corner.v}`);
+  else if (!bl || !bl.center || !bl.edge || bl.center.v <= bl.edge.v) fail('blast', 'the bomb was misread: ' + JSON.stringify(bl && [bl.center, bl.edge, bl.corner]));
+  else console.log(`  aim and ground: ${tg.length} scripts prompt for a target, ${reach.length} of them a neighbour; the swamp bites one step in ${swampChance} and lava does ${tn.lava.plus.v} to ${tn.lava.roll.hi.v - 1 + tn.lava.plus.v}; ${wt.kinds.length} kinds of water, ${mineral.clears.length} statuses cleared by the mineral spring; the unguent cures one time in ${cures[0].hi.v - cures[0].lo.v}; the bomb ${bl.center.v}/${bl.edge.v}/${bl.corner.v}`);
 } catch (e) { fail('aim', e); }
 
 /* The To Do list and the eggs, 12 September 2026. Two readers whose whole
@@ -537,7 +537,7 @@ try {
   ctx.showCategory('1');
   const libHtml = walkGrid();
   const unshown = lib ? lib.reduce((a, d) => a.concat(d.unshown.map(e => String(e.str))), []) : [];
-  const said = unshown.join(' ~~ ');
+  const shownWords = unshown.join(' ~~ ');
   const passages = lib ? lib.reduce((n, d) => n + d.entries.length, 0) : 0;
   const bu = pz && pz.buttons;
   const ri = pz && pz.riddles;
@@ -548,8 +548,8 @@ try {
   else if (passages < 80) fail('library', 'only ' + passages + ' passages read');
   else if (!/Bestiary of Asilops/.test(lib.map(d => d.entries.map(e => e.str).join(' ')).join(' '))) fail('library', 'the bookshelf histories were not read');
   else if (!unshown.length) fail('library', 'nothing is unshown, so the second and third sources are over-counting');
-  else if (/Sapphire Book of Mercy|Sapphire Book of Beauty|Sapphire Book of Foundation/.test(said)) fail('library', 'a script-given Sapphire volume is listed as never shown: sys Create is not being counted');
-  else if (/Wine Contract/.test(said)) fail('library', 'the Wine Contract is listed as never shown, but Apis hands it over');
+  else if (/Sapphire Book of Mercy|Sapphire Book of Beauty|Sapphire Book of Foundation/.test(shownWords)) fail('library', 'a script-given Sapphire volume is listed as never shown: sys Create is not being counted');
+  else if (/Wine Contract/.test(shownWords)) fail('library', 'the Wine Contract is listed as never shown, but Apis hands it over');
   else if (!/The Game’s Writing/.test(libHtml)) fail('library', 'the Writings gallery does not have the library card');
   else if (/The Game’s Writing/.test(html)) fail('library', 'the library card is still on the Mechanics sheet, so the move is half done');
   /* The murder thread's `GetState(3) == 3` was this list's one entry until
@@ -557,7 +557,7 @@ try {
      Berossus's 0x003A, which sets it, had been read as part of an array. So
      the list is empty, and the positive half is that his script now has
      the write and the scene around it. */
-  else if (le.unreachable.length) fail('loose', 'a comparison is listed as unsatisfiable: ' + JSON.stringify(le.unreachable.map(u => [u.state, u.want.v])));
+  else if (le.unreachable.length) fail('loose', 'a comparison is listed as unsatisfiable: ' + JSON.stringify(le.unreachable.map(u => [u.state, u.testedValue.v])));
   else if (!((ctx.buildScriptTextIndex().find(e => e.resid === 0x1848) || {}).text || '').match(/sys SetState\n\s+[0-9A-F]{4}\s+byte 0x03\n\s+[0-9A-F]{4}\s+byte 0x03\n/) ||
            !/Stentor claimed to have seen Pelagon/.test((ctx.buildScriptTextIndex().find(e => e.resid === 0x1848) || {}).text || ''))
     fail('loose', 'Berossus\u2019s subroutine 0x003A, with SetState 3, 3, is not in his listing');
@@ -590,7 +590,7 @@ try {
   else if (le.valueForFlag.map(v => v.resid.toString(16) + ':' + v.k).join() !== '1838:4') fail('loose', 'Eteocles testing quest value 4 where his other tests use flag 4 was not the one finding (Philinus and Ascalon test value 3 legitimately): ' + JSON.stringify(le.valueForFlag.map(v => v.resid.toString(16) + ':' + v.k)));
   else if (le.shadowed.map(a => a.resid.toString(16) + ':' + a.list).sort().join('|') !== '805:pari|80e:brya') fail('loose', 'the shadowed answers are not the Paris and Bryaxis ones (a later answer with a keyword not seen before must not be listed): ' + JSON.stringify(le.shadowed.map(a => a.resid.toString(16) + ':' + a.list)));
   else if (le.localOnlyFalse.map(l => l.resid.toString(16)).join() !== '1844') fail('loose', 'Thoas\'s farewell local, only ever set false, was not the one finding: ' + JSON.stringify(le.localOnlyFalse.map(l => l.resid.toString(16))));
-  else if (le.selfAlive.map(a => a.who).join() !== '4') fail('loose', 'Hadrian testing whether Hadrian is alive, where Hector is meant, was not the one finding: ' + JSON.stringify(le.selfAlive.map(a => a.who)));
+  else if (le.selfAlive.map(a => a.character).join() !== '4') fail('loose', 'Hadrian testing whether Hadrian is alive, where Hector is meant, was not the one finding: ' + JSON.stringify(le.selfAlive.map(a => a.character)));
   else if (ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels).join('|') !== '35:west standing/west sitting:1') fail('loose', 'the repeated sprite frames are not the fool\'s west standing alone (the fire spirit\'s sheet is four frames, and the two after it are a banner\'s): ' + JSON.stringify(ctx.spriteRepeats().map(r => r.pt + ':' + r.aName + '/' + r.bName + ':' + r.pixels)));
   /* The schedules read quest values: Meleager's and Demodocus's segments at
      the Bridge test quest value 9, which the Bridge's zone script sets, so
@@ -602,8 +602,8 @@ try {
      turn one of them up. */
   else if (!ctx.goesDarkStillLit().some(d => d.pt === 0x157 && d.light > 0) || ctx.goesDarkStillLit().filter(d => d.light > 0).length !== 1 || ctx.goesDarkStillLit().filter(d => d.light === 0).length < 3) fail('loose', 'the spent staff that still lights was not the one light found staying on, beside the torch, lamp and candle going dark: ' + JSON.stringify(ctx.goesDarkStillLit().map(d => [d.pt, d.light])));
   else if (ctx.scheduleCollisions().map(c => c.a + '+' + c.b + '@' + c.from).join() !== '12+31@12,12+31@17') fail('loose', 'Darius and Sardis sharing a square in the Green Goat were not the one schedule collision: ' + JSON.stringify(ctx.scheduleCollisions()));
-  else if (ctx.nameNeverKept().map(n => n.who).sort((a, b) => a - b).join() !== '46,87') fail('loose', 'Diomede and Paris, whose names are never kept, were not the two found (Pheres and Palaestra set theirs by number): ' + JSON.stringify(ctx.nameNeverKept().map(n => n.who)));
-  else if (ctx.askedOfNobody().map(a => a.who + ':' + a.items.length).join() !== '97:15') fail('loose', 'Aethon\'s fifteen unheard Ask About answers were not the one finding: ' + JSON.stringify(ctx.askedOfNobody().map(a => a.who + ':' + a.items.length)));
+  else if (ctx.nameNeverKept().map(n => n.character).sort((a, b) => a - b).join() !== '46,87') fail('loose', 'Diomede and Paris, whose names are never kept, were not the two found (Pheres and Palaestra set theirs by number): ' + JSON.stringify(ctx.nameNeverKept().map(n => n.character)));
+  else if (ctx.askedOfNobody().map(a => a.character + ':' + a.items.length).join() !== '97:15') fail('loose', 'Aethon\'s fifteen unheard Ask About answers were not the one finding: ' + JSON.stringify(ctx.askedOfNobody().map(a => a.character + ':' + a.items.length)));
   else if (ctx.tileReadWithSeenBit().map(t => t.resid.toString(16)).join() !== '1091') fail('loose', 'the fishing pole, the one script that reads the map and never masks the seen bit, was not found alone: ' + JSON.stringify(ctx.tileReadWithSeenBit()));
   else if (ctx.wrongCarryFlags().map(w => w.resid.toString(16)).sort().join() !== '1a28,3042') fail('loose', 'Fetch and the attack routine putting things into a character with flags 9 were not the two found (the shop\'s 24 must not be): ' + JSON.stringify(ctx.wrongCarryFlags()));
   else if (!/a map tile read with its seen bit/.test(html) || !/a thing given to a character with the wrong flags/.test(html)) fail('loose', 'the seen-bit or carry-flag row is missing from the card');
@@ -623,17 +623,17 @@ try {
      only after that fix. Magpie's two are inside his flag-1 block,
      which is unreachable anyway, and are stated as the file has them. */
   else if (ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list).sort().join('|') !== '1036:3,thre|1036:coff|1036:pony|1036:tequ|1803:baho|1803:jhia|1811:n|1824:n|184e:n|807:atus|808:hist') fail('loose', 'the answers without a return are not the fountain\'s four wishes, Magpie\'s two, Atussa\'s, the mages\' history, and Ennomus\'s, Antenor\'s and Pheres\'s second "n" (no other yes-or-no answer, and not Neoptolemus\'s "demo", may be listed): ' + JSON.stringify(ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list)));
-  else if (ctx.leaveNeverLeaves().map(l => l.who).join() !== '97') fail('loose', 'Aethon, who agrees to leave and stays, was not the one companion found: ' + JSON.stringify(ctx.leaveNeverLeaves().map(l => l.who)));
+  else if (ctx.leaveNeverLeaves().map(l => l.character).join() !== '97') fail('loose', 'Aethon, who agrees to leave and stays, was not the one companion found: ' + JSON.stringify(ctx.leaveNeverLeaves().map(l => l.character)));
   else if (!/an answer that runs on/.test(html) || !/a companion who agrees to leave and stays/.test(html)) fail('loose', 'the run-on answer or the companion who stays is not on the card');
   /* Characters answered about by their own group: without the test that the
      group's answer has their name, Paris (told about Parium) comes in too. */
-  else if (ctx.selfToldByGroup().map(t => t.who).join() !== '30,39,50,60,62,79,88,120') fail('loose', 'the characters whose group answers their own name are not Milcom, Eioneus, Philinus, Propontis, Halos, Charax, Helen and Sabinate: ' + JSON.stringify(ctx.selfToldByGroup().map(t => t.who)));
+  else if (ctx.selfToldByGroup().map(t => t.character).join() !== '30,39,50,60,62,79,88,120') fail('loose', 'the characters whose group answers their own name are not Milcom, Eioneus, Philinus, Propontis, Halos, Charax, Helen and Sabinate: ' + JSON.stringify(ctx.selfToldByGroup().map(t => t.character)));
   /* The trap searches. Each looks for four types; the spike traps and the
      one of 0x163 lie loose, and with the placement tests taken out they come
      in as well. */
   else if (ctx.containedUnseen().map(u => u.resid.toString(16) + ':' + u.pt.toString(16)).join() !== '1a04:160,1a04:161,1af2:160,1af2:161,1af3:160,1af3:161') fail('loose', 'the searches that pass over contained things are not the three trap skills on poison and blast traps: ' + JSON.stringify(ctx.containedUnseen().map(u => u.resid.toString(16) + ':' + u.pt.toString(16))));
-  else if (ctx.refusalOnEveryCheck().map(r => r.pt.toString(16) + ':' + r.said.trim()).join() !== "d2:You can't stuff the carcass!") fail('loose', 'the only container answer that prints is not the carcass\'s: ' + JSON.stringify(ctx.refusalOnEveryCheck()));
-  else if (ctx.highlightsUnanswered().map(h => h.resid.toString(16) + '@' + h.at.toString(16) + ':' + h.word + ':' + h.who.length).sort().join() !== '1802@171a:join:1,1820@36c:Hebe:1,1866@ef:Vineyard:1,186d@126e:hear:1,801@424:Magisterium:66,813@19:join:7') fail('loose', 'the highlighted words nobody answers are not the six known: ' + JSON.stringify(ctx.highlightsUnanswered().map(h => h.resid.toString(16) + '@' + h.at.toString(16) + ':' + h.word + ':' + h.who.length)));
+  else if (ctx.refusalOnEveryCheck().map(r => r.pt.toString(16) + ':' + r.message.trim()).join() !== "d2:You can't stuff the carcass!") fail('loose', 'the only container answer that prints is not the carcass\'s: ' + JSON.stringify(ctx.refusalOnEveryCheck()));
+  else if (ctx.highlightsUnanswered().map(h => h.resid.toString(16) + '@' + h.at.toString(16) + ':' + h.word + ':' + h.character.length).sort().join() !== '1802@171a:join:1,1820@36c:Hebe:1,1866@ef:Vineyard:1,186d@126e:hear:1,801@424:Magisterium:66,813@19:join:7') fail('loose', 'the highlighted words nobody answers are not the six known: ' + JSON.stringify(ctx.highlightsUnanswered().map(h => h.resid.toString(16) + '@' + h.at.toString(16) + ':' + h.word + ':' + h.character.length)));
   else if (!/a highlighted word nobody answers/.test(html)) fail('loose', 'the highlighted-word row is missing from the card');
   else if (ctx.stateNoSaveKeeps().map(w => w.resource.toString(16) + ':' + w.offset.toString(16) + ':' + w.writers.map(x => x.resid.toString(16)).join('/')).join() !== '500:10:1801' || !/a value no saved game stores/.test(html)) fail('loose', 'the word written before the game has a file is not the hero\'s gender alone (the inn room, written in play, is saved), or its row is missing: ' + JSON.stringify(ctx.stateNoSaveKeeps().map(w => [w.resource, w.offset, w.writers.length, w.readers.length])));
   else if (ctx.deletedAcrossZoneChange().map(d => d.pt.toString(16) + ':' + d.skill.toString(16) + ':' + d.zones.join('/')).join() !== '4b:1a00:3' || !/a delete after the zone has changed/.test(html)) fail('loose', 'the scroll deleting after Directed Nexus has moved the party is not the one found, or its row is missing: ' + JSON.stringify(ctx.deletedAcrossZoneChange()));
@@ -1026,12 +1026,12 @@ try {
   else {
     ctx.showCategory('127');
     ctx.openResource(0x8003); drainRaf();            // Land King Hall
-    const who = ctx.MAP_PATH_WHO;
+    const character = ctx.MAP_PATH_CHARACTER;
     const cm = ctx.CUR_MAP || {};
     // The day the path draws is the one the game walks from a new game
     // (scheduleDay), not every post in the program.
-    const posts = (who !== null && who !== undefined)
-      ? ctx.scheduleDay(who).filter(e => e.mode !== 0 && e.level === cm.level).length : 0;
+    const posts = (character !== null && character !== undefined)
+      ? ctx.scheduleDay(character).filter(e => e.mode !== 0 && e.level === cm.level).length : 0;
     const mc = ctx.document.getElementById('markLayer');
     const c2 = mc && mc.getContext && mc.getContext('2d');
     const realArc = c2 && c2.arc;
@@ -1044,11 +1044,11 @@ try {
     ctx.toggleMapMarks('path', false);
     if (c2 && realArc) c2.arc = realArc;
     Object.assign(marks, before);
-    if (who === null || who === undefined) fail('path mark', 'opening the map chose nobody to follow, so the picker never filled');
+    if (character === null || character === undefined) fail('path mark', 'opening the map chose nobody to follow, so the picker never filled');
     else if (!posts) fail('path mark', 'the character the picker chose has no posts on this map, so this proves nothing');
     else if (off !== 0) fail('path mark', off + ' dots drawn with the mark off');
     else if (on < posts) fail('path mark', 'the mark drew ' + on + ' dots for ' + posts + ' posts');
-    else console.log(`  path mark: ${ctx.characterName(who)}'s day on Land King Hall, ${posts} posts, ${off} dots off and ${on} on`);
+    else console.log(`  path mark: ${ctx.characterName(character)}'s day on Land King Hall, ${posts} posts, ${off} dots off and ${on} on`);
   }
 } catch (e) { fail('path mark', e); }
 
@@ -1076,10 +1076,10 @@ try {
   // Somebody who walks here: the most posts on this map in the day a new
   // game starts with (scheduleDay), so there are legs to colour.
   const onMap = i => ctx.scheduleDay(i).filter(e => e.mode !== 0 && e.level === cm.level).length;
-  let who = null;
-  for (let i = 0; i < ctx.loadSchedules().length; i++) if (who === null || onMap(i) > onMap(who)) who = i;
-  ctx.setMapPathWho(who);
-  const posts = who !== null ? onMap(who) : 0;
+  let character = null;
+  for (let i = 0; i < ctx.loadSchedules().length; i++) if (character === null || onMap(i) > onMap(character)) character = i;
+  ctx.setMapPathCharacter(character);
+  const posts = character !== null ? onMap(character) : 0;
   const mc = ctx.document.getElementById('markLayer');
   const c2 = mc && mc.getContext && mc.getContext('2d');
   const styles = [];
@@ -1449,14 +1449,14 @@ try {
   const file = new Uint8Array(514);
   const put = (at, s) => { file[at] = s.length; for (let i = 0; i < s.length; i++) file[at + 1 + i] = s.charCodeAt(i); };
   put(0, 'A Made-Up Name'); put(256, 'ZZQQZZQQ'); file[513] = 1;
-  const lic = ctx.cytheraLicenseRead(file), said = ctx.licenseSaidHTML(file);
+  const lic = ctx.cytheraLicenseRead(file), shownWords = ctx.licenseReportHTML(file);
   if (!tab || tab.id !== 'license' || !tab.parent || tab.parent.id !== 'data') fail('license', 'LICENSE is not the License tab under Data');
   else if (!/Make a License/.test(sheet) || !/macintoshrepository\.org/.test(sheet) || !/id="licenseFile"|licenseFile/.test(sheet + JSON.stringify([...REGISTRY.keys()]))) fail('license', 'the tab does not offer the picker and the link to Decoder Ring');
   else if (!lic || lic.name !== 'A Made-Up Name' || lic.hasCode !== true) fail('license', 'the reader did not read the name out of a made-up file: ' + JSON.stringify(lic));
-  else if ('code' in lic || /ZZQQZZQQ/.test(JSON.stringify(lic) + said)) fail('license', 'the code reaches the page');
-  else if (!/A Made-Up Name/.test(said)) fail('license', 'the tab does not say the name: ' + said);
+  else if ('code' in lic || /ZZQQZZQQ/.test(JSON.stringify(lic) + shownWords)) fail('license', 'the code reaches the page');
+  else if (!/A Made-Up Name/.test(shownWords)) fail('license', 'the tab does not say the name: ' + shownWords);
   else if (ctx.cytheraLicenseRead(file.subarray(0, 513)) !== null) fail('license', 'a file a byte short was read as a license');
-  else if (!/not a Cythera License file/.test(ctx.licenseSaidHTML(file.subarray(0, 513)))) fail('license', 'the tab does not reject a file a byte short');
+  else if (!/not a Cythera License file/.test(ctx.licenseReportHTML(file.subarray(0, 513)))) fail('license', 'the tab does not reject a file a byte short');
   else console.log(`  license: a separate tab under Data; the name read from a made-up file and its code kept off the page; a file a byte short rejected`);
 } catch (e) { fail('license', e); }
 
@@ -1506,7 +1506,7 @@ try {
       const clock = ((ch[80] << 24) | (ch[81] << 16) | (ch[82] << 8) | ch[83]) >>> 0, day = (ch[84] << 8) | ch[85];
       const [sn, sv] = st ? Object.entries(st.values)[0] : [];
       if (!has(cs, 0x8100 + z) || !has(cs, 0x8200 + z) || has(cs, 0x8100 + d.zone) || h.zone !== z) fail('make a save', 'the save is not in zone ' + z + ' with that zone’s list and map memory');
-      else if (!d.companions.length || !p || p.zone !== z || (p.x === h.x && p.y === h.y) || (p.state & h.state) !== h.state || p.raw[22] !== 1 || p.raw[25] !== h.raw[25] || (plainRecs[pal.index].state & 0x40)) fail('make a save', 'the companion is not beside the hero as a party member, or is one in the plain save too: ' + JSON.stringify(p && { zone: p.zone, x: p.x, y: p.y, state: p.state, behaviour: p.raw[22] }));
+      else if (!d.companions.length || !p || p.zone !== z || (p.x === h.x && p.y === h.y) || (p.state & h.state) !== h.state || p.raw[22] !== 1 || p.raw[25] !== h.raw[25] || (plainRecs[pal.index].state & 0x40)) fail('make a save', 'the companion is not beside the hero as a party member, or is one in the plain save too: ' + JSON.stringify(p && { zone: p.zone, x: p.x, y: p.y, state: p.state, behavior: p.raw[22] }));
       else if (clock !== 14 * 0x1000 || day !== 3 || ((plain[84] << 8) | plain[85]) === 3) fail('make a save', 'the hour and the day asked for are not in the Char block: ' + JSON.stringify({ clock, day }));
       else if (st && (ch[16 + +sn] !== sv || plain[16 + +sn] === sv)) fail('make a save', 'the named state did not set its quest value, or the plain save has it too');
       else console.log(`  make a save, the second half: zone ${z} with its list; ${pal.name} beside the hero as a party member; two in the afternoon on day 3; ` + (st ? `"${st.name}" sets quest value ${sn} to ${sv}` : 'no resource fork here, so no named state was tried') + `; ${d.zones.length} places, ${d.companions.length} who can join, ${d.stories.length} named states; a square off the map rejected`);
@@ -1526,10 +1526,10 @@ try {
         const m = /Body: (\d+)\s+Reflex: (\d+)\s+Mind: (\d+)/.exec(statText[a.index] || '');
         if (!m || +m[1] !== a.body || +m[2] !== a.reflex) odd.push(a.name + ' body or reflex');
         if (m && +m[3] !== a.mind) odd.push(a.name + ' mind ' + a.mind + ' against ' + m[3]);
-        const said = (skillText[a.index] || '').split(',').map(t => t.trim()).filter(Boolean).map(t => { const g = /^(.*?)(?:\[(\d+)\])?$/.exec(t); return g[1].trim() + ':' + (g[2] || 0); });
+        const shownWords = (skillText[a.index] || '').split(',').map(t => t.trim()).filter(Boolean).map(t => { const g = /^(.*?)(?:\[(\d+)\])?$/.exec(t); return g[1].trim() + ':' + (g[2] || 0); });
         const read = a.skills.map(k => (ctx.selfNameFor(0x1A00 | (k.type & 0xFF)) || '?') + ':' + k.level);
         const loose = t => t.toLowerCase().replace(/s?:/, ':').replace(/ picking/, '');
-        if (said.map(loose).join() !== read.map(loose).join()) odd.push(a.name + ' skills ' + read.join(' ') + ' against ' + said.join(' '));
+        if (shownWords.map(loose).join() !== read.map(loose).join()) odd.push(a.name + ' skills ' + read.join(' ') + ' against ' + shownWords.join(' '));
       }
       const fighter = ar && ar.list.find(a => a.skills.length === 2), fs = fighter ? ctx.delverArchiveSpec(new Uint8Array(ctx.newGameSaveBytes({ name: 'NewGame01', archetype: fighter.index }))) : null;
       const tail = fs ? ctx.parseDelverPropList(fs.resources.find(r => r.resid === 0x8100 + d.zone).data).slice(-2) : [];
@@ -1575,7 +1575,7 @@ try {
         const q = w ? ctx.saveQuestState(w) : null, p0 = ctx.saveQuestState(spec);
         const gift = w ? ctx.parseDelverPropList(w.resources.find(r => r.resid === 0x8100 + d.zone).data).slice(-1)[0] : null;
         const faces = hp ? Array.from({ length: hp.perSex.v * 2 }, (_, i) => 0x87FF + hp.first.v + i) : [];
-        if (!kw || typeof kw.flag.at !== 'number' || !q || !q.flags[kw.flag.v] || p0.flags[kw.flag.v] || !(q.chars[kw.who].state & (1 << kw.charFlag.v)) || (p0.chars[kw.who].state & (1 << kw.charFlag.v)) ||
+        if (!kw || typeof kw.flag.at !== 'number' || !q || !q.flags[kw.flag.v] || p0.flags[kw.flag.v] || !(q.chars[kw.character].state & (1 << kw.charFlag.v)) || (p0.chars[kw.character].state & (1 << kw.charFlag.v)) ||
             !gift || gift.proptype !== kw.gift.type || gift.d3 !== kw.gift.d3 || gift.flags !== 0x10 || w.resources.find(r => r.resid === 0x0401).data[5] === 0x00 && w.resources.find(r => r.resid === 0x0401).data[4] !== 0x30)
           return fail('welcome', 'the king’s welcome is not in the save made with it, or is in the plain one: ' + JSON.stringify(kw)), true;
         if (hp && (hp.perSex.v < 1 || faces.some(r => !ctx.refExists(r) || ctx.labelFor(r)))) return fail('welcome', 'the hero’s faces are not portraits the file has and names for nobody: ' + JSON.stringify(hp)), true;
@@ -1589,7 +1589,7 @@ try {
            give way when his slot is asked for; a line no script adds must
            be left out. */
         const lines = ctx.saveMakerTodo(), la = lines.find(t => t.slot !== kw.todo.slot), lb = lines.find(t => t.slot !== kw.todo.slot && t !== la);
-        const tsave = ask => ctx.delverArchiveSpec(new Uint8Array(ctx.newGameSaveBytes(Object.assign({ name: 'NewGame01', welcomed: true }, ask)))).resources.find(r => r.resid === 0x0401).data;
+        const tsave = answerText => ctx.delverArchiveSpec(new Uint8Array(ctx.newGameSaveBytes(Object.assign({ name: 'NewGame01', welcomed: true }, answerText)))).resources.find(r => r.resid === 0x0401).data;
         const slot = (b, n) => Buffer.from(b.subarray(n * 8, n * 8 + 8)).toString('hex'), ref = t => (0x30000000 | (t.line << 16) | t.resid).toString(16);
         const t1 = tsave({ todo: [{ slot: la.slot, line: la.line }, { slot: lb.slot, line: lb.line, done: true }, { slot: 200, line: 99 }] }), t2 = tsave({ todo: [{ slot: kw.todo.slot, line: kw.todo.line, done: true }] });
         if (lines.length < 10 || slot(t1, la.slot) !== '00000001' + ref(la) || slot(t1, lb.slot) !== '01000001' + ref(lb) || !slot(t1, kw.todo.slot).startsWith('00000001') || slot(t1, 200) !== '000000005000ffff' || !slot(t2, kw.todo.slot).startsWith('01'))
@@ -1616,21 +1616,21 @@ try {
    hold must be rejected. */
 try {
   const d = ctx.scenarioMakerDefaults();
-  const ask = { name: 'Empty Field', width: 24, height: 20, x: 10, y: 12 };
-  const made = ctx.newScenarioBytes(ask), kept = ctx.newScenarioBytes(Object.assign({ opening: true }, ask));
+  const answerText = { name: 'Empty Field', width: 24, height: 20, x: 10, y: 12 };
+  const made = ctx.newScenarioBytes(answerText), kept = ctx.newScenarioBytes(Object.assign({ opening: true }, answerText));
   const before = ctx.delverArchiveSpec(peek('ARCHIVE.bytes'));
   const spec = made ? ctx.delverArchiveSpec(new Uint8Array(made)) : null, kspec = kept ? ctx.delverArchiveSpec(new Uint8Array(kept)) : null;
   const of = (sp, rid) => (sp.resources.find(r => r.resid === rid) || {}).data;
   const fam = k => spec.resources.filter(r => (r.resid >> 8) === k).map(r => r.resid);
   const same = (x, y) => !!x && !!y && x.length === y.length && x.every((v, i) => v === y[i]);
   // The first function's listing, a line an instruction, from the bytes alone.
-  const says = (b, re) => {
+  const message = (b, re) => {
     const fn = ctx.dvmExtents(b, 0x1801).find(e => e[2] === 'function');
     return !!fn && ctx.dvmDisassemble(b.subarray(fn[0], fn[1]), 3).ops.some(op => re.test(op[2] + (op[3] ? ' ' + op[3] : '')));
   };
-  let refusedSquare = false, refusedName = false;
-  try { refusedSquare = ctx.newScenarioBytes(Object.assign({}, ask, { x: 24 })) === null; } catch (e) { refusedSquare = true; }
-  try { ctx.newScenarioBytes(Object.assign({}, ask, { name: 'A "quoted" name' })); } catch (e) { refusedName = true; }
+  let rejectedSquare = false, rejectedName = false;
+  try { rejectedSquare = ctx.newScenarioBytes(Object.assign({}, answerText, { x: 24 })) === null; } catch (e) { rejectedSquare = true; }
+  try { ctx.newScenarioBytes(Object.assign({}, answerText, { name: 'A "quoted" name' })); } catch (e) { rejectedName = true; }
   if (!d || !d.tiles.length || !d.lit) fail('make a scenario', 'the open file offered nothing to start from: ' + JSON.stringify(d && { zone: d.zone, tiles: d.tiles.length, lit: d.lit }));
   else if (!spec || !kspec) fail('make a scenario', 'the page made no file');
   else {
@@ -1644,9 +1644,9 @@ try {
     else if (hero.zone !== z || hero.x !== 10 || hero.y !== 12 || cast.some((r, i) => i > 1 && (r.zone || ctx.delverCharacterInUse(r)))) fail('make a scenario', 'the hero is not alone at (10, 12): ' + JSON.stringify({ zone: hero.zone, x: hero.x, y: hero.y, others: cast.filter((r, i) => i > 1 && ctx.delverCharacterInUse(r)).length }));
     else if ((ctx.parseDelverScheduleList(of(spec, 0xF00B)) || [0]).length) fail('make a scenario', 'somebody still has a schedule');
     else if (!Buffer.from(of(spec, 0x1400 + z)).includes('Empty Field')) fail('make a scenario', 'the entry script does not have the name');
-    else if (!says(cr0, /Slideshow/) || says(cr, /Slideshow|SpecialView/) || !says(cr, /set_global Karma/) || cr.length >= cr0.length) fail('make a scenario', 'the creation script did not lose its slideshow and keep the rest');
+    else if (!message(cr0, /Slideshow/) || message(cr, /Slideshow|SpecialView/) || !message(cr, /set_global Karma/) || cr.length >= cr0.length) fail('make a scenario', 'the creation script did not lose its slideshow and keep the rest');
     else if (!same(of(kspec, 0x1801), cr0)) fail('make a scenario', 'with the opening kept, the creation script is not the scenario’s');
-    else if (!refusedSquare || !refusedName) fail('make a scenario', 'a hero outside the zone or a name with a quotation mark was not rejected: ' + JSON.stringify({ refusedSquare, refusedName }));
+    else if (!rejectedSquare || !rejectedName) fail('make a scenario', 'a hero outside the zone or a name with a quotation mark was not rejected: ' + JSON.stringify({ rejectedSquare, rejectedName }));
     else {
       ctx.showCategory('PATCHES');
       const host = REGISTRY.get('scenarioMaker'), html = host ? (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(host) : '';
@@ -1661,9 +1661,9 @@ try {
          black, white and see-through and nothing else, and the rest of
          the file must be untouched. */
       const kinds = ctx.scenarioCreatureChoices(), ka = kinds[0], kb = kinds.find(k => k.alignment !== ka.alignment), kc = kinds.find(k => k !== ka && k.alignment === ka.alignment);
-      const fought = ctx.newScenarioBytes(Object.assign({ armyA: ka.type, armyB: kb.type, armyCount: 3, badArt: true }, ask));
+      const fought = ctx.newScenarioBytes(Object.assign({ armyA: ka.type, armyB: kb.type, armyCount: 3, badArt: true }, answerText));
       let sameSide = false;
-      try { ctx.newScenarioBytes(Object.assign({ armyA: ka.type, armyB: kc.type }, ask)); } catch (e) { sameSide = /same side/.test(e.message); }
+      try { ctx.newScenarioBytes(Object.assign({ armyA: ka.type, armyB: kc.type }, answerText)); } catch (e) { sameSide = /same side/.test(e.message); }
       const fspec = ctx.delverArchiveSpec(new Uint8Array(fought)), farc = ctx.openDelverArchive(new Uint8Array(fought)), marc = ctx.openDelverArchive(new Uint8Array(made));
       const recs = ctx.parseDelverPropList(of(fspec, 0x8100 + z));
       const eggsOk = recs.length === 12 && recs.every((r, i) => i % 2 ? r.flags === 0x08 && (r.d3 >> 8) === 8 : r.flags === 0x42 && (r.d3 & 0xFF) === 100 && (r.x === 9 || r.x === 11) && r.y >= 7 && r.y <= 9);
@@ -1687,7 +1687,7 @@ try {
          must come out as the made file has it. What the made file dropped
          stays, which is the difference a patch cannot help; the control is
          that the merge changes the hero's zone's map at all. */
-      const pw = ctx.scenarioPatch(Object.assign({ armyA: ka.type, armyB: kb.type, armyCount: 3, badArt: true }, ask));
+      const pw = ctx.scenarioPatch(Object.assign({ armyA: ka.type, armyB: kb.type, armyCount: 3, badArt: true }, answerText));
       const mergedSpec = ctx.delverArchiveSpec(ctx.mergeDelverPatch(peek('ARCHIVE.bytes'), pw.bytes).bytes);
       const strays = fspec.resources.filter(r => !same(of(mergedSpec, r.resid), r.data)).length;
       const patchOk = pw.count > 400 && !strays && mergedSpec.resources.length === before.resources.length && !same(of(mergedSpec, 0x8000 + z), of(before, 0x8000 + z));
@@ -1717,10 +1717,10 @@ try {
    the drawing is seeded by numbers and not by chance. The control is the
    bad set under the same tests, which must fail the hero's. */
 try {
-  const ask = { name: 'Fine Field', width: 24, height: 20, x: 10, y: 12 }, d = ctx.scenarioMakerDefaults();
-  const plain = new Uint8Array(ctx.newScenarioBytes(ask)), pspec = ctx.delverArchiveSpec(plain), parc = ctx.openDelverArchive(plain);
-  const fine = new Uint8Array(ctx.newScenarioBytes(Object.assign({ badArt: true, fine: true }, ask))), fspec = ctx.delverArchiveSpec(fine), farc = ctx.openDelverArchive(fine);
-  const bad = new Uint8Array(ctx.newScenarioBytes(Object.assign({ badArt: true }, ask))), bspec = ctx.delverArchiveSpec(bad), barc = ctx.openDelverArchive(bad);
+  const answerText = { name: 'Fine Field', width: 24, height: 20, x: 10, y: 12 }, d = ctx.scenarioMakerDefaults();
+  const plain = new Uint8Array(ctx.newScenarioBytes(answerText)), pspec = ctx.delverArchiveSpec(plain), parc = ctx.openDelverArchive(plain);
+  const fine = new Uint8Array(ctx.newScenarioBytes(Object.assign({ badArt: true, fine: true }, answerText))), fspec = ctx.delverArchiveSpec(fine), farc = ctx.openDelverArchive(fine);
+  const bad = new Uint8Array(ctx.newScenarioBytes(Object.assign({ badArt: true }, answerText))), bspec = ctx.delverArchiveSpec(bad), barc = ctx.openDelverArchive(bad);
   const of = (sp, rid) => (sp.resources.find(r => r.resid === rid) || {}).data;
   const same = (x, y) => !!x && !!y && x.length === y.length && x.every((v, i) => v === y[i]);
   const tile = (sp, arc, t) => { const rid = 0x8E00 + (t >> 4); return ctx.decodeResource(arc, of(sp, rid), 141, rid).image.slice((t & 15) * 1024, (t & 15) * 1024 + 1024); };
@@ -1773,10 +1773,10 @@ try {
     const found = m.props.filter(p => have.has(p.type + '@' + p.x + ',' + p.y)).length;
     const made = ctx.delverArchiveSpec(new Uint8Array(ctx.newScenarioBytes({ map: m })));
     const cast = ctx.parseDelverCharacterRecords(made.resources.find(r => r.resid === 0xF009).data);
-    const there = cast.map((r, i) => i > 1 && ctx.delverCharacterInUse(r) ? i : 0).filter(Boolean), asked = m.cast.map(c => c.index).sort((a, b) => a - b);
+    const there = cast.map((r, i) => i > 1 && ctx.delverCharacterInUse(r) ? i : 0).filter(Boolean), requestedCast = m.cast.map(c => c.index).sort((a, b) => a - b);
     const talk = made.resources.filter(r => (r.resid >> 8) === 0x18 && r.resid !== 0x1801).map(r => r.resid - 0x1800).sort((a, b) => a - b);
     const list = ctx.parseDelverPropList(made.resources.find(r => r.resid === 0x8100 + z).data);
-    let refused = false; try { ctx.manboroughMap(new TextEncoder().encode('{"levels":[]}')); } catch (e) { refused = true; }
+    let nonMapThrew = false; try { ctx.manboroughMap(new TextEncoder().encode('{"levels":[]}')); } catch (e) { nonMapThrew = true; }
     /* The hatcheries (the same day's correction): his number is the unit
        record's, so a guard's must hatch the prop type unit 7 wears and not
        prop type 7, which v1.272.0 wrote. And out again (manboroughExport):
@@ -1795,10 +1795,10 @@ try {
     else if (!roundA || !roundB) fail('manborough', 'a map written out does not read back: ' + j({ roundA, roundB, left: outB.left, id: outB.id }));
     else if (mp.width !== m.width || mp.height !== m.height || words !== m.width * m.height) fail('manborough', `the map read is not the archive's: ${words} of ${m.width * m.height} words match`);
     else if (!m.props.length || found !== m.props.length) fail('manborough', `${m.props.length - found} of ${m.props.length} things are not where the archive has one of that type`);
-    else if (!asked.length || there.join() !== asked.join() || !asked.every(i => talk.includes(i) && cast[i].zone === z)) fail('manborough', 'the people placed are not the ones kept, in the zone, with their conversations: ' + JSON.stringify({ asked, there, talk }));
+    else if (!requestedCast.length || there.join() !== requestedCast.join() || !requestedCast.every(i => talk.includes(i) && cast[i].zone === z)) fail('manborough', 'the people placed are not the ones kept, in the zone, with their conversations: ' + JSON.stringify({ requestedCast, there, talk }));
     else if (list.length !== m.props.length + 2 * m.eggs.length || !m.eggs.length) fail('manborough', `the zone's list is ${list.length} records for ${m.props.length} things and ${m.eggs.length} hatcheries`);
-    else if (m.x !== ctx.loadCharacterTable()[1].x || m.y !== ctx.loadCharacterTable()[1].y || !refused) fail('manborough', 'the start square is not the hero\'s, or a file that is no map was taken');
-    else console.log(`  manborough: his Land King Hall read back as the archive's, ${words} map words and ${found} things; ${asked.length} people kept with their conversations, ${m.eggs.length} hatcheries; ${m.skipped.length} objects left out; a file that is no map refused; written out, his map and a made zone both read back`);
+    else if (m.x !== ctx.loadCharacterTable()[1].x || m.y !== ctx.loadCharacterTable()[1].y || !nonMapThrew) fail('manborough', 'the start square is not the hero\'s, or a file that is no map was taken');
+    else console.log(`  manborough: his Land King Hall read back as the archive's, ${words} map words and ${found} things; ${requestedCast.length} people kept with their conversations, ${m.eggs.length} hatcheries; ${m.skipped.length} objects left out; a file that is no map refused; written out, his map and a made zone both read back`);
   }
 } catch (e) { fail('manborough', e); }
 
@@ -1812,17 +1812,17 @@ try {
 try {
   const cf = ctx.characterFlagSites().flags, f0 = cf.find(x => x.flag === 0);
   const own = f0 ? f0.set.map(s => s.resid - 0x1800).find(i => i > 1 && i < 256 && ctx.loadCharacterTable()[i]) : undefined;
-  const touched = new Set(f0 ? [...f0.set, ...f0.clear, ...f0.test, ...f0.effect].flatMap(s => [s.resid - 0x1800, s.who]) : []);
+  const touched = new Set(f0 ? [...f0.set, ...f0.clear, ...f0.test, ...f0.effect].flatMap(s => [s.resid - 0x1800, s.character]) : []);
   let none = -1; for (let i = 2; i < 256; i++) if (ctx.loadCharacterTable()[i] && !touched.has(i)) { none = i; break; }
   const withEffect = cf.find(x => x.flag >= 24 && x.effect.length);
-  const mine = own !== undefined ? ctx.charFlagUses(own, 0) : '';
-  const links = (mine.match(/jumpToScriptAt\((\d+)/g) || []).map(m => +m.replace(/\D+/, ''));
+  const flagUses = own !== undefined ? ctx.charFlagUses(own, 0) : '';
+  const links = (flagUses.match(/jumpToScriptAt\((\d+)/g) || []).map(m => +m.replace(/\D+/, ''));
   // A flag a thing's record names (13 October 2026): the ring sets the flag
   // in its Data2, and one ring in the file has 28, which nothing else sets.
   const f28 = cf.find(x => x.flag === 28);
   if (!f28 || f28.set.length !== 1 || f28.set[0].resid !== 0x1133 || !f28.set[0].record || f28.clear.length !== 1) fail('flag uses', 'flag 28 is not set by the one ring whose record names it: ' + JSON.stringify(f28));
   else if (own === undefined || none < 0 || !withEffect) fail('flag uses', 'the file has no character to try: ' + JSON.stringify([own, none, withEffect && withEffect.flag]));
-  else if (!/^set in <button/.test(mine) && !/set in <button/.test(mine)) fail('flag uses', 'character ' + own + '’s flag 0 does not say where its script sets it: ' + mine.slice(0, 200));
+  else if (!/^set in <button/.test(flagUses) && !/set in <button/.test(flagUses)) fail('flag uses', 'character ' + own + '’s flag 0 does not say where its script sets it: ' + flagUses.slice(0, 200));
   else if (ctx.charFlagUses(none, 0) !== '') fail('flag uses', 'character ' + none + ', whose script never mentions flag 0, is shown other characters’: ' + ctx.charFlagUses(none, 0).slice(0, 200));
   else if (!/the effect of /.test(ctx.charFlagUses(none, withEffect.flag))) fail('flag uses', 'flag ' + withEffect.flag + ' does not show the spell it is the effect of');
   else if (!/The program has no name for these/.test(ctx.charEditHTML(own))) fail('flag uses', 'the record form does not have the uses');

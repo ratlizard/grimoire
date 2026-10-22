@@ -67,7 +67,7 @@ function cmpVersion(a, b) {
 
 // changed: the visitor-facing paths that differ from the baseline.
 // here/base: the version this tree claims and the one the baseline claims.
-function decide(changed, here, base) {
+function versionVerdict(changed, here, base) {
   if (!SEMVER.test(here)) return { ok: false, why: 'the version is not major.minor.patch: ' + here };
   if (!changed.length) return { ok: true, why: 'nothing a visitor receives has changed' };
   if (here === base) return { ok: false,
@@ -85,12 +85,12 @@ function decide(changed, here, base) {
    the bug this check was written for. */
 {
   const control = [
-    ['a clean tree passes',            decide([], '1.0.0', '1.0.0').ok === true],
-    ['a real bump passes',             decide(['index.html'], '1.1.0', '1.0.0').ok === true],
-    ['a missed bump fails',            decide(['index.html'], '1.0.0', '1.0.0').ok === false],
-    ['going backwards fails',          decide(['index.html'], '0.9.0', '1.0.0').ok === false],
-    ['a malformed version fails',      decide(['index.html'], '1.0', '1.0.0').ok === false],
-    ['a bump with no change passes',   decide([], '1.1.0', '1.0.0').ok === true],
+    ['a clean tree passes',            versionVerdict([], '1.0.0', '1.0.0').ok === true],
+    ['a real bump passes',             versionVerdict(['index.html'], '1.1.0', '1.0.0').ok === true],
+    ['a missed bump fails',            versionVerdict(['index.html'], '1.0.0', '1.0.0').ok === false],
+    ['going backwards fails',          versionVerdict(['index.html'], '0.9.0', '1.0.0').ok === false],
+    ['a malformed version fails',      versionVerdict(['index.html'], '1.0', '1.0.0').ok === false],
+    ['a bump with no change passes',   versionVerdict([], '1.1.0', '1.0.0').ok === true],
   ];
   const bad = control.filter(([, passed]) => !passed);
   if (bad.length) {
@@ -176,7 +176,7 @@ if (!base) {
   process.exit(0);
 }
 
-const verdict = decide(changed, here, base);
+const verdict = versionVerdict(changed, here, base);
 console.log('version ' + here + ' against ' + ref + ' at ' + base + ': ' + verdict.why);
 if (!verdict.ok) {
   console.error('The version is bumped by hand in the commit that changes what a visitor sees:');

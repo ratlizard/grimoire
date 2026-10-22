@@ -475,8 +475,8 @@ function exePrefsAccess() {
     // builds several controls that way (a dialog), and nowhere else.
     let prev = -1;
     const named = [];
-    for (const { i, lab } of labels) { const got = reads.filter(x => x.i < i && x.i > prev && !x.label && i - x.i < 40); if (got.length) named.push({ lab, got }); prev = i; }
-    if (new Set(named.map(n => n.got[0].byte.v + ':' + n.got[0].bits.v.join())).size >= 3) for (const n of named) for (const x of n.got) x.label = n.lab;
+    for (const { i, lab } of labels) { const labelReads = reads.filter(x => x.i < i && x.i > prev && !x.label && i - x.i < 40); if (labelReads.length) named.push({ lab, labelReads }); prev = i; }
+    if (new Set(named.map(n => n.labelReads[0].byte.v + ':' + n.labelReads[0].bits.v.join())).size >= 3) for (const n of named) for (const x of n.labelReads) x.label = n.lab;
     out.reads.push(...reads);
   }
   return (pef.prefsAccess = out);
@@ -832,7 +832,7 @@ const US_OPTION_KEYS = { 0xA9: 'option-g', 0xC6: 'option-j', 0xEF: 'option-shift
 const CHEAT_KEY_WORDS = {
   0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with where you are, prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then ' + x.via('GoToLocation', 'moves you there') + ': anywhere in the game.'],
   0xEF: ['Take teleporter', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ', then ' + x.via('TeleportTo', 'sends you') + ' where that teleporter goes.'],
-  0xA7: ['Create a prop', x => 'Prompts for ' + x.asks() + ', then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
+  0xA7: ['Create a prop', x => 'Prompts for ' + x.promptWords() + ', then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
     'The number is the type plus 1,024 times the aspect: 0x0064 is a spear, and 0x0864 a spear at aspect 2, which has the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
   0xB9: ['What prop is this?', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ' and prints the record: class, state, position, Data1 and Data2.' +
     (x.fallsInto ? ' Then, because of a missing jump, it carries on into ' + x.fallsInto + '.' : '')],
@@ -1001,7 +1001,7 @@ function renderCheatsSheet() {
       base: () => bases[0] ? baseWord(bases[0]) : '',
       bases: () => bases.map(baseWord).join(', '),
       // Each prompt with the base of the number read after it.
-      asks: () => { const ps = c.strings.map((t, i) => ({ t, i })).filter(o => !/^[\n]*%[-#0-9.]*[a-z][\n]*$/.test(o.t.v)); const parts = ps.map((o, k) => q(o.i) + (bases[k] ? ' ' + baseWord(bases[k]) : '')); return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts.join(''); },
+      promptWords: () => { const ps = c.strings.map((t, i) => ({ t, i })).filter(o => !/^[\n]*%[-#0-9.]*[a-z][\n]*$/.test(o.t.v)); const parts = ps.map((o, k) => q(o.i) + (bases[k] ? ' ' + baseWord(bases[k]) : '')); return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts.join(''); },
       ori: () => { const f = opFact(d => d.mn === 'ori' && d.imm > 0, d => d.imm); return f ? srcNum(f) : '?'; },
       less: () => { const f = opFact(d => d.mn === 'addi' && d.ra === kr.keyReg && d.imm < 0, d => -d.imm); return f ? srcNum(f) : '?'; },
       flip: () => c.flips[0] ? srcNum(c.flips[0], 'here') : '',
@@ -1033,13 +1033,13 @@ function renderCheatsSheet() {
         return 'It makes ' + srcNum(enemy.peace, 'no pair enemies') + ', so monsters stop finding targets.';
       },
       brokenShort: () => {
-        const k = callOf('AddAbility'), who = k && k.args[3], test = opFact(d => d.mn === 'lbz' && d.d > 0, d => d.d);
-        return 'It checks byte ' + (test ? srcNum(test) : '?') + ' of character ' + (who ? srcNum(who) : '?') + '’s record instead of the player’s, so it protects no one.';
+        const k = callOf('AddAbility'), character = k && k.args[3], test = opFact(d => d.mn === 'lbz' && d.d > 0, d => d.d);
+        return 'It checks byte ' + (test ? srcNum(test) : '?') + ' of character ' + (character ? srcNum(character) : '?') + '’s record instead of the player’s, so it protects no one.';
       },
       broken: () => {
-        const k = callOf('AddAbility'), f = k && k.args[4], who = k && k.args[3];
+        const k = callOf('AddAbility'), f = k && k.args[4], character = k && k.args[3];
         const test = opFact(d => d.mn === 'lbz' && d.d > 0, d => d.d);
-        return 'Meant to switch flag ' + (f ? srcNum(f) + (dvmFlagName(f.v) ? ', ' + svEsc(dvmFlagName(f.v)) : '') : '?') + ' on and off, but it ' + (who ? srcNum(who, 'acts on an empty record') : 'acts on an empty record') + ' instead of yours, so it does nothing.';
+        return 'Meant to switch flag ' + (f ? srcNum(f) + (dvmFlagName(f.v) ? ', ' + svEsc(dvmFlagName(f.v)) : '') : '?') + ' on and off, but it ' + (character ? srcNum(character, 'acts on an empty record') : 'acts on an empty record') + ' instead of yours, so it does nothing.';
       },
       zstats: () => { const z = exeStringsOf('PrintZStats'); return z.length ? z.map(t => '“' + srcNum(t, t.v.replace(/\n+$/, '')) + '”').join(', ') : 'the build’s statistics'; }
     };
@@ -1502,8 +1502,8 @@ function byteMapStream(p) {
         const extra = kind === 9 || kind === 10 ? (q + n + 2 <= end ? 2 + 2 * u16be(b, q + n) : 0) : kind === 11 ? 8 : kind === 12 ? 16 : 0;
         n += extra;
         if (q + n > end) break;
-        const who = id < 256 ? characterName(id) || ('character ' + id) : 'prop ' + id;
-        const rec = byteMapRecord({ fields: chunk.kids, bytes: b }, q, n, 'monster ' + m + ': ' + who);
+        const character = id < 256 ? characterName(id) || ('character ' + id) : 'prop ' + id;
+        const rec = byteMapRecord({ fields: chunk.kids, bytes: b }, q, n, 'monster ' + m + ': ' + character);
         rec.f(0, 1, 'property 55 of its class: 9 or 10 make it a crawling monster, 11 a dragon, 12 an octo, anything else an ordinary one (0xFF when the class has none)', { value: String(kind) });
         rec.f(1, 2, 'the monster’s object: a character below 256, a prop of the level from 256', { value: String(id) });
         rec.f(3, 2, 'the frame it is showing, which changes as it turns and walks (AdjustAspect)', { value: String(u16be(b, q + 3)) });
@@ -1525,8 +1525,8 @@ function byteMapStream(p) {
           // the character's behaviour (byte 22), so a code is a
           // behaviour; scripts queue them (cbQueueAction, the one caller).
           const beh = b[q + o];
-          const said = String(behaviourWordHTML(beh)).replace(/<[^>]+>/g, '');
-          ar.f(0, 1, 'the behavior it performs first, in place of the one in the character’s byte 22 (TActiveMonster::DoMove)', { value: String(beh) + (said ? ', ' + said : '') });
+          const behaviorWord = String(behaviorWordHTML(beh)).replace(/<[^>]+>/g, '');
+          ar.f(0, 1, 'the behavior it performs first, in place of the one in the character’s byte 22 (TActiveMonster::DoMove)', { value: String(beh) + (behaviorWord ? ', ' + behaviorWord : '') });
           ar.f(1, 2, 'the behavior’s first argument', { value: String(u16be(b, q + o + 1)) });
           ar.f(3, 2, 'its second argument', { value: String(u16be(b, q + o + 3)) });
           ar.f(5, 4, 'what it is about: a reference in the scripts’ form (0x5000FFFF is none)', { value: '0x' + u32be(b, q + o + 5).toString(16).toUpperCase().padStart(8, '0') });
@@ -1546,9 +1546,9 @@ function byteMapStream(p) {
       // TSpellFX::WriteFXQueue: each entry of the effects map, a character
       // and a flag and when it wears off, which TSpellFX::PassTime reads.
       for (let e = 0; body + 6 * (e + 1) <= end; e++, q += 6) {
-        const who = u16be(b, q), flag = u16be(b, q + 2), until = u16be(b, q + 4);
-        const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 6, 'spell effect ' + e + ': ' + (characterName(who) || 'character ' + who) + ', flag ' + flag);
-        r.f(0, 2, 'the character it is on', { value: String(who) });
+        const character = u16be(b, q), flag = u16be(b, q + 2), until = u16be(b, q + 4);
+        const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 6, 'spell effect ' + e + ': ' + (characterName(character) || 'character ' + character) + ', flag ' + flag);
+        r.f(0, 2, 'the character it is on', { value: String(character) });
         r.f(2, 2, 'the character flag it applies; flags below 8 are in byte 8, flags below 24 in the status flags, and the rest in byte 26', { value: String(flag) });
         r.f(4, 2, 'when it wears off; the effect ends once the time passes this, and at 0xF000 or more it never ends (PassTime)', { value: until >= 0xF000 ? 'never (' + until + ')' : String(until) });
       }
@@ -2103,7 +2103,7 @@ const CHAR_GROUPS = [
   ]},
   { head: 'Behavior', items: [
     { id: 'behaviour', raw: [22, 1], label: 'behavior', fieldNo: 21, max: 0xFF,
-      what: (r, v) => { const w = behaviourWordHTML(v);
+      what: (r, v) => { const w = behaviorWordHTML(v);
         return (w ? '<b>' + w + '</b>, ' : '') + 'what they do each turn; 112 is waiting where they stand'; } },
     { id: 'behaviour2', raw: [30, 1], label: 'second behavior', max: 0xFF, what: () => 'a second behavior the scripts read and set' },
     { id: 'timing', key: 'party', label: 'move countdown', off: 18, max: 0xFF,
@@ -2168,16 +2168,16 @@ function charFlagUses(index, f) {
   if (!cf) return '';
   // A link when the open file has the script, and its name alone otherwise.
   const linked = refExists(0x1802);
-  const mine = s => f >= 24 || s.resid === 0x1800 + index || s.who === index;
-  const say = (list, verb) => {
+  const belongsToCharacter = s => f >= 24 || s.resid === 0x1800 + index || s.character === index;
+  const listPhrase = (list, verb) => {
     const seen = new Map();
-    for (const s of list) if (mine(s) && !seen.has(s.resid)) seen.set(s.resid, s);
+    for (const s of list) if (belongsToCharacter(s) && !seen.has(s.resid)) seen.set(s.resid, s);
     const u = [...seen.values()];
     if (!u.length) return '';
     const link = s => linked ? srcNum({ resid: s.resid, at: s.at }, s.name) : svEsc(s.name);
     return verb + ' ' + u.slice(0, 4).map(link).join(', ') + (u.length > 4 ? ' and ' + countLink((u.length - 4) + ' more', 'The ' + u.length + ' scripts where character flag ' + f + ' is ' + verb.replace(/ (by|in)$/, ''), u.map(link)) : '');
   };
-  return [say(cf.set, 'set in'), say(cf.clear, 'cleared in'), say(cf.test, 'tested in'), say(cf.effect, 'the effect of')].filter(Boolean).join('; ');
+  return [listPhrase(cf.set, 'set in'), listPhrase(cf.clear, 'cleared in'), listPhrase(cf.test, 'tested in'), listPhrase(cf.effect, 'the effect of')].filter(Boolean).join('; ');
 }
 // The form's markup, apart from where it is put, so the smoke can read it.
 function charEditHTML(index) {
@@ -2388,7 +2388,7 @@ function kingsWelcomeRules() {
       const quest = dvmSeqFirst(talk, [/^sys AddQuest$/, DVM_NUM, /^word 0x[0-9A-F]+\[0\]$/i, DVM_NUM, /^add$/], from);
       const gift = dvmSeqFirst(talk, [/^sys Create$/, DVM_NUM, DVM_NUM, DVM_NUM, DVM_NUM], from);
       if (flag && own && quest && gift && dvmNum(gift[1]) === 1)
-        out = { flag: dvmVal(0x1802, flag[1]), who: 2, charFlag: dvmVal(0x1802, own[2]),
+        out = { flag: dvmVal(0x1802, flag[1]), character: 2, charFlag: dvmVal(0x1802, own[2]),
           todo: { slot: dvmNum(quest[1]), resid: parseInt(/0x([0-9A-F]+)/i.exec(quest[2].text)[1], 16), line: dvmNum(quest[3]), at: quest[0].at },
           gift: { type: dvmNum(gift[2]), d3: ((dvmNum(gift[3]) & 0xFF) << 8) | (dvmNum(gift[4]) & 0xFF), at: gift[0].at } };
     }
@@ -2513,11 +2513,11 @@ function newGameSaveBytes(c) {
     day: Math.max(1, Math.min(0x7FFF, num(c.day, NEW_GAME_SHIPPED.day))), header4: NEW_GAME_SHIPPED.header4 };
   const kw = c.welcomed && d.welcome ? d.welcome : null;
   return buildNewGameSave(ARCHIVE, Object.assign({ zone, x, y, party, values: story ? story.values : null, name: c.name, portrait: c.portrait || d.portrait,
-    flags: kw ? [kw.flag.v] : null, charFlags: kw ? [{ index: kw.who, flag: kw.charFlag.v }] : null, things: kw ? [kw.gift] : null,
+    flags: kw ? [kw.flag.v] : null, charFlags: kw ? [{ index: kw.character, flag: kw.charFlag.v }] : null, things: kw ? [kw.gift] : null,
     // The lines asked for, each one the form offers; the king's own first
     // line where his slot was not asked for otherwise.
-    todo: (() => { const asked = (c.todo || []).map(t => d.todo.find(k => k.slot === +t.slot && k.line === +t.line) ? { slot: +t.slot, line: +t.line, resid: d.todo[0].resid, done: !!t.done } : null).filter(Boolean);
-      return kw && !asked.some(t => t.slot === kw.todo.slot) ? asked.concat([kw.todo]) : asked; })(),
+    todo: (() => { const todoLines = (c.todo || []).map(t => d.todo.find(k => k.slot === +t.slot && k.line === +t.line) ? { slot: +t.slot, line: +t.line, resid: d.todo[0].resid, done: !!t.done } : null).filter(Boolean);
+      return kw && !todoLines.some(t => t.slot === kw.todo.slot) ? todoLines.concat([kw.todo]) : todoLines; })(),
     skills: arch ? arch.skills.map(k => ({ type: k.type, aspect: k.level | d.archetypes.bit.v })) : null, skillFlags: arch ? d.archetypes.flags.v : 0,
     proptype: sprite & 0x3FF, aspect: (sprite >> 10) & 0x3F, body, reflex, mind, level, xp: 0,
     health, healthMax: health, magic: 0, magicMax: 0, training: d.cr.training.v, nutrition: d.cr.nutrition.v,
@@ -2578,10 +2578,10 @@ function makeSaveFromForm(download) {
   const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
   const name = String(val('mkName')).trim() || 'NewGame01';
   const party = [...document.querySelectorAll('.mkWith')].filter(b => b.checked && b.id !== 'mkWelcomed').map(b => parseInt(b.value, 10));
-  const said = document.getElementById('mkWelcomed');
+  const behaviorWord = document.getElementById('mkWelcomed');
   const todo = [...document.querySelectorAll('.mkTodoPick')].filter(p => p.value).map(p => ({ slot: +p.dataset.slot, line: +p.dataset.line, done: p.value === 'done' }));
   const bytes = newGameSaveBytes({ name, sprite: val('mkSprite'), portrait: parseInt(val('mkPortrait'), 10), archetype: val('mkArch'), body: val('mkBody'), reflex: val('mkReflex'), mind: val('mkMind'), level: val('mkLevel'),
-    zone: val('mkZone'), x: val('mkX'), y: val('mkY'), hour: val('mkHour'), day: val('mkDay'), story: val('mkStory'), welcomed: !!(said && said.checked), todo, party });
+    zone: val('mkZone'), x: val('mkX'), y: val('mkY'), hour: val('mkHour'), day: val('mkDay'), story: val('mkStory'), welcomed: !!(behaviorWord && behaviorWord.checked), todo, party });
   if (!bytes) { setStatus('The page could not make that save. The square has to be on the zone’s map, with room beside it for each companion.', true); return false; }
   if (download) {
     // As a save leaves a Mac: MacBinary, the game's type and creator.
@@ -2653,13 +2653,13 @@ function scenarioMakerDefaults() {
 function scenarioOpeningCut() {
   const e = dvmScriptEntry(0x1801), raw = getResourceBytes(ARCHIVE, 0x1801);
   if (!e || !raw) return null;
-  const ops = dvmOpsOf(e), first = ops.length ? ops[0].obj : 0, mine = ops.filter(o => o.obj === first);
-  const from = mine.findIndex(o => /^sys SpecialView\b/.test(o.text));
+  const ops = dvmOpsOf(e), first = ops.length ? ops[0].obj : 0, belongsToCharacter = ops.filter(o => o.obj === first);
+  const from = belongsToCharacter.findIndex(o => /^sys SpecialView\b/.test(o.text));
   let to = -1;
-  for (let i = mine.length - 1; i > from && to < 0; i--) if (/^sys EndSlideshow\b/.test(mine[i].text)) to = i;
-  if (from < 0 || to < 0 || !mine[to + 2] || !/^end$/.test(mine[to + 1].text) || !/^return\b/.test(mine[to + 2].text)) return null;
+  for (let i = belongsToCharacter.length - 1; i > from && to < 0; i--) if (/^sys EndSlideshow\b/.test(belongsToCharacter[i].text)) to = i;
+  if (from < 0 || to < 0 || !belongsToCharacter[to + 2] || !/^end$/.test(belongsToCharacter[to + 1].text) || !/^return\b/.test(belongsToCharacter[to + 2].text)) return null;
   const plain = smartDecrypt(raw, 0x1801).data;
-  return dvmRelink(plain, 0x1801, mine[from].at, mine[to + 2].at - mine[from].at, new Uint8Array(0)).bytes;
+  return dvmRelink(plain, 0x1801, belongsToCharacter[from].at, belongsToCharacter[to + 2].at - belongsToCharacter[from].at, new Uint8Array(0)).bytes;
 }
 /* A BATTLE AT THE START (8 October 2026, the maintainer's ask). Two lines
    of creatures stand a square apart, three squares north of the hero (or
@@ -2691,7 +2691,7 @@ function scenarioBattleEggs(c, width, height, x, y) {
   const n = Math.max(1, Math.min(8, parseInt(c.armyCount, 10) || 4)), dir = y - 2 - n >= 0 ? -1 : 1, eggs = [];
   for (let i = 0; i < n; i++) {
     const ey = y + dir * (3 + i);
-    eggs.push({ x: x - 1, y: ey, type: a.type, behaviour: SCENARIO_ATTACK_NEAREST }, { x: x + 1, y: ey, type: b.type, behaviour: SCENARIO_ATTACK_NEAREST });
+    eggs.push({ x: x - 1, y: ey, type: a.type, behavior: SCENARIO_ATTACK_NEAREST }, { x: x + 1, y: ey, type: b.type, behavior: SCENARIO_ATTACK_NEAREST });
   }
   if (eggs.some(e => e.x < 0 || e.y < 0 || e.x >= width || e.y >= height)) throw new Error('The zone has no room for the battle beside the hero');
   return eggs;
@@ -2738,11 +2738,11 @@ function manboroughMap(bytes) {
     const zip = parseZipArchive(bytes), entries = zip.entries || zip;
     const read = e => new TextDecoder().decode(zipFork(bytes, e, 'data'));
     const levels = entries.find(e => /(^|\/)levels\.json$/.test(e.path));
-    let want = null;
-    try { const first = levels && JSON.parse(read(levels)).levels[0]; if (first && first.map) want = entries.find(e => e.path.endsWith(first.map)); } catch (e) { quiet(e, 'the export\'s list of levels'); }
-    want = want || entries.find(e => /(^|\/)maps\/[^/]+\.json$/.test(e.path) && !/_objects\.json$/.test(e.path));
-    if (!want) throw new Error('This zip has no map in it. An export from Manborough’s editor has one under maps/.');
-    text = read(want);
+    let mapEntry = null;
+    try { const first = levels && JSON.parse(read(levels)).levels[0]; if (first && first.map) mapEntry = entries.find(e => e.path.endsWith(first.map)); } catch (e) { quiet(e, 'the export\'s list of levels'); }
+    mapEntry = mapEntry || entries.find(e => /(^|\/)maps\/[^/]+\.json$/.test(e.path) && !/_objects\.json$/.test(e.path));
+    if (!mapEntry) throw new Error('This zip has no map in it. An export from Manborough’s editor has one under maps/.');
+    text = read(mapEntry);
   } else text = new TextDecoder().decode(bytes);
   let m;
   try { m = JSON.parse(text); } catch (e) { throw new Error('The map is not JSON: ' + e.message); }
@@ -2752,10 +2752,10 @@ function manboroughMap(bytes) {
   for (const c of m.cells) if (c && c.xy && c.t && c.xy[0] >= 0 && c.xy[1] >= 0 && c.xy[0] < width && c.xy[1] < height) tiles[c.xy[1] * width + c.xy[0]] = c.t[0] & 0xFFFF;
   // The game's names for its things and creatures, as his defs spell them.
   const slug = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-  const byName = new Map(), known = getPropTileList();
-  for (let pt = 1; pt < known.length; pt++) { const n = known[pt] !== undefined ? slug(propDisplayName(pt)) : ''; if (n && !byName.has(n)) byName.set(n, pt); }
+  const byName = new Map(), propTiles = getPropTileList();
+  for (let pt = 1; pt < propTiles.length; pt++) { const n = propTiles[pt] !== undefined ? slug(propDisplayName(pt)) : ''; if (n && !byName.has(n)) byName.set(n, pt); }
   const units = parseMonsterStats();
-  const eggBehaviour = type => {
+  const eggBehavior = type => {
     for (let k = 0; k < subindexCount(ARCHIVE, 128); k++) { const b = getResourceBytes(ARCHIVE, 0x8100 + k); if (!b) continue;
       for (const r of parseDelverPropList(b)) if (r.flags === 0x08 && r.proptype === type) return (r.d3 >> 8) & 0xFF; }
     return 0;
@@ -2770,7 +2770,7 @@ function manboroughMap(bytes) {
     let g;
     if ((g = /^cythera_npc_(\d+)/.exec(def))) out.cast.push({ index: +g[1], x, y });
     else if ((g = /^cythera_prop_(\d+)_(.*)$/.exec(def))) { const a = /_a(\d+)$/.exec(g[2]); out.props.push({ x, y, type: +g[1], aspect: a ? +a[1] : 0, rotated: !!o.rotated }); }
-    else if ((g = /^cythera_spawn_(\d+)_.*?_x(\d+)_p(\d+)/.exec(def)) && units[+g[1]] && !units[+g[1]].blank && units[+g[1]].proptype) { const type = units[+g[1]].proptype; out.eggs.push({ x, y, type, behaviour: eggBehaviour(type), count: Math.min(255, +g[2]), chance: Math.min(100, +g[3]) }); }
+    else if ((g = /^cythera_spawn_(\d+)_.*?_x(\d+)_p(\d+)/.exec(def)) && units[+g[1]] && !units[+g[1]].blank && units[+g[1]].proptype) { const type = units[+g[1]].proptype; out.eggs.push({ x, y, type, behavior: eggBehavior(type), count: Math.min(255, +g[2]), chance: Math.min(100, +g[3]) }); }
     else if (byName.has(def) || byName.has(def.replace(/s$/, ''))) out.props.push({ x, y, type: byName.get(def) || byName.get(def.replace(/s$/, '')), aspect: 0, rotated: !!o.rotated });
     else out.skipped.push(def);
   }
@@ -3061,7 +3061,7 @@ function scenarioSaveWords() {
            rooms, gremlins: Array.from({ length: 256 }, (_, n) => n).filter(n => refExists(0x1F00 + n)),
            // Where the scripts use each character flag (charFlagUses), each
            // place with its script's name for a save, which has no scripts.
-           charFlags: characterFlagSites().flags.map(x => { const nm = l => l.map(q => ({ resid: q.resid, at: q.at, who: q.who, name: labelFor(q.resid) || propWordHex(q.resid) })); return { flag: x.flag, set: nm(x.set), clear: nm(x.clear), test: nm(x.test), effect: nm(x.effect) }; }) };
+           charFlags: characterFlagSites().flags.map(x => { const nm = l => l.map(q => ({ resid: q.resid, at: q.at, character: q.character, name: labelFor(q.resid) || propWordHex(q.resid) })); return { flag: x.flag, set: nm(x.set), clear: nm(x.clear), test: nm(x.test), effect: nm(x.effect) }; }) };
 }
 // Called by parseArchiveBytes while the scenario is still the open file and
 // a save is about to replace it.
@@ -3172,10 +3172,10 @@ function setQuestFlagByNumber(on) {
 function roomsEnteredHTML(words) {
   const b = saveSegment(0xF00E);
   if (!b) return '';
-  const known = new Map((words ? words.rooms : []).map(r => [r.n, r]));
+  const propTiles = new Map((words ? words.rooms : []).map(r => [r.n, r]));
   const count = b.length >> 1;
-  for (let n = 0; n < count; n++) if ((b[2 * n + 1] & 1) && !known.has(n)) known.set(n, { n, zones: [], text: '' });
-  const rows = [...known.values()].sort((a, c) => a.n - c.n);
+  for (let n = 0; n < count; n++) if ((b[2 * n + 1] & 1) && !propTiles.has(n)) propTiles.set(n, { n, zones: [], text: '' });
+  const rows = [...propTiles.values()].sort((a, c) => a.n - c.n);
   const entered = rows.filter(r => b[2 * r.n + 1] & 1).length;
   return '<h4 class="saveH4">Rooms Entered</h4>' +
     '<div class="saveNote">0xF00E has a switch for each room, set the first time the player walks in. A room whose switch is clear shows its description when the player enters it. ' +
@@ -3209,8 +3209,8 @@ function saveGremlinBlock(b) {
 const SAVE_GREMLIN_STATES = [[0, 'on'], [1, 'off'], [2, 'none']];
 // A state's options, the one it has selected; a state the three do not name is kept as its number.
 function gremlinStateOptions(state) {
-  const known = SAVE_GREMLIN_STATES.some(([v]) => v === state);
-  return (known ? '' : '<option value="' + state + '" selected>' + state + '</option>') +
+  const propTiles = SAVE_GREMLIN_STATES.some(([v]) => v === state);
+  return (propTiles ? '' : '<option value="' + state + '" selected>' + state + '</option>') +
     SAVE_GREMLIN_STATES.map(([v, t]) => '<option value="' + v + '"' + (v === state ? ' selected' : '') + '>' + t + '</option>').join('');
 }
 function gremlinsHTML(words) {
@@ -3234,26 +3234,26 @@ function gremlinsHTML(words) {
     '</tbody></table></div><div class="propEdit"><button class="sv-chip" onclick="applyGremlinsForm()">Apply</button></div>';
 }
 function applyGremlinsForm() {
-  const want = new Map();
+  const stateChanges = new Map();
   for (let n = 0; n < 256; n++) {
     const sel = document.getElementById('grem-' + n);
-    if (sel) want.set(n, +sel.value);
+    if (sel) stateChanges.set(n, +sel.value);
   }
   const add = document.getElementById('gremAddN'), addState = document.getElementById('gremAddState');
   if (add && add.value.trim() !== '') {
     const t = add.value.trim();
     if (!/^\d+$/.test(t) || +t > 255) { setStatus('A gremlin is numbered 0 to 255.', true); return false; }
-    want.set(+t, addState ? +addState.value : 0);
+    stateChanges.set(+t, addState ? +addState.value : 0);
   }
-  return writeGremlinStates(want);
+  return writeGremlinStates(stateChanges);
 }
 // Each gremlin named, set to the state given, in the save's Grem block.
 function writeGremlinStates(changes) {
   const b = saveSegment(0x0400), g = saveGremlinBlock(b);
   if (!g) { setStatus('This file has no gremlins block.', true); return false; }
-  const want = changes instanceof Map ? changes : new Map(Object.entries(changes).map(([n, v]) => [+n, +v]));
+  const changeMap = changes instanceof Map ? changes : new Map(Object.entries(changes).map(([n, v]) => [+n, +v]));
   let changed = 0;
-  for (const [n, v] of want) {
+  for (const [n, v] of changeMap) {
     const p = g.at + 4 * n;
     if (p + 2 > g.end || ((u16be(b, p) << 16) >> 16) === v) continue;
     b[p] = (v >> 8) & 0xFF; b[p + 1] = v & 0xFF; changed++;
@@ -3500,8 +3500,8 @@ function renderDataForkSheet() {
    are not kept: the installer itself is what the page stores (see
    adoptArchive), and a decoded stream is cached on it for the session. */
 function installerTextOf(entry) {
-  const got = viseExtract(window.INSTALLER.archive, entry);
-  return decodeMacRoman(got.data);
+  const extracted = viseExtract(window.INSTALLER.archive, entry);
+  return decodeMacRoman(extracted.data);
 }
 function installerIsText(entry) {
   return entry.dataLen > 0 && (entry.type === 'TEXT' || entry.type === 'URL ' || entry.type === 'LINK');
@@ -3511,9 +3511,9 @@ function downloadInstallerFile(index) {
   if (!inst) return;
   const entry = inst.archive.entries[index];
   if (!entry) return;
-  const got = viseExtract(inst.archive, entry);
-  if (!got.crcOk) setStatus('Warning: the installer’s checksum for ' + entry.name + ' does not match what came out.', true);
-  downloadBlob(writeMacBinary({ name: entry.name, type: entry.type, creator: entry.creator, finderFlags: entry.finderFlags, data: got.data, rsrc: got.rsrc }),
+  const extracted = viseExtract(inst.archive, entry);
+  if (!extracted.crcOk) setStatus('Warning: the installer’s checksum for ' + entry.name + ' does not match what came out.', true);
+  downloadBlob(writeMacBinary({ name: entry.name, type: entry.type, creator: entry.creator, finderFlags: entry.finderFlags, data: extracted.data, rsrc: extracted.rsrc }),
                safeFileName(entry.name) + '.bin');
 }
 function showInstallerText(index) {
@@ -3708,8 +3708,8 @@ function installerIcon(which) {
       const tail = '/' + which + '/Icon\r';
       const e = inst.archive.entries.find(x => x.path.slice(-tail.length) === tail);
       if (e) {
-        const got = viseExtract(inst.archive, e);
-        if (got.rsrc && got.rsrc.length) art = iconFromFork(openResourceFork(got.rsrc), -16455);
+        const extracted = viseExtract(inst.archive, e);
+        if (extracted.rsrc && extracted.rsrc.length) art = iconFromFork(openResourceFork(extracted.rsrc), -16455);
       }
     }
   } catch (e) { art = null; }
@@ -3735,15 +3735,15 @@ function installerEntryIcon(e) {
   let art = null;
   // A folder's Icon file has the folder's icon, at -16455.
   if (/\/Icon\r$/.test(e.path)) {
-    try { const got = viseExtract(inst.archive, e); if (got.rsrc && got.rsrc.length) art = iconFromFork(openResourceFork(got.rsrc), -16455); } catch (err) { quiet(err, 'a folder\u2019s icon'); }
+    try { const extracted = viseExtract(inst.archive, e); if (extracted.rsrc && extracted.rsrc.length) art = iconFromFork(openResourceFork(extracted.rsrc), -16455); } catch (err) { quiet(err, 'a folder\u2019s icon'); }
     return art;
   }
   try {
     const owner = inst.archive.entries.find(x => x.type === 'APPL' && x.creator === e.creator && x.rsrcLen);
     if (owner) {
-      const got = viseExtract(inst.archive, owner);
-      if (got.rsrc && got.rsrc.length) {
-        const fork = openResourceFork(got.rsrc);
+      const extracted = viseExtract(inst.archive, owner);
+      if (extracted.rsrc && extracted.rsrc.length) {
+        const fork = openResourceFork(extracted.rsrc);
         const id = bundleIconMap(fork, 'installer:' + e.creator)[e.type];
         if (id !== undefined) art = iconFromFork(fork, id);
       }
@@ -3891,10 +3891,10 @@ function renderCombatAISheet(which) {
     grid.appendChild(box);
   }
   const arc = window.INSTALLER ? window.INSTALLER.archive : null;
-  const want = which === 'AIRULES'
+  const isWantedKind = which === 'AIRULES'
     ? e => /AI Scripting Document/i.test(e.name)
     : e => /\.ai$/i.test(e.name);
-  const files = arc ? arc.entries.filter(e => e.type === 'TEXT' && want(e)) : [];
+  const files = arc ? arc.entries.filter(e => e.type === 'TEXT' && isWantedKind(e)) : [];
   for (const e of files) {
     const pre = document.createElement('pre');
     pre.className = 'installerText';

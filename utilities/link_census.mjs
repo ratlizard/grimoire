@@ -45,7 +45,7 @@ const where = () => {
 
 // Handlers that only navigate. Anything else (an edit, a save, a toggle of
 // the page's state) is counted by name and not run.
-const NAV = /^(jumpTo\w+|show\w*Detail|showCategory|openPefRoutine|searchFor|mechLink|showCharacterOnMap|jumpToResource|showZone\w*|openZone\w*|askCharacterChip|showRecordDetail|jumpToForkBytes|openRecord\w*)$/;
+const NAV = /^(jumpTo\w+|show\w*Detail|showCategory|openPefRoutine|searchFor|mechLink|showCharacterOnMap|jumpToResource|showZone\w*|openZone\w*|answerCharacterChip|showRecordDetail|jumpToForkBytes|openRecord\w*)$/;
 
 const SCEN = (tree.find(n => n.id === 'entities').children || []).flatMap(n => n.values || []);
 const seen = new Set();          // onclick strings already followed

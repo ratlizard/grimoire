@@ -152,18 +152,18 @@ if (FULL) {
     const once = writeDelverArchive(applyDataFixes(__a, ${JSON.stringify(ids)}).spec);
     try { applyDataFixes(once, ${JSON.stringify(ids)}); return null; } catch (e) { return e.message; }
   })()`, ctx);
-  let refused = 0;
+  let rejectedCount = 0;
   for (const id of ['fetch', 'books-of-wisdom', 'panpipes', 'magpie-west', 'stronghold-door']) {
     const why = twice([id]);
     const f = FIXES.find(x => x.id === id);
     if (!why) fail('control: ' + id + ' applied twice without a word');
     else if (why.indexOf(f.title) !== 0) fail('control: ' + id + ' rejected, but without naming the fix: ' + why);
-    else refused++;
+    else rejectedCount++;
   }
   // The text's words, once fixed, are not there to fix again.
   const whyText = twice(['text']);
-  if (!whyText) fail('control: the text applied twice without a word'); else refused++;
-  console.log(`  rejections: ${refused} of 6 fixes applied to a file they had fixed already stop, naming the fix`);
+  if (!whyText) fail('control: the text applied twice without a word'); else rejectedCount++;
+  console.log(`  rejections: ${rejectedCount} of 6 fixes applied to a file they had fixed already stop, naming the fix`);
 }
 
 // ---- 5. the places the text's list links to --------------------------------

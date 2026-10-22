@@ -156,7 +156,7 @@ const DATA_FIX_CHOICES = [
 function dataFixKeyword(what, resid, at, kw, target) {
   return { what, resid, at, replaceOp: true, expect: { [at]: 'conversation_response' }, code: `conversation_response "${kw}" -> ${target}` };
 }
-function dataFixTalk(who, slot) { return `sys TalkParticipant\n${who}\nbyte 0x0${slot}\nend`; }
+function dataFixTalk(character, slot) { return `sys TalkParticipant\n${character}\nbyte 0x0${slot}\nend`; }
 function dataFixT(what, resid, find, replace, count) {
   const e = { what, resid, find, replace };
   if (count !== undefined) e.count = count;
@@ -739,8 +739,8 @@ const DATA_FIXES = [
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the crate at (103,58) of Cademia, opened, shows its arrows with the count 30, against one arrow and no count unpatched; the Land King Hall arrow and the second Cademia stack were not looked at; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the crate at (103,58) of Cademia shows its arrows with the count 30',
     dataEdits: [
       { what: 'the Cademia arrow stacks', resid: 0x8108, fn: (b) => {
-          const want = { 1155: 30, 1174: 20 }; let n = 0;
-          for (const [i, c] of Object.entries(want)) { const r = b.subarray(i * 16, i * 16 + 16); if (((r[4] << 8 | r[5]) & 0x3FF) !== 102 || r[6] !== c || r[7] !== 0) throw new Error('record ' + i + ' is not an arrow with ' + c + ' in Data1'); r[6] = 0; r[7] = c; n++; }
+          const expected = { 1155: 30, 1174: 20 }; let n = 0;
+          for (const [i, c] of Object.entries(expected)) { const r = b.subarray(i * 16, i * 16 + 16); if (((r[4] << 8 | r[5]) & 0x3FF) !== 102 || r[6] !== c || r[7] !== 0) throw new Error('record ' + i + ' is not an arrow with ' + c + ' in Data1'); r[6] = 0; r[7] = c; n++; }
           return n + ' stacks’ counts moved to Data2';
       } },
       { what: 'the Land King Hall magic arrow', resid: 0x8103, fn: (b) => {
@@ -767,16 +767,16 @@ const DATA_FIXES = [
     played: 'fork, 68K, 13 October 2026, alone and on “All Fixes”: the hero put on the void beside each group of the Underground; the pedestal, armor and spear at (34,57) and the standing stones, force walls and pedestal of the north-west corner are drawn unpatched and gone with the fix; fork, PowerPC, the fix alone: a new game, saved, has Land King Hall’s dresser and crystal ball as free records, against both on the floor unpatched. Land King Hall was not looked at on “All Fixes”, nor any of it on Mac OS',
     dataEdits: [
       { what: 'Land King Hall’s castoffs', resid: 0x8103, fn: (b) => {
-          const want = { 68: [18, 4, 16], 626: [321, 4, 18] }; let n = 0;
-          for (const [i, [t, x, y]] of Object.entries(want)) { const r = b.subarray(i * 16, i * 16 + 16), xy = (r[1] << 16) | (r[2] << 8) | r[3];
+          const expected = { 68: [18, 4, 16], 626: [321, 4, 18] }; let n = 0;
+          for (const [i, [t, x, y]] of Object.entries(expected)) { const r = b.subarray(i * 16, i * 16 + 16), xy = (r[1] << 16) | (r[2] << 8) | r[3];
             if (r[0] !== 0 || (((r[4] << 8) | r[5]) & 0x3FF) !== t || (xy >> 12) !== x || (xy & 0xFFF) !== y) throw new Error('record ' + i + ' is not type ' + t + ' on the floor at (' + x + ',' + y + ')');
             r[0] = 0xFF; n++; }
           return n + ' records freed';
       } },
       { what: 'the Underground’s castoffs', resid: 0x8109, fn: (b) => {
-          const want = { 871: [184, 34, 57, 0], 873: [375, 33, 57, 1], 874: [376, 35, 57, 1], 881: [179, 5, 1, 0], 882: [179, 5, 2, 0], 883: [179, 6, 1, 0], 884: [179, 7, 0, 0],
+          const expected = { 871: [184, 34, 57, 0], 873: [375, 33, 57, 1], 874: [376, 35, 57, 1], 881: [179, 5, 1, 0], 882: [179, 5, 2, 0], 883: [179, 6, 1, 0], 884: [179, 7, 0, 0],
                          887: [255, 4, 4, 0], 888: [255, 4, 8, 0], 889: [255, 4, 11, 0], 890: [255, 3, 5, 0], 893: [184, 5, 3, 0] }; let n = 0;
-          for (const [i, [t, x, y, f]] of Object.entries(want)) { const r = b.subarray(i * 16, i * 16 + 16), xy = (r[1] << 16) | (r[2] << 8) | r[3];
+          for (const [i, [t, x, y, f]] of Object.entries(expected)) { const r = b.subarray(i * 16, i * 16 + 16), xy = (r[1] << 16) | (r[2] << 8) | r[3];
             if (r[0] !== f || (((r[4] << 8) | r[5]) & 0x3FF) !== t || (xy >> 12) !== x || (xy & 0xFFF) !== y) throw new Error('record ' + i + ' is not type ' + t + ' on the floor at (' + x + ',' + y + ')');
             r[0] = 0xFF; n++; }
           return n + ' records freed';
@@ -905,8 +905,8 @@ const DATA_FIXES = [
     played: 'Mac OS 8.5, 11 October 2026, the fix alone and with every fix, each installed by Magpie: the hero on the shore of the Hall of Truth\u2019s pool, Look at the body two squares west, "> Look - you see a hydra.", and with the fix alone "--A hydra missed Bellerophon.--", against "> Look - you see a polyp." unpatched (and "--A polyp hit Bellerophon very hard.--" in an unpatched run the same day). The polyps of the Cove, the same day and machine, eight turns and a Look at each square beside the hero: "> Look - you see a polyp." and "--A polyp hit Bellerophon.--" with the fix alone and with every fix, as unpatched; fork, 68K, 11 October 2026, a Look at each of the six squares the body moves over, twice: two of twelve read "> Look - you see a polyp." unpatched, none with the fix alone or with every fix, where eight read "> Look - you see a hydra."',
     dataEdits: [
       { what: 'the hydra body’s name', resid: 0xF004, fn: (b) => {
-          const at = 4295, want = [0x07, 0xCF, 0x67, 0x61, 0x74, 0x6F, 0x72, 0, 0x07, 0xD7, 0x70, 0x6F, 0x6C, 0x79, 0x70, 0];
-          if (want.some((v, i) => b[at - 8 + i] !== v)) throw new Error('the entries 1999 "gator" and 2007 "polyp" are not where the page read them');
+          const at = 4295, expected = [0x07, 0xCF, 0x67, 0x61, 0x74, 0x6F, 0x72, 0, 0x07, 0xD7, 0x70, 0x6F, 0x6C, 0x79, 0x70, 0];
+          if (expected.some((v, i) => b[at - 8 + i] !== v)) throw new Error('the entries 1999 "gator" and 2007 "polyp" are not where the page read them');
           const add = [0x07, 0xD3, 0x68, 0x79, 0x64, 0x72, 0x61, 0];
           const out = new Uint8Array(b.length + add.length);
           out.set(b.subarray(0, at)); out.set(add, at); out.set(b.subarray(at), at + add.length);
@@ -1256,8 +1256,8 @@ const DATA_FIXES = [
       ['Charax', 0x184F, 'name', 'char', 'I am Charax'],
       ['Helen', 0x1858, 'name', 'hele', 'I am Helen'],
       ['Sabinate', 0x1878, 'name,job,heir', 'sabi', 'We are Sabinate'],
-    ].map(([who, resid, from, add, said]) =>
-      dataFixRekey(s, who + ' answers to the name', resid, from, from + ',' + add, ['string(implicit) "\\"' + said])) }) },
+    ].map(([character, resid, from, add, said]) =>
+      dataFixRekey(s, character + ' answers to the name', resid, from, from + ',' + add, ['string(implicit) "\\"' + said])) }) },
   // Tlepolemus never sells his old panpipes (bugs.md): he offers them, a
   // yes draws "Stop by some evening and I'll see if I can find them.", and
   // no script ever sells them. The offer goes (the maintainer, 3 October
@@ -1423,7 +1423,7 @@ const DATA_FIXES = [
       ['Polydamas, full of life', 0x185F, '  Despite that, he seems full of life.'],
       ['Thersites', 0x1865, 'You see a kindly looking, honorable man.'],
       ['Demodocus', 0x186D, 'with thinning curly hair.'],
-    ].map(([who, resid, line]) => ({ what: who + '\u2019s description', resid, find: line, replace: line + '\n*', count: 1 })) },
+    ].map(([character, resid, line]) => ({ what: character + '\u2019s description', resid, find: line, replace: line + '\n*', count: 1 })) },
   // The letter before a pause. TConversation::myprintstr, at a `*`, draws
   // the text up to one character short of it (the length it hands
   // AppendConv or AppendMessage is the `*`'s place less one, less the
@@ -1453,11 +1453,11 @@ const DATA_FIXES = [
         }
         const done = new Set();
         for (const p of places) {
-          let n = 3, find, want;
-          for (;;) { find = p.slice(-n); want = places.filter(q => q.endsWith(find)).length; if (want === times(texts[resid], find) || n >= p.length) break; n++; }
+          let n = 3, find, placeCount;
+          for (;;) { find = p.slice(-n); placeCount = places.filter(q => q.endsWith(find)).length; if (placeCount === times(texts[resid], find) || n >= p.length) break; n++; }
           if (done.has(find)) continue;
           done.add(find);
-          textEdits.push({ what: 'a pause that drops what is before it', resid, find, replace: find.slice(0, -1) + '\n*', count: want });
+          textEdits.push({ what: 'a pause that drops what is before it', resid, find, replace: find.slice(0, -1) + '\n*', count: placeCount });
         }
       }
       return { textEdits };
@@ -2106,11 +2106,11 @@ const DATA_FIXES = [
           return 'records 187, 188, 189 and 191, byte 8: flag 7 set';
       } },
       { what: 'tile 0 named \u201c???\u201d', resid: 0xF004, fn: (b) => {
-          const want = [0, 0, 0x4E, 0x6F, 0x74, 0x68, 0x69, 0x6E, 0x67, 0];
-          if (want.some((v, i) => b[i] !== v)) throw new Error('the first entry is not tile 0 "Nothing"');
+          const expected = [0, 0, 0x4E, 0x6F, 0x74, 0x68, 0x69, 0x6E, 0x67, 0];
+          if (expected.some((v, i) => b[i] !== v)) throw new Error('the first entry is not tile 0 "Nothing"');
           const name = [0, 0, 0x3F, 0x3F, 0x3F, 0];
-          const out = new Uint8Array(b.length - want.length + name.length);
-          out.set(name); out.set(b.subarray(want.length), name.length);
+          const out = new Uint8Array(b.length - expected.length + name.length);
+          out.set(name); out.set(b.subarray(expected.length), name.length);
           return out;
       } },
     ] },
@@ -2984,12 +2984,12 @@ function dataFixArchetypeMind(s, chosen) {
   const odd = [];
   top.forEach((p, i) => {
     const at = (p & 0xFFFF) + 2 + 8, row = dvmArrayWords(table, p & 0xFFFF), m = text[i] ? /Mind: (\d+)/.exec(text[i].str) : null;
-    if (row && row.length >= 3 && m && +m[1] !== row[2]) odd.push({ i, at, table: row[2], said: +m[1], digits: text[i].offset + m.index + 6, len: m[1].length });
+    if (row && row.length >= 3 && m && +m[1] !== row[2]) odd.push({ i, at, table: row[2], printedNumber: +m[1], digits: text[i].offset + m.index + 6, len: m[1].length });
   });
   if (!odd.length) throw new Error('the dialog and the table already match on every archetype’s mind');
   if (toTable) return [{ what: 'an archetype’s mind, as the dialog shows', resid: rid, fn: b => {
-    for (const o of odd) { b[o.at] = 0; b[o.at + 1] = 0; b[o.at + 2] = (o.said >> 8) & 0xFF; b[o.at + 3] = o.said & 0xFF; }
-    return odd.map(o => 'row ' + o.i + ', ' + o.table + ' to ' + o.said).join('; ');
+    for (const o of odd) { b[o.at] = 0; b[o.at + 1] = 0; b[o.at + 2] = (o.printedNumber >> 8) & 0xFF; b[o.at + 3] = o.printedNumber & 0xFF; }
+    return odd.map(o => 'row ' + o.i + ', ' + o.table + ' to ' + o.printedNumber).join('; ');
   } }];
   return [{ what: 'an archetype’s mind, as the table gives it', resid: 0x0205, fn: b => {
     let out = b;
@@ -3468,8 +3468,8 @@ function applyDataRsrcFixes(rsrc, ids) {
       const r = spec.resources.find(x => x.type === e.type && x.id === e.id);
       if (!r) throw new Error(fix.title + ': this file has no ' + e.type + ' ' + e.id + '.');
       const list = appStrList(r.data);
-      const got = list[e.index - 1] ? decodeMacRoman(list[e.index - 1]) : null;
-      if (got !== e.was) throw new Error(fix.title + ': ' + e.type + ' ' + e.id + ' string ' + e.index + ' is “' + got + '”, not “' + e.was + '”.');
+      const actual = list[e.index - 1] ? decodeMacRoman(list[e.index - 1]) : null;
+      if (actual !== e.was) throw new Error(fix.title + ': ' + e.type + ' ' + e.id + ' string ' + e.index + ' is “' + actual + '”, not “' + e.was + '”.');
       list[e.index - 1] = encodeMacRoman(e.now);
       r.data = appStrListBytes(list);
       log.push(e.type + ' ' + e.id + ' string ' + e.index + ': ' + e.was + ' → ' + e.now);

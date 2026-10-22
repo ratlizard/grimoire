@@ -229,7 +229,7 @@ function mechDiceRun(roll, games, opts) {
 function mechCombatExact(p, words, last) {
   const roll = n => mechUniformDist(0, Math.max(0, n - 1));
   const k = (p.attackerReflex || 0) + (p.weaponSkill || 0) - (p.defenderReflex || 0)
-          + (p.attackSkill || 0) - (p.defenceSkill || 0) + (p.enchant || 0);
+          + (p.attackSkill || 0) - (p.defenseSkill || 0) + (p.enchant || 0);
   const margin = mechShiftDist(mechConvolve(roll(p.roll), mechNegateDist(roll(p.rollDefender))), k);
 
   // The shield. A block figure of null is no shield at all, which is not the

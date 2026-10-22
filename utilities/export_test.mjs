@@ -54,11 +54,11 @@ const peek = n => ctx.__peek(n);
     ['The quick brown fox jumps over the lazy dog', 0x414FA339],
   ];
   let bad = 0;
-  for (const [str, want] of CRC_VECTORS) {
-    const got = ctx.crc32(new TextEncoder().encode(str));
-    if (got !== want) {
+  for (const [str, expected] of CRC_VECTORS) {
+    const actual = ctx.crc32(new TextEncoder().encode(str));
+    if (actual !== expected) {
       bad++;
-      console.log(`  FAIL crc32(${JSON.stringify(str).slice(0, 24)}) = 0x${got.toString(16)} want 0x${want.toString(16)}`);
+      console.log(`  FAIL crc32(${JSON.stringify(str).slice(0, 24)}) = 0x${actual.toString(16)}, expected 0x${expected.toString(16)}`);
     }
   }
   if (bad) { console.error('CRC-32 is wrong; not writing an archive.'); process.exit(1); }

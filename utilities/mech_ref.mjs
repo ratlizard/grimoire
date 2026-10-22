@@ -204,7 +204,7 @@ export function blowWord(points) {
 //
 //   margin = attackerReflex + weaponSkill + Random(0, 30)
 //          - (defenderReflex + Random(0, 30))
-//          + attackSkill - defenceSkill + enchant
+//          + attackSkill - defenseSkill + enchant
 //
 // Two separate rolls of 0 to 29, one for each side, drawn attacker first.
 //
@@ -255,7 +255,7 @@ export function refCombat(params, trials = 200000, rng = mulberry32(2)) {
     defenderReflex = 0,
     weaponSkill = 0,
     attackSkill = 0,
-    defenceSkill = 0,
+    defenseSkill = 0,
     shieldBlock = null,
     shieldSkill = 0,
     damage = 0,
@@ -273,7 +273,7 @@ export function refCombat(params, trials = 200000, rng = mulberry32(2)) {
     const margin =
       attackerReflex + weaponSkill + rnd(rng, 30) -
       (defenderReflex + rnd(rng, 30)) +
-      attackSkill - defenceSkill + enchant;
+      attackSkill - defenseSkill + enchant;
 
     // Rolled before either test, as the script rolls it. A defender with no
     // shield contributes nothing and consumes no roll.
@@ -327,9 +327,9 @@ export function refCombat(params, trials = 200000, rng = mulberry32(2)) {
 export function refLock({ reflex = 0, difficulty = 0 } = {}, trials = 200000, rng = mulberry32(3)) {
   let open = 0;
   for (let i = 0; i < trials; i++) {
-    const mine = reflex + rnd(rng, 19);
-    const theirs = 20 + rnd(rng, 19) + 5 * Math.ceil(difficulty / 20);
-    if (mine >= theirs) open++;
+    const playerRoll = reflex + rnd(rng, 19);
+    const lockRoll = 20 + rnd(rng, 19) + 5 * Math.ceil(difficulty / 20);
+    if (playerRoll >= lockRoll) open++;
   }
   return { open: open / trials, breaks: (trials - open) / trials };
 }
@@ -361,8 +361,8 @@ export function refLock({ reflex = 0, difficulty = 0 } = {}, trials = 200000, rn
 export function refCast({ casting = 0, level = 0 } = {}, trials = 200000, rng = mulberry32(4)) {
   let fail = 0;
   for (let i = 0; i < trials; i++) {
-    const mine = rnd(rng, casting) + rnd(rng, casting);
-    if (mine < rnd(rng, level)) fail++;
+    const playerRoll = rnd(rng, casting) + rnd(rng, casting);
+    if (playerRoll < rnd(rng, level)) fail++;
   }
   return fail / trials;
 }
@@ -569,17 +569,17 @@ function main() {
     console.log(`   ${label} win ${pct(d.wins)}  push ${pct(d.pushes)}  lose ${pct(d.losses)}` +
                 `  mean ${num(d.mean)} obols`);
     console.log(`                 net ` + nets.map(n => `${n}:${(d.dist[String(n)] * 100).toFixed(1)}%`).join('  '));
-    const want = gambling ? 0.4213 : 0.3056;
-    if (Math.abs(d.mean - want) > 0.01) {
-      console.error(`   FAIL mean ${d.mean} is not ${want}`);
+    const expected = gambling ? 0.4213 : 0.3056;
+    if (Math.abs(d.mean - expected) > 0.01) {
+      console.error(`   FAIL mean ${d.mean} is not ${expected}`);
       failures++;
     }
   }
   const exact = refDice({ gambling: false }, 200000, mulberry32(1001));
-  for (const [what, got, want] of [['win', exact.wins, 96 / 216], ['push', exact.pushes, 50 / 216],
+  for (const [what, actual, expected] of [['win', exact.wins, 96 / 216], ['push', exact.pushes, 50 / 216],
                                    ['lose', exact.losses, 70 / 216]]) {
-    if (Math.abs(got - want) > 0.01) {
-      console.error(`   FAIL ${what} ${got} is not ${want}`);
+    if (Math.abs(actual - expected) > 0.01) {
+      console.error(`   FAIL ${what} ${actual} is not ${expected}`);
       failures++;
     }
   }
@@ -594,7 +594,7 @@ function main() {
   for (const shield of [null, 20]) {
     const c = refCombat({
       attackerReflex: 20, defenderReflex: 20, weaponSkill: 10,
-      attackSkill: 5, defenceSkill: 5, shieldBlock: shield, shieldSkill: 5,
+      attackSkill: 5, defenseSkill: 5, shieldBlock: shield, shieldSkill: 5,
       damage: 30, enchant: 0,
     }, 200000, mulberry32(2002));
     combatMiss.push(c.miss);
@@ -661,10 +661,10 @@ function main() {
     ['level 6, fed, quality 3                   ', { level: 6, hours: 1, quality: 3, nutrition: 24, regenerating: false }, 10],
     ['level 6, fed, quality 3, regenerating     ', { level: 6, hours: 1, quality: 3, nutrition: 24, regenerating: true }, 35],
   ];
-  for (const [what, p, want] of beds) {
+  for (const [what, p, expected] of beds) {
     const s = refSleep(Object.assign({ health: 1, fullHealth: 1000 }, p));
-    const ok = s.gained === want;
-    console.log(`   ${what}  gained ${String(s.gained).padStart(3)}   want ${String(want).padStart(3)}   ${ok ? 'ok' : 'FAIL'}`);
+    const ok = s.gained === expected;
+    console.log(`   ${what}  gained ${String(s.gained).padStart(3)}   expected ${String(expected).padStart(3)}   ${ok ? 'ok' : 'FAIL'}`);
     if (!ok) failures++;
   }
 

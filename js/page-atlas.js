@@ -360,10 +360,10 @@ function mapStates() {
         const there = mapWorldAnchor(z.resid);
         if (!there || there.x !== here.x || there.y !== here.y) continue;
         // The flag test before it, in the same function.
-        let flag = null, without = false, says = '';
+        let flag = null, without = false, message = '';
         for (let j = i - 1; j >= 0 && ops[j].obj === ops[i].obj; j--) {
           const str = /^string(?:\(implicit\))? "([\s\S]*)"$/.exec(ops[j].text);
-          if (str && !says) says = str[1].replace(/\\n/g, ' ').trim();
+          if (str && !message) message = str[1].replace(/\\n/g, ' ').trim();
           if (ops[j].text === 'sys TestFlag' && ops[j + 1] && /^global PlayerCharacter\b/.test(ops[j + 1].text)) {
             flag = dvmVal(entry.resid, ops[j + 2]);
             without = !!(ops[j + 3] && ops[j + 3].text === 'end' && ops[j + 4] && ops[j + 4].text === 'not');
@@ -371,7 +371,7 @@ function mapStates() {
           }
         }
         if (!flag) continue;
-        const pair = { place: node.resid, other: z.resid, flag, without, says, at: { resid: entry.resid, at: ops[i].at } };
+        const pair = { place: node.resid, other: z.resid, flag, without, message, at: { resid: entry.resid, at: ops[i].at } };
         out.set(node.resid, pair);
         out.set(z.resid, pair);
         break;
@@ -404,12 +404,12 @@ function flagGivenByWearing(flag) {
       if (lit && dvmNum(lit[2]) === flag) types.add(pt);
     }
     if (fromData2.length) {
-      const want = new Set(fromData2);
+      const data2Types = new Set(fromData2);
       for (let n = 1; n < 0x100; n++) {
         const raw = getResourceBytes(ARCHIVE, 0x8100 + n);
         if (!raw) continue;
         for (const r of parseDelverPropList(smartDecrypt(raw, 0x8100 + n).data))
-          if (want.has(r.proptype) && r.d2 === flag) types.add(r.proptype);
+          if (data2Types.has(r.proptype) && r.d2 === flag) types.add(r.proptype);
       }
     }
   } catch (e) { quiet(e, 'what gives flag ' + flag + ' while worn'); }
@@ -458,7 +458,7 @@ function atlasStateCard(resid) {
   const text = showing
     ? 'The game shows this place ' + has + ' ' + flag + ', in place of ' + svEsc(atlasMapName(pair.place) || '') + '.'
     : (pair.without ? 'Without ' : 'With ') + flag + ' the game puts the hero in ' + svEsc(toName) + ' instead' +
-      (pair.says ? ': ' + svEsc('“' + pair.says + '”') : '.');
+      (pair.message ? ': ' + svEsc('“' + pair.message + '”') : '.');
   return '<div class="inspCard"><span class="inspDim">' + text + give + '</span>' +
          '<div class="inspActs">' + svLink('Show ' + toName, 'atlasShowState(' + resid + ')') + '</div></div>';
 }
@@ -803,7 +803,7 @@ function paintAtlas() {
   // The tiles of native art this paint draws, and the ones it lists to be
   // made (paintAtlasTiles).
   atlasTileSerial++;
-  atlasTileWant = [];
+  atlasTileQueue = [];
   const drawn = [], items = [];
   for (const node of sc.nodes) {
     const r = atlasRect(node, atlasView);
@@ -842,7 +842,7 @@ function paintAtlas() {
   window.ATLAS_MOUTHS = mouths;
   atlasPaintFolk();
   if (atlasIsFull()) atlasUpdateFullOverlay(drawn);
-  if (atlasTileWant.length) atlasTileSchedule();
+  if (atlasTileQueue.length) atlasTileSchedule();
 }
 
 /* The people are on a separate canvas, over the scene's.
@@ -1273,7 +1273,7 @@ function atlasCropRect(node, r) {
 
    - A paint never paints art. It draws the tiles it has, and where one is
      missing the render, with any kept tile of another size over it; the
-     tiles it needs go on a list (atlasTileWant) that atlasTileTick works
+     tiles it needs go on a list (atlasTileQueue) that atlasTileTick works
      through a few milliseconds a frame, nearest the middle of the screen
      first, once the view has been still for ATLAS_TILE_SETTLE_MS. A
      gesture's frames are the gesture's, as the render's slicing already
@@ -1346,7 +1346,7 @@ const ATLAS_TILE_ANIM_MIN_TS = 24;
 const atlasTiles = new Map();
 const atlasTileNone = new Set();       // tiles that could not be made, not requested again
 let atlasTilePx = 0;
-let atlasTileWant = [];
+let atlasTileQueue = [];
 let atlasTileSerial = 0;
 let atlasTilePending = false, atlasTileTimer = null;
 
@@ -1358,10 +1358,10 @@ function atlasTileSquares(TS) { return Math.max(8, Math.round(ATLAS_TILE_PX / TS
 function atlasRestDpr() { return Math.min((typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1, 2); }
 // The tile size a node needs at a zoom, or 0 when its render is enough.
 function atlasTileTS(node, ppt) {
-  const want = ppt * atlasRestDpr();
-  if (!(want > node.ts * window.ATLAS_NATIVE_AT) || want < window.ATLAS_TILE_FROM) return 0;
+  const targetSize = ppt * atlasRestDpr();
+  if (!(targetSize > node.ts * window.ATLAS_NATIVE_AT) || targetSize < window.ATLAS_TILE_FROM) return 0;
   let ts = 0;
-  for (const L of ATLAS_TILE_LEVELS) if (L > node.ts) { ts = L; if (L >= want) break; }
+  for (const L of ATLAS_TILE_LEVELS) if (L > node.ts) { ts = L; if (L >= targetSize) break; }
   return ts;
 }
 function atlasTileKey(resid, TS, cx, cy) { return resid + ':' + TS + ':' + cx + ':' + cy; }
@@ -1381,7 +1381,7 @@ function atlasTileDrop(t) {
 function atlasTilesClear() {
   for (const t of Array.from(atlasTiles.values())) atlasTileDrop(t);
   atlasTileNone.clear();
-  atlasTileWant = [];
+  atlasTileQueue = [];
 }
 function atlasTileEvict() {
   if (atlasTilePx <= ATLAS_TILE_BUDGET) return;
@@ -1510,8 +1510,8 @@ function atlasTileSchedule() {
 }
 function atlasTileTick() {
   atlasTilePending = false;
-  if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') { atlasTileWant = []; return; }
-  if (!atlasTileWant.length) return;
+  if (!window.ATLAS || window.CUR_SUBN !== 'WORLD') { atlasTileQueue = []; return; }
+  if (!atlasTileQueue.length) return;
   // Moving: the paint that ends the gesture collects the tiles again.
   if (atlasInMotion()) return;
   const wait = ATLAS_TILE_SETTLE_MS - (Date.now() - atlasMovedAt);
@@ -1521,10 +1521,10 @@ function atlasTileTick() {
     return;
   }
   const t0 = performance.now();
-  const want = atlasTileWant.sort((a, b) => a.d - b.d);
-  atlasTileWant = [];
+  const sortedQueue = atlasTileQueue.sort((a, b) => a.d - b.d);
+  atlasTileQueue = [];
   let done = 0;
-  for (const w of want) {
+  for (const w of sortedQueue) {
     if (done && performance.now() - t0 >= ATLAS_TILE_SLICE_MS) break;
     done++;
     const frame = w.animOn ? (mapAnimFrame || 8) : 0;
@@ -1568,7 +1568,7 @@ function paintAtlasTiles(ctx, node, r, ppt, TS, vw, vh) {
       const d = Math.hypot((cx + 0.5) * C - midX, (cy + 0.5) * C - midY) + (on ? 0 : 1e6);
       const t = atlasTileGet(node.resid, TS, cx, cy, res);
       if (!t) {
-        if (!atlasTileNone.has(atlasTileKey(node.resid, TS, cx, cy))) atlasTileWant.push({ node, TS, cx, cy, e, animOn, d });
+        if (!atlasTileNone.has(atlasTileKey(node.resid, TS, cx, cy))) atlasTileQueue.push({ node, TS, cx, cy, e, animOn, d });
         if (on) missing.push(cx, cy);
         continue;
       }
@@ -1578,7 +1578,7 @@ function paintAtlasTiles(ctx, node, r, ppt, TS, vw, vh) {
       // that is cheap, or back to the resting colours a tile at a time.
       if (still && atlasTileStale(t, frame, animOn ? onScreen : null)) {
         if (animOn) atlasTileAnimate(t, frame, onScreen);
-        else atlasTileWant.push({ tile: t, animOn, d });
+        else atlasTileQueue.push({ tile: t, animOn, d });
       }
       have.push(t);
     }
@@ -1749,7 +1749,7 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
   // labels would lie on top of each other. The ring is the thing -- it is
   // what is tapped -- so a label whose box is already taken is dropped and
   // the ring still drawn, the way the place names handle a collision.
-  const labelled = [];
+  const labeled = [];
   /* One path for every ring on a node, not one stroke each -- the same fix
      the eggs below got on 12 September 2026, and for the same reason. The
      mouths were left out of it then, which is why the tab was still jerky at
@@ -1798,8 +1798,8 @@ function atlasPaintMouths(ctx, drawn, vw, vh) {
     const text = m.label || m.name;
     const tw = atlasTextWidth(ctx, text);
     const box = { x0: x + rad + 3, y0: y - 9, x1: x + rad + 11 + tw, y1: y + 9 };
-    if (labelled.some(q => box.x0 < q.x1 && box.x1 > q.x0 && box.y0 < q.y1 && box.y1 > q.y0)) continue;
-    labelled.push(box);
+    if (labeled.some(q => box.x0 < q.x1 && box.x1 > q.x0 && box.y0 < q.y1 && box.y1 > q.y0)) continue;
+    labeled.push(box);
     ctx.fillStyle = 'rgba(8,7,5,.78)';
     ctx.fillRect(box.x0, box.y0, tw + 8, 18);
     ctx.fillStyle = '#e8dfc0';
@@ -2290,15 +2290,15 @@ function atlasToggleFull() {
     document.body.classList.remove('atlasFull');
   } else {
     const req = panel.requestFullscreen || panel.webkitRequestFullscreen;
-    let asked = false;
+    let fullscreenRequested = false;
     if (req) {
       try {
         const p = req.call(panel);
-        asked = true;
+        fullscreenRequested = true;
         if (p && typeof p.catch === 'function') p.catch(() => { document.body.classList.add('atlasFull'); atlasAfterFullChange(); });
-      } catch (e) { asked = false; }
+      } catch (e) { fullscreenRequested = false; }
     }
-    if (!asked) document.body.classList.add('atlasFull');
+    if (!fullscreenRequested) document.body.classList.add('atlasFull');
   }
   atlasAfterFullChange();                  // the pinned mode is immediate
   setTimeout(atlasAfterFullChange, 60);    // the real one comes on a separate event
@@ -2686,8 +2686,8 @@ function atlasZoomIntoTown(node) {
   const vw = vp.clientWidth, vh = vp.clientHeight;
   const z0 = atlasView.Z, x0 = atlasView.x, y0 = atlasView.y;
   const hx = node.ox + node.w * node.s / 2, hy = node.oy + node.h * node.s / 2;
-  const want = Math.max(600, Math.min(vw, vh) * 0.95);
-  const z1 = Math.min(atlasMaxZ(), want / (node.w * node.s));
+  const targetSize = Math.max(600, Math.min(vw, vh) * 0.95);
+  const z1 = Math.min(atlasMaxZ(), targetSize / (node.w * node.s));
   if (z1 <= z0 * 1.02) return;
   atlasEnterHintHide(true);
   // The town's render is made during the fly-in, not after it (the
@@ -2966,8 +2966,8 @@ function atlasInspect(px, py) {
        a ring does, or moves the view for a way within the one map. */
     window.ATLAS_SEL_NODE = node;
     {
-      const said = new Set();
-      const go = (x, y, name) => { const k = x + ',' + y; if (said.has(k)) return ''; said.add(k); return '<div class="inspActs"><button class="sv-chip" onclick="atlasGoWay(' + node.resid + ',' + x + ',' + y + ')">Go to ' + svEsc(name) + '</button></div>'; };
+      const offeredSquares = new Set();
+      const go = (x, y, name) => { const k = x + ',' + y; if (offeredSquares.has(k)) return ''; offeredSquares.add(k); return '<div class="inspActs"><button class="sv-chip" onclick="atlasGoWay(' + node.resid + ',' + x + ',' + y + ')">Go to ' + svEsc(name) + '</button></div>'; };
       for (const w of mapEggWays(node.resid)) {
         const q = w.rect;
         if (tx < q.left || tx > q.right || ty < q.top || ty > q.bottom) continue;
@@ -2986,8 +2986,8 @@ function atlasInspect(px, py) {
     for (const p of hits.slice(0, 6)) {
       const pt = p.rec.proptype;
       const name = recDisplayName(p.rec);
-      let says = '';
-      try { says = propTextByData1(pt, p.rec.d1) || ''; } catch (err) { says = ''; }
+      let message = '';
+      try { message = propTextByData1(pt, p.rec.d1) || ''; } catch (err) { message = ''; }
       const item = (function () { try { return isInventoryItem(pt); } catch (err) { return false; } })();
       // A container opens as the game shows it: a window with what is
       // inside, the view the Zones panel has had (the maintainer, 22
@@ -2996,9 +2996,9 @@ function atlasInspect(px, py) {
       const slot = contents.length ? 'atlas-box-' + p.rec.index : null;
       if (slot) boxes.push([slot, p.rec, contents]);
       parts.push('<div class="inspCard"><b>' + svEsc(name) + '</b>' +
-        (says ? ' <span class="inspDim">' + svEsc(says) + '</span>' : '') +
+        (message ? ' <span class="inspDim">' + svEsc(message) + '</span>' : '') +
         (slot ? '<div id="' + slot + '"></div>' : '') +
-        '<div class="inspActs">' + svLink('Open ' + name + (says ? ' “' + says + '”' : '') + ' in ' + (item ? 'Items' : 'Tilesets'),
+        '<div class="inspActs">' + svLink('Open ' + name + (message ? ' “' + message + '”' : '') + ' in ' + (item ? 'Items' : 'Tilesets'),
           "openVia('" + (item ? 'ITEMS' : 'PROPS') + "', () => " + (item ? 'showItemDetail(' : 'showPropTypeDetail(') + pt + '))') + '</div></div>');
     }
     // Whoever is standing here, with their face and the way to their page.
@@ -3239,12 +3239,12 @@ function setupAtlasInteraction() {
    there, and what the ground is. Shared by the atlas and the map panel, so
    the two cards say the same thing about the same square.
 
-   `asked` is the difference between a mouse passing over and a finger that
+   `isTouch` is the difference between a mouse passing over and a finger that
    tapped or held. A passing pointer stays quiet over bare ground -- a card
    over every blade of grass is noise -- and shows a card only where there
-   is somebody or something; a tap or hold sets `asked`, and the card then
+   is somebody or something; a tap or hold sets `isTouch`, and the card then
    shows the ground too. */
-function squareCard(level, e, tx, ty, placeName, asked) {
+function squareCard(level, e, tx, ty, placeName, isTouch) {
   let people = [];
   try {
     const hour = atlasHour();
@@ -3255,7 +3255,7 @@ function squareCard(level, e, tx, ty, placeName, asked) {
     .map(p => recDisplayName(p.rec));
   const tileId = e && e.result && e.result.m ? mapTileAt(e.result.m, tx, ty) : 0;
   const ground = tileId ? (terrainNameFor(tileId) || compositeTileName(tileId) || '') : '';
-  if (!people.length && !props.length && !asked) return null;
+  if (!people.length && !props.length && !isTouch) return null;
   const c = people[0] || null;
   const what = c ? (c.walking ? 'walking'
     : c.sitting ? ('sitting, facing ' + ['north', 'east', 'south', 'west'][(c.aspect >> 2) & 3])
@@ -3266,7 +3266,7 @@ function squareCard(level, e, tx, ty, placeName, asked) {
     '<span class="hvWhat">' + svEsc(what) + (people.length > 1 ? ', and ' + (people.length - 1) + ' more here' : '') + '</span>');
   if (shown.length) lines.push('<span class="' + (c ? 'hvWhat' : 'hvName') + '">' + svEsc(shown.join(', ')) +
     (props.length > shown.length ? ', and ' + (props.length - shown.length) + ' more' : '') + '</span>');
-  if (asked && ground) lines.push('<span class="hvWhat">' + svEsc(ground) + '</span>');
+  if (isTouch && ground) lines.push('<span class="hvWhat">' + svEsc(ground) + '</span>');
   if (placeName) lines.push('<span class="hvWhere">' + svEsc(placeName) + ' &nbsp;·&nbsp; ' + tx + ', ' + ty + ' (' + gameSquare(tx, ty) + ')</span>');
   return { html: '<div>' + lines.join('') + '</div>', person: c };
 }
@@ -3312,7 +3312,7 @@ function appendFaceOrSprite(el, c) {
 }
 
 let atlasHoverKey = '';
-function atlasHover(clientX, clientY, asked) {
+function atlasHover(clientX, clientY, isTouch) {
   const el = document.getElementById('atlasHover');
   const vp = document.getElementById('atlasViewport');
   if (!el || !vp) return;
@@ -3320,29 +3320,29 @@ function atlasHover(clientX, clientY, asked) {
   const px = clientX - r.left, py = clientY - r.top;
   const hit = atlasAt(px, py);
   if (!hit) { hideAtlasHover(); atlasHoverKey = ''; return; }
-  const key = hit.node.resid + ':' + hit.tx + ',' + hit.ty + (asked ? '!' : '');
-  if (key === atlasHoverKey && el.style.display !== 'none') { placeHoverCard(el, vp, px, py, asked); return; }
+  const key = hit.node.resid + ':' + hit.tx + ',' + hit.ty + (isTouch ? '!' : '');
+  if (key === atlasHoverKey && el.style.display !== 'none') { placeHoverCard(el, vp, px, py, isTouch); return; }
   atlasHoverKey = key;
   // A town still under its roofs is one thing under the pointer, not a
   // square of it: the card names it and states that a tap goes in.
   if (hit.node.depth && hit.r.w < 540 && !atlasBelowTop()) {
     el.innerHTML = '<div><span class="hvName">' + svEsc(hit.node.name) + '</span><span class="hvWhat">tap to go in</span></div>';
     el.style.display = 'flex';
-    placeHoverCard(el, vp, px, py, asked);
+    placeHoverCard(el, vp, px, py, isTouch);
     return;
   }
   const e = mapRenderFor(hit.node.resid, true);
-  const card = squareCard(hit.node.resid & 0xFF, e, hit.tx, hit.ty, hit.node.name, asked);
+  const card = squareCard(hit.node.resid & 0xFF, e, hit.tx, hit.ty, hit.node.name, isTouch);
   // A tapped card can be tapped back, so it uses the LINKED form; one that
   // is merely following the pointer cannot be clicked and uses the plain
   // one. hvPinned is what turns pointer-events on.
-  const egg = atlasEggAt(hit.node, hit.tx, hit.ty, !!asked);
+  const egg = atlasEggAt(hit.node, hit.tx, hit.ty, !!isTouch);
   if (!card && !egg) { el.style.display = 'none'; return; }
   el.innerHTML = (card ? card.html : '<div></div>').replace(/<\/div>$/, (egg ? '<span class="hvWhat">' + egg + '</span>' : '') + '</div>');
   if (card && card.person) appendFaceOrSprite(el, card.person);
-  el.classList.toggle('hvPinned', !!asked);
+  el.classList.toggle('hvPinned', !!isTouch);
   el.style.display = 'flex';
-  placeHoverCard(el, vp, px, py, asked);
+  placeHoverCard(el, vp, px, py, isTouch);
 }
 
 function downloadMapPNG() {
@@ -3364,7 +3364,7 @@ function downloadMapPNG() {
   // desktop Chrome and Firefox encode); if the browser rejects the canvas
   // -- getContext comes back null, or the render throws -- try half that.
   // On iOS the screen size stays: it tears the tab down for canvases this size.
-  let wantTS = IS_IOS_WEBKIT ? cm.TS : 32;
+  let targetTileSize = IS_IOS_WEBKIT ? cm.TS : 32;
   // On iOS the full-size file is written a strip at a time instead (above):
   // no whole-map canvas, so no tab torn down, and the native 32 px a square.
   if (IS_IOS_WEBKIT && cm.TS < 32 && typeof CompressionStream !== 'undefined') {
@@ -3372,18 +3372,18 @@ function downloadMapPNG() {
     if (!downloadMapPNG._fallback) return;
     downloadMapPNG._fallback = false;
   }
-  if (wantTS > cm.TS) {
+  if (targetTileSize > cm.TS) {
     let full = null;
-    for (const tryTS of [wantTS, 16]) {
+    for (const tryTS of [targetTileSize, 16]) {
       if (tryTS <= cm.TS) break;
       try {
         full = renderMapVisual(cm.resid, cm.mapData, { forceTS: tryTS });
-        if (full && full.canvas && full.canvas.getContext('2d')) { wantTS = tryTS; break; }
+        if (full && full.canvas && full.canvas.getContext('2d')) { targetTileSize = tryTS; break; }
       } catch (e) { quiet(e); }
       full = null;
     }
     if (full && full.canvas) {
-      out = full.canvas; ctx = out.getContext('2d'); TS = wantTS;
+      out = full.canvas; ctx = out.getContext('2d'); TS = targetTileSize;
       if (window.SHOW_ROOFS) drawRoofLayer(ctx, TS);
       drawCharacterLayer(ctx, TS);
       drawMapMarks(ctx, TS);

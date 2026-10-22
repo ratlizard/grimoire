@@ -341,7 +341,7 @@ function queueSearch() {
    The same shapes are what a model would have to be handed anyway, so this
    is the retrieval half built first and by itself.
 --------------------------------------------------------------------------- */
-const ASK_SHAPES = [
+const QUESTION_SHAPES = [
   { id: 'teaches', re: /^(?:who|where can i|where do i)\s+(?:can\s+)?(?:teach(?:es)?|learn|train(?:s|ed)?(?:\s+in)?)\s+(?:me\s+)?(.+?)\??$/i,
     what: 'who teaches a skill' },
   { id: 'sells',   re: /^(?:who\s+sells|where (?:can i (?:buy|get)|do i buy))\s+(?:an?\s+|the\s+)?(.+?)\??$/i,
@@ -357,18 +357,18 @@ const ASK_SHAPES = [
   { id: 'who',     re: /^who (?:is|was)\s+(?:the\s+)?(.+?)\??$/i, what: 'who somebody is' }
 ];
 // One example a shape, shown under the search box so the shapes can be found.
-const ASK_EXAMPLES = ['who teaches axe', 'who sells bread', 'how much is a sword', 'what does Fireball do',
+const QUESTION_EXAMPLES = ['who teaches axe', 'who sells bread', 'how much is a sword', 'what does Fireball do',
   'what cures poison', 'who says Welcome', 'what is a ghost immune to', 'where is Alaric', 'who is Omen'];
-function askNorm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
-function askRow(k, v) { return '<tr><td class="skillKey">' + k + '</td><td>' + v + '</td></tr>'; }
-function askCard(title, note, rows, chips) {
+function normalizeQuestion(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function answerRow(k, v) { return '<tr><td class="skillKey">' + k + '</td><td>' + v + '</td></tr>'; }
+function answerCard(title, note, rows, chips) {
   return '<section class="mechSec askCard"><div class="mechHead"><h3>' + svEsc(title) + '</h3></div>' +
     (note ? '<p class="mechLede">' + note + '</p>' : '') +
     (rows && rows.length ? '<div class="mechBody tableScroll"><table class="vocabTable barkTable mechTable"><tbody>' + rows.join('') + '</tbody></table></div>' : '') +
     (chips ? '<div class="partsStrip">' + chips + '</div>' : '') + '</section>';
 }
-function askCharacterChip(who, fallback) {
-  try { if (who !== null && who !== undefined && characterRecord(who)) return characterChip(who); } catch (e) { quiet(e); }
+function answerCharacterChip(character, fallback) {
+  try { if (character !== null && character !== undefined && characterRecord(character)) return characterChip(character); } catch (e) { quiet(e); }
   return fallback || '';
 }
 /* One question. Returns HTML, or null when the shape was not recognised or
@@ -379,38 +379,38 @@ function answerQuestion(q) {
   // Several shapes can match one sentence -- "what does fireball do" reads as
   // both the price question and the what-does-it-do one -- so each is tried
   // in turn and the first that finds its subject in the file answers.
-  for (const sh of ASK_SHAPES) {
+  for (const sh of QUESTION_SHAPES) {
     const hit = sh.re.exec(q.trim());
     if (!hit) continue;
-    const out = askOneShape(sh, hit);
+    const out = answerOneShape(sh, hit);
     if (out) return out;
   }
   return null;
 }
-function askOneShape(shape, hit) {
+function answerOneShape(shape, hit) {
   const m = { sh: shape, hit };
   // Articles are not part of the name: "a lich", "the sword".
-  const subject = askNorm(m.hit[1]).replace(/^(?:an?|the|some)\s+/, '');
+  const subject = normalizeQuestion(m.hit[1]).replace(/^(?:an?|the|some)\s+/, '');
   if (!subject) return null;
-  const like = name => { const n = askNorm(name); return !!n && (n === subject || n.includes(subject) || subject.includes(n)); };
+  const like = name => { const n = normalizeQuestion(name); return !!n && (n === subject || n.includes(subject) || subject.includes(n)); };
   try {
     if (m.sh.id === 'teaches') {
-      const skills = skillCatalogue().filter(x => like(x.name) && x.kind !== 'command');
+      const skills = skillCatalog().filter(x => like(x.name) && x.kind !== 'command');
       if (!skills.length) return null;
-      return skills.map(x => askCard('Who teaches ' + x.name,
+      return skills.map(x => answerCard('Who teaches ' + x.name,
         x.teachers.length ? 'Every script that teaches it.' : 'Nobody in this file teaches it.',
-        x.teachers.map(t => askRow(t.mastery ? 'to mastery' : 'teaches',
-          askCharacterChip(t.who, svChip(t.resid)))),
+        x.teachers.map(t => answerRow(t.mastery ? 'to mastery' : 'teaches',
+          answerCharacterChip(t.character, svChip(t.resid)))),
         partChip(x.name, x.resid))).join('');
     }
     if (m.sh.id === 'sells' || m.sh.id === 'cost') {
       const rows = [];
       for (const sp of shopRules().shops)
         for (const g of sp.goods)
-          if (like(g.name)) rows.push(askRow(g.price + ' obols' + (g.count > 1 ? ' for ' + g.count : ''),
-            askCharacterChip(sp.who, svChip(sp.resid)) + (sp.title ? ' <span class="inspDim">“' + svEsc(sp.title) + '”</span>' : '')));
+          if (like(g.name)) rows.push(answerRow(g.price + ' obols' + (g.count > 1 ? ' for ' + g.count : ''),
+            answerCharacterChip(sp.character, svChip(sp.resid)) + (sp.title ? ' <span class="inspDim">“' + svEsc(sp.title) + '”</span>' : '')));
       if (!rows.length) return null;
-      return askCard(m.sh.id === 'cost' ? 'What ' + m.hit[1].trim() + ' costs' : 'Who sells ' + m.hit[1].trim(),
+      return answerCard(m.sh.id === 'cost' ? 'What ' + m.hit[1].trim() + ' costs' : 'Who sells ' + m.hit[1].trim(),
         'The listed price, before the vendor bargains.',
         rows, mechLink('shops', 'Mechanics › Shops'));
     }
@@ -418,18 +418,18 @@ function askOneShape(shape, hit) {
       const sp = spellRules().spells.find(x => like(x.name));
       if (sp) {
         const fx = spellEffects().get(sp.resid);
-        const rows = [askRow('level', String(sp.level)), askRow('costs', sp.cost + ' magic')];
+        const rows = [answerRow('level', String(sp.level)), answerRow('costs', sp.cost + ' magic')];
         if (fx) {
-          for (const d of fx.damage) rows.push(askRow('damage', '<b>' + (amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.who));
-          for (const h of fx.heals) rows.push(askRow('heals', '<b>' + svEsc(h.text) + '</b>'));
+          for (const d of fx.damage) rows.push(answerRow('damage', '<b>' + (amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.character));
+          for (const h of fx.heals) rows.push(answerRow('heals', '<b>' + svEsc(h.text) + '</b>'));
         }
-        return askCard(sp.name, svEsc(dvmDescriptionOf(sp.resid) || ''), rows, partChip(sp.name, sp.resid) + tabLink('SPELLS', 'Spells'));
+        return answerCard(sp.name, svEsc(dvmDescriptionOf(sp.resid) || ''), rows, partChip(sp.name, sp.resid) + tabLink('SPELLS', 'Spells'));
       }
-      const sk = skillCatalogue().find(x => like(x.name));
-      if (sk) return askCard(sk.name, svEsc(sk.description || ''),
-        [askRow('taught by', sk.teachers.map(t => askCharacterChip(t.who, svChip(t.resid))).join(' ') || '<span class="inspDim">nobody in this file</span>')]
-          .concat(sk.askedBy.length ? [askRow('checked by', sk.askedBy.map(r => svChip(r)).join(' '))] : [])
-          .concat(sk.weapons.length ? [askRow('swung with it', sk.weapons.map(w => svEsc(w.name)).join(', '))] : []),
+      const sk = skillCatalog().find(x => like(x.name));
+      if (sk) return answerCard(sk.name, svEsc(sk.description || ''),
+        [answerRow('taught by', sk.teachers.map(t => answerCharacterChip(t.character, svChip(t.resid))).join(' ') || '<span class="inspDim">nobody in this file</span>')]
+          .concat(sk.checkedBy.length ? [answerRow('checked by', sk.checkedBy.map(r => svChip(r)).join(' '))] : [])
+          .concat(sk.weapons.length ? [answerRow('swung with it', sk.weapons.map(w => svEsc(w.name)).join(', '))] : []),
         partChip(sk.name, sk.resid));
       return null;
     }
@@ -438,25 +438,25 @@ function askOneShape(shape, hit) {
       const name = [...st.cures.keys()].find(like);
       if (!name) return null;
       const by = [...(st.cures.get(name) || [])];
-      return askCard('What clears ' + name,
+      return answerCard('What clears ' + name,
         'Every script that removes it.',
-        by.map(r => askRow(selfNameFor(r) || ('0x' + r.toString(16).toUpperCase()), svChip(r))),
+        by.map(r => answerRow(selfNameFor(r) || ('0x' + r.toString(16).toUpperCase()), svChip(r))),
         mechLink('status', 'Mechanics › Status Effects'));
     }
     if (m.sh.id === 'says') {
-      const hits = buildBarkCatalogue().filter(b => b.words.concat(b.then || []).some(w => askNorm(w).includes(subject)));
+      const hits = buildBarkCatalog().filter(b => b.words.concat(b.then || []).some(w => normalizeQuestion(w).includes(subject)));
       if (!hits.length) return null;
-      return askCard('Who says “' + m.hit[1].trim() + '”', 'From the balloon lines in the scripts.',
-        hits.slice(0, 12).map(b => askRow(b.words.filter(w => askNorm(w).includes(subject)).map(w => '“' + svEsc(w) + '”').join(', '),
-          askCharacterChip(b.who, '<span class="inspDim">anyone, </span>' + svChip(b.resid)))),
+      return answerCard('Who says “' + m.hit[1].trim() + '”', 'From the balloon lines in the scripts.',
+        hits.slice(0, 12).map(b => answerRow(b.words.filter(w => normalizeQuestion(w).includes(subject)).map(w => '“' + svEsc(w) + '”').join(', '),
+          answerCharacterChip(b.character, '<span class="inspDim">anyone, </span>' + svChip(b.resid)))),
         '<button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>');
     }
     if (m.sh.id === 'resists') {
       const N = propNameTable();
       const ms = parseMonsterStats().filter(r => r.proptype && like(N[r.proptype] || ''));
       if (!ms.length) return null;
-      return askCard('What ' + m.hit[1].trim() + ' resists', 'From the monster record’s flags, as the default resistance script reads them.',
-        ms.slice(0, 6).map(r => askRow(N[r.proptype] || ('class ' + r.proptype),
+      return answerCard('What ' + m.hit[1].trim() + ' resists', 'From the monster record’s flags, as the default resistance script reads them.',
+        ms.slice(0, 6).map(r => answerRow(N[r.proptype] || ('class ' + r.proptype),
           svEsc(monsterFlagsText(r.flags)) + ' <span class="inspDim">· armor ' + r.armor + ', ' + r.hp + ' health</span>')),
         mechLink('combat', 'Mechanics › Combat'));
     }
@@ -464,10 +464,10 @@ function askOneShape(shape, hit) {
       const tab = loadCharacterTable();
       const idx = [];
       for (let i = 1; i < tab.length; i++) if (tab[i] && like(characterName(i))) idx.push(i);
-      if (idx.length) return askCard(m.sh.id === 'who' ? 'Who ' + m.hit[1].trim() + ' is' : 'Where ' + m.hit[1].trim() + ' is',
+      if (idx.length) return answerCard(m.sh.id === 'who' ? 'Who ' + m.hit[1].trim() + ' is' : 'Where ' + m.hit[1].trim() + ' is',
         'From the character table.',
-        idx.slice(0, 6).map(i => askRow(characterName(i),
-          askCharacterChip(i, '') + ' <span class="inspDim">' + svEsc(zoneDisplayName(tab[i].zone)) + ' (' + tab[i].x + ',' + tab[i].y + '), level ' + tab[i].level + '</span>')), '');
+        idx.slice(0, 6).map(i => answerRow(characterName(i),
+          answerCharacterChip(i, '') + ' <span class="inspDim">' + svEsc(zoneDisplayName(tab[i].zone)) + ' (' + tab[i].x + ',' + tab[i].y + '), level ' + tab[i].level + '</span>')), '');
       if (m.sh.id === 'where') {
         // A thing: the item classes with that name, and the maps they lie on.
         const N = propNameTable();
@@ -484,9 +484,9 @@ function askOneShape(shape, hit) {
             const hit = recs.find(r => r.proptype === pt && r.onMap && r.flags !== 0xFF && r.flags !== 0x42 && r.flags !== 0x44);
             if (hit) where.push('<button class="sv-chip" onclick="showSquareOnMap(' + mr + ',' + hit.x + ',' + hit.y + ')">' + svEsc(atlasMapName(mr)) + ' (' + hit.x + ',' + hit.y + ')</button>');
           }
-          rows.push(askRow(N[pt], where.join(' ') || '<span class="inspDim">not lying anywhere; carried, or made by a script</span>'));
+          rows.push(answerRow(N[pt], where.join(' ') || '<span class="inspDim">not lying anywhere; carried, or made by a script</span>'));
         }
-        return askCard('Where ' + m.hit[1].trim() + ' is', 'The first few places one is lying on the ground.', rows, '');
+        return answerCard('Where ' + m.hit[1].trim() + ' is', 'The first few places one is lying on the ground.', rows, '');
       }
       return null;
     }
@@ -495,7 +495,7 @@ function askOneShape(shape, hit) {
 }
 // The text search, when a question was answered but the reader wanted the
 // hits after all.
-function askSearchAnyway() { window.ASK_SKIP = true; runSearch(); window.ASK_SKIP = false; }
+function searchAnyway() { window.QUESTION_SKIP = true; runSearch(); window.QUESTION_SKIP = false; }
 function runSearch() {
   const q = document.getElementById('searchBox').value.trim();
   const host = document.getElementById('searchResults');
@@ -524,11 +524,11 @@ function runSearch() {
   // look for. Anything else, and anything whose subject is not in the file,
   // falls through to searching the text.
   let answer = null;
-  try { answer = window.ASK_SKIP ? null : answerQuestion(q); } catch (e) { answer = null; }
+  try { answer = window.QUESTION_SKIP ? null : answerQuestion(q); } catch (e) { answer = null; }
   if (answer) {
     host.innerHTML = '<div class="mechView askAnswer">' + answer +
       '<div class="sv-note">Read out of this file. ' +
-      '<button class="linkbtn" onclick="askSearchAnyway()">Search the text for “' + svEsc(q) + '” instead</button></div></div>';
+      '<button class="linkbtn" onclick="searchAnyway()">Search the text for “' + svEsc(q) + '” instead</button></div></div>';
     return;
   }
   host.innerHTML = '<div class="sv-note">Decoding every script&hellip;</div>';
@@ -990,7 +990,7 @@ const TAB_TREE = [
           // script, out of the resource fork, and the styles that assign them.
           { id: 'fonts',    label: 'Fonts',    tile: 0x264, values: ['FONTS'] },                              // the inkwell, the maintainer's pick, 27 September 2026; it was 0x180
           // The short lines a character says over their head, read out of
-          // every script that sets one (buildBarkCatalogue).
+          // every script that sets one (buildBarkCatalog).
           { id: 'barks',    label: 'Barks',    tile: 0x185, values: ['BARKS'] } ] },                          // the maintainer's pick, 8 September; it was the bell (0x488)
       // A schedule is something a character is MADE OF -- where they are at
       // each hour -- rather than a separate thing in the scenario, so it

@@ -179,19 +179,19 @@ async function fetchWithProgress(url, label) {
   if (!res.body || !res.body.getReader) return new Uint8Array(await res.arrayBuffer());
   const reader = res.body.getReader();
   const chunks = [];
-  let got = 0, painted = 0;
+  let receivedBytes = 0, painted = 0;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
-    chunks.push(value); got += value.length;
+    chunks.push(value); receivedBytes += value.length;
     const now = performance.now();
     if (now - painted > 120) {
       painted = now;
-      setStatus(label + ', ' + fmtBytes(got) +
-        (total ? ' of ' + fmtBytes(total) + ' (' + Math.round(got/total*100) + '%)' : ''));
+      setStatus(label + ', ' + fmtBytes(receivedBytes) +
+        (total ? ' of ' + fmtBytes(total) + ' (' + Math.round(receivedBytes/total*100) + '%)' : ''));
     }
   }
-  const out = new Uint8Array(got);
+  const out = new Uint8Array(receivedBytes);
   let at = 0;
   for (const c of chunks) { out.set(c, at); at += c.length; }
   return out;
@@ -709,10 +709,10 @@ function viewScrollOnNav(from, to, back) {
   }
   const part = (h, k) => { const m = new RegExp('[#&]' + k + '=([^&]*)').exec(h || ''); return m ? m[1] : null; };
   const sameCat = part(from, 'c') === part(to, 'c');
-  let want = 0;
-  if (back) want = VIEW_SCROLL.get(to) || 0;
+  let scrollTarget = 0;
+  if (back) scrollTarget = VIEW_SCROLL.get(to) || 0;
   else if (sameCat && part(from, 'r') !== null && part(to, 'r') !== null && part(from, 'd') === part(to, 'd')) return;
-  else if (sameCat && part(to, 'r') === null && part(to, 'd') === null && (part(from, 'r') !== null || part(from, 'd') !== null)) want = VIEW_SCROLL.get(to) || 0;
+  else if (sameCat && part(to, 'r') === null && part(to, 'd') === null && (part(from, 'r') !== null || part(from, 'd') !== null)) scrollTarget = VIEW_SCROLL.get(to) || 0;
   /* After the view has drawn. A gallery is not its full height until its
      cells have been laid out, and a scroll past the end stops short, so a
      return to an offset is tried again for up to a second, until it
@@ -720,8 +720,8 @@ function viewScrollOnNav(from, to, back) {
   const nav = ++_viewScrollNav;
   const go = tries => {
     if (nav !== _viewScrollNav) return;
-    try { window.scrollTo(0, want); } catch (e) { quiet(e); return; }
-    if (want && tries > 0 && Math.abs((window.scrollY || 0) - want) > 2) setTimeout(() => go(tries - 1), 60);
+    try { window.scrollTo(0, scrollTarget); } catch (e) { quiet(e); return; }
+    if (scrollTarget && tries > 0 && Math.abs((window.scrollY || 0) - scrollTarget) > 2) setTimeout(() => go(tries - 1), 60);
   };
   setTimeout(() => go(16), 0);
 }
@@ -877,7 +877,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
       Object.keys(SEARCH_PRESETS).map(k =>
         '<button class="sv-chip" onclick="searchPreset(\'' + k + '\')">' + k + '</button>').join('') +
       '<span class="partsTitle" style="flex-basis:100%;margin-top:6px">Or ask</span>' +
-      ASK_EXAMPLES.map(q => '<button class="sv-chip" onclick="searchPreset(\'' + q.replace(/'/g, '\\\'') + '\')">' + svEsc(q) + '</button>').join('');
+      QUESTION_EXAMPLES.map(q => '<button class="sv-chip" onclick="searchPreset(\'' + q.replace(/'/g, '\\\'') + '\')">' + svEsc(q) + '</button>').join('');
     document.getElementById('searchResults').innerHTML = '';
     document.getElementById('searchBox').value = '';
     const ss = document.getElementById('sourceStatus');

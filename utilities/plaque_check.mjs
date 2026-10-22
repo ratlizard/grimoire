@@ -65,7 +65,7 @@ const crop = (rgba, PW, x, y) => G('plaqueCrop')(rgba, PW, x, y, W, H);
 
 // The places.
 const board = picture(P.board);
-for (const b of P.buttons.filter(b => !b.greyed)) {
+for (const b of P.buttons.filter(b => !b.grayed)) {
   const p = picture(b.id);
   let best = null;
   for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) {
@@ -109,7 +109,7 @@ function judge(name, before, L) {
   return why;
 }
 const lifts = [];
-for (const b of P.buttons.filter(b => !b.greyed)) {
+for (const b of P.buttons.filter(b => !b.grayed)) {
   for (const [where, px] of [['PICT ' + b.id, picture(b.id).px], ['PICT ' + P.board + ' at ' + b.word, crop(board.px, board.W, b.x, b.y)]]) {
     const L = lift(px, b.id);
     if (!L.ink) { fail(where, 'no word was found on it'); continue; }

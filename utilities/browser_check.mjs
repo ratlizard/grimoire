@@ -42,7 +42,7 @@
  *
  * Chrome is found through $CHROME, then the PATH, then the Mac's
  * Applications folder; without one the check skips and states it, which
- * check_all.mjs also arranges by naming the binary under `want`. */
+ * check_all.mjs also arranges by naming the binary under `requiredInputs`. */
 
 import {spawn, execFileSync} from 'node:child_process';
 import {createServer} from 'node:http';
@@ -283,7 +283,7 @@ const START_BUTTONS_RUN = `(async () => { try {
   await gameFontReady();
   const orig = openResourceFork(window.ARCHIVE_ORIGINAL_RSRC), { W, H } = START_PLAQUES, out = { buttons: [] };
   const boxLight = (rgba, k) => { let s = 0, n = 0; for (let y = k.y0; y <= k.y1; y++) for (let x = k.x0; x <= k.x1; x++) { const i = (y * W + x) * 4; s += plaqueLum(rgba[i], rgba[i + 1], rgba[i + 2]); n++; } return s / n; };
-  for (const b of START_PLAQUES.buttons.filter(b => !b.greyed)) {
+  for (const b of START_PLAQUES.buttons.filter(b => !b.grayed)) {
     const L = plaqueLift(forkPictureRGBA(orig, b.id).rgba, W, H, b.id), k = L.ink;
     const cover = plaqueCover(b.word, 'ArgosGame', k, START_PLAQUES.cut.lit.place);
     let x0 = W, x1 = -1, y0 = H, y1 = -1;
@@ -298,7 +298,7 @@ const START_BUTTONS_RUN = `(async () => { try {
   // box. The control reverses the cut's light and shade.
   const smooth3 = (a, w, h) => { const o = new Float32Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let s = 0, n = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const yy = y + j, xx = x + i; if (yy >= 0 && yy < h && xx >= 0 && xx < w) { s += a[yy * w + xx]; n++; } } o[y * w + x] = s / n; } return o; };
   const corrOf = (a, b) => { let ma = 0, mb = 0; for (let i = 0; i < a.length; i++) { ma += a[i]; mb += b[i]; } ma /= a.length; mb /= b.length; let ab = 0, aa = 0, bb = 0; for (let i = 0; i < a.length; i++) { const x = a[i] - ma, y = b[i] - mb; ab += x * y; aa += x * x; bb += y * y; } return ab / Math.sqrt(aa * bb); };
-  const onward = START_PLAQUES.buttons.find(b => b.word === 'Onward' && !b.greyed), board = forkPictureRGBA(orig, START_PLAQUES.board);
+  const onward = START_PLAQUES.buttons.find(b => b.word === 'Onward' && !b.grayed), board = forkPictureRGBA(orig, START_PLAQUES.board);
   out.match = [];
   for (const [lighting, px] of [['lit', forkPictureRGBA(orig, onward.id).rgba], ['board', plaqueCrop(board.rgba, board.W, onward.x, onward.y, W, H)]]) {
     const L = plaqueLift(px, W, H, onward.id), k = L.ink, cover = plaqueCover('Onward', 'ArgosGame', k, START_PLAQUES.cut[lighting].place);

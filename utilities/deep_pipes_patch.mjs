@@ -69,23 +69,23 @@ const TENTACLES = [146, 147, 148, 149];
 // to walk away by.
 const AROUND = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
 
-const say = s => { if (!/^[\x20-\x7E\n]+$/.test(s) || /\s\/\//.test(s)) throw new Error('a line the listing cannot carry: ' + s); return 'string(implicit) ' + JSON.stringify(s); };
+const stringOp = s => { if (!/^[\x20-\x7E\n]+$/.test(s) || /\s\/\//.test(s)) throw new Error('a line the listing cannot carry: ' + s); return 'string(implicit) ' + JSON.stringify(s); };
 
 // Tlepolemus's yes: the hour, then the purse, then the sale.
 const sale = [
   'if_not', 'global CurrentHour (0x0)', 'byte ' + EVENING, 'ge', 'then -> notyet',
   'if_not', 'call_resource CountMoneyInParty (0xD04)', 'end', 'byte ' + PRICE, 'ge', 'then -> poor',
-  say('"Evening, is it?  Then here they are - found \'em at the bottom of the tackle box."*'),
-  say('"Fifteen oboloi.  And a word of advice: don\'t play them near the water."*"Or on land.  Or at all, really."'),
+  stringOp('"Evening, is it?  Then here they are - found \'em at the bottom of the tackle box."*'),
+  stringOp('"Fifteen oboloi.  And a word of advice: don\'t play them near the water."*"Or on land.  Or at all, really."'),
   'call_resource 0xD05', 'byte ' + PRICE, 'end',
   'sys Create', 'short 0x0001', 'short 0x0099','byte ' + SET, 'end',
   'call_resource SetCharacterFlag (0xF00)', 'arg Arg00', 'byte 0x00', 'end',
   'branch out',
   'poor:',
-  say('"Fifteen oboloi, friend.  Fish don\'t pay for themselves."'),
+  stringOp('"Fifteen oboloi, friend.  Fish don\'t pay for themselves."'),
   'branch out',
   'notyet:',
-  say('"Stop by some evening and I\'ll see if I can find them."'),
+  stringOp('"Stop by some evening and I\'ll see if I can find them."'),
   'out:'].join('\n');
 
 // The panpipes' Use, before the instrument opens: the old set only.
@@ -93,37 +93,37 @@ const play = [
   'if_not', 'arg Arg00', 'get_field data1 (0x6)', 'byte ' + SET, 'eq', 'then -> instrument',
   'if_not', 'global CurrentZone (0x10)', 'short ' + ODEMIA, 'eq', 'then -> faraway',
   ...TENTACLES.flatMap(g => ['if_not', 'word Character.' + g, 'get_field status_flags (0x14)', 'byte 1', 'bitwise_and', 'then -> free' + g,
-    say('You play the old pipes.  The tentacles sway along, delighted.\n'), 'return', 'byte 0', 'end', 'free' + g + ':']),
-  say('You play the old pipes.  The tune is lovely.  The harbour goes very still.\n'),
+    stringOp('You play the old pipes.  The tentacles sway along, delighted.\n'), 'return', 'byte 0', 'end', 'free' + g + ':']),
+  stringOp('You play the old pipes.  The tune is lovely.  The harbour goes very still.\n'),
   ...TENTACLES.flatMap((g, k) => {
-    const slot = 'word 0x' + g.toString(16).padStart(4, '0') + '@Type.Prop', me = 'word Character.' + g;
+    const slot = 'word 0x' + g.toString(16).padStart(4, '0') + '@Type.Prop', characterWord = 'word Character.' + g;
     const heroAt = (f, d) => ['global PlayerCharacter (0x5)', 'cast Character (0x40)', 'get_field ' + f, 'byte ' + d, 'add'];
     return [
       'set_field flags (0x0)', slot, 'end', 'byte 4', 'end',
       'set_field aspect_and_proptype (0x5)', slot, 'end', 'short ' + TENTACLE, 'end',
       'set_field x (0x1)', slot, 'end', ...heroAt('x (0x1)', AROUND[k][0]), 'end',
       'set_field y (0x2)', slot, 'end', ...heroAt('y (0x2)', AROUND[k][1]), 'end',
-      'set_field x (0x1)', me, 'end', ...heroAt('x (0x1)', AROUND[k][0]), 'end',
-      'set_field y (0x2)', me, 'end', ...heroAt('y (0x2)', AROUND[k][1]), 'end',
-      'set_field full_health (0x1D)', me, 'end', 'byte 12', 'end',
-      'set_field health (0x1C)', me, 'end', 'byte 12', 'end',
-      'set_field behavior (0x15)', me, 'end', 'byte ' + ATTACK, 'end',
-      'set_field status_flags (0x14)', me, 'end', 'byte 1', 'end'];
+      'set_field x (0x1)', characterWord, 'end', ...heroAt('x (0x1)', AROUND[k][0]), 'end',
+      'set_field y (0x2)', characterWord, 'end', ...heroAt('y (0x2)', AROUND[k][1]), 'end',
+      'set_field full_health (0x1D)', characterWord, 'end', 'byte 12', 'end',
+      'set_field health (0x1C)', characterWord, 'end', 'byte 12', 'end',
+      'set_field behavior (0x15)', characterWord, 'end', 'byte ' + ATTACK, 'end',
+      'set_field status_flags (0x14)', characterWord, 'end', 'byte 1', 'end'];
   }),
-  say('Four tentacles burst up through the cobbles, swaying in time.  Tlepolemus was right about the sea monsters.\n'),
+  stringOp('Four tentacles burst up through the cobbles, swaying in time.  Tlepolemus was right about the sea monsters.\n'),
   'return', 'byte 0', 'end',
   'faraway:',
-  say('You play the old pipes.  Far away, in Odemia\'s harbour, something wet perks up.\n'),
+  stringOp('You play the old pipes.  Far away, in Odemia\'s harbour, something wet perks up.\n'),
   'instrument:'].join('\n');
 
-const tentacleTalk = ['subroutine 0x0100', say('"Blub."*The tentacle sways, hoping for an encore.'), 'return', 'byte 0', 'end'].join('\n');
+const tentacleTalk = ['subroutine 0x0100', stringOp('"Blub."*The tentacle sways, hoping for an encore.'), 'return', 'byte 0', 'end'].join('\n');
 const tentacleDeath = ['subroutine 0x0201',
   'set_local 0x00', 'byte 0', 'end',
   ...TENTACLES.flatMap(g => [
     'if_not', 'word Character.' + g, 'arg Arg00', 'ne', 'word Character.' + g, 'get_field status_flags (0x14)', 'byte 1', 'bitwise_and', 'and', 'then -> skip' + g,
     'set_local 0x00', 'local Var00', 'byte 1', 'add', 'end', 'skip' + g + ':']),
   'if_not', 'local Var00', 'byte 0', 'eq', 'then -> dies',
-  say('The last tentacle sinks back into the cobbles, sulking.  You understand now why Tlepolemus fishes from shore.\n'),
+  stringOp('The last tentacle sinks back into the cobbles, sulking.  You understand now why Tlepolemus fishes from shore.\n'),
   'dies:',
   'call_resource 0x301D', 'arg Arg00', 'arg Arg01', 'end',
   'return', 'byte 0', 'end'].join('\n');
@@ -184,7 +184,7 @@ const out = vm.runInContext(`(() => {
   const marc = openDelverArchive(m.bytes);
   dvmSetResourceSymbols(loadResourceSymbolsFrom(marc));
   const back = [${TLEPOLEMUS}, ${PIPES}].map(id => dvmStructureRender(marc, smartDecrypt(getResourceBytes(marc, id), id).data, id, {})).join('\\n\\n');
-  const same = ids.every(id => { const r = spec.resources.find(x => x.resid === id); const got = smartDecrypt(getResourceBytes(marc, id), id).data; return got.length === r.data.length && got.every((v, i) => v === r.data[i]); });
+  const same = ids.every(id => { const r = spec.resources.find(x => x.resid === id); const actual = smartDecrypt(getResourceBytes(marc, id), id).data; return actual.length === r.data.length && actual.every((v, i) => v === r.data[i]); });
   return { patch: w.bytes, bin, merged: m.bytes, added: m.added, replaced: m.replaced, same, back, log: done.log };
 })()`, ctx);
 const hex = a => Array.from(a, i => '0x' + i.toString(16).toUpperCase()).join(' ') || 'none';

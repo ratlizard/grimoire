@@ -135,10 +135,10 @@ function framesSharingName(base, present) {
   // same rule stops a doorway cycling into an archway and a sword
   // into the next sword.
   const bases = propBaseTileSet();
-  const mine = present.filter(f => !f || !bases.has(base + f));
-  if (!own) return mine;
-  const same = mine.filter(f => terrainNameFor(base + f) === own);
-  return same.length ? same : mine;
+  const unsharedFrames = present.filter(f => !f || !bases.has(base + f));
+  if (!own) return unsharedFrames;
+  const same = unsharedFrames.filter(f => terrainNameFor(base + f) === own);
+  return same.length ? same : unsharedFrames;
 }
 
 // The same frames, cut into runs by the name 0xF004 gives each one. Prop type
@@ -166,9 +166,9 @@ function frameRuns(base, present) {
    */
 const HUE_WORDS = [[15,'red'],[45,'orange'],[70,'yellow'],[160,'green'],[200,'cyan'],
                    [258,'blue'],[320,'purple'],[345,'pink'],[361,'red']];
-const _frameColourCache = derivedMap('_frameColourCache');
-function frameColourWord(tileId) {
-  if (_frameColourCache.has(tileId)) return _frameColourCache.get(tileId);
+const _frameColorCache = derivedMap('_frameColorCache');
+function frameColorWord(tileId) {
+  if (_frameColorCache.has(tileId)) return _frameColorCache.get(tileId);
   let word = null;
   try {
     const img = resolveTileImage(tileId);
@@ -201,7 +201,7 @@ function frameColourWord(tileId) {
       }
     }
   } catch (e) { quiet(e); }
-  _frameColourCache.set(tileId, word);
+  _frameColorCache.set(tileId, word);
   return word;
 }
 
@@ -212,7 +212,7 @@ function frameColourWord(tileId) {
 // frame in the run are dropped first, and each frame is then named by what is
 // left. Returns a map frame -> word, or null when the run has nothing to
 // distinguish.
-function distinguishingColours(base, frames) {
+function distinguishingColors(base, frames) {
   if (!frames || frames.length < 2) return null;
   const hists = frames.map(f => {
     const h = new Map();
@@ -228,7 +228,7 @@ function distinguishingColours(base, frames) {
   for (let i = 0; i < frames.length; i++) {
     let best = 0, bestN = 0;
     for (const [idx, n] of hists[i]) if (!shared.has(idx) && n > bestN) { best = idx; bestN = n; }
-    const w = best ? colourWordFor(PAL_RGB[best]) : frameColourWord(base + frames[i]);
+    const w = best ? colorWordFor(PAL_RGB[best]) : frameColorWord(base + frames[i]);
     out.set(frames[i], w);
     seen.add(w);
   }
@@ -237,7 +237,7 @@ function distinguishingColours(base, frames) {
 
 // Name one palette entry. Lightness first, because "pale green" and "dark
 // green" are the difference between a jade and a bottle.
-function colourWordFor(rgb) {
+function colorWordFor(rgb) {
   const [r, g, b] = rgb;
   const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
   const lum = (r + g + b) / 3;
@@ -885,9 +885,9 @@ function renderPropTypeSheet() {
 
   let heading = null;
   for (const e of entries) {
-    const want = e.alive ? 'Creatures & people' : 'Objects & scenery';
-    if (want !== heading && !scenery) {
-      heading = want;
+    const groupHeading = e.alive ? 'Creatures & people' : 'Objects & scenery';
+    if (groupHeading !== heading && !scenery) {
+      heading = groupHeading;
       const h = document.createElement('div');
       h.className = 'propHead';
       h.textContent = heading;
@@ -1003,7 +1003,7 @@ function showPropTypeDetail(pt) {
     // A frame saves as a GIF from its view, beside the PNG; the button
     // that saved a run as an animated GIF went on 16 September 2026 (the
     // maintainer).
-    const colours = null;   // the colour words ("cobalt", "pale") were removed by request
+    const colors = null;   // the colour words ("cobalt", "pale") were removed by request
     const sheet = document.createElement('div');
     sheet.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px';
     // A 2x2 beast -- the titan -- is four tiles a facing, and the tile
@@ -1023,7 +1023,7 @@ function showPropTypeDetail(pt) {
       holder.style.cssText = 'width:52px;height:52px;display:flex;align-items:center;justify-content:center;background:#1c1913;border:1px solid #33302a;overflow:hidden';
       const spr = drawPropSprite(base + f, 24);
       if (spr) holder.appendChild(spr.canvas);
-      const col = colours && colours.get(f);
+      const col = colors && colors.get(f);
       // A tap opens the sheet the frame is on; the enlargement with its
       // downloads is in the sheet's view. The maintainer's ask of
       // 18 September 2026: an image goes to its resource.
@@ -1304,7 +1304,7 @@ function classFlagBits() {
       bits.get(b).push({ pt, resid: cls.resid, at: f.off, word: w });
     }
   }
-  return { classes, carriers, bits: [...bits.entries()].sort((a, b) => a[0] - b[0]).map(([bit, who]) => ({ bit, who })) };
+  return { classes, carriers, bits: [...bits.entries()].sort((a, b) => a[0] - b[0]).map(([bit, character]) => ({ bit, character })) };
 }
 
 /* The letter under a key (the maintainer, 23 September 2026: in the game
@@ -1597,8 +1597,8 @@ function aspectUseAt(pt, a) {
   let fd = null;
   try { fd = foodRules(); } catch (e) { return null; }
   const food = fd.foods.find(f => f.pt === pt && f.variants);
-  if (food) { const v = food.variants[a]; return v ? { kind: 'food', plus: v.plus, says: v.says !== undefined ? v.says : food.says } : { kind: 'food', beyond: true, count: food.variants.length }; }
-  if (pt === 0x1F && fd.potions.length) { const p = fd.potions[a]; return p ? { kind: 'potion', name: p.name, does: p.does, says: p.says, resid: p.resid } : { kind: 'potion', beyond: true, count: fd.potions.length }; }
+  if (food) { const v = food.variants[a]; return v ? { kind: 'food', plus: v.plus, message: v.message !== undefined ? v.message : food.message } : { kind: 'food', beyond: true, count: food.variants.length }; }
+  if (pt === 0x1F && fd.potions.length) { const p = fd.potions[a]; return p ? { kind: 'potion', name: p.name, does: p.does, message: p.message, resid: p.resid } : { kind: 'potion', beyond: true, count: fd.potions.length }; }
   return null;
 }
 
@@ -1833,9 +1833,9 @@ function propWordUseSentence(pt, a) {
   const u = aspectUseAt(pt, a);
   if (!u) return '';
   if (u.kind === 'food') return u.beyond ? ' The class reads a nutrition for ' + u.count + ' variants; beyond those, the amount comes from whatever follows the table.'
-    : ' Eaten, it feeds ' + w('+' + u.plus) + (u.says ? ' and the eater says “' + svEsc(u.says) + '”' : '') + '.';
+    : ' Eaten, it feeds ' + w('+' + u.plus) + (u.message ? ' and the eater says “' + svEsc(u.message) + '”' : '') + '.';
   if (u.kind === 'potion') return u.beyond ? ' The class calls one of ' + u.count + ' effect scripts by the aspect; beyond those there is none.'
-    : ' Drunk, it is the ' + w(svEsc(u.name)) + (u.does.length ? ': ' + svEsc(u.does.join('; ')) : '') + (u.says ? ', “' + svEsc(u.says) + '”' : '') + '.';
+    : ' Drunk, it is the ' + w(svEsc(u.name)) + (u.does.length ? ': ' + svEsc(u.does.join('; ')) : '') + (u.message ? ', “' + svEsc(u.message) + '”' : '') + '.';
   return '';
 }
 function propWordRender() {
@@ -2157,13 +2157,13 @@ function itemEachOneHTML(pt) {
     const p = list[0];
     let icon = '';
     try { icon = relIconURL({ tile: base + p.aspect }); } catch (e) { icon = ''; }
-    const said = (meaning.d1 && meaning.d1.get(p.d1)) || (byD2 && meaning.d2.get(p.d2)) || '';
+    const meaningText = (meaning.d1 && meaning.d1.get(p.d1)) || (byD2 && meaning.d2.get(p.d2)) || '';
     const head = (icon ? '<img class="relIcon" src="' + icon + '" alt="" width="16" height="16"> ' : '') +
       (lookName(p.aspect) ? svEsc(lookName(p.aspect)) + ', ' : '') +
       'aspect ' + srcNum(recSrc(p, 4, 'the aspect and prop type'), String(p.aspect)) +
       ', Data1 ' + srcNum(recSrc(p, 6, 'Data1'), String(p.d1)) +
       (byD2 ? ', Data2 ' + srcNum(recSrc(p, 7, 'Data2'), String(p.d2)) : '') +
-      (said ? '<br>“' + svEsc(said) + '”' : '');
+      (meaningText ? '<br>“' + svEsc(meaningText) + '”' : '');
     // Props on the same square, in the same container or with the same
     // carrier are one chip with a count.
     const spots = new Map();
@@ -2292,7 +2292,7 @@ function showItemDetail(pt) {
   // below rather than passed off as another view of this item.
   const runs = frameRuns(base, info.present);
   const ownFrames = framesSharingName(base, info.present);
-  const ownColours = null;   // no colour words on frames, by request
+  const frameColors = null;   // no colour words on frames, by request
   const sheet = document.createElement('div');
   sheet.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px';
   for (const f of ownFrames.slice(0, 16)) {
@@ -2302,7 +2302,7 @@ function showItemDetail(pt) {
     holder.style.cssText = 'width:52px;height:52px;display:flex;align-items:center;justify-content:center;background:#1c1913;border:1px solid #33302a;overflow:hidden';
     const spr = drawPropSprite(base + f, 24);
     if (spr) holder.appendChild(spr.canvas);
-    const col = ownColours && ownColours.get(f);
+    const col = frameColors && frameColors.get(f);
     holder.title = 'frame ' + f + ' \u00b7 tile 0x' + (base + f).toString(16).toUpperCase() +
                    (col ? ' \u00b7 ' + col : '');
     cellw.appendChild(holder);
@@ -2390,7 +2390,7 @@ function showItemDetail(pt) {
       const plain = words.replace(/<[^>]+>/g, '');
       fold('struck', 'When struck', plain.charAt(0).toUpperCase() + plain.slice(1),
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">' + words.charAt(0).toUpperCase() + words.slice(1) + '.' +
-        (row.says.filter(s => s !== row.spills)[0] ? ' It shows “' + svEsc(row.says.filter(s => s !== row.spills)[0]) + '”.' : '') + '</div>' +
+        (row.message.filter(s => s !== row.spills)[0] ? ' It shows “' + svEsc(row.message.filter(s => s !== row.spills)[0]) + '”.' : '') + '</div>' +
         '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to Things') + '</div>');
     }
   }
@@ -2425,9 +2425,9 @@ function showItemDetail(pt) {
   {
     let bl = null;
     try { bl = blastRules(); } catch (e) { bl = null; }
-    if (bl && bl.centre && bl.resid === (cls && cls.resid)) {
-      fold('blast', 'When it goes off', bl.centre.v + ' on its square, ' + (bl.edge ? bl.edge.v : '') + ' beside it',
-        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It hands ' + srcNum(bl.centre) + ' to everything on its square, ' +
+    if (bl && bl.center && bl.resid === (cls && cls.resid)) {
+      fold('blast', 'When it goes off', bl.center.v + ' on its square, ' + (bl.edge ? bl.edge.v : '') + ' beside it',
+        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It hands ' + srcNum(bl.center) + ' to everything on its square, ' +
         srcNum(bl.edge) + ' to the four squares beside it and ' + srcNum(bl.corner) + ' to the four corners, as ' +
         (bl.type ? svEsc(damageTypeName(bl.type.v)) + ' (type ' + srcNum(bl.type) + ')' : 'its type') + '.</div>' +
         '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to Things') + '</div>');

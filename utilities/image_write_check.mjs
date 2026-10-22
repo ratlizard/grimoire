@@ -93,14 +93,14 @@ for (const path of have) {
       const paint = (alpha) => { const px = new Uint8ClampedArray(was.px); for (let y = y0; y < y0 + bh; y++) for (let x = x0; x < x0 + bw; x++) { px.set(PAINT, (y * W + x) * 4); if (alpha !== undefined) px[(y * W + x) * 4 + 3] = alpha; } return px; };
       // What the paint becomes: the nearest colour of the table the page drew
       // the resource from, black in a black-and-white image, near-exact direct.
-      let want = PAINT;
+      let expected = PAINT;
       if (type === 'PICT') {
         const L = G('pictImageLayout')(data);
-        if (L.kind === 'indexed') want = nearest(L.palette, PAINT);
-        else if (L.pm.pixelSize === 16) want = PAINT.map(v => Math.round(Math.round(v * 31 / 255) * 255 / 31));
+        if (L.kind === 'indexed') expected = nearest(L.palette, PAINT);
+        else if (L.pm.pixelSize === 16) expected = PAINT.map(v => Math.round(Math.round(v * 31 / 255) * 255 / 31));
       } else {
         const P = G('rsrcImagePlanes')(type, data);
-        want = P.px ? nearest(P.px.pal, PAINT) : [0, 0, 0];
+        expected = P.px ? nearest(P.px.pal, PAINT) : [0, 0, 0];
       }
       const check = (label, px, inside) => {
         const now = drawWith(type, e, write(px)).px;
@@ -113,9 +113,9 @@ for (const path of have) {
         return !bad;
       };
       // Where the pixel was shown the paint lands; where it was hidden it stays hidden.
-      let ok = check('a block was painted in', paint(), o => was.px[o + 3] ? [...want, 255] : [was.px[o], was.px[o + 1], was.px[o + 2], 0]);
+      let ok = check('a block was painted in', paint(), o => was.px[o + 3] ? [...expected, 255] : [was.px[o], was.px[o + 1], was.px[o + 2], 0]);
       if (MASKED.has(type)) {
-        ok = check('a block was painted opaque', paint(255), () => [...want, 255]) && ok;
+        ok = check('a block was painted opaque', paint(255), () => [...expected, 255]) && ok;
         ok = check('a block was made transparent', paint(0), () => [0, 0, 0, 0]) && ok;
         const P = G('rsrcImagePlanes')(type, data), hid = write(paint(0));
         // Only where the pixel was shown: a hidden pixel with its bit set is

@@ -366,9 +366,9 @@ try {
   drainRaf();
   ctx.inspectMapSquare(41, 12);
   if (!ctx.MAP_SEL || ctx.MAP_SEL.tx !== 41) fail('map selection', 'clicking a square set no selection');
-  const remembered = ctx.MAP_VIEW_MEMORY[0x8003];
-  if (!remembered) fail('map selection', 'opening a map remembered no view for it');
-  const zoomed = { ...remembered, scale: remembered.scale * 2 };
+  const storedView = ctx.MAP_VIEW_MEMORY[0x8003];
+  if (!storedView) fail('map selection', 'opening a map remembered no view for it');
+  const zoomed = { ...storedView, scale: storedView.scale * 2 };
   ctx.MAP_VIEW_MEMORY[0x8003] = zoomed;
   ctx.openResource(0x8008); drainRaf();           // go somewhere else
   ctx.openResource(0x8003); drainRaf();           // and back
@@ -423,7 +423,7 @@ try {
     else console.log('  frame blocks: the hydra’s arm class owns 32 frames and its body 16 or fewer, and Props reads the monster kinds off the program once');
   }
   if (own.length !== 4) fail('frame runs', `0x141 claimed ${own.length} frames`);
-  const cols = ctx.distinguishingColours(base, own);
+  const cols = ctx.distinguishingColors(base, own);
   if (!cols || new Set([...cols.values()]).size < 3)
     fail('frame runs', 'the four crystal balls were not distinguished by colour');
   console.log(`  frame runs: 0x141 -> ${names}; balls are ${[...cols.values()].join(', ')}`);
@@ -494,9 +494,9 @@ try {
       const c = mc.getContext('2d'); let n = 0; const orig = c.moveTo; c.moveTo = function () { n++; };
       ctx.drawMapMarks(); c.moveTo = orig; return n;
     };
-    const off = count(false), on = count(true), want = Math.round(cm.width / cm.TS) + Math.round(cm.height / cm.TS) + 2;
+    const off = count(false), on = count(true), minLines = Math.round(cm.width / cm.TS) + Math.round(cm.height / cm.TS) + 2;
     ctx.toggleMapMarks('grid', false);
-    if (on - off < want) fail('map grid', 'the grid did not draw a line per square edge: ' + JSON.stringify({ off, on, want }));
+    if (on - off < minLines) fail('map grid', 'the grid did not draw a line per square edge: ' + JSON.stringify({ off, on, minLines }));
     else console.log('  map grid: ' + (on - off) + ' line starts over ' + Math.round(cm.width / cm.TS) + 'x' + Math.round(cm.height / cm.TS) + ' squares, none with it off');
   }
   if (!mapsWithProps) fail('map inspector', 'no map reported any props');
@@ -610,11 +610,11 @@ try {
       for (const mode of [false, 'structured']) {
         ctx.setScriptFold(mode);
         texts[String(mode)] = ((ctx.LAST_DECODED && ctx.LAST_DECODED.text) || '');
-        const want = mode === false ? 'listRaw' : 'listStructured';
+        const expected = mode === false ? 'listRaw' : 'listStructured';
         for (const id of ['listRaw', 'listStructured']) {
           const b = ctx.document.getElementById(id);
           const on = b && b.className && /\bactive\b/.test(b.className);
-          if ((id === want) !== !!on)
+          if ((id === expected) !== !!on)
             fail('listing toggle', id + ' active is ' + !!on + ' with ' + String(mode) + ' in hand');
         }
       }
@@ -902,12 +902,12 @@ try {
 try {
   const ops = ctx.renderMapUncached(0x8003).result.drawOps;
   const op = i => ops.find(o => o.d && o.d.rec && o.d.rec.index === i);
-  const want = (o, add) => { const [x, y] = ctx.propOffsetFor(o.d.rec.proptype, o.d.rec.aspect, o.d.rec.rotated); return o.ox === x + add && o.oy === y + add; };
+  const isAtOffset = (o, add) => { const [x, y] = ctx.propOffsetFor(o.d.rec.proptype, o.d.rec.aspect, o.d.rec.rotated); return o.ox === x + add && o.oy === y + add; };
   const bust = op(984), pillar = op(987), arch = op(0);
   if (!bust || !pillar || !arch) fail('record nudge', 'record 984, 987 or 0 of Land King Hall is not drawn');
-  else if (!want(bust, 28)) fail('record nudge', `the bust is drawn at offset ${bust.ox},${bust.oy}, not its type's plus 28`);
-  else if (!want(pillar, 12)) fail('record nudge', `the pillar is drawn at offset ${pillar.ox},${pillar.oy}, not its type's plus 12`);
-  else if (!want(arch, 0)) fail('record nudge', `the archway is drawn at ${arch.ox},${arch.oy}, not its type's offset`);
+  else if (!isAtOffset(bust, 28)) fail('record nudge', `the bust is drawn at offset ${bust.ox},${bust.oy}, not its type's plus 28`);
+  else if (!isAtOffset(pillar, 12)) fail('record nudge', `the pillar is drawn at offset ${pillar.ox},${pillar.oy}, not its type's plus 12`);
+  else if (!isAtOffset(arch, 0)) fail('record nudge', `the archway is drawn at ${arch.ox},${arch.oy}, not its type's offset`);
   else console.log('  record nudge: Land King Hall\'s bust and pillar at (8,32) are drawn 28 and 12 pixels up and left of their types\' offsets, by byte 14; the archway at its type\'s');
 } catch (e) { fail('record nudge', e); }
 
@@ -940,16 +940,16 @@ try {
    switch is one setting for the Zones view and the World tab alike. */
 try {
   const by = ctx.barksByCharacter();
-  const said = [];
+  const shownLines = [];
   const g = ctx.document.createElement('canvas').getContext('2d');
   const realFill = g.fillText;
-  g.fillText = function (t) { said.push(t); return realFill.apply(this, arguments); };
+  g.fillText = function (t) { shownLines.push(t); return realFill.apply(this, arguments); };
   const vendor = [...by.entries()].find(([, ls]) => ls.length === 1);   // one line, so no rotation to allow for
   const silent = [...Array(200).keys()].find(i => !by.has(i));
   ctx.drawBarks(g, [{ index: vendor[0], x: 5, y: 5 }], 32, 0, 0);
-  const one = said.slice(); said.length = 0;
+  const one = shownLines.slice(); shownLines.length = 0;
   ctx.drawBarks(g, [{ index: silent, x: 5, y: 5 }], 32, 0, 0);
-  const none = said.slice();
+  const none = shownLines.slice();
   ctx.toggleBarks(false);
   const off = ['chkBarks'].every(id => REGISTRY.get(id) && !REGISTRY.get(id).checked) && !peek('window.SHOW_BARKS');
   ctx.toggleBarks(true);

@@ -178,17 +178,17 @@ const fail = (msg) => { failures++; console.error('FAIL  ' + msg); };
 const ok = (msg) => console.log('  ok  ' + msg);
 
 for (const c of REF.cases) {
-  const want = c.bytes;
+  const expected = c.bytes;
 
-  const got = ctx.__writeFromSpec(JSON.stringify(c.spec));
-  if (got !== want) {
-    const a = Buffer.from(got, 'base64'), b = Buffer.from(want, 'base64');
+  const actual = ctx.__writeFromSpec(JSON.stringify(c.spec));
+  if (actual !== expected) {
+    const a = Buffer.from(actual, 'base64'), b = Buffer.from(expected, 'base64');
     let i = 0; while (i < Math.min(a.length, b.length) && a[i] === b[i]) i++;
     fail(`${c.name}: spec->write differs from delvmod at byte 0x${i.toString(16)} ` +
          `(js ${a.length}B, delvmod ${b.length}B)`);
-  } else ok(`${c.name}: spec -> writeDelverArchive matches delvmod (${Buffer.from(want, 'base64').length}B)`);
+  } else ok(`${c.name}: spec -> writeDelverArchive matches delvmod (${Buffer.from(expected, 'base64').length}B)`);
 
-  const rt = ctx.__roundTrip(want);
+  const rt = ctx.__roundTrip(expected);
   if (!rt) { fail(`${c.name}: delverArchiveSpec rejected delvmod's output`); continue; }
 
   // The parse must see what was put in: same resource ids, same verdicts.
@@ -196,12 +196,12 @@ for (const c of REF.cases) {
   // rightly absent here.
   const expect = c.spec.resources.filter(r => r.data.length > 0)
     .map(r => ({resid: r.resid, len: r.data.length / 2, encrypted: r.encrypted}));
-  const gotRes = JSON.stringify(rt.resources);
-  const wantRes = JSON.stringify(expect);
-  if (gotRes !== wantRes) fail(`${c.name}: parsed spec differs\n  js:   ${gotRes}\n  want: ${wantRes}`);
+  const actualRes = JSON.stringify(rt.resources);
+  const expectedRes = JSON.stringify(expect);
+  if (actualRes !== expectedRes) fail(`${c.name}: parsed spec differs\n  js:   ${actualRes}\n  expected: ${expectedRes}`);
   else ok(`${c.name}: parse recovers ${expect.length} resources with matching verdicts`);
 
-  if (rt.out !== want) fail(`${c.name}: round trip is not the identity`);
+  if (rt.out !== expected) fail(`${c.name}: round trip is not the identity`);
   else ok(`${c.name}: bytes -> spec -> bytes is the identity`);
 }
 

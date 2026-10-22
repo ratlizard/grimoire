@@ -142,14 +142,14 @@ check('a fresh fork has no memory in it', built.slice(16, 256).every(b => b === 
 check('the writer is deterministic', bytesEqual(built, ctx.writeResourceFork(synthetic)).same);
 
 // ---- 3. what it rejects ----------------------------------------------------
-const refuses = (what, fn) => {
+const expectThrows = (what, fn) => {
   let threw = null;
   try { fn(); } catch (e) { threw = e; }
   check('it rejects ' + what, !!threw, threw ? threw.message.slice(0, 70) : 'it did not');
 };
-refuses('a type that is not four characters', () => ctx.writeResourceFork([{ type: 'ABC', id: 1, data: new Uint8Array(1) }]));
-refuses('an empty fork', () => ctx.writeResourceFork([]));
-refuses('a typeOrder naming a type nothing has',
+expectThrows('a type that is not four characters', () => ctx.writeResourceFork([{ type: 'ABC', id: 1, data: new Uint8Array(1) }]));
+expectThrows('an empty fork', () => ctx.writeResourceFork([]));
+expectThrows('a typeOrder naming a type nothing has',
         () => ctx.writeResourceFork(synthetic, { typeOrder: ['Pref', 'STR ', 'TEXT', 'ICN#', 'nul ', 'QQQQ'] }));
 
 // ---- 4. the file this writer was needed for --------------------------------

@@ -64,10 +64,10 @@ const res = vm.runInContext(`(() => {
   const eq = (a, b) => a && b && a.length === b.length && a.every((x, i) => x === b[i]);
   const shared = [], wrong = [];
   for (const id of chain.changed) {
-    const who = alone.map((a, i) => a.changed.includes(id) ? i : -1).filter(i => i >= 0);
-    if (who.length > 1) shared.push({ id, who });
-    else if (who.length === 1 && !eq(data(chain, id), data(alone[who[0]], id))) wrong.push(id);
-    else if (!who.length) wrong.push(id);
+    const character = alone.map((a, i) => a.changed.includes(id) ? i : -1).filter(i => i >= 0);
+    if (character.length > 1) shared.push({ id, character });
+    else if (character.length === 1 && !eq(data(chain, id), data(alone[character[0]], id))) wrong.push(id);
+    else if (!character.length) wrong.push(id);
   }
   const missing = [];
   alone.forEach((a, i) => { for (const id of a.changed) if (!chain.changed.includes(id)) missing.push({ id, stage: i }); });
@@ -82,7 +82,7 @@ const res = vm.runInContext(`(() => {
   const named = id => { try { return typeof labelFor === 'function' ? labelFor(id) : ''; } catch (e) { return ''; } };
   const label = id => '0x' + id.toString(16).toUpperCase() + (named(id) ? ' ' + named(id) : '');
   return { patch: Array.from(w.bytes), bin: Array.from(bin), patched: Array.from(patched), count: chain.changed.length, same, stages,
-           shared: shared.map(s => label(s.id) + ' (' + s.who.map(i => stages[i]).join(', ') + ')'), wrong: wrong.map(label),
+           shared: shared.map(s => label(s.id) + ' (' + s.character.map(i => stages[i]).join(', ') + ')'), wrong: wrong.map(label),
            missing: missing.map(m => label(m.id) + ' of stage ' + stages[m.stage]),
            perStage: alone.map((a, i) => stages[i] + ': ' + a.changed.length + ' resources') };
 })()`, ctx);

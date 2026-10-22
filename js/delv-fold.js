@@ -213,10 +213,10 @@ function dvmFoldFrame(nodes, ctx) {
 
 function dvmFoldValue(n, ctx) {
   const bare = dvmBareOperand(n.arg);
-  if (ctx && ctx.say && n.mn === 'global') return dvmSayName(dvmPlainName(bare));
-  if (ctx && ctx.say && ctx.subst && (n.mn === 'arg' || n.mn === 'local') && ctx.subst.has(bare)) return ctx.subst.get(bare);
-  if (ctx && ctx.say && ctx.self && n.mn === 'arg' && bare === ctx.self) return 'it';
-  if (ctx && ctx.say && ctx.target && n.mn === 'arg' && bare === ctx.target) return ctx.targetName || 'the target';
+  if (ctx && ctx.asProse && n.mn === 'global') return dvmProseName(dvmPlainName(bare));
+  if (ctx && ctx.asProse && ctx.subst && (n.mn === 'arg' || n.mn === 'local') && ctx.subst.has(bare)) return ctx.subst.get(bare);
+  if (ctx && ctx.asProse && ctx.self && n.mn === 'arg' && bare === ctx.self) return 'it';
+  if (ctx && ctx.asProse && ctx.target && n.mn === 'arg' && bare === ctx.target) return ctx.targetName || 'the target';
   switch (n.mn) {
     case 'local': case 'arg': return bare;
     case 'byte': case 'short': case 'word': {
@@ -262,7 +262,7 @@ function dvmFoldNumber(bare) {
 }
 
 function dvmFoldOperator(n, args, ctx) {
-  if (ctx && ctx.say) return dvmSayOperator(n, args, ctx);
+  if (ctx && ctx.asProse) return dvmProseOperator(n, args, ctx);
   const infix = DVM_INFIX[n.op];
   if (infix) return '(' + args[0] + ' ' + infix + ' ' + args[1] + ')';
   const prefix = DVM_PREFIX[n.op];
@@ -293,7 +293,7 @@ function dvmFoldOperator(n, args, ctx) {
 /* An op that opened frames. Most are calls or statements; the ones that take
    more than one frame spell out where each frame went. */
 function dvmFoldCall(n, ctx) {
-  if (ctx && ctx.say) return dvmSayCall(n, ctx);
+  if (ctx && ctx.asProse) return dvmProseCall(n, ctx);
   const bare = dvmPlainName(dvmBareOperand(n.arg));
   const g = n.groups.map(f => dvmFoldFrame(f, ctx));
   // `sys Name` comes as one mnemonic with the name inside it.
@@ -1818,14 +1818,14 @@ function dvmBlocksOf(tree, follow) {
  * what is inside what. utilities/read_check.mjs checks every call and
  * condition of every function to its sentences.
  */
-function dvmSayName(name) {
+function dvmProseName(name) {
   return String(name || '').replace(/_/g, ' ')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
     .split(' ').map(w => /^[A-Z]{2,}$/.test(w) ? w : w.toLowerCase()).join(' ').trim();
 }
-const DVM_SAY_INFIX = { '==': 'is', '!=': 'is not', '<': 'is less than', '>': 'is more than',
+const DVM_PROSE_INFIX = { '==': 'is', '!=': 'is not', '<': 'is less than', '>': 'is more than',
   '<=': 'is at most', '>=': 'is at least', 'and': 'and', 'or': 'or' };
-function dvmSayOperator(n, args, ctx) {
+function dvmProseOperator(n, args, ctx) {
   const infix = DVM_INFIX[n.op];
   if (infix) {
     /* A bit test reads as the bit: `X & 64` is "X has bit 6", `X & (1 << n)`
@@ -1835,47 +1835,47 @@ function dvmSayOperator(n, args, ctx) {
       const m = /^\(1 << (\w+)\)$/.exec(args[1]), v = /^\d+$/.test(args[1]) ? +args[1] : 0;
       // A bit of the bit flags the program names is written with its word.
       const bw = b => /bit flags$/.test(args[0]) && dvmBitFlagName(+b) ? ' (' + dvmBitFlagName(+b) + ')' : '';
-      if (m) { dvmSayBitNote(ctx, args[0], m[1]); return args[0] + ' has bit ' + m[1] + bw(m[1]); }
+      if (m) { dvmProseBitNote(ctx, args[0], m[1]); return args[0] + ' has bit ' + m[1] + bw(m[1]); }
       const k = /^~\(1 << (\w+)\)$/.exec(args[1]);
       if (k) return args[0] + ' without bit ' + k[1];
-      if (v && (v & (v - 1)) === 0) { dvmSayBitNote(ctx, args[0], String(Math.log2(v))); return args[0] + ' has bit ' + Math.log2(v) + bw(Math.log2(v)); }
+      if (v && (v & (v - 1)) === 0) { dvmProseBitNote(ctx, args[0], String(Math.log2(v))); return args[0] + ' has bit ' + Math.log2(v) + bw(Math.log2(v)); }
     }
     if (infix === '|') { const m = /^\(1 << (\w+)\)$/.exec(args[1]); if (m) return args[0] + ' with bit ' + m[1]; }
     if ((infix === '!=' || infix === '==') && args[1] === '0' && / has bit \w+(?: \(\w+\))?$/.test(args[0]))
       return infix === '!=' ? args[0] : args[0].replace(/ has bit /, ' has not got bit ');
-    const w = DVM_SAY_INFIX[infix];
-    const rhs = (infix === '==' || infix === '!=') && /\bbehavior$/.test(args[0]) ? dvmSayBehaviour('behavior', args[1], ctx) : args[1];
+    const w = DVM_PROSE_INFIX[infix];
+    const rhs = (infix === '==' || infix === '!=') && /\bbehavior$/.test(args[0]) ? dvmProseBehavior('behavior', args[1], ctx) : args[1];
     return w ? args[0] + ' ' + w + ' ' + rhs : '(' + args[0] + ' ' + infix + ' ' + args[1] + ')';
   }
   const prefix = DVM_PREFIX[n.op];
-  if (prefix === '!') return 'not ' + dvmSayGroup(args[0]);
+  if (prefix === '!') return 'not ' + dvmProseGroup(args[0]);
   if (prefix) return prefix + args[0];
   const bare = dvmPlainName(dvmBareOperand(n.arg));
   switch (n.op) {
     case 0x46: return args[0] + '[' + args[1] + ']';
     case 0x5F: return 'the length of ' + args[0];
-    case 0x60: return args[0] + ' has ' + dvmSayName(bare);
+    case 0x60: return args[0] + ' has ' + dvmProseName(bare);
     case 0x61: {
       const m = /^0x([0-9A-F]{2})([0-9A-F]{2})$/i.exec(bare);
       const k = m && String(parseInt(m[1], 16));
       const key = m && ((DVM_SYM.method && DVM_SYM.method[k]) || (DVM_SYM.field && DVM_SYM.field[k]));
-      return dvmSayOwner(args[0]) + (key ? dvmSayName(key) + ' ' + parseInt(m[2], 16) : bare);
+      return dvmProseOwner(args[0]) + (key ? dvmProseName(key) + ' ' + parseInt(m[2], 16) : bare);
     }
-    case 0x62: return dvmSayOwner(args[0]) + dvmSayName(bare);
+    case 0x62: return dvmProseOwner(args[0]) + dvmProseName(bare);
     case 0x63: {
       // A character by its number, named from the character table.
       if (/^\d+$/.test(args[0]) && /^Character$/i.test(bare)) {
         const nm = dvmFoldPage(ctx, () => characterName(+args[0]));
         if (nm) return nm + ' (' + args[0] + ')';
       }
-      return args[0] + ' as ' + dvmSayName(bare);
+      return args[0] + ' as ' + dvmProseName(bare);
     }
-    case 0x64: return args[0] + ' is ' + dvmSayName(bare);
-    default: return dvmSayName(n.mn) + ' ' + args.join(', ');
+    case 0x64: return args[0] + ' is ' + dvmProseName(bare);
+    default: return dvmProseName(n.mn) + ' ' + args.join(', ');
   }
 }
 // Whose: "its" for the receiver, "X's" for anything else.
-function dvmSayOwner(x) {
+function dvmProseOwner(x) {
   // A cast changes what the engine checks, not whose field it is.
   const y = String(x).replace(/ as [a-z ]+$/, '');
   return y === 'it' ? 'its ' : /^\w+$|^the (target|signal|wearer)$|^[A-Z][\w' -]* \(\d+\)$/.test(y) ? y + '’s ' : '(' + y + ')’s ';
@@ -1928,10 +1928,10 @@ function dvmInlineHelper(arc, rid) {
    "it" in a character's conversation script, which is that character.
    The table is built from the Read view's sentences, so a test and the
    settings it names are in the same words by construction. */
-function dvmSayBitNote(ctx, owner, bit) {
-  if (!ctx || !ctx.say || !ctx.arc || ctx.noBitNotes || !/^\d+$/.test(bit)) return;
-  const who = dvmSayWhose(ctx, owner);
-  if (!who) return;
+function dvmProseBitNote(ctx, owner, bit) {
+  if (!ctx || !ctx.asProse || !ctx.arc || ctx.noBitNotes || !/^\d+$/.test(bit)) return;
+  const character = dvmProseCharacter(ctx, owner);
+  if (!character) return;
   const table = derivedTable(ctx.arc, 'bitSetters', () => {
     const m = new Map();
     for (let subn = 0; subn < 256; subn++) {
@@ -1942,19 +1942,19 @@ function dvmSayBitNote(ctx, owner, bit) {
         let fns;
         try { const raw = getResourceBytes(ctx.arc, resid); if (!raw || !raw.length) continue; fns = dvmReadRender(ctx.arc, smartDecrypt(raw, resid).data, resid, { noBitNotes: true }); } catch (e) { continue; }
         const c2 = { arc: ctx.arc, resid };
-        (function walk(cl, asked) {
+        (function walk(cl, topicKeyword) {
           for (const c of cl || []) {
             const mm = /^(set|clear) bit (\d+) of (.+?)(?:’s | )(bit flags|[a-z ]+)$/.exec(c.text.replace(/ \([^()]*\)$/, ''));
             if (mm) {
-              const w = dvmSayWhose(c2, mm[3] === 'its' ? 'it' : mm[3]);
+              const w = dvmProseCharacter(c2, mm[3] === 'its' ? 'it' : mm[3]);
               if (w) {
                 const key = w.index + ':' + mm[4] + ':' + mm[2];
                 if (!m.has(key)) m.set(key, []);
                 const row = m.get(key);
-                if (!row.some(x => x.resid === resid && x.how === mm[1] && x.asked === asked)) row.push({ resid, how: mm[1], asked });
+                if (!row.some(x => x.resid === resid && x.how === mm[1] && x.topicKeyword === topicKeyword)) row.push({ resid, how: mm[1], topicKeyword });
               }
             }
-            walk(c.kids, c.prompt !== undefined ? c.prompt : asked);
+            walk(c.kids, c.prompt !== undefined ? c.prompt : topicKeyword);
           }
         })((fns || []).flatMap(f => f.clauses || []), null);
       }
@@ -1962,11 +1962,11 @@ function dvmSayBitNote(ctx, owner, bit) {
     return m;
   });
   const field = /(?:’s |^its )(.+)$/.exec(owner);
-  const row = field && table.get(who.index + ':' + field[1] + ':' + bit);
+  const row = field && table.get(character.index + ':' + field[1] + ':' + bit);
   if (!row || !row.length) return;
   // A conversation by whose it is, and the prompt the setting answers.
   const name = x => { const nm = (x.resid >> 8) === 0x18 ? dvmFoldPage(ctx, () => characterName(x.resid - 0x1800)) : null;
-    return (nm ? dvmSayPossessive(nm) + ' conversation' : dvmFoldResourceName(x.resid)) + (x.asked && x.asked !== '*' ? ', asked about ' + x.asked.split(',').map(k => {
+    return (nm ? dvmProsePossessive(nm) + ' conversation' : dvmFoldResourceName(x.resid)) + (x.topicKeyword && x.topicKeyword !== '*' ? ', asked about ' + x.topicKeyword.split(',').map(k => {
       const w = dvmFoldPage(ctx, () => typeof convIntendedFor === 'function' ? convIntendedFor(k) : null);
       return (w && w[0] ? w[0] : k).toUpperCase();
     }).join(' or ') : ''); };
@@ -1974,13 +1974,13 @@ function dvmSayBitNote(ctx, owner, bit) {
   // Who does it first, then what they do (the maintainer, 2 October 2026:
   // no passive voice on the site).
   const many = (list, verb) => list.slice(0, 3).join('; ') + (list.length > 3 ? ' and ' + (list.length - 3) + ' more' : '') + ' ' + verb + (list.length === 1 ? 's' : '');
-  dvmFoldNote(ctx, (set.length ? many(set, 'set') : 'nothing sets') + ' bit ' + bit + ' of ' + dvmSayPossessive(who.name) + ' ' + field[1] +
+  dvmFoldNote(ctx, (set.length ? many(set, 'set') : 'nothing sets') + ' bit ' + bit + ' of ' + dvmProsePossessive(character.name) + ' ' + field[1] +
     (clr.length ? '; ' + many(clr, 'clear') + ' it' : ''));
 }
-function dvmSayPossessive(nm) { return nm + (/s$/.test(nm) ? '’' : '’s'); }
+function dvmProsePossessive(nm) { return nm + (/s$/.test(nm) ? '’' : '’s'); }
 // Which character a phrase is: "Name (n)'s ..." by its number, "it" or
 // "its ..." in a character's conversation script by the script's.
-function dvmSayWhose(ctx, owner) {
+function dvmProseCharacter(ctx, owner) {
   const m = /\((\d+)\)(?:’s .*)?$/.exec(owner);
   if (m) { const nm = dvmFoldPage(ctx, () => characterName(+m[1])); return nm ? { index: +m[1], name: nm } : null; }
   if ((owner === 'it' || /^its /.test(owner)) && ctx.resid && (ctx.resid >> 8) === 0x18) {
@@ -1993,7 +1993,7 @@ function dvmSayWhose(ctx, owner) {
    SetStateFlag call with numbers for both arguments, in every script, by
    the resource that makes it. The state's meaning is in no file; where it
    changes is, and that is what a reader follows. */
-function dvmSayStateNote(ctx, name, k) {
+function dvmProseStateNote(ctx, name, k) {
   const table = derivedTable(ctx.arc, 'stateSetters', () => {
     const m = new Map();
     for (let subn = 0; subn < 256; subn++) {
@@ -2033,14 +2033,14 @@ function dvmSayStateNote(ctx, name, k) {
   if (!row || !row.length) return;
   const byV = new Map();
   // A character's conversation by whose it is; anything else by its name or id.
-  const who = rid => {
+  const character = rid => {
     const nm = (rid >> 8) === 0x18 ? dvmFoldPage(ctx, () => characterName(rid - 0x1800)) : null;
-    return nm ? dvmSayPossessive(nm) + ' conversation' : dvmFoldResourceName(rid);
+    return nm ? dvmProsePossessive(nm) + ' conversation' : dvmFoldResourceName(rid);
   };
-  for (const x of row) { if (!byV.has(x.v)) byV.set(x.v, []); byV.get(x.v).push(who(x.resid)); }
+  for (const x of row) { if (!byV.has(x.v)) byV.set(x.v, []); byV.get(x.v).push(character(x.resid)); }
   const what = (name === 'GetState' ? 'state ' : 'state flag ') + k;
-  dvmFoldNote(ctx, [...byV].sort((a, b) => a[0] - b[0]).map(([v, who], i) => who.slice(0, 3).join(', ') + (who.length > 3 ? ' and ' + (who.length - 3) + ' more' : '') +
-    (who.length === 1 ? ' sets ' : ' set ') + (i ? 'it' : what) + ' to ' + v).join('; '));
+  dvmFoldNote(ctx, [...byV].sort((a, b) => a[0] - b[0]).map(([v, character], i) => character.slice(0, 3).join(', ') + (character.length > 3 ? ' and ' + (character.length - 3) + ' more' : '') +
+    (character.length === 1 ? ' sets ' : ' set ') + (i ? 'it' : what) + ' to ' + v).join('; '));
 }
 /* A behaviour number written with the word the game's text gives it. The
    game names some behaviours where it describes a person: a script that
@@ -2048,13 +2048,13 @@ function dvmSayStateNote(ctx, name, k) {
    0x3007: 144 "working", 145 "sleeping", 147 "eating", 148 "farming", 146
    "sitting") and one that tests a range and prints (134 to 137 "standing
    still"). Those pairs are read out of every script by that shape
-   (dvmBehaviourWords), so the word is the game's and nothing is typed. */
-function dvmSayBehaviour(field, value, ctx) {
+   (dvmBehaviorWords), so the word is the game's and nothing is typed. */
+function dvmProseBehavior(field, value, ctx) {
   if (field !== 'behavior' || !/^\d+$/.test(value) || !ctx || !ctx.arc) return value;
-  const w = dvmBehaviourWords(ctx.arc).get(+value);
+  const w = dvmBehaviorWords(ctx.arc).get(+value);
   return w ? value + ' (' + w + ')' : value;
 }
-function dvmBehaviourWords(arc) {
+function dvmBehaviorWords(arc) {
   return derivedTable(arc, 'behaviourWords', () => {
     const out = new Map();
     const word = t => { const m = /^print\("([a-z][a-z ]*)"\)$/.exec(t); return m ? m[1] : null; };
@@ -2093,15 +2093,15 @@ function dvmBehaviourWords(arc) {
   });
 }
 // A phrase that needs no brackets when it follows "not".
-function dvmSayGroup(e) { return / (is|and|or|has) /.test(e) ? '(' + e + ')' : e; }
-function dvmSayCall(n, ctx) {
+function dvmProseGroup(e) { return / (is|and|or|has) /.test(e) ? '(' + e + ')' : e; }
+function dvmProseCall(n, ctx) {
   const bare = dvmPlainName(dvmBareOperand(n.arg));
   const vals = f => dvmReduceFrame(f || [], ctx);
   const withArgs = (verb, a) => verb + (a.length ? ' ' + a.join(', ') : '');
   if (/^sys /.test(n.mn)) {
     const name = n.mn.slice(4), v = vals(n.groups[0]);
     dvmFoldCallNotes(name, v, ctx);
-    if ((name === 'GetState' || name === 'GetStateFlag') && /^\d+$/.test(v[0] || '') && ctx.arc) dvmSayStateNote(ctx, name, +v[0]);
+    if ((name === 'GetState' || name === 'GetStateFlag') && /^\d+$/.test(v[0] || '') && ctx.arc) dvmProseStateNote(ctx, name, +v[0]);
     // A character given by number to a syscall that accepts one (the program
     // shows which: exeSyscallCharacterArgs), named from the character table.
     const chars = dvmFoldPage(ctx, () => typeof exeSyscallCharacterArgs === 'function' ? exeSyscallCharacterArgs() : null);
@@ -2115,7 +2115,7 @@ function dvmSayCall(n, ctx) {
     // argument to the countdown the current character's turn waits out
     // (byte 18, TActiveMonster::DoTick).
     if (name === 'UseTime' && /^\d+$/.test(v[0] || '')) dvmFoldNote(ctx, 'the current character spends ' + v[0] + ' ticks');
-    return withArgs(dvmSayName(dvmSyscallShown(name)), v);
+    return withArgs(dvmProseName(dvmSyscallShown(name)), v);
   }
   switch (n.mn) {
     case 'call_resource': case 'call_subroutine': {
@@ -2132,28 +2132,28 @@ function dvmSayCall(n, ctx) {
           a.forEach((v, k) => subst.set('Arg' + k.toString(16).toUpperCase().padStart(2, '0'), v));
           const c2 = Object.assign({}, ctx, { subst, self: null, target: null, notes: [] });
           for (const [slot, node] of inl.sets) subst.set(slot, dvmFoldFrame(node.groups[0] || [], c2));
-          const said = inl.eff ? dvmSayStatement(inl.eff, Object.assign(c2, { asStatement: false })) : dvmFoldFrame(inl.ret.groups[0] || [], c2);
+          const proseText = inl.eff ? dvmProseStatement(inl.eff, Object.assign(c2, { asStatement: false })) : dvmFoldFrame(inl.ret.groups[0] || [], c2);
           for (const t of c2.notes) dvmFoldNote(ctx, t);
           dvmFoldNote(ctx, dvmFoldResourceName(rid));
-          return said;
+          return proseText;
         }
       }
       const nm = id ? dvmFoldResourceName(parseInt(id[1], 16)) : bare;
-      return withArgs(/^0x/i.test(nm) ? 'run ' + nm : dvmSayName(nm), vals(n.groups[0]));
+      return withArgs(/^0x/i.test(nm) ? 'run ' + nm : dvmProseName(nm), vals(n.groups[0]));
     }
     case 'call_index': return withArgs('run ' + bare + '[' + dvmFoldFrame(n.groups[0] || [], ctx) + ']', vals(n.groups[1]));
     case 'method': {
       // The receiver's, as a field is: "its look", "Arg01's talk".
       const v = vals(n.groups[0]);
-      return withArgs((v.length ? dvmSayOwner(v[0]) : '') + dvmSayName(bare), v.slice(1));
+      return withArgs((v.length ? dvmProseOwner(v[0]) : '') + dvmProseName(bare), v.slice(1));
     }
-    case 'gui': return withArgs('window ' + dvmSayName(bare), vals(n.groups[0]));
+    case 'gui': return withArgs('window ' + dvmProseName(bare), vals(n.groups[0]));
     case 'gui_close': return 'close window ' + dvmFoldFrame(n.groups[0] || [], ctx);
     case 'ai_state': return 'AI state ' + bare + (n.groups[0] ? ', ' + dvmFoldFrame(n.groups[0], ctx) : '');
-    default: return withArgs(dvmSayName(n.mn) + (bare ? ' ' + bare : ''), n.groups.map(f => dvmFoldFrame(f, ctx)));
+    default: return withArgs(dvmProseName(n.mn) + (bare ? ' ' + bare : ''), n.groups.map(f => dvmFoldFrame(f, ctx)));
   }
 }
-function dvmSayStatement(n, ctx) {
+function dvmProseStatement(n, ctx) {
   const bare = dvmPlainName(dvmBareOperand(n.arg));
   const g = n.groups.map(f => dvmFoldFrame(f, ctx));
   switch (n.mn) {
@@ -2165,15 +2165,15 @@ function dvmSayStatement(n, ctx) {
       if (lhs === ctx.self) lhs = 'it'; else if (lhs === ctx.target) lhs = ctx.targetName || 'the target';
       return 'set ' + lhs + ' to ' + (g[0] || '');
     }
-    case 'set_global': return 'set ' + dvmSayName(bare) + ' to ' + (g[0] || '');
+    case 'set_global': return 'set ' + dvmProseName(bare) + ' to ' + (g[0] || '');
     case 'set_field': {
-      const lhs = dvmSayOwner(g[0] || '') + dvmSayName(bare), v = g[1] || '';
+      const lhs = dvmProseOwner(g[0] || '') + dvmProseName(bare), v = g[1] || '';
       // Setting a field to itself with a bit more or less is setting or clearing the bit.
       const on = v.startsWith(lhs + ' with bit ') ? v.slice(lhs.length + 10) : null;
       const off = v.startsWith(lhs + ' without bit ') ? v.slice(lhs.length + 13) : null;
       if (on && /^\w+$/.test(on)) return 'set bit ' + on + ' of ' + lhs;
       if (off && /^\w+$/.test(off)) return 'clear bit ' + off + ' of ' + lhs;
-      return 'set ' + lhs + ' to ' + dvmSayBehaviour(bare, v, ctx);
+      return 'set ' + lhs + ' to ' + dvmProseBehavior(bare, v, ctx);
     }
     case 'set_index': return 'set ' + (g[0] || '') + '[' + (g[1] || '') + '] to ' + (g[2] || '');
     case 'write_near_word': case 'write_far_word': return 'set word@' + bare + ' to ' + (g[0] || '');
@@ -2184,40 +2184,40 @@ function dvmSayStatement(n, ctx) {
       if (n.expect > 0) {
         const was = ctx.asStatement;
         ctx.asStatement = true;
-        try { return dvmSayCall(n, ctx); } finally { ctx.asStatement = was; }
+        try { return dvmProseCall(n, ctx); } finally { ctx.asStatement = was; }
       }
       return dvmFoldValue(n, ctx);
   }
 }
-function dvmSayCond(s, ctx, taken) {
+function dvmProseCond(s, ctx, taken) {
   const leaf = p => dvmFoldFrame(p.node.groups[0] || [], ctx);
-  const j = s.parts ? s.parts.map(p => dvmSayGroup(leaf(p))).join(s.negated ? ' or ' : ' and ') : leaf(s);
+  const j = s.parts ? s.parts.map(p => dvmProseGroup(leaf(p))).join(s.negated ? ' or ' : ' and ') : leaf(s);
   const positive = taken ? s.negated : !s.negated;
   if (positive) return j;
   // Not of a not is the thing itself.
-  if (!s.parts && /^not /.test(j)) { const r = j.slice(4); return /^\(.*\)$/.test(r) && dvmSayGroup(r.slice(1, -1)) === r ? r.slice(1, -1) : r; }
+  if (!s.parts && /^not /.test(j)) { const r = j.slice(4); return /^\(.*\)$/.test(r) && dvmProseGroup(r.slice(1, -1)) === r ? r.slice(1, -1) : r; }
   const m = !s.parts && /^(.+) is (?!not |less |more |at )(.+)$/.exec(j);
   if (m && !/ (and|or) /.test(j)) return m[1] + ' is not ' + m[2];
   const n = !s.parts && /^(.+) is not (.+)$/.exec(j);
   if (n && !/ (and|or) /.test(j)) return n[1] + ' is ' + n[2];
-  return 'not ' + dvmSayGroup(j);
+  return 'not ' + dvmProseGroup(j);
 }
 /* What a statement does, for the summary: the verb it is written with, or the
    value it returns. The verb is the call's name taken apart, as in the
    sentence; a setting is "set" and what it sets. */
-function dvmSayMeta(n, ctx) {
+function dvmProseMeta(n, ctx) {
   const bare = dvmPlainName(dvmBareOperand(n.arg));
   if (n.mn === 'return') return { returns: n.groups[0] ? dvmFoldFrame(n.groups[0], ctx) : '' };
-  if (/^sys /.test(n.mn)) return { verb: dvmSayName(dvmSyscallShown(n.mn.slice(4))) };
-  if (n.mn === 'method') return { verb: dvmSayName(bare) };
-  if (n.mn === 'call_resource') { const id = /^0x([0-9A-F]+)$/i.exec(bare); const nm = id ? dvmFoldResourceName(parseInt(id[1], 16)) : bare; return { verb: /^0x/i.test(nm) ? 'run ' + nm : dvmSayName(nm) }; }
-  if (n.mn === 'set_field') return { verb: 'set ' + dvmSayName(bare) };
+  if (/^sys /.test(n.mn)) return { verb: dvmProseName(dvmSyscallShown(n.mn.slice(4))) };
+  if (n.mn === 'method') return { verb: dvmProseName(bare) };
+  if (n.mn === 'call_resource') { const id = /^0x([0-9A-F]+)$/i.exec(bare); const nm = id ? dvmFoldResourceName(parseInt(id[1], 16)) : bare; return { verb: /^0x/i.test(nm) ? 'run ' + nm : dvmProseName(nm) }; }
+  if (n.mn === 'set_field') return { verb: 'set ' + dvmProseName(bare) };
   if (n.mn === 'set_local' || n.mn === 'set_global' || n.mn === 'set_index') return { verb: 'set values' };
   return {};
 }
 /* A function in one line: what it does, in the order it first does each,
    what it can return, and how many tests settle which. */
-function dvmSaySummary(clauses) {
+function dvmProseSummary(clauses) {
   const does = [], rets = [];
   let tests = 0;
   (function walk(cl) {
@@ -2236,7 +2236,7 @@ function dvmSaySummary(clauses) {
 }
 /* The tree as clauses: { text, kids } with the blocks as kids. `notes` a
    clause gathered while it folded are written after it in brackets. */
-function dvmSayTree(tree, ctx, loops) {
+function dvmProseTree(tree, ctx, loops) {
   const out = [];
   const fors = loops.fors, exits = loops.exits;
   const skip = new Set();
@@ -2267,37 +2267,37 @@ function dvmSayTree(tree, ctx, loops) {
         const s = n.stmt, word = exits.get(s);
         const go = word === 'break' ? 'stop the loop' : word === 'continue' ? 'go round again'
           : (s.targets.length === 1 ? 'go to ' + ctx.label('0x' + (n.goes !== undefined ? n.goes : s.targets[0]).toString(16).toUpperCase().padStart(4, '0')) : null);
-        if (s.kind === 'cond' && go) push('if ' + dvmSayCond(s, ctx, true) + ', ' + go, null, s.abs, { test: true });
+        if (s.kind === 'cond' && go) push('if ' + dvmProseCond(s, ctx, true) + ', ' + go, null, s.abs, { test: true });
         else if (s.kind === 'jump' && go) push(go, null, s.abs);
-        else push(dvmSayStatement(s.node, ctx), null, s.abs, dvmSayMeta(s.node, ctx));
+        else push(dvmProseStatement(s.node, ctx), null, s.abs, dvmProseMeta(s.node, ctx));
         break;
       }
-      case 'if': { const t = head('if ' + dvmSayCond(n.cond, ctx, false) + ':'); push(t, dvmSayTree(n.then, ctx, loops), n.cond.abs, { test: true }); break; }
+      case 'if': { const t = head('if ' + dvmProseCond(n.cond, ctx, false) + ':'); push(t, dvmProseTree(n.then, ctx, loops), n.cond.abs, { test: true }); break; }
       case 'ifelse': {
-        if (!n.then.length) { const t = head('if ' + dvmSayCond(n.cond, ctx, true) + ':'); push(t, dvmSayTree(n.els, ctx, loops), n.cond.abs, { test: true }); break; }
-        const t = head('if ' + dvmSayCond(n.cond, ctx, false) + ':');
-        push(t, dvmSayTree(n.then, ctx, loops), n.cond.abs, { test: true });
-        push('otherwise:', dvmSayTree(n.els, ctx, loops));
+        if (!n.then.length) { const t = head('if ' + dvmProseCond(n.cond, ctx, true) + ':'); push(t, dvmProseTree(n.els, ctx, loops), n.cond.abs, { test: true }); break; }
+        const t = head('if ' + dvmProseCond(n.cond, ctx, false) + ':');
+        push(t, dvmProseTree(n.then, ctx, loops), n.cond.abs, { test: true });
+        push('otherwise:', dvmProseTree(n.els, ctx, loops));
         break;
       }
       case 'while': {
         const f = fors.get(n);
         if (f) {
           for (const t of f.notes || []) dvmFoldNote(ctx, t);
-          const t = head('for each ' + f.variable + ' in ' + dvmSayName(dvmSyscallShown(f.name)) + (f.args.length ? ' of ' + f.args.join(', ') : '') + ':');
-          push(t, dvmSayTree(n.body.slice(0, -1), ctx, loops), f.start.abs, { verb: 'go through ' + dvmSayName(dvmSyscallShown(f.name)) });
+          const t = head('for each ' + f.variable + ' in ' + dvmProseName(dvmSyscallShown(f.name)) + (f.args.length ? ' of ' + f.args.join(', ') : '') + ':');
+          push(t, dvmProseTree(n.body.slice(0, -1), ctx, loops), f.start.abs, { verb: 'go through ' + dvmProseName(dvmSyscallShown(f.name)) });
         } else {
-          const t = head('while ' + dvmSayCond(n.cond, ctx, false) + ':');
-          push(t, dvmSayTree(n.body, ctx, loops), n.cond.abs, { test: true });
+          const t = head('while ' + dvmProseCond(n.cond, ctx, false) + ':');
+          push(t, dvmProseTree(n.body, ctx, loops), n.cond.abs, { test: true });
         }
         break;
       }
       case 'dowhile': {
-        const kids = dvmSayTree(n.body, ctx, loops);
-        push('repeat, and go round again while ' + dvmSayCond(n.cond, ctx, true) + ':', kids, dvmFirstAbs(n), { test: true });
+        const kids = dvmProseTree(n.body, ctx, loops);
+        push('repeat, and go round again while ' + dvmProseCond(n.cond, ctx, true) + ':', kids, dvmFirstAbs(n), { test: true });
         break;
       }
-      case 'loop': push('repeat:', dvmSayTree(n.body, ctx, loops), dvmFirstAbs(n)); break;
+      case 'loop': push('repeat:', dvmProseTree(n.body, ctx, loops), dvmFirstAbs(n)); break;
     }
   }
   flush();
@@ -2311,13 +2311,13 @@ function dvmSayTree(tree, ctx, loops) {
    guard inside that stretch is a separate follow-up prompt. Each stretch
    between guards goes through the same recovery and sayer as any code; the
    jump back to the wait is not written, since every answer makes it. */
-function dvmSayConversation(stmts, ctx) {
+function dvmProseConversation(stmts, ctx) {
   const wait = stmts.find(s => s.node && s.node.mn === 'exit');
   const loopAt = wait ? wait.abs : null;
   const guard = s => s.node && s.node.mn === 'conversation_response';
   const guardTo = s => { const m = /->\s*0x([0-9A-F]+)/i.exec(dvmBareOperand(s.node.arg)); return m ? parseInt(m[1], 16) : null; };
   const guardKw = s => { const m = /^"([^"]*)"/.exec(dvmBareOperand(s.node.arg)); return m ? m[1] : dvmBareOperand(s.node.arg); };
-  const sayRun = run => {
+  const proseRun = run => {
     const back = new Set(run.filter(s => s.kind === 'jump' && s.targets.length === 1 && s.targets[0] === loopAt).map(s => s.abs));
     const body = run.filter(s => s !== wait);
     if (!body.length) return [];
@@ -2325,12 +2325,12 @@ function dvmSayConversation(stmts, ctx) {
     const loops = dvmLoopExits(rec.tree, ctx);
     ctx.notes.length = 0;
     const drop = cl => cl.filter(c => !(c.at !== null && back.has(c.at) && /^go to /.test(c.text))).map(c => c.kids ? Object.assign(c, { kids: drop(c.kids) }) : c);
-    return drop(dvmSayTree(rec.tree, ctx, loops));
+    return drop(dvmProseTree(rec.tree, ctx, loops));
   };
   const build = list => {
     const out = [];
     let run = [];
-    const flush = () => { if (run.length) { out.push(...sayRun(run)); run = []; } };
+    const flush = () => { if (run.length) { out.push(...proseRun(run)); run = []; } };
     for (let i = 0; i < list.length; i++) {
       const s = list[i];
       if (!guard(s)) { run.push(s); continue; }
@@ -2372,9 +2372,9 @@ function dvmReadRender(arc, b, resid, opts) {
     const answers = r.ops.filter(o => o[2] === 'conversation_response').length;
     if (answers) {
       const self = slots.has(st) && args.length ? 'Arg00' : null;
-      const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true, self }, extra);
+      const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], asProse: true, self }, extra);
       let clauses = null;
-      try { clauses = dvmSayConversation(dvmStatementList(dvmForest(r.ops), st), ctx); } catch (e) { clauses = null; }
+      try { clauses = dvmProseConversation(dvmStatementList(dvmForest(r.ops), st), ctx); } catch (e) { clauses = null; }
       out.push({ at: st, name, args: self ? ['it'].concat(args.slice(1)) : args, answers, clauses,
                  summary: clauses ? 'answers ' + answers + ' prompt' + (answers === 1 ? '' : 's') : '', self: !!self, bad: r.bad || 0, ops: r.ops });
       continue;
@@ -2401,12 +2401,12 @@ function dvmReadRender(arc, b, resid, opts) {
     const ARG2 = { 10: 'the target', 21: 'the signal', 13: 'the wearer', 14: 'the wearer' };
     const methodNo = Object.keys(ARG2).find(k => DVM_SYM.method[k] === name);
     const target = self && methodNo !== undefined && args.length > 1 ? 'Arg01' : null;
-    const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], say: true, self, target, targetName: target ? ARG2[methodNo] : null }, extra);
+    const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], asProse: true, self, target, targetName: target ? ARG2[methodNo] : null }, extra);
     const stmts = dvmStatementList(dvmForest(r.ops), st);
     const rec = dvmRecoverStructure(stmts);
     const loops = dvmLoopExits(rec.tree, ctx);
     ctx.notes.length = 0;
-    const clauses = dvmSayTree(rec.tree, ctx, loops);
+    const clauses = dvmProseTree(rec.tree, ctx, loops);
     /* The compiler ends every function with `return 0`, reached or not
        (the maintainer asked how Look could return twice: it cannot). A bare
        return straight after another at the top, with nothing jumping to it,
@@ -2420,8 +2420,8 @@ function dvmReadRender(arc, b, resid, opts) {
         if (prev.returns !== undefined && !prev.kids && c.returns !== undefined && !c.kids && !jumped.has(c.at)) { clauses.splice(i, 1); i--; }
       }
     }
-    const said = args.map((a, k) => a === self ? 'it' : a === target ? ctx.targetName : a);
-    out.push({ at: st, name, args: said, clauses, summary: dvmSaySummary(clauses),
+    const proseText = args.map((a, k) => a === self ? 'it' : a === target ? ctx.targetName : a);
+    out.push({ at: st, name, args: proseText, clauses, summary: dvmProseSummary(clauses),
                self: !!self, bad: r.bad || 0, tree: rec.tree, ops: r.ops });
   }
   return out;

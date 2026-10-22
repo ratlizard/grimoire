@@ -70,12 +70,12 @@ else {
         for (const which of ['data', 'rsrc']) {
           if (!e[which]) continue;
           sandbox.__p = e.path;
-          const got = ev(`(() => { try { return parseCompactProArchive(__c).entries.find(x => x.path === __p).read('${which}'); } catch (er) { return er.message; } })()`);
-          if (typeof got === 'string') { fail(`${e.path} ${which}`, got); continue; }
+          const actual = ev(`(() => { try { return parseCompactProArchive(__c).entries.find(x => x.path === __p).read('${which}'); } catch (er) { return er.message; } })()`);
+          if (typeof actual === 'string') { fail(`${e.path} ${which}`, actual); continue; }
           const f = join(tmp, e.path);
-          const want = which === 'data' ? (existsSync(f) ? readFileSync(f) : null) : (existsSync(f + '.rsrc') ? appleDoubleRsrc(readFileSync(f + '.rsrc')) : null);
-          if (!want) { fail(`${e.path} ${which}`, 'unar did not extract it'); continue; }
-          if (!same(got, want)) fail(`${e.path} ${which}`, `${got.length} bytes, not what unar extracts (${want.length})`);
+          const expected = which === 'data' ? (existsSync(f) ? readFileSync(f) : null) : (existsSync(f + '.rsrc') ? appleDoubleRsrc(readFileSync(f + '.rsrc')) : null);
+          if (!expected) { fail(`${e.path} ${which}`, 'unar did not extract it'); continue; }
+          if (!same(actual, expected)) fail(`${e.path} ${which}`, `${actual.length} bytes, not what unar extracts (${expected.length})`);
           else forks++;
         }
       }

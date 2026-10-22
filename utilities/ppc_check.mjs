@@ -123,36 +123,36 @@ function llvmRead(words, name) {
   writeFileSync(file, words.map(hex).join('\n') + '\n');
   const run = spawnSync(llvmMc, ['--disassemble', '--triple=powerpc', file], { maxBuffer: 1 << 30, encoding: 'utf8' });
   const out = run.stdout || '', err = run.stderr || '';
-  const refused = new Set([...err.matchAll(/:(\d+):\d+: warning: invalid instruction encoding/g)].map(m => +m[1] - 1));
+  const invalidLines = new Set([...err.matchAll(/:(\d+):\d+: warning: invalid instruction encoding/g)].map(m => +m[1] - 1));
   const lines = out.split('\n').filter(l => l.trim().length);
-  if (lines.length + refused.size !== words.length) return null;
+  if (lines.length + invalidLines.size !== words.length) return null;
   let k = 0;
-  return words.map((w, i) => refused.has(i) ? null : norm(lines[k++]));
+  return words.map((w, i) => invalidLines.has(i) ? null : norm(lines[k++]));
 }
 
 // ---- the comparison --------------------------------------------------------
-function compare(words, theirs, decode) {
-  const r = { same: 0, refusedBoth: 0, differ: [], ours: [], theirsOnly: new Map() };
+function compare(words, referenceLines, decode) {
+  const r = { same: 0, rejectedBoth: 0, differ: [], onlyDecoded: [], onlyReference: new Map() };
   words.forEach((w, i) => {
-    const d = decode(w), mine = d ? norm(d.text) : null, L = theirs[i];
-    if (mine === null && L === null) r.refusedBoth++;
-    else if (L === null) r.ours.push(w);
-    else if (mine === null) { const m = L.split(' ')[0]; r.theirsOnly.set(m, (r.theirsOnly.get(m) || 0) + 1); }
-    else if (mine === L) r.same++;
-    else r.differ.push([w, L, mine]);
+    const d = decode(w), decodedText = d ? norm(d.text) : null, L = referenceLines[i];
+    if (decodedText === null && L === null) r.rejectedBoth++;
+    else if (L === null) r.onlyDecoded.push(w);
+    else if (decodedText === null) { const m = L.split(' ')[0]; r.onlyReference.set(m, (r.onlyReference.get(m) || 0) + 1); }
+    else if (decodedText === L) r.same++;
+    else r.differ.push([w, L, decodedText]);
   });
   return r;
 }
 const w8 = w => w.toString(16).padStart(8, '0');
 let compared = 0, llvmAlone = new Map(), bodyWords = 0, control = '';
 for (const set of sets) {
-  const theirs = llvmRead(set.words, set.name);
-  if (!theirs) { fail(set.name + ': llvm-mc’s output does not account for every word'); continue; }
-  const r = compare(set.words, theirs, ctx.ppcDecode);
+  const referenceLines = llvmRead(set.words, set.name);
+  if (!referenceLines) { fail(set.name + ': llvm-mc’s output does not account for every word'); continue; }
+  const r = compare(set.words, referenceLines, ctx.ppcDecode);
   compared += r.same;
-  for (const [m, n] of r.theirsOnly) llvmAlone.set(m, (llvmAlone.get(m) || 0) + n);
+  for (const [m, n] of r.onlyReference) llvmAlone.set(m, (llvmAlone.get(m) || 0) + n);
   if (r.differ.length) fail(`${set.name}: ${r.differ.length} word(s) read differently, e.g. ` + r.differ.slice(0, 4).map(([w, L, J]) => `${w8(w)} LLVM "${L}" here "${J}"`).join('; '));
-  if (r.ours.length) fail(`${set.name}: ${r.ours.length} word(s) LLVM rejects read here, e.g. ` + r.ours.slice(0, 4).map(w => w8(w) + ' "' + ctx.ppcDecode(w).text + '"').join('; '));
+  if (r.onlyDecoded.length) fail(`${set.name}: ${r.onlyDecoded.length} word(s) LLVM rejects read here, e.g. ` + r.onlyDecoded.slice(0, 4).map(w => w8(w) + ' "' + ctx.ppcDecode(w).text + '"').join('; '));
   if (set.name === 'code section') {
     // Every word of every routine's body is an instruction, and is read.
     let unread = [];
@@ -160,8 +160,8 @@ for (const set of sets) {
     if (unread.length) fail(`${unread.length} word(s) inside routines not read, e.g. ${unread.slice(0, 4).join(', ')}`);
     // The negative control, on the words the site reads.
     const wrong = w => { const d = ctx.ppcDecode(w); return d && d.mn === 'addi' ? Object.assign({}, d, { text: d.text.replace(/^addi/, 'addic') }) : d; };
-    const addi = set.words.filter((w, i) => theirs[i] !== null && (ctx.ppcDecode(w) || {}).mn === 'addi').length;
-    const c = compare(set.words, theirs, wrong);
+    const addi = set.words.filter((w, i) => referenceLines[i] !== null && (ctx.ppcDecode(w) || {}).mn === 'addi').length;
+    const c = compare(set.words, referenceLines, wrong);
     if (!addi || c.differ.length !== addi) fail(`the negative control: addi misspelt ${addi} times, ${c.differ.length} difference(s) reported`);
     else control = `; misspelling addi is caught ${addi.toLocaleString()} times out of ${addi.toLocaleString()}`;
   }

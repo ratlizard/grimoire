@@ -88,18 +88,18 @@ const QV_START = 30, QV_STAGE = 31, WRAP = 120, HOLD = 40;
 
 // A line the game prints: quoted text is the speaker's balloon, a * after it
 // waits for a click, text outside quotes goes to the message line.
-const say = s => { if (!/^[\x20-\x7E\n]+$/.test(s) || /\s\/\//.test(s)) throw new Error('a line the listing cannot carry: ' + s); return 'string(implicit) ' + JSON.stringify(s); };
-const speaker = (who, slot) => ['sys TalkParticipant', 'short ' + who, 'byte ' + slot, 'end'];
+const stringOp = s => { if (!/^[\x20-\x7E\n]+$/.test(s) || /\s\/\//.test(s)) throw new Error('a line the listing cannot carry: ' + s); return 'string(implicit) ' + JSON.stringify(s); };
+const speaker = (character, slot) => ['sys TalkParticipant', 'short ' + character, 'byte ' + slot, 'end'];
 const settle = [
   'sys CompleteQuest', 'byte 17', 'end',
   'call_resource 0xF01', 'short ' + APIS, 'byte 5', 'end',
   'call_resource SetCharacterFlag (0xF00)', 'short ' + APIS, 'byte 2', 'end',
   'call_resource GainExp (0xE8B)', 'global PlayerCharacter (0x5)', 'byte 30', 'end',
-  say('The Wine Contract is settled. Apis, you suspect, owes you a meal.\n')];
+  stringOp('The Wine Contract is settled. Apis, you suspect, owes you a meal.\n')];
 const ending = ['sys OpenConversation', 'end', ...speaker(GLAUCUS, 0),
-  say('"You did it!  My vineyard is sticky, but it\'s safe."*"Here - give me that contract."*'),
-  say('Glaucus fills in every blank: nine hundred and forty barrels of sour must, for delivery to Apis.*'),
-  say('"She\'ll love it."*"She won\'t love it."*"Tell her it\'s a vintage."*'),
+  stringOp('"You did it!  My vineyard is sticky, but it\'s safe."*"Here - give me that contract."*'),
+  stringOp('Glaucus fills in every blank: nine hundred and forty barrels of sour must, for delivery to Apis.*'),
+  stringOp('"She\'ll love it."*"She won\'t love it."*"Tell her it\'s a vintage."*'),
   'sys FinishConversation', 'end', ...settle];
 
 // The days since the contract was taken: quest values 30 and 31 of the
@@ -112,7 +112,7 @@ const DAY = ['global GameDay (0xF)', 'byte ' + WRAP, 'mod'];
 const START = ['sys GetState', 'byte ' + QV_START, 'end'];
 const cap = (v, n) => ['if_not', 'local Var0' + v, 'byte ' + n, 'gt', 'then -> cap' + v, 'set_local 0x0' + v, 'byte ' + n, 'end', 'cap' + v + ':'];
 const warning = (days, stage, line) => ['if_not', 'local Var00', 'byte ' + days, 'ge', 'sys GetState', 'byte ' + QV_STAGE, 'end', 'byte ' + stage, 'lt', 'and', 'then -> warned' + stage,
-  'sys SetState', 'byte ' + QV_STAGE, 'byte ' + stage, 'end', say(line + '\n'), 'branch done', 'warned' + stage + ':'];
+  'sys SetState', 'byte ' + QV_STAGE, 'byte ' + stage, 'end', stringOp(line + '\n'), 'branch done', 'warned' + stage + ':'];
 
 const gremlin = ['subroutine 0x0205',
   'if_not', 'arg Arg01', 'is_type Zone', 'then -> done',
@@ -129,22 +129,22 @@ const gremlin = ['subroutine 0x0205',
   'set_field status_flags', 'arg Arg00', 'end', 'byte 1', 'end',
   'sys OpenConversation', 'end',
   ...speaker(1, 2),
-  say('"Apis sent me with a wine contract.  How many barrels can you spare?"*'),
+  stringOp('"Apis sent me with a wine contract.  How many barrels can you spare?"*'),
   ...speaker(GLAUCUS, 0),
-  say('"Barrels?  Haven\'t you heard?  Every drop I had went sour overnight."*'),
+  stringOp('"Barrels?  Haven\'t you heard?  Every drop I had went sour overnight."*'),
   'if_not', 'word Character.' + GRAPES[0], 'get_field full_health (0x1D)', 'byte 0', 'gt', 'then -> nogrape',
   'if_not', 'local Var00', 'byte 5', 'lt', 'then -> days',
-  say('"And ever since, the grapes have been... thinking."*'),
+  stringOp('"And ever since, the grapes have been... thinking."*'),
   'branch talked',
   'days:',
   'if_not', 'local Var00', 'byte 14', 'lt', 'then -> weeks',
-  say('"And ever since, the grapes have been thinking.  They\'ve had days to think."*"They look... potent."*'),
+  stringOp('"And ever since, the grapes have been thinking.  They\'ve had days to think."*"They look... potent."*'),
   'branch talked',
   'weeks:',
-  say('"And ever since, the grapes have been thinking.  For weeks."*"At night I hear them doing push-ups."*'),
+  stringOp('"And ever since, the grapes have been thinking.  For weeks."*"At night I hear them doing push-ups."*'),
   'talked:',
-  say('Out among the trellises, something goes squelch.*'),
-  say('"Oh no.  Oh no.  They heard you say barrels."*"They do NOT want to be wine."*"Squash them before they get to the rest of the vines, and I\'ll sign anything you like!"*'),
+  stringOp('Out among the trellises, something goes squelch.*'),
+  stringOp('"Oh no.  Oh no.  They heard you say barrels."*"They do NOT want to be wine."*"Squash them before they get to the rest of the vines, and I\'ll sign anything you like!"*'),
   'sys FinishConversation', 'end',
   // How strong the wait has made them: level, body, reflex and health, each
   // from the shipped record's figure up by the days, each to a ceiling.
@@ -158,29 +158,29 @@ const gremlin = ['subroutine 0x0205',
   // on both the slot and the record; its figures; then the alive bit, which
   // hatches it.
   ...GRAPES.flatMap((g, k) => {
-    const slot = 'word 0x' + g.toString(16).padStart(4, '0') + '@Type.Prop', me = 'word Character.' + g;
+    const slot = 'word 0x' + g.toString(16).padStart(4, '0') + '@Type.Prop', characterWord = 'word Character.' + g;
     const heroAt = (f, d) => ['global PlayerCharacter (0x5)', 'cast Character (0x40)', 'get_field ' + f, 'byte ' + d, 'add'];
     return [
       'set_field flags (0x0)', slot, 'end', 'byte 4', 'end',
       'set_field aspect_and_proptype (0x5)', slot, 'end', 'short ' + BIRD, 'end',
       'set_field x (0x1)', slot, 'end', ...heroAt('x (0x1)', AROUND[k][0]), 'end',
       'set_field y (0x2)', slot, 'end', ...heroAt('y (0x2)', AROUND[k][1]), 'end',
-      'set_field x (0x1)', me, 'end', ...heroAt('x (0x1)', AROUND[k][0]), 'end',
-      'set_field y (0x2)', me, 'end', ...heroAt('y (0x2)', AROUND[k][1]), 'end',
-      'set_field level (0x1B)', me, 'end', 'local Var01', 'end',
-      'set_field body (0x17)', me, 'end', 'local Var02', 'end',
-      'set_field reflex (0x18)', me, 'end', 'local Var03', 'end',
-      'set_field full_health (0x1D)', me, 'end', 'local Var04', 'end',
-      'set_field health (0x1C)', me, 'end', 'local Var04', 'end',
-      'set_field behavior (0x15)', me, 'end', 'byte ' + ATTACK, 'end',
-      'set_field status_flags (0x14)', me, 'end', 'byte 1', 'end'];
+      'set_field x (0x1)', characterWord, 'end', ...heroAt('x (0x1)', AROUND[k][0]), 'end',
+      'set_field y (0x2)', characterWord, 'end', ...heroAt('y (0x2)', AROUND[k][1]), 'end',
+      'set_field level (0x1B)', characterWord, 'end', 'local Var01', 'end',
+      'set_field body (0x17)', characterWord, 'end', 'local Var02', 'end',
+      'set_field reflex (0x18)', characterWord, 'end', 'local Var03', 'end',
+      'set_field full_health (0x1D)', characterWord, 'end', 'local Var04', 'end',
+      'set_field health (0x1C)', characterWord, 'end', 'local Var04', 'end',
+      'set_field behavior (0x15)', characterWord, 'end', 'byte ' + ATTACK, 'end',
+      'set_field status_flags (0x14)', characterWord, 'end', 'byte 1', 'end'];
   }),
-  say('Six bunches of grapes the size of sheep rise from the vines, dripping sour must.\n'),
+  stringOp('Six bunches of grapes the size of sheep rise from the vines, dripping sour must.\n'),
   'branch done',
   'nogrape:',
-  say('"...you know what?  Give me that."*'),
-  say('Glaucus fills in every blank: nine hundred and forty barrels of sour must, for delivery to Apis.*'),
-  say('"She\'ll love it."*"She won\'t love it."*'),
+  stringOp('"...you know what?  Give me that."*'),
+  stringOp('Glaucus fills in every blank: nine hundred and forty barrels of sour must, for delivery to Apis.*'),
+  stringOp('"She\'ll love it."*"She won\'t love it."*'),
   'sys FinishConversation', 'end', ...settle,
   'branch done',
   // Anywhere else, a line now and then while the grapes wait, the latest
@@ -192,7 +192,7 @@ const gremlin = ['subroutine 0x0205',
   ...warning(2, 1, 'Somewhere, grapes are ripening.'),
   'done:', 'return', 'byte 0', 'end'].join('\n');
 
-const grapeTalk = ['subroutine 0x0100', say('"Glurp."*"...we are not wine."'), 'return', 'byte 0', 'end'].join('\n');
+const grapeTalk = ['subroutine 0x0100', stringOp('"Glurp."*"...we are not wine."'), 'return', 'byte 0', 'end'].join('\n');
 const grapeDeath = ['subroutine 0x0201',
   'set_local 0x00', 'byte 0', 'end',
   ...GRAPES.flatMap(g => [
@@ -316,8 +316,8 @@ const out = vm.runInContext(`(() => {
   const marc = openDelverArchive(m.bytes);
   dvmSetResourceSymbols(loadResourceSymbolsFrom(marc));
   const back = [${GREMLIN}, 0x1800 + GRAPES[0]].map(id => dvmStructureRender(marc, smartDecrypt(getResourceBytes(marc, id), id).data, id, {})).join('\\n\\n');
-  const same = added.every(id => { const s = spec.resources.find(r => r.resid === id); const got = smartDecrypt(getResourceBytes(marc, id), id).data; return got.length === s.data.length && got.every((v, i) => v === s.data[i]); });
-  const tableSame = changed.every(id => { const s = spec.resources.find(r => r.resid === id); const got = smartDecrypt(getResourceBytes(marc, id), id).data; return got.length === s.data.length && got.every((v, i) => v === s.data[i]); });
+  const same = added.every(id => { const s = spec.resources.find(r => r.resid === id); const actual = smartDecrypt(getResourceBytes(marc, id), id).data; return actual.length === s.data.length && actual.every((v, i) => v === s.data[i]); });
+  const tableSame = changed.every(id => { const s = spec.resources.find(r => r.resid === id); const actual = smartDecrypt(getResourceBytes(marc, id), id).data; return actual.length === s.data.length && actual.every((v, i) => v === s.data[i]); });
   return { patch: w.bytes, bin, merged: m.bytes, added: m.added, replaced: m.replaced, same, tableSame, back };
 })()`, ctx);
 const hex = a => Array.from(a, i => '0x' + i.toString(16).toUpperCase()).join(' ') || 'none';

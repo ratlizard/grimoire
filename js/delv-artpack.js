@@ -163,15 +163,15 @@ function artPackChoose(pack, kind, name, n) {
   const key = kind + '\n' + name;
   let hit = pack.chosen.get(key);
   if (!hit) {
-    const want = [];
+    const wordForms = [];
     for (const w of String(name || '').toLowerCase().split(/[^a-z]+/).filter(Boolean))
-      want.push([w, w.replace(/s$/, '')].concat(ART_PACK_WORDS[w] || []));
+      wordForms.push([w, w.replace(/s$/, '')].concat(ART_PACK_WORDS[w] || []));
     const drawers = ART_PACK_DRAWERS[kind];
     let best = 0, top = [];
     for (const f of pack.files) {
       if (!drawers.some(re => re.test(f.dir))) continue;
       let score = 0;
-      for (const alts of want) {
+      for (const alts of wordForms) {
         if (alts.some(a => f.words.includes(a))) score += 3;
         else if (alts.some(a => f.folders.includes(a))) score += 1;
       }

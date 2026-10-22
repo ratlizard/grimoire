@@ -427,9 +427,9 @@ try {
        has to land on Cademia's pictogram: that is the whole claim, and in the
        old renderer it was made three times and two of them disagreed. */
     const cx = cad.ox + ((b.x0 + b.x1 + 1) / 2) * cad.s;
-    const want = (gwC.x0 + gwC.x1 + 1) / 2;
-    if (Math.abs(cx - want) > 0.01)
-      fail('atlas', `Cademia's middle sits at world ${cx.toFixed(2)}, its icon at ${want}`);
+    const expected = (gwC.x0 + gwC.x1 + 1) / 2;
+    if (Math.abs(cx - expected) > 0.01)
+      fail('atlas', `Cademia's middle sits at world ${cx.toFixed(2)}, its icon at ${expected}`);
     else if (Math.abs((b.x1 - b.x0 + 1) * cad.s - (gwC.x1 - gwC.x0 + 1)) > 1.2)
       fail('atlas', 'Cademia does not cover its pictogram');
     else console.log('  atlas: ' + sc.nodes.length + ' nodes; Cademia sits on its icon ' +
@@ -512,7 +512,7 @@ try {
     {
       const tv = pairs.get(0x8025);
       const card = peek('atlasStateCard')(0x8024);
-      if (!tv || tv.place !== 0x8024 || !tv.flag || tv.flag.v !== 28 || tv.flag.resid !== 0x1424 || !tv.without || !/shimmers and then fades/.test(tv.says))
+      if (!tv || tv.place !== 0x8024 || !tv.flag || tv.flag.v !== 28 || tv.flag.resid !== 0x1424 || !tv.without || !/shimmers and then fades/.test(tv.message))
         fail('atlas', 'Tavara No Fortress is not read as the fortress\'s other state: ' + JSON.stringify(tv));
       else if (!/Show Tavara No Fortress/.test(card) || !/jumpToScriptAt|srcNum/.test(card) || !/ring gives the flag/.test(card))
         fail('atlas', 'the fortress\'s card does not offer the island without it, link the flag, and say what gives it: ' + card.replace(/<[^>]+>/g, ' '));
@@ -696,8 +696,8 @@ try {
      way script is, so the rules the panel cannot live without are checked the
      only way they can be: by looking for them. */
   {
-    const need = [/#atlasViewport\s*\{[^}]*height\s*:/, /#atlasHover\s*\{[^}]*display\s*:\s*none/];
-    if (need.some(re => !re.test(html)))
+    const requiredPatterns = [/#atlasViewport\s*\{[^}]*height\s*:/, /#atlasHover\s*\{[^}]*display\s*:\s*none/];
+    if (requiredPatterns.some(re => !re.test(html)))
       fail('atlas', 'the atlas panel has lost its stylesheet rules — ' +
                     'a viewport with no height shows nothing');
     else console.log('  atlas: the panel retains the rules it needs');
@@ -819,7 +819,7 @@ try {
       const realRegion = ctx.paintMapBaseRegion;
       ctx.paintMapBaseRegion = function () { regions++; return realRegion.apply(this, arguments); };
       const tiles = peek('atlasTiles');
-      const onScreenWanted = () => peek('atlasTileWant').filter(w => !w.tile && w.d < 1e6).length;
+      const countQueuedOnScreen = () => peek('atlasTileQueue').filter(w => !w.tile && w.d < 1e6).length;
       peek('atlasTilesClear')();
       av2.touching = true;
       peek('paintAtlas')(); drainRaf();
@@ -827,19 +827,19 @@ try {
       av2.touching = false;
       ctx.__peek('atlasMovedAt = 0');
       peek('paintAtlas')();
-      const inPaint = regions, wanted = onScreenWanted();
+      const inPaint = regions, queuedCount = countQueuedOnScreen();
       drainRaf();
-      const made = tiles.size, madeRegions = regions, left = onScreenWanted();
+      const made = tiles.size, madeRegions = regions, left = countQueuedOnScreen();
       peek('atlasPanBy')(3, 2);
       peek('paintAtlas')();
-      const panRegions = regions - madeRegions, panWanted = onScreenWanted();
+      const panRegions = regions - madeRegions, queuedAfterPan = countQueuedOnScreen();
       ctx.__peek('atlasMovedAt = 0');
       drainRaf();
       ctx.paintMapBaseRegion = realRegion;
-      if (moving || inPaint || !wanted || !made || madeRegions !== made || left || panRegions || panWanted)
+      if (moving || inPaint || !queuedCount || !made || madeRegions !== made || left || panRegions || queuedAfterPan)
         fail('atlas', `native art: ${moving} painted or made with a finger down, ${inPaint} in the paint, ` +
-                      `${wanted} wanted, ${made} tiles from ${madeRegions} paintings, ${left} left, ` +
-                      `${panRegions} painted and ${panWanted} wanted by a small pan`);
+                      `${queuedCount} queued, ${made} tiles from ${madeRegions} paintings, ${left} left, ` +
+                      `${panRegions} painted and ${queuedAfterPan} queued by a small pan`);
       else console.log(`  atlas: Cademia's native art is ${made} tiles at ${TSc} px a square, made after the paint ` +
                        'and none with a finger down, and a small pan draws from them');
       // The people on the node are worked out once for the hour.
@@ -860,10 +860,10 @@ try {
       drainRaf();
       const wTS = tileTS(root);
       const worldTiles = Array.from(peek('atlasTiles').values()).filter(t => t.key.startsWith(root.resid + ':'));
-      if (wTS !== 32 || !worldTiles.length || worldTiles.some(t => t.TS !== 32) || onScreenWantedWorld())
+      if (wTS !== 32 || !worldTiles.length || worldTiles.some(t => t.TS !== 32) || countQueuedOnScreenWorld())
         fail('atlas', `the world at its closest zoom (${peek('atlasNodePpt')(root, av2).toFixed(1)} px a square) needs tiles of ${wTS} px and has ${worldTiles.length}`);
       else console.log(`  atlas: the world at its closest zoom is ${worldTiles.length} tiles of its native 32 px a square`);
-      function onScreenWantedWorld() { return peek('atlasTileWant').filter(w => !w.tile && w.d < 1e6 && w.node === root).length; }
+      function countQueuedOnScreenWorld() { return peek('atlasTileQueue').filter(w => !w.tile && w.d < 1e6 && w.node === root).length; }
       Object.assign(av2, was);
       ctx.__peek('atlasMovedAt = 0');
       peek('paintAtlas')(); drainRaf();
@@ -1005,9 +1005,9 @@ try {
     }
     if (bare) {
       const quiet = ctx.squareCard(ode.resid & 0xFF, eO, bare.x, bare.y, ode.name, false);
-      const asked = ctx.squareCard(ode.resid & 0xFF, eO, bare.x, bare.y, ode.name, true);
+      const touchCard = ctx.squareCard(ode.resid & 0xFF, eO, bare.x, bare.y, ode.name, true);
       if (quiet) fail('square card', 'a passing pointer got a card over bare ground');
-      else if (!asked || !/hvWhat/.test(asked.html)) fail('square card', 'a held finger got no ground');
+      else if (!touchCard || !/hvWhat/.test(touchCard.html)) fail('square card', 'a held finger got no ground');
       else console.log('  square card: names ' + someone.name + '; quiet over bare ground; a held finger shows the ground');
     }
     const propSq = (eO.result.props || []).find(p => p.cells.length && !folk.some(c => Math.round(c.x) === p.cells[0][0] && Math.round(c.y) === p.cells[0][1]));

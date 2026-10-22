@@ -652,8 +652,8 @@ function setUnditherScope(v) {
 }
 function refreshUnditherControls() {
   try {
-    const want = !window.UNDITHER ? 'off' : window.UNDITHER_ALL ? 'all' : 'portraits';
-    for (const r of document.querySelectorAll('input[name="unditherScope"]')) r.checked = r.value === want;
+    const scope = !window.UNDITHER ? 'off' : window.UNDITHER_ALL ? 'all' : 'portraits';
+    for (const r of document.querySelectorAll('input[name="unditherScope"]')) r.checked = r.value === scope;
   } catch (e) { quiet(e); }
 }
 

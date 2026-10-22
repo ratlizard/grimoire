@@ -69,7 +69,7 @@ function pyIntList(src, name) {
   return new Set(m[1].split(',').map(s => s.trim()).filter(Boolean).map(Number));
 }
 // `name = { 0x0210: False }`
-function pySingleKnown(src, name) {
+function pySingleSet(src, name) {
   const m = new RegExp(`${name}\\s*=\\s*\\{([^}]*)\\}`).exec(src);
   if (!m) throw new Error(`${name} not found`);
   const out = new Map();
@@ -106,7 +106,7 @@ function pyNameMap(src, name, {valueIsName = false} = {}) {
 const scenario = archivePy.slice(archivePy.indexOf('class Scenario'));
 const REF_ENCRYPTED = pyIntList(scenario, 'known_encrypted');
 const REF_CLEAR = pyIntList(scenario, 'known_clear');
-const REF_SINGLE = pySingleKnown(scenario, 'single_known');
+const REF_SINGLE = pySingleSet(scenario, 'single_known');
 
 const REF_SYSCALL = pyNameMap(symbolsPy, 'ASM_SYSCALL_NAMES');
 const REF_FIELD = pyNameMap(symbolsPy, 'ASM_STRUCT_HINTS');
@@ -147,9 +147,9 @@ const setsEqual = (a, b) => a && b && a.size === b.size && [...a].every(v => b.h
     if (setsEqual(vClear, REF_CLEAR)) ok('clear subindexes', `${vClear.size} match delvmod`);
     else fail('clear subindexes', `viewer ${[...vClear].sort((a,b)=>a-b)} vs delvmod ${[...REF_CLEAR].sort((a,b)=>a-b)}`);
 
-    const wantClear = new Set([...REF_SINGLE].filter(([, enc]) => !enc).map(([rid]) => rid));
-    if (setsEqual(vSingle, wantClear)) ok('per-resource exceptions', [...wantClear].map(r => '0x' + r.toString(16).toUpperCase()).join(', ') || 'none');
-    else fail('per-resource exceptions', `viewer ${[...(vSingle || [])]} vs delvmod ${[...wantClear]}`);
+    const expectedClear = new Set([...REF_SINGLE].filter(([, enc]) => !enc).map(([rid]) => rid));
+    if (setsEqual(vSingle, expectedClear)) ok('per-resource exceptions', [...expectedClear].map(r => '0x' + r.toString(16).toUpperCase()).join(', ') || 'none');
+    else fail('per-resource exceptions', `viewer ${[...(vSingle || [])]} vs delvmod ${[...expectedClear]}`);
 
     const overlap = [...REF_ENCRYPTED].filter(s => REF_CLEAR.has(s));
     if (overlap.length) fail('delvmod tables', 'a subindex is in both lists: ' + overlap.join(', '));

@@ -70,10 +70,10 @@ await new Promise(r => setTimeout(r, 200));
    loop are smoke_views.mjs. */
 const slice = new URL(import.meta.url).searchParams.get('slice');
 const cats = onlyCat ? [onlyCat] : CATEGORY_VALUES;
-const wanted = slice === 'a' ? cats.filter(v => String(v) === '127') : slice === 'b' ? cats.filter(v => String(v) !== '127') : cats;
+const selectedCategories = slice === 'a' ? cats.filter(v => String(v) === '127') : slice === 'b' ? cats.filter(v => String(v) !== '127') : cats;
 let galleries = 0, opened = 0, cellsSeen = 0;
 const took = [];   // [category, ms], so the slow ones are named rather than assumed
-for (const v of wanted) {
+for (const v of selectedCategories) {
   const grid = REGISTRY.get('sheetGrid');
   const tv = Date.now();
   took.push([v, 0]);

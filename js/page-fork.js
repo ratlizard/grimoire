@@ -164,7 +164,7 @@ function seldaneStrikes() {
 // One glyph, drawn from the loaded family into a column of `height` rows and
 // returned as the set bits of each row. Threshold on alpha: the rasteriser is
 // antialiasing and a bitmap strike has no grey.
-function rasteriseGlyph(ch, family, px, height, ascent) {
+function rasterizeGlyph(ch, family, px, height, ascent) {
   // Room on both sides of the pen for ink that overhangs it: the image is
   // the ink from the leftmost of the pen and its first inked column to its
   // last inked column, and `left` is where that starts against the pen,
@@ -197,7 +197,7 @@ function rasteriseGlyph(ch, family, px, height, ascent) {
   }
   return { rows, width: x1 - x0, left: x0 - pad, advance: adv };
 }
-// One glyph out of the strike as it stands, in the same shape rasteriseGlyph
+// One glyph out of the strike as it stands, in the same shape rasterizeGlyph
 // returns, so a slot can be carried through a rewrite untouched.
 function copyStrikeGlyph(spec, i) {
   const rowBytes = spec.rowWords * 2, w = spec.loc[i + 1] - spec.loc[i], rows = [];
@@ -274,7 +274,7 @@ function rebuildStrike(spec, family) {
     // strikes, whose box was being replaced by whatever the chosen face draws
     // for a lowercase c. It is carried through as it stands.
     if (!had[i] || i === n - 1) { entries.push({ keep: spec.ow[i], img: had[i] ? copyStrikeGlyph(spec, i) : null }); continue; }
-    const g = rasteriseGlyph(String.fromCharCode(spec.firstChar + i), family, fit.px, spec.fRectHeight, fit.base);
+    const g = rasterizeGlyph(String.fromCharCode(spec.firstChar + i), family, fit.px, spec.fRectHeight, fit.base);
     entries.push(g && g.width > 0 ? { g, img: g } : { keep: spec.ow[i], img: copyStrikeGlyph(spec, i) });
   }
   /* The offset is counted from kernMax: an image starts at the pen plus
@@ -466,9 +466,9 @@ function startButtonsCarved() {
 // greyed Onward has Onward's.
 function startWords() {
   const w = {};
-  for (const b of START_PLAQUES.buttons) if (!b.greyed) w[b.id] = b.id in window.START_WORDS ? window.START_WORDS[b.id] : b.word;
-  for (const b of START_PLAQUES.buttons) if (b.greyed) {
-    const twin = START_PLAQUES.buttons.find(o => !o.greyed && o.x === b.x && o.y === b.y);
+  for (const b of START_PLAQUES.buttons) if (!b.grayed) w[b.id] = b.id in window.START_WORDS ? window.START_WORDS[b.id] : b.word;
+  for (const b of START_PLAQUES.buttons) if (b.grayed) {
+    const twin = START_PLAQUES.buttons.find(o => !o.grayed && o.x === b.x && o.y === b.y);
     w[b.id] = twin ? w[twin.id] : b.word;
   }
   return w;
@@ -556,7 +556,7 @@ function startButtonPictures(orig, words, family) {
   }
   const s = forkPictureRGBA(orig, board);
   for (const b of buttons) {
-    if (b.greyed) continue;
+    if (b.grayed) continue;
     plaquePaste(s.rgba, s.W, cut(plaqueCrop(s.rgba, s.W, b.x, b.y, W, H), words[b.id], 1000 + b.id, 'board'), b.x, b.y, W, H);
   }
   out.set(board, s);
@@ -642,7 +642,7 @@ function startButtonsPanel() {
     (have
       ? '<p class="mechLede">Carve the words on the start screen’s buttons in the game’s font as it is in this copy. To carve them in another font, choose it in Font Replacer first.</p>' +
         '<ul class="ruleList"><li>To see them in the game, download <b>Your Patch</b> in the ' + actionChip('Patch Generator', "showCategory('CHANGES')") + ' as a disk image.</li></ul>' +
-        '<div class="mkRow">' + START_PLAQUES.buttons.filter(b => !b.greyed).map(b =>
+        '<div class="mkRow">' + START_PLAQUES.buttons.filter(b => !b.grayed).map(b =>
           '<label class="mkField">' + svEsc(b.word) + ' <input type="text" maxlength="24" value="' + svEsc(words[b.id]) + '" oninput="window.START_WORDS[' + b.id + '] = this.value"></label>').join('') + '</div>' +
         '<div class="mechStats"><button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="startButtonsCarve()">Carve the Buttons</button>' +
         (carved ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="restoreStartButtons()">Restore the Buttons</button>' : '') +
@@ -1685,10 +1685,10 @@ function showMacRsrcDetail(type, id, source) {
           back.textContent = 'Put the Original Back';
           back.onclick = () => forkPictureRestore(side, type, id);
           box.appendChild(back);
-          const said = document.createElement('div');
-          said.style.cssText = 'font-size:0.75rem;color:#f0ede4;margin-top:4px';
-          said.textContent = 'Replaced with ' + replaced + '. It is in Your Patch' + (side === 'app' ? ', with the program.' : '.');
-          box.appendChild(said);
+          const noteElement = document.createElement('div');
+          noteElement.style.cssText = 'font-size:0.75rem;color:#f0ede4;margin-top:4px';
+          noteElement.textContent = 'Replaced with ' + replaced + '. It is in Your Patch' + (side === 'app' ? ', with the program.' : '.');
+          box.appendChild(noteElement);
         }
       }
     } else if (a.text) {
@@ -1821,8 +1821,8 @@ function showCharacterOnMap(i) {
   window.MAP_SETTLED = null;
   renderImage();
   whenMapSettled(resid, (cm, vp) => {
-    const who = charactersOnLevel(cm.level, window.MAP_HOUR).find(p => p.index === i);
-    const tx = who ? who.x : c.x, ty = who ? who.y : c.y;
+    const character = charactersOnLevel(cm.level, window.MAP_HOUR).find(p => p.index === i);
+    const tx = character ? character.x : c.x, ty = character ? character.y : c.y;
     mapView.x = vp.clientWidth / 2 - tx * cm.TS * mapView.scale;
     mapView.y = vp.clientHeight / 2 - ty * cm.TS * mapView.scale;
     clampMapPan(); applyMapTransform(); drawCharacterLayer();
@@ -1989,7 +1989,7 @@ function showCharacterDetail(i) {
                ' (' + srcNum(sSrc(5, 'the packed level, x and y'), String(e.x)) + ', ' +
                srcNum(sSrc(5, 'the packed level, x and y'), String(e.y)) + ')' +
                ' <span style="color:#dcd8cc">behavior ' + srcNum(sSrc(1, 'the mode'), String(e.mode)) +
-               (behaviourWordHTML(e.mode) ? ', ' + behaviourWordHTML(e.mode) : '') + '</span></div>';
+               (behaviorWordHTML(e.mode) ? ', ' + behaviorWordHTML(e.mode) : '') + '</span></div>';
       }).join('');
   } else {
     sh.innerHTML = '<div style="color:#dcd8cc;font-size:0.8125rem">No schedule entries; this character stands in a map\u2019s prop list rather than moving by the clock.</div>';

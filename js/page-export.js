@@ -335,14 +335,14 @@ function cytheraPrefsRecord(opts, layout) {
   // A choice is named by the game's item text; every field that item
   // writes is written, so a stop spread over two bits lands whole.
   for (const c of L.choices) {
-    const want = o[c.opt];
-    const picked = want ? c.options.find(x => x.text === want) : null;
+    const chosenText = o[c.opt];
+    const picked = chosenText ? c.options.find(x => x.text === chosenText) : null;
     if (picked) for (const x of picked.sets) put(x.byte, x.lo, x.hi, x.value);
     // A value the menu does not offer, for a choice that is one numeric
     // field (the frame-rate cap: every value from 0 up is a number of ticks
     // between frames, and the menu's three are only three of them).
-    const f = !picked && typeof want === 'string' && /^raw:\d+$/.test(want) ? cytheraChoiceField(c) : null;
-    if (f) put(f.byte, f.lo, f.hi, Math.min(parseInt(want.slice(4), 10), (1 << (f.hi - f.lo + 1)) - 1));
+    const f = !picked && typeof chosenText === 'string' && /^raw:\d+$/.test(chosenText) ? cytheraChoiceField(c) : null;
+    if (f) put(f.byte, f.lo, f.hi, Math.min(parseInt(chosenText.slice(4), 10), (1 << (f.hi - f.lo + 1)) - 1));
   }
   // The startup question's two bits together (switch256), or each on its
   // own by the dialog's text (startup), so that every pairing can be
@@ -651,8 +651,8 @@ function downloadEditedDiskImage(file, edited) {
   const built = buildEditedDiskImage(file, edited);
   if (!built) return null;
   dlBlob(new Blob([built.image], { type: 'application/octet-stream' }), built.fileName);
-  if (built.forkWarning) return { built, said: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image, but ' + built.forkWarning, bad: true };
-  return { built, said: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac: ' +
+  if (built.forkWarning) return { built, message: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image, but ' + built.forkWarning, bad: true };
+  return { built, message: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac: ' +
     'it mounts as \u201c' + DISK_VOLUME_NAME + '\u201d and contains an Install and Play script that replaces the ' +
     'file in the game\u2019s folder and starts Cythera.' };
 }
@@ -1056,7 +1056,7 @@ function paintStripSky(cv, resid, sky, rules, day, quarter) {
   if (sky && rules) {
     const scene = skyScene(rules, day, quarter);
     const rows = QD_PATTERNS[scene.pattern.name];
-    const bg = nearestPaletteIndex(QD_OLD_COLOURS[rules.back.v] || [255, 255, 255]);
+    const bg = nearestPaletteIndex(QD_OLD_COLORS[rules.back.v] || [255, 255, 255]);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) idx[y * W + x] = (rows[y & 7] >> (7 - (x & 7))) & 1 ? fg : bg;
     for (const b of scene.bodies) {
       const img = resolveTileImage(b.tile);
@@ -1166,11 +1166,11 @@ function buildStripSky(resid) {
   dayLbl.style.minWidth = '4.5em';
   row2.appendChild(day); row2.appendChild(dayLbl);
   wrap.appendChild(row2);
-  const say = document.createElement('div');
-  say.className = 'sv-note';
+  const noteElement = document.createElement('div');
+  noteElement.className = 'sv-note';
   const hh = v => Math.floor(v.v / (1 << rules.hourUnit.v)) + ':00';
-  say.innerHTML = 'Sunrise ' + srcNum(rules.sunrise, hh(rules.sunrise)) + ', sunset ' + srcNum(rules.sunset, hh(rules.sunset)) + '.';
-  wrap.appendChild(say);
+  noteElement.innerHTML = 'Sunrise ' + srcNum(rules.sunrise, hh(rules.sunrise)) + ', sunset ' + srcNum(rules.sunset, hh(rules.sunset)) + '.';
+  wrap.appendChild(noteElement);
   draw();
   return wrap;
 }

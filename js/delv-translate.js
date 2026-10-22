@@ -129,7 +129,7 @@ function dvmTextSites(b, resid) {
 
 // A piece worth a translation: two letters in a row. What is left is
 // punctuation and spacing ('"*', '  '), which stays as it is.
-function translateWants(text) { return /[A-Za-z]{2}/.test(text); }
+function isTranslatable(text) { return /[A-Za-z]{2}/.test(text); }
 
 /* ---- keys ------------------------------------------------------------------ */
 
@@ -214,7 +214,7 @@ function translatePlaces(b, resid, T, report) {
     // the resource's entry names it: "Ah, there " + "s" + "he is!" makes
     // "she" of a one-letter piece, which Spanish has to empty.
     const ownEntry = T.text && T.text[resid.toString(16).toUpperCase().padStart(4, '0')];
-    if (!translateWants(u.text) && !(ownEntry && ownEntry[h] !== undefined)) continue;
+    if (!isTranslatable(u.text) && !(ownEntry && ownEntry[h] !== undefined)) continue;
     const es = translateLookup(T, 'text', resid, h);
     if (es === undefined || es === null) { report.missing.push({ resid, at: u.at, hash: h, kind: u.kind, len: u.len }); continue; }
     report.done++;
@@ -317,7 +317,7 @@ function translateNameTable(b, T, report) {
     let s = en;
     // A name the table does not give stays as it is and is not reported:
     // nearly every name is a person's, and the rules keep those.
-    if (translateWants(en)) {
+    if (isTranslatable(en)) {
       const es = translateLookup(T, 'names', 0x0201, translateHash(en));
       if (es !== undefined && es !== '=') { s = translateEncode(es); report.done++; if (s !== en) changed++; }
     }
@@ -397,7 +397,7 @@ function translateTileNames(b, T, report, attrs) {
   const out = [];
   for (const r of recs) {
     let name = r.name, es;
-    if (translateWants(r.name)) {
+    if (isTranslatable(r.name)) {
       es = translateLookup(T, 'tiles', 0xF004, translateHash(r.name));
       if (es === undefined) report.missing.push({ resid: 0xF004, at: r.id, hash: translateHash(r.name), kind: 'tile', len: r.name.length });
       else report.done++;
@@ -452,7 +452,7 @@ function translateResourceFork(rsrc, T, report, log) {
       let n = 0;
       const next = list.map(bytes => {
         const en = decodeMacRoman(bytes);
-        if (!translateWants(en)) return bytes;
+        if (!isTranslatable(en)) return bytes;
         const es = translateLookup(T, 'strings', r.id, translateHash(en));
         if (es === undefined) { report.missing.push({ resid: 'STR# ' + r.id, hash: translateHash(en), kind: 'STR#', len: bytes.length }); return bytes; }
         report.done++;
@@ -465,18 +465,18 @@ function translateResourceFork(rsrc, T, report, log) {
     } else if (r.type === 'TxSt' && T.styles && T.styles[r.id]) {
       // Size (a byte), the style bits (a byte), the face's name (a Pascal
       // string): TMPL 128 in the same fork shows it.
-      const want = T.styles[r.id];
-      const size = want.size !== undefined ? want.size : r.data[0], style = want.style !== undefined ? want.style : r.data[1];
-      const name = encodeMacRoman(want.font !== undefined ? want.font : decodeMacRoman(r.data.subarray(3, 3 + r.data[2])));
+      const styleSpec = T.styles[r.id];
+      const size = styleSpec.size !== undefined ? styleSpec.size : r.data[0], style = styleSpec.style !== undefined ? styleSpec.style : r.data[1];
+      const name = encodeMacRoman(styleSpec.font !== undefined ? styleSpec.font : decodeMacRoman(r.data.subarray(3, 3 + r.data[2])));
       const out = new Uint8Array(3 + name.length);
       out[0] = size; out[1] = style; out[2] = name.length; out.set(name, 3);
       r.data = out; changed = true;
       log.push('TxSt ' + r.id + ' (' + (r.name || '') + '): ' + decodeMacRoman(name) + ' ' + size);
     } else if (r.type === 'sfnt' && T.font) {
-      const got = T.font(r.data);
-      r.data = got.bytes; changed = true;
-      if (got.widths) { widths = got.widths; sfntId = r.id; }
-      log.push('sfnt ' + r.id + ' (' + (r.name || '') + '): ' + got.added + ' glyphs added, ' + got.mapped + ' codes mapped');
+      const fontResult = T.font(r.data);
+      r.data = fontResult.bytes; changed = true;
+      if (fontResult.widths) { widths = fontResult.widths; sfntId = r.id; }
+      log.push('sfnt ' + r.id + ' (' + (r.name || '') + '): ' + fontResult.added + ' glyphs added, ' + fontResult.mapped + ' codes mapped');
     }
   }
   if (widths) {
@@ -500,10 +500,10 @@ function translateFamilyWidths(spec, sfntId, widths) {
   for (const r of spec.resources) {
     if (r.type !== 'FOND' || r.data.length < 54) continue;
     const d = r.data, n = u16be(d, 52) + 1;
-    let ours = false;
-    for (let i = 0; i < n; i++) if (u16be(d, 54 + i * 6) === 0 && u16be(d, 58 + i * 6) === sfntId) ours = true;
+    let hasFont = false;
+    for (let i = 0; i < n; i++) if (u16be(d, 54 + i * 6) === 0 && u16be(d, 58 + i * 6) === sfntId) hasFont = true;
     const wOff = u32be(d, 16);
-    if (!ours || !wOff) continue;
+    if (!hasFont || !wOff) continue;
     const first = u16be(d, 4), last = u16be(d, 6), nw = u16be(d, wOff) + 1, per = 2 + (last - first + 3) * 2;
     const out = d.slice();
     for (let k = 0; k < nw; k++)
@@ -612,10 +612,10 @@ function translateAddStrikes(spec, S, log) {
   const entries = [];
   let ten = null;
   for (const size of Object.keys(S.nfnt).map(Number).sort((a, b) => a - b)) {
-    const got = translateGenevaStrike(size);
-    spec.resources.push({ type: 'NFNT', id: S.nfnt[size], name: null, attrs: 0x20, data: got.bytes });
+    const strike = translateGenevaStrike(size);
+    spec.resources.push({ type: 'NFNT', id: S.nfnt[size], name: null, attrs: 0x20, data: strike.bytes });
     entries.push([size, 0, S.nfnt[size]]);
-    if (size === 10 || !ten) ten = { size, ascent: got.f.ascent, descent: got.f.descent, leading: got.f.leading, widMax: got.widMax };
+    if (size === 10 || !ten) ten = { size, ascent: strike.f.ascent, descent: strike.f.descent, leading: strike.f.leading, widMax: strike.widMax };
   }
   spec.resources.push({ type: 'FOND', id: S.id, name: S.name, attrs: 0x20, data: fondForStrikes(S.id, entries, ten) });
   log.push('FOND ' + S.id + ' (' + S.name + '): Geneva 9\u2019s letters at ' + entries.map(e => e[0]).join(' and ') + ' points, at Geneva\u2019s widths, the accented letters also at their codes');
@@ -663,13 +663,13 @@ function translateProgramResources(rsrc, T, report, log) {
   const bin = bytes => { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return s; };
   const look = (type, id, bytes) => {
     const en = bin(bytes), h = translateHash(en), sec = P[type];
-    const got = sec && ((sec[hex(id)] && sec[hex(id)][h] !== undefined) ? sec[hex(id)][h] : (sec['*'] ? sec['*'][h] : undefined));
-    if (got === undefined) {
-      if (translateWants(en) && !keep.has(type + ' ' + id)) report.missing.push({ resid: type + ' ' + id, hash: h, kind: type, len: bytes.length });
+    const translation = sec && ((sec[hex(id)] && sec[hex(id)][h] !== undefined) ? sec[hex(id)][h] : (sec['*'] ? sec['*'][h] : undefined));
+    if (translation === undefined) {
+      if (isTranslatable(en) && !keep.has(type + ' ' + id)) report.missing.push({ resid: type + ' ' + id, hash: h, kind: type, len: bytes.length });
       return bytes;
     }
     report.done++;
-    return got === '=' ? bytes : encodeMacRoman(got);
+    return translation === '=' ? bytes : encodeMacRoman(translation);
   };
   const pstrAt = (d, o) => d.subarray(o + 1, o + 1 + d[o]);
   const pstr = b => { if (b.length > 255) throw new Error('a string in the program is longer than 255 bytes'); const o = new Uint8Array(1 + b.length); o[0] = b.length; o.set(b, 1); return o; };
@@ -714,11 +714,11 @@ function translateProgramResources(rsrc, T, report, log) {
       const list = translateReadStrList(d);
       changed(r, translateWriteStrList(list.map(b => look('STR#', r.id, b))));
     } else if (r.type === 'TEXT') {
-      const en = bin(d), h = translateHash(en), sec = P.TEXT && P.TEXT[hex(r.id)], got = sec && sec[h];
-      if (got === undefined) { if (translateWants(en)) report.missing.push({ resid: 'TEXT ' + r.id, hash: h, kind: 'TEXT', len: d.length }); continue; }
+      const en = bin(d), h = translateHash(en), sec = P.TEXT && P.TEXT[hex(r.id)], translation = sec && sec[h];
+      if (translation === undefined) { if (isTranslatable(en)) report.missing.push({ resid: 'TEXT ' + r.id, hash: h, kind: 'TEXT', len: d.length }); continue; }
       report.done++;
-      if (got === '=') continue;
-      const st = styls.get(r.id), pieces = (Array.isArray(got) ? got : [got]).map(encodeMacRoman);
+      if (translation === '=') continue;
+      const st = styls.get(r.id), pieces = (Array.isArray(translation) ? translation : [translation]).map(encodeMacRoman);
       if (st) {
         const runs = u16be(st.data, 0);
         if (pieces.length !== runs) throw new Error('TEXT ' + r.id + ' has ' + runs + ' style runs and its translation ' + pieces.length + ' pieces');
@@ -730,8 +730,8 @@ function translateProgramResources(rsrc, T, report, log) {
       changed(r, cat(pieces));
     }
   }
-  const said = Object.keys(counts).sort().map(t => counts[t] + ' ' + t).join(', ');
-  if (said) log.push('the program\'s resources: ' + said + ' changed');
+  const changeSummary = Object.keys(counts).sort().map(t => counts[t] + ' ' + t).join(', ');
+  if (changeSummary) log.push('the program\'s resources: ' + changeSummary + ' changed');
   return writeResourceFork(spec);
 }
 
@@ -758,11 +758,11 @@ function translateProgram(data, rsrc, T, fixes) {
   const cstrings = [];
   for (const p of pooled) {
     if (!p.pascal && ranges.some(([a, b]) => p.at > a && p.at < b)) continue;   // a tail of another: its pieces say it
-    const en = bin(p.bytes), h = translateHash(en), sec = p.pascal ? P.P : P.C, got = sec ? sec[h] : undefined;
-    if (got === undefined) { if (translateWants(en)) report.missing.push({ resid: (p.pascal ? 'Pascal' : 'C') + ' 0x' + p.at.toString(16).toUpperCase(), hash: h, kind: p.pascal ? 'P' : 'C', len: p.bytes.length }); continue; }
+    const en = bin(p.bytes), h = translateHash(en), sec = p.pascal ? P.P : P.C, translation = sec ? sec[h] : undefined;
+    if (translation === undefined) { if (isTranslatable(en)) report.missing.push({ resid: (p.pascal ? 'Pascal' : 'C') + ' 0x' + p.at.toString(16).toUpperCase(), hash: h, kind: p.pascal ? 'P' : 'C', len: p.bytes.length }); continue; }
     report.done++;
-    if (got === '=') continue;
-    const pieces = (Array.isArray(got) ? got : [got]).map(encodeMacRoman);
+    if (translation === '=') continue;
+    const pieces = (Array.isArray(translation) ? translation : [translation]).map(encodeMacRoman);
     if (pieces.length !== p.inner.length + 1) throw new Error('the program\'s string ' + h + ' has pointers into it at ' + (p.inner.length + 1) + ' places and its translation has ' + pieces.length + ' pieces');
     const now = new Uint8Array(pieces.reduce((n, x) => n + x.length, 0));
     const nowInner = [];
@@ -893,11 +893,11 @@ function translateSpanishGlyphs(sfnt) {
   // The no-break space the tile names join an article to its noun with
   // (TRANSLATE_NBSP) draws as the font's space.
   const space = cmap[mac + 6 + 0x20];
-  const got = sfntWithGlyphs(sfnt, order.map(ch => made[ch]), codes, { [TRANSLATE_NBSP]: space });
+  const builtFont = sfntWithGlyphs(sfnt, order.map(ch => made[ch]), codes, { [TRANSLATE_NBSP]: space });
   // Each added letter's width as a fraction of the em, at both its codes,
   // for the family width table (translateFamilyWidths).
-  got.widths = {};
-  order.forEach(ch => { got.widths[TRANSLATE_CODES[ch]] = made[ch].adv / upem; got.widths[TRANSLATE_MACROMAN[ch]] = made[ch].adv / upem; });
-  got.widths[TRANSLATE_NBSP] = glyphs[space].adv / upem;
-  return got;
+  builtFont.widths = {};
+  order.forEach(ch => { builtFont.widths[TRANSLATE_CODES[ch]] = made[ch].adv / upem; builtFont.widths[TRANSLATE_MACROMAN[ch]] = made[ch].adv / upem; });
+  builtFont.widths[TRANSLATE_NBSP] = glyphs[space].adv / upem;
+  return builtFont;
 }

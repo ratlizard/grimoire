@@ -92,7 +92,7 @@ function spellsMechSection() {
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
       sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The caster pays the cost.',
       'Spell damage works like a blow’s; the victim’s resistance applies, and the caster earns experience as usual.',
-      fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it targets</b>, although by its description it engulfs all within.' : '',
+      fbFx && fbFx.damage.some(d => /target square/.test(d.character)) ? '<b>Fireball hurts only the character on the square it targets</b>, although by its description it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Non-magical damage, whether fire, electric, blunt or edged, does <b>nothing at all</b> to monsters that resist non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike count as magical, which is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
       'Spell damage prints no message, and <b>every enemy</b> means every hostile character on the loaded map, on screen or not, so Tremor hurts enemies you cannot see.',
       (function () {
@@ -125,7 +125,7 @@ function skillsMechSection() {
 }
 
 function balloonsMechSection() {
-  const barks = buildBarkCatalogue();
+  const barks = buildBarkCatalog();
   const bark = appImage() ? exeBarkRules() : null;
   return mechSectionEl('balloons', 'Talk Balloons', null, '',
     'The short lines over a character’s head. ' +
@@ -142,9 +142,9 @@ function balloonsMechSection() {
 function libraryMechSection(lib) {
   if (lib === undefined) lib = libraryRules();
   const rows = lib ? lib.map(d => {
-    const who = d.readers.map(r => srcNum({ v: '', resid: r.resid, at: r.at }, r.name + (r.field === 'd2' ? ' (Data2)' : ''))).join(', ');
+    const readerLinks = d.readers.map(r => srcNum({ v: '', resid: r.resid, at: r.at }, r.name + (r.field === 'd2' ? ' (Data2)' : ''))).join(', ');
     return '<tr>' + mechNum(d.entries.length) + '<td>' + partChip('0x' + d.resid.toString(16).toUpperCase(), d.resid) + '</td>' +
-      '<td>' + who + '</td>' + mechNum(d.shownCount) + mechNum(d.unshown.length) + '</tr>';
+      '<td>' + readerLinks + '</td>' + mechNum(d.shownCount) + mechNum(d.unshown.length) + '</tr>';
   }) : [];
   const unshown = lib ? lib.reduce((a, d) => a.concat(d.unshown.map(e => ({ d, e }))), []) : [];
   const dangling = lib ? lib.reduce((a, d) => a.concat(d.dangling.map(k => ({ d, k }))), []) : [];
@@ -188,9 +188,9 @@ function talkMechSection() {
     '<tr><td>' + groupChip(g) + '</td>' + mechNum(g.topics) + mechNum(g.inherited) +
     '<td class="mechSub">' + (g.called ? 'called from a topic by ' + g.called : '') + '</td></tr>');
   const shapeRows = cv.shapes.filter(s => s.shape).map(s =>
-    '<tr>' + mechNum(s.who.length) + '<td>' + svEsc(s.shape) + '</td>' +
-    '<td class="mechSub">' + svEsc(s.who.slice(0, 5).map(c => c.name).join(', ') +
-      (s.who.length > 5 ? ', and ' + (s.who.length - 5) + ' more' : '')) + '</td></tr>');
+    '<tr>' + mechNum(s.character.length) + '<td>' + svEsc(s.shape) + '</td>' +
+    '<td class="mechSub">' + svEsc(s.character.slice(0, 5).map(c => c.name).join(', ') +
+      (s.character.length > 5 ? ', and ' + (s.character.length - 5) + ' more' : '')) + '</td></tr>');
   return mechSectionEl('talk', 'Who Answers as Whom', null, '',
     cv.chars.length ? 'A character answers from their topics first, then from topics shared with others: Naxos answers as 0x804, then 0x80E, then 0x801.'
                     : 'No conversation in this file.',
@@ -199,7 +199,7 @@ function talkMechSection() {
         countLink(topics + ' topics', 'The ' + topics + ' topics, by character', cv.chars.map(c => charChip(c, String(c.topics)))) + '</b> between them, of which <b>' +
         countLink(String(deeper), 'The ' + deeper + ' topics that open further topics, by character', cv.chars.filter(c => c.deeper).map(c => charChip(c, String(c.deeper)))) + '</b> open further topics.',
       '<b>' + countLink(real.length + ' groups', 'The ' + real.length + ' groups', real.map(g => groupChip(g))) + '</b> serve more than one character. The longest chains have four steps, and most characters use a House, then a city, then Human.',
-      alone ? '<b>' + alone.who.length + ' answer as nobody but themselves</b>: ' + alone.who.map(c => svLink(c.name, 'jumpToResource(' + c.rid + ')')).join(', ') + '.' : '',
+      alone ? '<b>' + alone.character.length + ' answer as nobody but themselves</b>: ' + alone.character.map(c => svLink(c.name, 'jumpToResource(' + c.rid + ')')).join(', ') + '.' : '',
       others.length ? 'Not every 0x8xx resource is a group: ' + others.map(g => groupChip(g, g.kind)).join(' ') : ''
     ].filter(Boolean) : [],
     mechTable(['group', '#topics', '#inherit it', ''], groupRows) +

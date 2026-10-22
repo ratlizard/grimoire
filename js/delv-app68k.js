@@ -114,7 +114,7 @@ function applyApp68kFixes(spec, ids) {
   const report = new Map(), rep = id => report.get(id) || report.set(id, { id, inPlace: [], caves: [], values: [], data0: [] }).get(id);
   const u32 = (b, o) => ((b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3]) >>> 0;
   const w32 = (b, o, v) => { b[o] = (v >>> 24) & 0xFF; b[o + 1] = (v >>> 16) & 0xFF; b[o + 2] = (v >>> 8) & 0xFF; b[o + 3] = v & 0xFF; };
-  const same = (b, o, want) => want.every((x, i) => b[o + i] === x);
+  const same = (b, o, expected) => expected.every((x, i) => b[o + i] === x);
   const owner = new Map();
   const claim = (id, n, at, len) => {
     for (let i = 0; i < len; i++) {
