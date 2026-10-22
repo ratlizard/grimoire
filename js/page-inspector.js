@@ -518,7 +518,7 @@ function propInspectRows(p) {
     const haveKey = keysForLock(r.d1).length;
     rows.push(['Lock', 'id ' + r.d1 + (haveKey
       ? ', ' + haveKey + ' matching key' + (haveKey === 1 ? '' : 's') + ' in the world'
-      : '; no key matches it, so the lockpick, magic or a script opens it')]);
+      : ' (no key matches it, so the lockpick, magic or a script opens it)')]);
   }
   if (r.proptype === KEY_PROPTYPE && r.d1)
     rows.push(['Opens', 'lock id ' + r.d1 + ', ' + locksForKey(r.d1).length + ' lock(s)']);
@@ -739,9 +739,9 @@ function inspectMapSquare(tx, ty) {
           (withView !== alone ? ' <span class="inspDim">(' + alone +
             ' of 32 with nothing in view)</span>' : '') + '</div>') +
       '<div class="inspDim">That is the base value for every square of the level, not just this ' +
-      'one; anything bright in the eleven-by-eleven view lightens the whole map, and moving it out ' +
-      'of view darkens the map again. The game also ignores light sources it treats as unseen, which ' +
-      'the file does not record, so the page counts every source in view.</div></div>');
+      'one. Anything bright in the eleven-by-eleven view lightens the whole map, and moving it out ' +
+      'of view darkens the map again. The game also ignores light sources it treats as unseen. The file ' +
+      'does not record which those are, so the page counts every source in view.</div></div>');
   }
 
   // A square inside a gateway's footprint shows it first, and offers the
@@ -790,8 +790,8 @@ function inspectMapSquare(tx, ty) {
     const z = zoneportInfo(e.idx);
     parts.push('<div class="inspCard"><b>Open ' + SIDE_WORDS[e.side] + ' edge</b> ' +
       '<span class="inspDim">map header exit, zoneport 0x' + e.idx.toString(16).toUpperCase() +
-      (z ? ' to ' + svEsc(z.name) : '') + '</span><div class="inspDim">Not just this square: the whole ' +
-      (e.side === 'N' || e.side === 'S' ? 'row' : 'column') + ' is a way out. Walking far enough ' +
+      (z ? ' to ' + svEsc(z.name) : '') + '</span><div class="inspDim">The whole ' +
+      (e.side === 'N' || e.side === 'S' ? 'row' : 'column') + ' is a way out, not just this square. Walking far enough ' +
       SIDE_WORDS[e.side] + ' at any ' + (e.side === 'N' || e.side === 'S' ? 'column' : 'row') +
       ' leaves the map here.</div></div>');
   }
@@ -805,8 +805,8 @@ function inspectMapSquare(tx, ty) {
   if (faux) {
     parts.push('<div class="inspCard"><b>' +
       svEsc(propDisplayName(faux.proptype) || ('0x' + faux.proptype.toString(16))) + '</b>' +
-      ' <span class="inspDim">not a real prop; the terrain tile itself draws it (0xF010), ' +
-      'not placed in the prop list</span><div class="inspActs">' +
+      ' <span class="inspDim">not a real prop. The terrain tile itself draws it (0xF010), ' +
+      'and the prop list does not place it</span><div class="inspActs">' +
       '<button class="sv-chip" onclick="showPropTypeDetail(' + faux.proptype + ')">Prop type</button>' +
       '</div></div>');
   }
@@ -948,7 +948,7 @@ function renderMapResource(resid) {
     if (!result) {
       document.getElementById('mapLabel').textContent =
         '0x' + resid.toString(16).toUpperCase() + (lbl ? ' ' + lbl : '') + '  |  (not readable as a valid map)';
-      out.textContent = "The page could not render map 0x" + resid.toString(16).toUpperCase() + ": its header is not valid (the decryption went wrong, or it is not a map).";
+      out.textContent = "The page could not draw map 0x" + resid.toString(16).toUpperCase() + " because its header is not valid (the decryption went wrong, or it is not a map).";
       currentResid = resid;
       return;
     }
@@ -1000,7 +1000,7 @@ function renderMapResource(resid) {
     out.textContent = "Rendered map 0x" + resid.toString(16).toUpperCase() +
       (lbl ? " (" + lbl + ")" : "") + " with " + result.propCount + " props";
     currentResid = resid;
-  } catch(err) { out.textContent = "Map render error: " + err.message; }
+  } catch(err) { out.textContent = "The page could not draw this map: " + err.message; }
 }
 
 

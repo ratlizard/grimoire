@@ -80,35 +80,35 @@ function buildXrefIndex() {
 // Descriptions are the wiki's words where it has any, and say plainly when
 // it has none. An invented purpose would be worse than admitting none.
 const SUBINDEX_PURPOSE = {
-  0:   ['Symbol table', 'One resource, 0x0101, holding names for numbered things. They are the developers’ names and do not always match the game as released, so they are a hint rather than the truth.'],
-  1:   ['Data lists and the game’s writing', 'Lists of things: character names, and the global values the symbol table in subindex 0 names. It is also where Cythera’s in-game writing is: the bookshelf histories and bestiaries, the prophecies, the scrolls and letters, the signs, the gravestones and the ring inscriptions. Each passage is one entry in a list, and a thing in the world picks its entry with the number in its Data1. The Mechanics page covers them under The Game’s Writing.'],
-  2:   ['Global store', '0x301 has four values that any script can read and write: the quality of each inn. 0x33F is four bytes that nothing uses.'],
-  3:   ['AI combat scripts', 'Named behaviors: Attack Nearest, Defend, Beserk, Healer. The file stores each unencrypted, as a name followed by a body that is not script code like the rest of the file.'],
-  4:   ['Archetypes', '0x501 is the nine characters a game can start as, with their names in 0x203 (Explorer, Fighter, Swordsman, Beserker [sic], Mage, Wizard, Mystic, Storyteller, Rogue) and their descriptions in 0x204, in that order. Each has body, reflex and mind, then the skills it starts with: the skill’s number plus 1,024 for each level of it, where a level of 0 means an aptitude for the skill rather than the skill itself. The dialog that creates a character reads it. 0x500 and 0x540 contain only zeros.'],
+  0:   ['Symbol table', 'One resource, 0x0101, that names numbered things. The names are the developers’ and do not always match the released game, so they are a hint rather than the truth.'],
+  1:   ['Data lists and the game’s writing', 'Lists of things: character names, and the global values the symbol table in subindex 0 names. It also holds Cythera’s in-game writing, such as the bookshelf histories and bestiaries, the prophecies, the scrolls and letters, the signs, the gravestones and the ring inscriptions. Each passage is one entry in a list, and a thing in the world picks its entry with the number in its Data1. The Mechanics page covers them under The Game’s Writing.'],
+  2:   ['Global store', '0x301 holds the quality of each inn, four values that any script can read and write. 0x33F is four bytes that nothing uses.'],
+  3:   ['AI combat scripts', 'Named behaviors: Attack Nearest, Defend, Beserk [sic], Healer. The file stores each unencrypted, as a name followed by a body that is not script code like the rest of the file.'],
+  4:   ['Archetypes', '0x501 is the nine characters a game can start as, with their names in 0x203 (Explorer, Fighter, Swordsman, Beserker [sic], Mage, Wizard, Mystic, Storyteller, Rogue) and their descriptions in 0x204, in that order. Each has body, reflex and mind, then the skills it starts with, each stored as the skill’s number plus 1,024 for each level. A level of 0 means an aptitude for the skill rather than the skill itself. The dialog that creates a character reads this table. 0x500 and 0x540 contain only zeros.'],
   7:   ['Group dialogue', 'Dialogue shared by a faction or a place rather than belonging to one character.'],
-  8:   ['Combat AI tests and actions', 'The half of the combat AI’s vocabulary that lives in this file: six tests at 0x901 and thirteen actions at 0x981, in the order the program’s lists (STR# 9307 and 9308) name them, which this page shows when the game is open. The compiled AI rules that come with the game call them, and four dialogues call two of them directly.'],
+  8:   ['Combat AI tests and actions', 'The half of the combat AI’s vocabulary that lives in this file, six tests at 0x901 and thirteen actions at 0x981. They are in the order of the program’s lists (STR# 9307 and 9308), whose names this page shows when the game is open. The compiled AI rules that come with the game call them, and four dialogues call two of them directly.'],
   9:   ['Effect scripts', 'Effects of eating, and possibly of spells and potions.'],
   10:  ['Stub', 'One function, seven bytes long, that answers 0. Nothing in the file or the program calls it.'],
-  11:  ['Task helpers', 'Scripts that give a character something to do: the innkeeper’s service lines (0xC80), opening and closing doors (0xC81 to 0xC83), the tavern barks (0xC84, 0xC85), the blacksmith’s work (0xC86), and the spell-cast announcements (0xC4B, 0xC4C).'],
-  12:  ['Party and inventory helpers', 'Scripts that go through what the party is carrying: what it holds and what that weighs, counting money (0xD04), the reaction to theft (0xD06), and coins spilling when a purse is too heavy (0xD09).'],
-  13:  ['Rule helpers', 'The scripts the page reads the rules from: lock picking (0xE43), combat (0xE84 to 0xE89), experience and levels (0xE86, 0xE8B), spells (0xEA1), shops (0xEA5), training (0xEB1), damage (0xEB8).'],
-  14:  ['Character helpers', 'Twenty-two scripts of one function each, every one acting on a single character: set, clear and test a flag (0xF00 to 0xF02, called from hundreds of lines of dialogue), behavior, health, poison, attributes, experience, level, karma, and two that make a character.'],
-  15:  ['Item classes', 'What each kind of item is: what it is called, and what happens when you use it.'],
+  11:  ['Task helpers', 'Scripts that give a character something to do, such as the innkeeper’s service lines (0xC80), opening and closing doors (0xC81 to 0xC83), the tavern barks (0xC84, 0xC85), the blacksmith’s work (0xC86), and the spell-cast announcements (0xC4B, 0xC4C).'],
+  12:  ['Party and inventory helpers', 'Scripts that go through what the party carries. They total what it holds and what that weighs, count money (0xD04), react to theft (0xD06) and spill coins when a purse is too heavy (0xD09).'],
+  13:  ['Rule helpers', 'The scripts the page reads the rules from, for lock picking (0xE43), combat (0xE84 to 0xE89), experience and levels (0xE86, 0xE8B), spells (0xEA1), shops (0xEA5), training (0xEB1) and damage (0xEB8).'],
+  14:  ['Character helpers', 'Twenty-two scripts of one function each, every one acting on a single character. They set, clear and test a flag (0xF00 to 0xF02, called from hundreds of lines of dialogue), handle behavior, health, poison, attributes, experience, level and karma, and two of them make a character.'],
+  15:  ['Item classes', 'What each kind of item is called, and what happens when you use it.'],
   16:  ['Object classes', 'Objects with data and scripts, and text in them that you can read.'],
-  19:  ['Zone entry scripts', 'One for each map. It runs as you enter the zone, and has the zone names that the game shows.'],
+  19:  ['Zone entry scripts', 'One for each map. It runs as you enter the zone and has the zone names that the game shows.'],
   20:  ['Sub-zone scripts', 'For maps that hold several zones in one 0x80xx resource and show one part at a time.'],
   23:  ['Character dialogue', 'What a named character says when you talk to them.'],
-  24:  ['Monster classes', 'What each kind of monster is. The script that sets one up is given the monster and the thing that represents it, and entry 0x1D sets what happens when it dies.'],
-  25:  ['Skill & spell classes', 'Descriptions and scripts for spells, skills and actions. Usually several small functions: one gives the name, another the description.'],
-  26:  ['Room scripts', 'One for each room, id 0x1B00 plus the room number: the description shown the first time you enter, and for some rooms an Enter that does more. A room is a rectangle marked on the map by an egg, which is a trigger with nothing to see.'],
+  24:  ['Monster classes', 'What each kind of monster is. The script that sets one up receives the monster and the thing that represents it, and entry 0x1D sets what happens when it dies.'],
+  25:  ['Skill & spell classes', 'Descriptions and scripts for spells, skills and actions. Each is usually several small functions, one giving the name and another the description.'],
+  26:  ['Room scripts', 'One for each room, at id 0x1B00 plus the room number. Each has the description shown the first time you enter, and some have an Enter that does more. A room is a rectangle that an egg marks on the map, and an egg is a trigger with nothing to see.'],
   27:  ['Room scripts', 'Rooms 256 to 511 are here, in the same form as 0x1Bxx; the file has rooms 301 to 454.'],
-  29:  ['Room scripts', 'Room 800, the one room numbered past 511; entering it changes zone.'],
+  29:  ['Room scripts', 'Room 800, the one room numbered past 511. Entering it changes zone.'],
   47:  ['Character actions', 'Scripts that seem to be for things done to a character, ToggleLock among them.'],
   127: ['Maps', 'The grid of tiles that makes up a map, with its size and its four exits, one to each point of the compass.'],
-  128: ['Prop lists', 'One for each map: a 16-byte record placing every object, door and container on it.'],
+  128: ['Prop lists', 'One for each map, with a 16-byte record placing every object, door and container on it.'],
   131: ['Landscapes', 'Backdrop artwork: 18 images the maps share.'],
   135: ['Portraits', 'Character portrait graphics.'],
-  137: ['Graphics', 'One 32 by 16 icon for each skill and spell: icon n belongs to 0x1A00 plus n.'],
+  137: ['Graphics', 'One 32 by 16 icon for each skill and spell. Icon n belongs to 0x1A00 plus n.'],
   141: ['Tile sheets', 'The terrain and object tiles that make up the maps.'],
   142: ['Graphics', 'Sprite and animation frames.'],
   143: ['Music', 'The music, as QuickTime Music tunes.'],
@@ -484,7 +484,7 @@ function answerOneShape(shape, hit) {
             const hit = recs.find(r => r.proptype === pt && r.onMap && r.flags !== 0xFF && r.flags !== 0x42 && r.flags !== 0x44);
             if (hit) where.push('<button class="sv-chip" onclick="showSquareOnMap(' + mr + ',' + hit.x + ',' + hit.y + ')">' + svEsc(atlasMapName(mr)) + ' (' + hit.x + ',' + hit.y + ')</button>');
           }
-          rows.push(answerRow(N[pt], where.join(' ') || '<span class="inspDim">not lying anywhere; carried, or made by a script</span>'));
+          rows.push(answerRow(N[pt], where.join(' ') || '<span class="inspDim">not lying anywhere (carried, or made by a script)</span>'));
         }
         return answerCard('Where ' + m.hit[1].trim() + ' is', 'The first few places one is lying on the ground.', rows, '');
       }
@@ -844,9 +844,9 @@ function readViewHtml(fns) {
     if (f.prose !== undefined) return '<div class="readFn"><div class="readHead">' + svEsc(f.name) + '</div><div class="readProse">' + svEsc(f.prose) + '</div></div>';
     const head = '<div class="readHead">' + svEsc(f.name) + '(' + (f.args || []).join(', ') + ')</div>';
     if (f.answers && !f.clauses) return '<div class="readFn">' + head + '<div class="readProse">Answers ' + f.answers + ' prompt' + (f.answers === 1 ? '' : 's') +
-      '; the Text view lays them out.</div></div>';
+      '. The Text view lays them out.</div></div>';
     const sum = f.summary ? '<div class="readSum">' + svEsc(f.summary.charAt(0).toUpperCase() + f.summary.slice(1)) + '.</div>' : '';
-    return '<div class="readFn">' + head + sum + (f.bad ? '<div class="readProse">The page could not decode part of this; the Raw view shows it.</div>' : '') + list(f.clauses || []) + '</div>';
+    return '<div class="readFn">' + head + sum + (f.bad ? '<div class="readProse">The page could not decode part of this. The Raw view shows it.</div>' : '') + list(f.clauses || []) + '</div>';
   }).join('');
 }
 
@@ -1122,10 +1122,10 @@ const PLACEHOLDER_TABS = {
     'this shows its sections, the shared libraries it uses and the routines it names. ' +
     'The 68K CODE resources are in its resource fork, listed under Resource Fork.',
   AISCRIPTS: 'The Combat AI scripts come with the game as separate .ai text files, not inside ' +
-    'the file. The game runs the compiled ' +
-    'versions: subindex 3, AI Combat Scripts, under Components › Functions › Actions.',
+    'Cythera Data. The game runs the compiled ' +
+    'versions, which are subindex 3, AI Combat Scripts, under Components › Functions › Actions.',
   AIRULES: 'The rules for writing those scripts, the AI Scripting Document, ' +
-    'come with the game as a separate text file, not inside the file.',
+    'come with the game as a separate text file, not inside Cythera Data.',
 };
 
 // Added to a placeholder when the file it describes would have come with the
@@ -1266,7 +1266,7 @@ function renderTabRow(row, nodes, selectedId) {
     b.id = 'tab_' + n.id;
     b.setAttribute('role', 'tab');
     b.setAttribute('aria-selected', n.id === selectedId ? 'true' : 'false');
-    if (n.wip) b.title = 'Not yet linked to the rest; shows the raw view where there is one';
+    if (n.wip) b.title = 'Not yet linked to the rest. Shows the raw view where there is one';
     // The whole icon spec, not just the tile: a Data tab may give the file
     // type or the cursor its picture comes from, with the tile as the
     // fallback for before the application is open.

@@ -372,7 +372,7 @@ function adoptArchive(raw, sourceName, opts) {
   if (ARCHIVE && delverArchivePatchPeek(found.bytes) &&
       patchesOpenBytes(found.bytes, (found.forks && found.forks.name) || sourceName)) {
     setStatus('That is a Magpie patch, not a game file, so the page compared it with the open file instead of replacing it. ' +
-              'Data \u203a Patches shows what it changes and can apply it.');
+              'Tools \u203a Patch Generator shows what it changes and can apply it.');
     return true;
   }
   applyNamesDefault(opts.cached ? opts.source === 'local file' : !opts.url);
@@ -410,7 +410,7 @@ function adoptArchive(raw, sourceName, opts) {
 function archiveLoadFailed(failures) {
   setStatus('No file loaded. Choose or drop the Cythera installer (.sit or .bin) or a "Cythera Data" file (.hqx is fine).', true);
   const mb = document.getElementById('archiveMenuBtn');
-  if (mb) { mb.classList.add('urgent'); mb.textContent = 'Select Cythera Data file'; }
+  if (mb) { mb.classList.add('urgent'); mb.textContent = 'Choose a Cythera Data file'; }
   openArchiveMenu(true);
   const out = document.getElementById('output');
   if (out) out.textContent = 'Tried, in order:\n  ' + failures.join('\n  ') +
@@ -852,7 +852,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   try {
     const title = pstring(bytes, 0);
     const arc = openDelverArchive(bytes);
-    if (!arc) throw new Error('no master index; the (offset,length) pair at 0x80 does not describe one');
+    if (!arc) throw new Error('no master index, since the (offset, length) pair at 0x80 does not point to one');
     // The file that was open stays open, whole, until the new one has parsed:
     // a failure above leaves the page on the archive it had. A save replacing
     // the scenario uses the scenario's words for its forms first, while the
@@ -902,7 +902,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
       if (row && window.CONTAINED) {
         const label = document.createElement('span');
         label.className = 'amNote';
-        label.textContent = 'This file contains ' + window.CONTAINED.entries.length + ' archives, the open one marked:';
+        label.textContent = 'This file contains ' + window.CONTAINED.entries.length + ' archives, with the open one marked.';
         row.appendChild(label);
         for (const it of window.CONTAINED.entries) {
           const b = document.createElement('button');
@@ -1087,8 +1087,8 @@ function onCategoryChangeImpl() {
   // are STR# 128 in the resource fork, and the game supplies them.
   if (subn === 23) {
     const kw = forkStringList(window.CYTHERA_RSRC, 128);
-    if (kw && kw.length) out.textContent += ' Every conversation also answers ' +
-      kw.map(w => '“' + w + '”').join(', ') + ', the default keywords, string list 128 in the resource fork.';
+    if (kw && kw.length) out.textContent += ' Every conversation also answers the default keywords ' +
+      kw.map(w => '“' + w + '”').join(', ') + ', from string list 128 in the resource fork.';
   }
   document.getElementById('singlePreview').style.display = 'none';
   document.getElementById('zoomControls').style.display = 'none';

@@ -827,7 +827,7 @@ function patchesApply() {
   setStatus(merged.replaced.length + ' resource(s) replaced' +
     (merged.added.length ? ' and ' + merged.added.length + ' added' : '') + ' by ' + what +
     '. This changes only the copy in this browser, and the galleries and maps now show it. ' +
-    'To download the changed file, go to Data \u203a Cythera Data \u203a Changes.');
+    'To download the changed file, use Your Patch in Tools \u203a Patch Generator.');
   return true;
 }
 
@@ -1266,7 +1266,7 @@ function heroSpriteApply() {
   if (!w) { heroStatus('Choose something to apply first.', true); return false; }
   if (!patchesOpenBytes(w.bytes, w.name)) { heroStatus('The page could not open the patch.', true); return false; }
   const ok = patchesApply();
-  if (ok) { renderPatchReport(); heroStatus('Applied to the copy of the file in this browser. To download the changed file, go to Data › Cythera Data › Changes.'); }
+  if (ok) { renderPatchReport(); heroStatus('Applied to the copy of the file in this browser. To download the changed file, use Your Patch in Tools › Patch Generator.'); }
   return ok;
 }
 
@@ -1637,7 +1637,7 @@ function gremlinApply() {
     window.GREMLIN_STATE.num = null;
     renderPatchReport();
     renderGremlinMaker();
-    gremlinStatus('Gremlin ' + w.gremlin + ' is in the copy of the file in this browser. To download the changed file, go to Data › Cythera Data › Changes.');
+    gremlinStatus('Gremlin ' + w.gremlin + ' is in the copy of the file in this browser. To download the changed file, use Your Patch in Tools › Patch Generator.');
   }
   return ok;
 }
@@ -2196,7 +2196,7 @@ function scenarioOpenHere() {
   // file made here downloads whole from the Changes tab.
   const f = window.ARCHIVE_FINDER;
   parseArchiveBytes(bytes, (f && f.name) || DISK_ARCHIVE_NAME, { via: 'made here', rsrc: window.CYTHERA_RSRC_RAW, finder: f || undefined });
-  setStatus('Made a scenario with one zone. To download it, go to Data › Cythera Data › Changes.');
+  setStatus('Made a scenario with one zone. To download it, use Your Patch in Tools › Patch Generator.');
   return true;
 }
 function renderScenarioMaker() {
@@ -2535,7 +2535,7 @@ function dataFixApply() {
   if (!patchesOpenBytes(w.bytes, w.name)) { dataFixStatus('The patch was not accepted.', true); return false; }
   const ok = patchesApply();
   if (ok) basketApplied(w.resids);
-  if (ok) { renderPatchReport(); dataFixStatus('Applied to the copy of the file in this browser. To download the changed file, go to Data › Cythera Data › Changes.'); }
+  if (ok) { renderPatchReport(); dataFixStatus('Applied to the copy of the file in this browser. To download the changed file, use Your Patch in Tools › Patch Generator.'); }
   return ok;
 }
 function dataFixShowPatch() {

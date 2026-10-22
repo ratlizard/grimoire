@@ -1971,7 +1971,7 @@ function drawMapMarks(lensCtx, lensTS) {
   let saveLegend = null;
   if (M.save) {
     const sb = window.SAVE_BESIDE;
-    if (!sb) saveLegend = 'no save open alongside this file; compare one under Tools';
+    if (!sb) saveLegend = 'no save is open alongside this file (compare one under Tools)';
     else {
       const listId = 0x8100 + cm.level;
       const sres = sb.spec.resources.find(r => r.resid === listId);
@@ -2069,8 +2069,8 @@ function drawMapMarks(lensCtx, lensTS) {
       (edges ? ' + ' + edges + (edges === 1 ? ' open edge' : ' open edges') : ''));
     if (M.path && pathStops) parts.push('<span style="color:' + colors.path + '">' + LINE +
       svEsc(pathName) + ', ' + pathStops + (pathStops === 1 ? ' post' : ' posts') +
-      ' on this map, joined by the route the game would walk; the color of each part of the route' +
-      ' shows the hour it starts, and each part takes its own line where the game' +
+      ' on this map, joined by the route the game would walk. The color of each part of the route' +
+      ' shows the hour it starts, and each part has a line of its own where the game' +
       ' walks the same way twice</span>');
     if (ropes) parts.push('<span style="color:#fff">' + ROPE + ropes +
       (ropes === 1 ? ' needs a rope' : ' need a rope') + '</span>');
@@ -2078,9 +2078,9 @@ function drawMapMarks(lensCtx, lensTS) {
       svEsc(propDisplayName(spots.pt) || ('0x' + spots.pt.toString(16).toUpperCase())) + '</span>');
     if (saveLegend) parts.push('<span style="color:#a8e06a">' + BOX + 'save: ' + saveLegend + '</span>');
     legend.innerHTML = parts.length
-      ? parts.join(' &nbsp; ') + ' <span style="color:#dcd8cc">. Doors are the classes whose open or shut state the game sets back to the zone’s setting whenever the party enters the zone, ' +
-        'containers are the classes with IsContainer, and the page finds hidden ways by prop-type name. Zone exits are visible ways out (holes, stairs, cave mouths) plus the map’s ' +
-        'open edges, which you leave by walking off at any row or column; the page marks concealed passages as ' +
+      ? parts.join(' &nbsp; ') + ' <span style="color:#dcd8cc">. Doors are the classes whose open or shut state the game resets to the zone’s setting whenever the party enters the zone. ' +
+        'Containers are the classes with IsContainer. The page finds hidden ways by prop-type name. Zone exits are visible ways out (holes, stairs, cave mouths) plus the map’s ' +
+        'open edges, which you leave by walking off at any row or column. The page marks concealed passages as ' +
         'hidden ways instead.</span>'
       : '';
   }
@@ -2851,7 +2851,7 @@ function seatsOnMap(resid, m) {
             .filter(([dx, dy]) => solid(r.x + dx, r.y + dy));
           if (tables.length) { face = tables[0][2]; why = 'faces the table beside it'; }
           else if (walls.length === 1) { face = walls[0][2]; why = 'wall behind it'; }
-          else { face = SPR_S; why = 'not known, this seat has ' + own +
+          else { face = SPR_S; why = 'not known, because this seat has ' + own +
                    ' frame' + (own === 1 ? '' : 's') + ', so its aspect does not give one of four directions, ' +
                    'and nothing behind it shows which way it faces'; }
         }

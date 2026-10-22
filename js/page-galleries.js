@@ -94,8 +94,8 @@ async function exportGallery() {
     }
   }
 
-  index.push('', 'Written by index.html. Labels marked in the gallery with † are',
-             'supplied by the page and are not in the file.');
+  index.push('', 'Grimoire wrote this folder. The page supplies the labels marked † in the',
+             'gallery, and they are not in the file.');
   files.push({ name: folder + 'index.txt', bytes: utf8(index.join('\n')) });
 
   const blob = buildZip(files);
@@ -373,10 +373,10 @@ function editStringAt(resid, approxOffset) {
     '<div class="dtHead">Edit text in 0x' + resid.toString(16).toUpperCase() +
       '<button class="linkbtn" onclick="document.getElementById(\'textEdit\').remove()">close</button></div>' +
     '<textarea id="teText" spellcheck="false"></textarea>' +
-    '<div class="inspDim"><span id="teCount"></span>, the stored space is fixed at ' + loc.cap +
-      ' bytes; the page pads shorter text with spaces, and longer text would move every ' +
+    '<div class="inspDim"><span id="teCount"></span>. The stored space is fixed at ' + loc.cap +
+      ' bytes. The page pads shorter text with spaces, and longer text would move every ' +
       'byte after it, which this editor does not do. * separates alternative ' +
-      'lines; @word marks a conversation keyword.</div>' +
+      'lines, and @word marks a conversation keyword.</div>' +
     '<div><button onclick="applyStringEdit(' + resid + ',' + loc.textOffset + ',' + loc.cap + ')">Apply and rebuild the file</button></div>' +
     '</div>';
   document.body.appendChild(ov);
@@ -397,7 +397,7 @@ function applyStringEdit(resid, textOffset, cap) {
   if (!ta) return;
   const enc = encodeMacRoman(ta.value);
   if (enc.length > cap) {
-    setStatus('That text is ' + enc.length + ' bytes; the slot has room for ' + cap + '. Shorten it.', true);
+    setStatus('That text is ' + enc.length + ' bytes, and the slot has room for ' + cap + '. Shorten it.', true);
     return;
   }
   const data = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data;
@@ -508,9 +508,9 @@ function openDitherTool() {
     '<label>into <select id="dtTarget"></select></label>' +
     '<button class="secondary" onclick="ditherReplace()">Replace in archive</button>' +
     '</div>' +
-    '<div class="inspDim">Each mode writes a real resource of its kind: a portrait, a landscape strip, an icon, a ' +
+    '<div class="inspDim">Each mode writes a real resource of its kind, such as a portrait, a landscape strip, an icon, a ' +
     'sixteen-tile sheet or a sized graphic. Transparent pixels stay transparent, the result avoids the colors ' +
-    'the game animates so nothing shimmers, and Replace rebuilds the file in this browser. To download it, go to Data › Cythera Data › Changes.</div>' +
+    'the game animates so nothing shimmers, and Replace rebuilds the file in this browser. To download it, use Your Patch in Tools › Patch Generator.</div>' +
     '</div>';
   document.body.appendChild(ov);
   ditherFillTargets();
@@ -1418,7 +1418,7 @@ function renderContactSheet() {
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#500'; ctx.fillRect(0,0,32,32);
         canvas.style.width = '48px'; canvas.style.height = '48px';
-        cell.title = 'Decode error: ' + err.message;
+        cell.title = 'The page could not decode this: ' + err.message;
         sheetStats.err++;
       }
       updateSheetSummary();
@@ -1427,7 +1427,7 @@ function renderContactSheet() {
       if (ev.shiftKey) { downloadCanvasAsPNG(canvas, resid); return; }
       openResource(resid);
     };
-    cell.title = "Click to view full size; Shift-click to save a PNG";
+    cell.title = "Click to view full size, or Shift-click to save a PNG";
     grid.appendChild(cell);
   }
   // Blank resources are hidden on purpose, but the tally has to admit it: the

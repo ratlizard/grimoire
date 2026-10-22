@@ -3446,8 +3446,8 @@ function applyResourceEdit(resid, newData) {
   refreshChangesBadge();
   setStatus('Rebuilt the file with 0x' + resid.toString(16).toUpperCase() +
     (newData.length ? ' edited' : ' removed') + ', ' + dirty.size +
-    ' resource(s) changed this session. Edits stay in the page’s memory only; to download the edited file, go to ' +
-    'Data › Cythera Data › Changes.');
+    ' resource(s) changed this session. Edits stay in the page’s memory only. To download the edited file, ' +
+    'use Your Patch in Tools › Patch Generator.');
   showEditNotice(resid, newData.length ? 'edited' : 'removed', dirty.size);
   return true;
 }

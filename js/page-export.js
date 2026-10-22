@@ -921,7 +921,7 @@ function midiFilePicked(input) {
       const left = Object.entries(made.dropped).map(([why, n]) => n + ' ' + why).join(', ');
       setStatus('Replaced 0x' + resid.toString(16).toUpperCase() + ' with ' + f.name + ': ' + made.parts.length + (made.parts.length === 1 ? ' part, ' : ' parts, ') +
         made.notes + ' notes, ' + made.seconds.toFixed(1) + ' seconds' + (left ? '. Left out: ' + left : '') +
-        '. To download the edited file, go to Data › Cythera Data › Changes.');
+        '. To download the edited file, use Your Patch in Tools › Patch Generator.');
     } catch (e) {
       setStatus('The page could not make ' + f.name + ' into a tune: ' + e.message + '.', true);
     }

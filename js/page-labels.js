@@ -208,7 +208,7 @@ const RSRC_KINDS = [
     note: 'The dialog boxes, alerts, windows and controls, with their colors, backdrop patterns and palettes.',
     view: null },
   { id: 'editor', label: 'Editor', types: ['eSTM', 'eBRS', 'MSta', 'FILT', 'LINF', 'DATA', 'PORT', 'RMAP', 'TMPL'],
-    note: 'What the map editor kept in the data file: stamps and brushes (under Composites), three saved game states (MSta), its tile names, the color cycles and the ResEdit templates. The displacement filters (FILT) belong to the game and have separate cards. The game reads none of the rest, so these readings are inferred: MSta has quest states (Plague Cured is quest value 2 at 10), DATA 260 is an earlier list of tile names, DATA 261 is the color-cycling ramps, and PORT 0 and 1 have no structure this page could find.',
+    note: 'What the map editor kept in the data file: stamps and brushes (under Composites), three saved game states (MSta), its tile names, the color cycles and the ResEdit templates. The displacement filters (FILT) belong to the game and have separate cards. The game reads none of the rest, so these readings are guesses. MSta has quest states (Plague Cured is quest value 2 at 10), DATA 260 is an earlier list of tile names, DATA 261 is the color-cycling ramps, and PORT 0 and 1 have no structure this page could find.',
     view: 'RSRC' },
   { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
     note: 'What the program reads about itself: the light cones, the Delver engine’s help pages, the preference defaults, the version records and the program’s code. How much memory it requests is in SIZE.',
@@ -532,7 +532,7 @@ const SOUND_CATEGORIES = new Set([144]);
 function decodeSound(resData) {
   let p = 0;
   const magic = fourcc(resData, 0); p += 4;
-  if (magic !== 'asnd') throw new Error("Bad magic: expected 'asnd', got '" + magic + "'");
+  if (magic !== 'asnd') throw new Error("it starts with '" + magic + "', not 'asnd'");
   const duration = u32be(resData, p); p+=4;
   const rate = u16be(resData, p); p+=2;
   const flags = u16be(resData, p); p+=2;
@@ -598,7 +598,7 @@ function renderSound() {
     out.textContent = "Decoded sound 0x" + resid.toString(16).toUpperCase() + " (" + rate + " Hz, " + durSec + "s)";
   } catch(err) {
     document.getElementById('soundPreview').style.display = 'none';
-    out.textContent = "Sound decode error: " + err.message;
+    out.textContent = "The page could not decode this sound: " + err.message;
   }
 }
 
