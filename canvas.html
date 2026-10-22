@@ -420,7 +420,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   <span class="menuWrap">
     <button type="button" class="btn" id="bFile" aria-haspopup="true" aria-expanded="false">File</button>
     <div class="menu" id="fileMenu" hidden role="menu">
-      <button type="button" data-file="open" role="menuitem" title="A picture, unscaled, or one of our GIFs with the whole project inside">Open&hellip;</button>
+      <button type="button" data-file="open" role="menuitem" title="A picture, unscaled, or a GIF saved here with the whole project inside">Open&hellip;</button>
       <button type="button" data-file="place" role="menuitem" title="A picture into the canvas you already have">Place&hellip;</button>
       <button type="button" data-file="paste" role="menuitem" title="The clipboard, placed the same way">Paste</button>
       <hr>
@@ -553,8 +553,8 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       <div class="fld" data-for="selmode"><span class="eyebrow lbl">Select by</span>
         <div class="seg" id="selSeg">
           <button type="button" data-sm="box" aria-pressed="true" title="Drag out a rectangle">Box</button>
-          <button type="button" data-sm="lasso" aria-pressed="false" title="Draw freehand round it">Lasso</button>
-          <button type="button" data-sm="region" aria-pressed="false" title="Click a joined-up area of one color">Region</button>
+          <button type="button" data-sm="lasso" aria-pressed="false" title="Draw freehand around it">Lasso</button>
+          <button type="button" data-sm="region" aria-pressed="false" title="Click a connected area of one color">Region</button>
         </div>
         <div class="selActs">
           <button type="button" class="btn" id="selCut">Cut</button>
@@ -565,7 +565,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
         </div>
       </div>
       <div class="fld" data-for="radial"><label class="chk" title="Bands ring out from where the stroke began"><input type="checkbox" id="radial"> Radial</label></div>
-      <div class="fld" data-for="global"><label class="chk" title="Joined up or not"><input type="checkbox" id="fillAll"> Everywhere</label></div>
+      <div class="fld" data-for="global"><label class="chk" title="Connected or not"><input type="checkbox" id="fillAll"> Everywhere</label></div>
       <div>
         <label class="chk"><input type="checkbox" id="rev"> Reverse</label>
         <label class="chk"><input type="checkbox" id="ragged" checked> Ragged edge</label>
@@ -589,14 +589,14 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
     <div class="pal" id="pal"></div>
     <div class="row advOnly fl"><input type="color" id="mixColour" value="#4a7fb5" aria-label="Mix a color">
       <button type="button" class="btn pri" id="mixAdd">Add to palette</button></div>
-    <p class="rh" style="margin:10px 0 0">The first swatch is transparent: paint with it to rub out.
+    <p class="rh" style="margin:10px 0 0">The first swatch is transparent, so painting with it rubs out.
       Struck-out colors belong to a turning register.</p>
   </div></dialog>
 
 <dialog id="dReg" aria-label="Registers"><div class="dh"><span class="eyebrow">Registers &amp; ramps</span>
   <button type="button" class="btn pri" data-close>Done</button></div>
   <div class="db">
-    <p class="rh">Cythera's five come first; the rest cycle here, but the game would draw them without moving.
+    <p class="rh">Cythera's five come first. The rest cycle here, but the game would draw them without moving.
       Switching one on turns its colors from flat paint into cycling ones.</p>
     <div id="regList"></div>
     <h4>Build a ramp</h4>
@@ -623,7 +623,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       <button type="button" class="btn pri" id="bApplySize">Resize</button>
     </div>
     <div class="row" id="presets"></div>
-    <p class="rh" style="margin:8px 0 0">Paint stays anchored to the top-left corner; making the canvas larger adds space, and making it smaller crops it.</p>
+    <p class="rh" style="margin:8px 0 0">Paint stays anchored to the top-left corner. Making the canvas larger adds space, and making it smaller crops it.</p>
   </div></dialog>
 
 <dialog id="dAbout" aria-label="How this works"><div class="dh"><span class="eyebrow">How this works</span>
@@ -634,39 +634,39 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       and each frame moves the ramp on by one, so a stroke that writes a falling sequence of positions looks like
       color traveling that way. Drag downward and the color falls. Nothing is ever redrawn.</p>
     <p><strong>The ink sets what the tools are.</strong> With a ramp loaded the seven are Flow,
-      Vortex, Sparkle, Pool, Divert, Select and Melt; with a flat color the same seven are Paint,
+      Vortex, Sparkle, Pool, Divert, Select and Melt. With a flat color the same seven are Paint,
       Shape, Spray, Fill, Smudge, Select and Pick. <strong>Melt</strong> is what Pick becomes when the ink is a
-      ramp: drag across a run of colors and they are joined into a new ramp, which is then written back
+      ramp. Drag across a run of colors and Melt joins them into a new ramp, then writes the ramp back
       into the pixels it came from, so they start turning where they are.</p>
     <p><strong>Select confines everything.</strong> A box, a lasso or a region is a mask, and all
       painting checks it, so every tool and every creature that paints works inside it and
       nowhere else. Drag from inside a selection to move what is in it.</p>
     <h4>The creatures</h4>
     <p><strong>Giant Slug</strong> chains every turning register into one long body, so color
-      leaving the end of Fire feeds into the start of Water. Switch it off and every pixel stays
-      the color it is showing at that moment: the links the slug made are broken where they are, and
+      leaving the end of Fire feeds into the start of Water. Switch it off and every pixel keeps
+      the color it shows at that moment. The links the slug made break where they are, and
       the registers go back to turning separately from there.</p>
     <p><strong>Hydra Polyp</strong> takes a tool at random once a second and uses it somewhere at
       random. Leave it running and it will paint over everything you own.</p>
-    <p><strong>Harpy</strong> flies the canvas and leaves a wake: turning color under it is pushed
-      along its ramp, more in the middle of its track than at the edges. Flat paint is left alone.</p>
+    <p><strong>Harpy</strong> flies the canvas and leaves a wake that pushes turning color
+      along its ramp, more in the middle of its track than at the edges. It leaves flat paint alone.</p>
     <p><strong>Undead</strong> gives every register a separate pace, stopped, slow, even or fast,
-      and keeps drawing each a new one. Switch it off and each color stays where it had got to.
-      A saved GIF or video turns evenly; the changing pace is not saved.</p>
+      and keeps picking a new pace for each. Switch it off and each color stays where it is.
+      A saved GIF or video turns evenly and does not keep the changing pace.</p>
     <h4>The knobs</h4>
-    <p><strong>Turns</strong> sets which end of the ramp leads, or stops it turning; the stroke sets
+    <p><strong>Turns</strong> sets which end of the ramp leads, or stops it turning. The stroke sets
       the direction the wave travels. <strong>Band spacing</strong> is how many pixels one turn of the
       ramp covers. <strong>Turbulence</strong> adds noise that follows the stroke, so it streaks along with
-      the flow. <strong>Fold</strong> bends the direction the bands are measured along, giving a
+      the flow. <strong>Fold</strong> bends the axis the bands follow, giving a
       marbled look. <strong>Pool</strong> measures distance through the shape it fills, so bands run
       straight across a channel and close in around a lake. <strong>Opacity</strong> uses an ordered dither,
       because an indexed palette cannot blend colors.</p>
     <p><strong>The palette is Cythera's</strong>, a 6-bit Mac color table widened to 8 bits, but
-      it is not a limit: set the depth from 1 to 16 bits and every color snaps to that grid, or choose Direct to
-      keep imported colors exactly. Mixed colors are added to the end, so the palette can grow to thousands;
-      what matters for GIF and PNG is the number of distinct colors on the canvas, which the status bar counts.</p>
-    <p><strong>The GIF is the save file.</strong> Ours contain the whole project in a comment block.
-      Any other cycling GIF is read from its motion: between two frames, every moving color steps
+      it is not a limit. Set the depth from 1 to 16 bits and every color snaps to that grid, or choose Direct to
+      keep imported colors exactly. Mixed colors go on the end, so the palette can grow to thousands.
+      What matters for GIF and PNG is the number of distinct colors on the canvas, which the status bar counts.</p>
+    <p><strong>The GIF is the save file.</strong> A GIF saved here contains the whole project in a comment block.
+      The page reads any other cycling GIF from its motion. Between two frames, every moving color steps
       from one slot to another, and the cycles those steps form become the registers.</p>
     <p>Cythera™ is copyright ©1993–9 Ambrosia Software, Inc. This is an unofficial fan-made tool.
       Alaric, the scroll, the texture, the slug, the polyp, the harpy and the undead are pictures from the game.</p>
@@ -2511,9 +2511,9 @@ var EFFECTS = [
   { id: 'hydra', name: 'Hydra Polyp',
     help: 'Grabs a tool at random once a second and uses it somewhere at random.' },
   { id: 'harpy', name: 'Harpy',
-    help: 'Flies the canvas and leaves a wake: turning color under it is pushed along its ramp. Flat paint is left alone.' },
+    help: 'Flies the canvas and leaves a wake that pushes turning color along its ramp. It leaves flat paint alone.' },
   { id: 'undead', name: 'Undead',
-    help: 'Every register turns at a separate pace, and the pace changes as you watch. Off again, each color stays where it had got to.' }
+    help: 'Every register turns at a separate pace, and the pace changes as you watch. Off again, each color stays where it is.' }
 ];
 /* Each slot is one behaviour wearing two names, and belongs to one of the two
    families the picker is split by. */
@@ -2537,7 +2537,7 @@ var TOOLS = [
     ramp:  { name: 'Select', icon: 'select', help: 'Everything works inside the selection and nowhere else. Drag inside it to move it.' },
     still: { name: 'Select', icon: 'select', help: 'Everything works inside the selection and nowhere else. Drag inside it to move it.' } },
   { id: 'pick', cat: 'modify',
-    ramp:  { name: 'Melt', icon: 'melt', help: 'Drag across colors and they are strung into a ramp, which becomes the ink.' },
+    ramp:  { name: 'Melt', icon: 'melt', help: 'Drag across colors to string them into a ramp, which becomes the ink.' },
     still: { name: 'Pick', icon: 'pick', help: 'Click a pixel to load its color.' } }
 ];
 function toolDef(id) {
@@ -3045,9 +3045,9 @@ function paintPal() {
   if (n) n.textContent = depth === 'cythera'
     ? "Cythera's CLUT: a 6-bit Mac palette of 256, with 28 of them turning."
     : depth === 'direct'
-    ? 'No grid: every color is kept exactly as it arrived. This is what a picture read in from a file lands in, so nothing it brought with it is lost.'
+    ? 'No grid. Every color stays exactly as it arrived. A picture opened from a file lands here, so it loses none of its colors.'
     : (1 << depth) + ' colors at ' + depth + '-bit' +
-      (depth > 12 ? ', the grid below is a sample; anything you mix snaps to the full one.' : '.');
+      (depth > 12 ? ', and the grid below is a sample. Anything you mix snaps to the full one.' : '.');
 }
 document.getElementById('mixAdd').addEventListener('click', function () {
   var i = addColor(hex2rgb(document.getElementById('mixColour').value));
@@ -3399,7 +3399,7 @@ function takeImageURL(url, how) {
   });
 }
 async function pasteFromClipboard() {
-  if (!navigator.clipboard || !navigator.clipboard.read) { showStatus('this browser has no clipboard read, use ctrl+V'); return; }
+  if (!navigator.clipboard || !navigator.clipboard.read) { showStatus('this browser cannot read the clipboard, so use ctrl+V'); return; }
   try {
     var items = await navigator.clipboard.read();
     for (var i = 0; i < items.length; i++) {
@@ -3411,7 +3411,7 @@ async function pasteFromClipboard() {
       return;
     }
     showStatus('no picture on the clipboard');
-  } catch (e) { showStatus('clipboard blocked, use ctrl+V instead'); }
+  } catch (e) { showStatus('the browser blocked the clipboard, so use ctrl+V instead'); }
 }
 addEventListener('paste', function (e) {
   if (e.target.matches && e.target.matches('input,textarea')) return;
@@ -3433,7 +3433,7 @@ async function copyCanvas() {
     var blob = await new Promise(function (r) { art.toBlob(r, 'image/png'); });
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     showStatus('copied this frame to the clipboard');
-  } catch (e) { showStatus('could not copy, the browser blocked it'); }
+  } catch (e) { showStatus('could not copy because the browser blocked it'); }
 }
 
 /* ================= reading the motion ===================================
@@ -3671,7 +3671,7 @@ function importByMotion(bytes) {
   showStatus(regs.length
     ? 'read ' + regs.length + ' cycling register' + (regs.length === 1 ? '' : 's') +
       ', ' + steps + ' colors in motion, off ' + g.frames.length + ' frames' +
-      (moved ? ' (the pixels move too; this is frame one)' : '')
+      (moved ? ' (the pixels move too, and this is frame one)' : '')
     : 'nothing was cycling in that one, ' + tab.length + ' colors, all held still');
   return true;
 }
@@ -3985,7 +3985,7 @@ async function gifOut(delayCs) {
   // has nowhere else to put it. Long ramps mean long loops mean big files.
   var est = LOOP * (data.length + 800) + 1024;
   if (est > 15 * 1024 * 1024) {
-    gifWhy = 'loop of ' + LOOP + ' frames would make a ' + Math.round(est / 1048576) + ' MB GIF, shorten the ramp';
+    gifWhy = 'loop of ' + LOOP + ' frames would make a ' + Math.round(est / 1048576) + ' MB GIF, so shorten the ramp';
     return null;
   }
   var out = [];
@@ -4260,7 +4260,7 @@ async function sendBackToGrimoire() {
   for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
   try {
     localStorage.setItem('grimoire.return', JSON.stringify({ resid: fromGrimoire.resid, subn: fromGrimoire.subn, name: fromGrimoire.name, png: 'data:image/png;base64,' + btoa(bin), at: Date.now() }));
-    showStatus('sent back to Grimoire; it is in that page\u2019s ditherizer now');
+    showStatus('sent back to Grimoire, where it is in the ditherizer');
   } catch (e) { showStatus('could not send it back: ' + (e.message || e)); }
 }
 
