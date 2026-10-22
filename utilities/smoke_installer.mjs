@@ -634,6 +634,30 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!r.third || !r.back) fail('apply to site', 'Apply with no program fix did not put the program back: ' + JSON.stringify(r));
       else console.log('  apply to site: option-p applied to the site\u2019s program and parsed, the same program in Replacement Files, applied again, and the program as it arrived put back');
     }
+    /* An edit keeps the program (21 October 2026). A tune replaced with a
+       MIDI file goes through applyResourceEdit, which parses the rebuilt
+       file again; that parse dropped the program taken out of the
+       installer, so Replacement Files with a program fix chosen said "No
+       program is open." The edit here writes the tune's own bytes back, and
+       the file and the dirty list are put back afterwards. */
+    {
+      const r = ctx.__peek(`(() => {
+        const bytes = ARCHIVE.bytes, dirty = new Set(window.EDITED_RESIDS), name = window.ARCHIVE_SOURCE_NAME;
+        const edited = applyResourceEdit(0x9000, getResourceBytes(ARCHIVE, 0x9000));
+        const kept = !!(window.APP_DATA && window.APP_RSRC_RAW);
+        fixPreset('none'); appFixToggle('option-p', true);
+        const files = basketFiles();
+        const prog = !!files && files.entries.some(e => e.name === 'Cythera');
+        const note = (document.getElementById('patchBarNote') || {}).textContent || '';
+        fixPreset('tested');
+        parseArchiveBytes(bytes, name, { rsrc: window.CYTHERA_RSRC_RAW, via: 'edit' });
+        window.EDITED_RESIDS = dirty;
+        return { edited, kept, prog, note };
+      })()`);
+      if (!r.edited) fail('edit keeps program', 'the tune was not written back: ' + JSON.stringify(r));
+      else if (!r.kept || !r.prog) fail('edit keeps program', 'the program went with the edit: ' + JSON.stringify(r));
+      else console.log('  edit keeps program: a tune rewritten, and Replacement Files still has the program with option-p chosen');
+    }
     ctx.showCategory('AIRULES');
     const rows = (REGISTRY.get('sheetGrid').children || []);
     // The Rules tab has the vocabulary out of the application's fork.

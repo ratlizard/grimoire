@@ -41,7 +41,7 @@
    beside the tables that hang off it, and assigned in parseArchiveBytes below
    and nowhere else. */
 
-function resetDerivedCaches() {
+function resetDerivedCaches(keepProgram) {
   // The tables live on the archive now (DERIVED, js/page-labels.js) and
   // went with the old object; one of them is read as a list before anything
   // fills it, so it starts as one.
@@ -49,12 +49,20 @@ function resetDerivedCaches() {
   // The decoded-resource cache and the application's fork are both keyed to
   // the file that is open, so a different archive has to drop them too.
   if (typeof _rsrcArtifactCache !== 'undefined') _rsrcArtifactCache.clear();
-  window.APP_RSRC = null;
-  window.APP_RSRC_RAW = null;
-  window.APP_DATA = null;
-  window.APP_PEF = null;
-  window.APP_PRISTINE = null;
-  window.APP_RSRC_STATE = '';
+  /* An edit rebuilds the same file (via:'edit'), so the program that came
+     with it stays. Until 21 October 2026 it was dropped here too: a visitor
+     who opened the installer, replaced a tune and chose a program fix got
+     "No program is open." from Download, because the program is extracted
+     from the installer in openArchive alone and an edit never reaches
+     openArchive. */
+  if (!keepProgram) {
+    window.APP_RSRC = null;
+    window.APP_RSRC_RAW = null;
+    window.APP_DATA = null;
+    window.APP_PEF = null;
+    window.APP_PRISTINE = null;
+    window.APP_RSRC_STATE = '';
+  }
   window.RSRC_SOURCE = 'data';
   window.MAP_VIEW_MEMORY = Object.create(null);
   window.MAP_SEL_MEMORY = Object.create(null);
@@ -853,7 +861,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     ARCHIVE = arc;
     const masterIndex = arc.index;
     dvmSetResourceSymbols(loadResourceSymbols(arc));
-    resetDerivedCaches();
+    resetDerivedCaches(meta.via === 'edit');
     openCytheraResourceFork(meta.rsrc);
     installGameFont();
     try { installDialogueBox(); } catch (e) { quiet(e); }
