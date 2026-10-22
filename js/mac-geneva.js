@@ -12,11 +12,11 @@
    download of https://fontstruct.com/fontstructions/show/349277 unmodified
    (SHA-256 abda9418...8626, the same file as the systemless fork's
    fontstruct/geneva-9.ttf), under the Creative Commons Attribution 3.0
-   licence; its licence and FontStruct's readme travel with it as
+   license; its license and FontStruct's readme travel with it as
    licences/Geneva9-LICENSE.txt and licences/Geneva9-README.txt (in
    grimoire, res/), and NOTICE records it.
    It is outlines on a grid of 64 units a square, sixteen squares an em, so
-   drawn at a square a pixel it is the bitmap it was built from. It was
+   drawn at one pixel a square it is exactly the bitmap behind it. It was
    chosen over its descendant Geneva 9.1 (res/Geneva9-1-Regular.woff2, the
    page's face) for the fork on 17 September 2026 because it is the
    nearer to Apple's strike (the workbench's SYSTEMLESS-NOTES, "The
@@ -40,7 +40,7 @@
    strike does not use them as they are: it is used only for which side of Geneva
    9's letter an odd pixel of extra width goes (js/delv-translate.js).
    Only Kurrajong's numbers are in this file, none of its pixels. licences/Kurrajong-OFL.txt
-   (in grimoire, res/) is the licence. The frame is Geneva's at both sizes, ten pixels above
+   (in grimoire, res/) is the license. The frame is Geneva's at both sizes, ten pixels above
    the baseline and two below, with one of leading at 10 points; an
    accented letter has its letter's width, as Apple's do. */
 const GENEVA9_TTF =
