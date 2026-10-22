@@ -73,7 +73,7 @@ if (savePath && !onlyCat) {
     else {
       const where = ctx.zoneDisplayName(heroBefore.zone);
       if (!sheet.includes(where)) fail('saved game sheet', 'the head does not say where the player is: ' + where);
-      if (!ctx.namesAreBorrowed() || !/come from the scenario opened earlier/.test(sheet))
+      if (!ctx.namesAreBorrowed() || !/come from the scenario you opened earlier/.test(sheet))
         fail('saved game sheet', 'the borrowed names are not admitted');
       if (!sheet.includes('0xF307')) fail('saved game sheet', 'the parts table does not show the persistent store');
       // I.M.Cheater is the community's cheated save and its hero has 255
@@ -179,7 +179,7 @@ if (savePath && !onlyCat) {
         const plain = withoutApp(() => ctx.charEditHTML(1));
         if (!/a merchant’s price, in tenths of a thing’s worth/.test(f) || /shops start at/.test(f))
           fail('record form', 'byte 23 is not the price, or states starting values a save cannot have');
-        else if (!/stats it was made at;/.test(plain) || /jumpToExeAt/.test(plain))
+        else if (!/stats it was made at\. Named characters/.test(plain) || /jumpToExeAt/.test(plain))
           fail('record form', 'byte 31 is not the size, or links to the program with no application open');
       }
       const before = ctx.loadCharacterTable()[1];
