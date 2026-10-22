@@ -295,11 +295,11 @@ const CHECKS = [
   {page: 'viewer', name: 'PICT BitsRect',
    cmd: ['utilities/pict_bits_check.mjs', 'index.html'],
    grep: /\d+ synthetic pictures/},
-  // Replace with a PNG writes a picture back in the form it had; a round
-  // trip through the decoder over every PICT of both forks.
-  {page: 'viewer', name: 'PICT write', want: [DATA_RSRC, APP_RSRC],
-   cmd: ['utilities/pict_write_check.mjs', 'index.html', DATA_RSRC, APP_RSRC],
-   grep: /pict write: 21 pictures/},
+  // Replace with a PNG writes an image back in the form it had; a round
+  // trip through the decoders over every image resource of both forks.
+  {page: 'viewer', name: 'image write', want: [DATA_RSRC, APP_RSRC],
+   cmd: ['utilities/image_write_check.mjs', 'index.html', DATA_RSRC, APP_RSRC],
+   grep: /image write: 139 images/},
   /* Is the oracle current? delvmod is a fork this project pushes fixes to,
      and a fix to it is worth nothing if the copy the suite compares against
      is older. Placed before the delvmod checks so that a stale oracle is read

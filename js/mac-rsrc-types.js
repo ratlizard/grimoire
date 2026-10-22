@@ -399,8 +399,8 @@ function exportArtifacts(fork, type, entry, data){
   else if(type==='nrct') txt(decodeNrct(data));
   else if(type==='styl') txt(decodeStyl(data));
   else if(type==='FOND') txt(decodeFOND(data).text);
-  else if(type==='ICN#') cvs(decode1bitIcon(data,32));
-  else if(type==='ics#') cvs(decode1bitIcon(data,16));
+  else if(type==='ICN#') cvs(decode1bitIcon(data,32,true));
+  else if(type==='ics#') cvs(decode1bitIcon(data,16,true));
   else if(type==='ICON') cvs(decodeICON(data));
   else if(type==='icl4') cvs(drawIndexedIcon(data,32,4,MAC_4BIT_PAL,iconMaskFor(fork, 32)(entry.id)));
   else if(type==='icl8') cvs(drawIndexedIcon(data,32,8,MAC_8BIT_PAL,iconMaskFor(fork, 32)(entry.id)));
@@ -553,8 +553,12 @@ function pcmToWavBlob(samples, rate, bits, channels){
 }
 
 // 1-bit ICN#/ics# icon -> canvas (32x32 or 16x16), mask ignored for simplicity
-function decode1bitIcon(data, size){
-  const rowBytes = size/8;
+// `masked`: the resource is an ICN# or ics#, whose second half is the mask,
+// drawn as the picture's transparency so that a PNG saved from it has
+// the mask and rsrcReplaceImage can read it back.
+function decode1bitIcon(data, size, masked){
+  const rowBytes = size/8, half = rowBytes*size;
+  const hasMask = !!masked && data.length >= half*2;
   const canvas = document.createElement('canvas');
   canvas.width=size; canvas.height=size;
   const ctx = canvas.getContext('2d');
@@ -566,7 +570,8 @@ function decode1bitIcon(data, size){
       const val = (data[byteIdx]>>bit)&1;
       const idx=(y*size+x)*4;
       const c = val?0:255;
-      imgData.data[idx]=c; imgData.data[idx+1]=c; imgData.data[idx+2]=c; imgData.data[idx+3]=255;
+      const shown = hasMask ? (data[half+byteIdx]>>bit)&1 : 1;
+      imgData.data[idx]=c; imgData.data[idx+1]=c; imgData.data[idx+2]=c; imgData.data[idx+3]=shown?255:0;
     }
   }
   ctx.putImageData(imgData,0,0);
@@ -1029,6 +1034,22 @@ function decodePict(data){
    The rows are packed with PackBits as Apple's encoder packs them (a run of
    three or more repeats, anything shorter is a literal), so the bytes need
    not match the original's, only decode to the same pixels. */
+// The index a colour is given in a table of `count` entries: `old`, the
+// index the pixel had, when that index has the same colour; else the first
+// index with exactly that colour; else the nearest by RGB distance.
+function paletteIndexer(pal, count){
+  const key=(r,g,b)=>(r<<16)|(g<<8)|b, exact=new Map(), near=new Map(), n=Math.min(pal.length,count);
+  for(let i=0;i<n;i++) if(pal[i]&&!exact.has(key(...pal[i]))) exact.set(key(...pal[i]),i);
+  return (r,g,b,old)=>{
+    const k=key(r,g,b);
+    if(old!==undefined&&pal[old]&&old<n&&key(...pal[old])===k) return old;
+    if(exact.has(k)) return exact.get(k);
+    if(near.has(k)) return near.get(k);
+    let best=0,bd=Infinity;
+    for(let i=0;i<n;i++){ const c=pal[i]; if(!c) continue; const d=(c[0]-r)**2+(c[1]-g)**2+(c[2]-b)**2; if(d<bd){bd=d;best=i;} }
+    near.set(k,best); return best;
+  };
+}
 function packBitsUnits(src, unit){
   const n=src.length/unit, out=[];
   const same=(a,b)=>{ for(let k=0;k<unit;k++) if(src[a*unit+k]!==src[b*unit+k]) return false; return true; };
@@ -1102,22 +1123,12 @@ function pictReplacePixels(data, rgba, W, H){
     for(const b of packed) body.push(b);
   };
   if(L.kind==='indexed'){
-    const pal=L.palette, bits=pm.pixelSize, ppb=8/bits, mask=(1<<bits)-1;
-    const key=(r,g,b)=>(r<<16)|(g<<8)|b, exact=new Map(), near=new Map();
-    for(let i=0;i<pal.length;i++) if(pal[i]&&i<=mask&&!exact.has(key(...pal[i]))) exact.set(key(...pal[i]),i);
-    const nearest=k=>{
-      if(near.has(k)) return near.get(k);
-      const r=k>>16,g=(k>>8)&0xff,b=k&0xff; let best=0,bd=Infinity;
-      for(let i=0;i<pal.length&&i<=mask;i++){ const c=pal[i]; if(!c) continue; const d=(c[0]-r)**2+(c[1]-g)**2+(c[2]-b)**2; if(d<bd){bd=d;best=i;} }
-      near.set(k,best); return best;
-    };
+    const bits=pm.pixelSize, ppb=8/bits, mask=(1<<bits)-1, index=paletteIndexer(L.palette,mask+1);
     for(let y=0;y<H;y++){
       const was=L.rows[y], row=new Uint8Array(pm.rowBytes);
       for(let x=0;x<W;x++){
-        const o=(y*W+x)*4, k=key(rgba[o],rgba[o+1],rgba[o+2]);
-        const sh=(ppb-1-(x%ppb))*bits, old=(was[Math.floor(x/ppb)]>>sh)&mask;
-        const idx=(pal[old]&&key(...pal[old])===k)?old:exact.has(k)?exact.get(k):nearest(k);
-        row[Math.floor(x/ppb)]|=idx<<sh;
+        const o=(y*W+x)*4, sh=(ppb-1-(x%ppb))*bits, old=(was[Math.floor(x/ppb)]>>sh)&mask;
+        row[Math.floor(x/ppb)]|=index(rgba[o],rgba[o+1],rgba[o+2],old)<<sh;
       }
       put(row,1);
     }
@@ -1152,6 +1163,101 @@ function pictReplacePixels(data, rgba, W, H){
   out.set(head,0); out.set(body,head.length); out.set(rest,at+pad);
   // picSize is the low word of the picture's length.
   out[0]=(out.length>>8)&0xff; out[1]=out.length&0xff;
+  return out;
+}
+
+// ---- The other image resources written back ----
+/* rsrcReplaceImage(type, data, rgba, W, H) is an image resource with its
+   pixels replaced by `rgba`, for each type a page draws as one picture:
+   PICT (pictReplacePixels), the black-and-white icons ICN# and ics#, the
+   colour icons icl4, icl8, ics4 and ics8, the cursors CURS and crsr, the
+   colour icon cicn and the pattern ppat. Every other byte is unchanged, and
+   the size must be the resource's.
+
+   A pixel that looks as the decoder draws the original is given the bits it
+   had, so a PNG saved from the page and put back unchanged gives back the
+   same bytes. A pixel that changed is written from its colour and alpha:
+   alpha of half or more is inside the mask, where the resource has one
+   (ICN#, ics#, CURS, crsr, cicn); a black-and-white plane is set where the
+   colour is dark; a colour plane is given the nearest colour of the
+   resource's table (paletteIndexer), the system's 16 or 256 colours for
+   icl4 and icl8. A transparent pixel of a resource that has no mask is
+   left as it was: an icl8 is drawn through its ICN#'s mask, so its
+   outline is changed by replacing the ICN#. A pixel made transparent is
+   cleared in the black-and-white planes as well, because a cursor draws a
+   set data bit outside its mask inverted. */
+const RSRC_IMAGE_TYPES = new Set(['PICT','ICN#','ics#','icl4','icl8','ics4','ics8','CURS','crsr','cicn','ppat']);
+function rsrcImageWritable(type){ return RSRC_IMAGE_TYPES.has(type); }
+// Where each plane of a resource is: {off, rb} for a 1-bit plane, with
+// `bits` and `pal` for a colour one, and the size the decoder draws.
+function rsrcImagePlanes(type, data){
+  const icon=(n,bits,pal)=>({W:n,H:n,px:{off:0,rb:n*bits/8,bits,pal}});
+  switch(type){
+    case 'ICN#': return {W:32,H:32,ink:{off:0,rb:4},mask:{off:128,rb:4}};
+    case 'ics#': return {W:16,H:16,ink:{off:0,rb:2},mask:{off:32,rb:2}};
+    case 'icl4': return icon(32,4,MAC_4BIT_PAL);
+    case 'icl8': return icon(32,8,MAC_8BIT_PAL);
+    case 'ics4': return icon(16,4,MAC_4BIT_PAL);
+    case 'ics8': return icon(16,8,MAC_8BIT_PAL);
+    case 'CURS': return {W:16,H:16,ink:{off:0,rb:2},mask:{off:32,rb:2}};
+    case 'crsr': {
+      // The offsets decodeCrsr reads: crsr1Data at 20, crsrMask at 52, the
+      // PixMap at crsrMap and its pixels at crsrData.
+      const mapOff=u32be(data,2), b=readRect(data,mapOff+6);
+      return {W:b.right-b.left,H:b.bottom-b.top,ink:{off:20,rb:2},mask:{off:52,rb:2},
+              px:{off:u32be(data,6),rb:u16be(data,mapOff+4)&0x3fff,bits:u16be(data,mapOff+32),pal:readColorTable(data,u32be(data,mapOff+42)).palette}};
+    }
+    case 'cicn': {
+      // The walk decodeCicn makes: PixMap, mask BitMap, icon BitMap, the
+      // iconData handle, the mask's bits, the icon's bits, the table, pixels.
+      const rb=u16be(data,4)&0x3fff, b=readRect(data,6), bits=u16be(data,32);
+      const mRb=u16be(data,54)&0x3fff, mB=readRect(data,56), iRb=u16be(data,68)&0x3fff, iB=readRect(data,70);
+      const mAt=82, iAt=mAt+mRb*(mB.bottom-mB.top), ctAt=iAt+iRb*(iB.bottom-iB.top), ct=readColorTable(data,ctAt);
+      return {W:b.right-b.left,H:b.bottom-b.top,mask:{off:mAt,rb:mRb},ink:iB.bottom>iB.top?{off:iAt,rb:iRb}:null,
+              px:{off:ct.p,rb,bits,pal:ct.palette}};
+    }
+    case 'ppat': {
+      if(data.length===8) return {W:8,H:8,ink:{off:0,rb:1}};
+      const patType=u16be(data,0), mapOff=u32be(data,2);
+      if(patType!==1&&patType!==2) return {W:8,H:8,ink:{off:20,rb:1}};
+      const b=readRect(data,mapOff+6);
+      return {W:b.right-b.left,H:b.bottom-b.top,ink:{off:20,rb:1,W:8,H:8},
+              px:{off:u32be(data,6),rb:u16be(data,mapOff+4)&0x3fff,bits:u16be(data,mapOff+32),pal:readColorTable(data,u32be(data,mapOff+42)).palette}};
+    }
+  }
+  return null;
+}
+function rsrcReplaceImage(type, data, rgba, W, H){
+  if(type==='PICT') return pictReplacePixels(data, rgba, W, H);
+  const P=RSRC_IMAGE_TYPES.has(type)&&rsrcImagePlanes(type, data);
+  if(!P) throw new Error('A '+type+' resource cannot be written from a picture.');
+  if(W!==P.W||H!==P.H) throw new Error(`The ${type} is ${P.W}×${P.H} and the image given is ${W}×${H}.`);
+  if(!rgba||rgba.length<W*H*4) throw new Error(`The image given has fewer than ${W}×${H} pixels.`);
+  if(P.px&&(P.px.bits<1||P.px.bits>8||8%P.px.bits)) throw new Error(`A ${type} of ${P.px.bits} bits a pixel cannot be written.`);
+  const out=new Uint8Array(data);
+  const need=pl=>pl.off+pl.rb*(pl.H||H);
+  for(const pl of [P.ink,P.mask,P.px]) if(pl&&need(pl)>out.length) throw new Error(`This ${type} is shorter than its planes.`);
+  const bitOf=(pl,x,y)=>(out[pl.off+y*pl.rb+(x>>3)]>>(7-(x&7)))&1;
+  const setBit=(pl,x,y,v)=>{ const i=pl.off+y*pl.rb+(x>>3), m=1<<(7-(x&7)); out[i]=v?out[i]|m:out[i]&~m; };
+  const ppb=P.px?8/P.px.bits:1, pmask=P.px?(1<<P.px.bits)-1:0;
+  const pixOf=(x,y)=>(out[P.px.off+y*P.px.rb+Math.floor(x/ppb)]>>((ppb-1-(x%ppb))*P.px.bits))&pmask;
+  const setPix=(x,y,v)=>{ const sh=(ppb-1-(x%ppb))*P.px.bits, i=P.px.off+y*P.px.rb+Math.floor(x/ppb); out[i]=(out[i]&~(pmask<<sh))|((v&pmask)<<sh); };
+  const index=P.px?paletteIndexer(P.px.pal,pmask+1):null;
+  const inInk=(x,y)=>!!P.ink&&x<(P.ink.W||W)&&y<(P.ink.H||H);
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const o=(y*W+x)*4, r=rgba[o], g=rgba[o+1], b=rgba[o+2], shown=rgba[o+3]>=128;
+    const wasShown=P.mask?bitOf(P.mask,x,y)===1:true;
+    if(!shown){
+      if(!P.mask||!wasShown) continue;      // no mask in this resource, or transparent already
+      setBit(P.mask,x,y,0); if(inInk(x,y)) setBit(P.ink,x,y,0);
+      continue;
+    }
+    const was=P.px?(P.px.pal[pixOf(x,y)]||[255,0,255]):(bitOf(P.ink,x,y)?[0,0,0]:[255,255,255]);
+    if(wasShown&&was[0]===r&&was[1]===g&&was[2]===b) continue;
+    if(P.mask) setBit(P.mask,x,y,1);
+    if(inInk(x,y)) setBit(P.ink,x,y,(r*299+g*587+b*114)<128000?1:0);
+    if(P.px) setPix(x,y,index(r,g,b,pixOf(x,y)));
+  }
   return out;
 }
 

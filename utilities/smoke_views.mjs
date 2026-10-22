@@ -243,9 +243,9 @@ if (!rsrcFork) {
       /* A picture replaced from a PNG (Replace with a PNG, 21 October 2026):
          PICT 139's pixels with a block painted in, as an RGBA PNG made
          here, go into the fork; the picture's page then has Put the
-         Original Back and says so, Your Patch counts it, Replacement Files
+         Original Back and the PNG's name, Your Patch counts it, Replacement Files
          has the new fork, and Put the Original Back puts the shipped bytes
-         back. pict_write_check.mjs covers the packing over every picture. */
+         back. image_write_check.mjs covers the packing over every picture. */
       try {
         const png = (W, H, rgba) => {
           const chunk = (tag, body) => { const len = Buffer.alloc(4); len.writeUInt32BE(body.length); const tb = Buffer.concat([Buffer.from(tag), body]); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(tb)); return Buffer.concat([len, tb, crc]); };
@@ -259,7 +259,7 @@ if (!rsrcFork) {
         for (let y = 10; y < 20; y++) for (let x = 60; x < 90; x++) px.set([0, 0, 0], (y * was.W + x) * 4);
         ctx.SMOKE_PNG = png(was.W, was.H, px);
         const r = peek(`(() => {
-          replaceForkPicture(139, window.SMOKE_PNG, 'smoke.png');
+          replaceForkImage('data', 'PICT', 139, window.SMOKE_PNG, 'smoke.png');
           showMacRsrcDetail('PICT', 139, 'data');
           const text = (function all(el) { return (el.textContent || '') + (el.children || []).map(all).join(''); })(document.getElementById('sheetGrid'));
           const now = CYTHERA_RSRC.dataOf('PICT', CYTHERA_RSRC.resourcesByType.PICT.find(x => x.id === 139));
@@ -269,14 +269,14 @@ if (!rsrcFork) {
           const files = basketFiles();
           APPFIX_STATE.off = keep;
           const inFiles = !!files && (() => { const f = openResourceFork(files.entries[0].rsrc); const d = f.dataOf('PICT', f.resourcesByType.PICT.find(x => x.id === 139)); return d.length === now.length && d.every((x, i) => x === now[i]); })();
-          forkPictureRestore(139);
+          forkPictureRestore('data', 'PICT', 139);
           const back = CYTHERA_RSRC.dataOf('PICT', CYTHERA_RSRC.resourcesByType.PICT.find(x => x.id === 139));
           return { buttons: /Replace with a PNG/.test(text) && /Put the Original Back/.test(text) && /Replaced with smoke\.png/.test(text),
                    drawn: Array.from(drawn), counted: ed.fork.includes('PICT 139'), inFiles, back: Array.from(back), left: RSRC_PICTURES.size,
                    note: (document.getElementById('patchBarNote') || {}).textContent || '' };
         })()`);
         const sameAs = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
-        if (!r.buttons) fail('picture replaced', 'the picture\u2019s page does not offer Replace with a PNG and Put the Original Back, or does not name the PNG');
+        if (!r.buttons) fail('picture replaced', 'the picture\u2019s page does not offer Replace with a PNG and Put the Original Back, or has no PNG name');
         else if (!sameAs(r.drawn, Array.from(px))) fail('picture replaced', 'the replaced picture does not draw the PNG');
         else if (!r.counted) fail('picture replaced', 'Your Patch does not count the picture');
         else if (!r.inFiles) fail('picture replaced', 'Replacement Files does not have the new picture: ' + r.note);

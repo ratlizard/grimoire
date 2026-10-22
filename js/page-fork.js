@@ -1038,7 +1038,7 @@ async function loadApplicationFork() {
       // The RAW fork as well as the parsed one. The comparison section needs
       // bytes: describeApplicationDiff opens both sides itself so that it can
       // say the same things about an application this page never opened.
-      window.APP_RSRC_RAW = c.rsrc;
+      window.APP_RSRC_RAW = c.rsrc; window.APP_RSRC_EDITS = new Map();
       window.APP_DATA = c.data && c.data.length ? c.data : null; window.APP_PEF = null;
       window.APP_RSRC_STATE = ''; window.APP_PRISTINE = null;
       try { installDialogueBox(); } catch (e) { quiet(e); }
@@ -1238,70 +1238,130 @@ function renderMacRsrcSheet() {
 }
 
 /* ---------------------------------------------------------------------------
-   A picture in Cythera Data's fork, replaced from a PNG.
+   An image in a resource fork, replaced from a PNG.
 
-   The maintainer's request of 21 October 2026, to edit the fork's images as
-   the tunes are edited: save the picture as a PNG, change it anywhere, and
-   put it back with Replace with a PNG on the picture's page. The PNG is read
-   by pngDecode (js/delv-artpack.js), which needs no canvas, and packed into
-   the picture by pictReplacePixels (js/mac-rsrc-types.js). The picture's
-   form, colour table, mask region and other opcodes are unchanged, and a PNG
-   of another size is rejected; utilities/pict_write_check.mjs compares the
-   result with the decoder over all twenty-one PICTs. The new fork replaces
-   window.CYTHERA_RSRC_RAW, as the font swap's does, so it is in Replacement
-   Files and the disk image with no more work. A Magpie patch has no room for
-   the fork, and the pictures are in basketLeftOut's list for that reason.
+   The maintainer's request of 21 October 2026, to edit the forks' images as
+   the tunes are edited: save the image as a PNG, change it anywhere, and put
+   it back with Replace with a PNG on the image's page. The PNG is read by
+   pngDecode (js/delv-artpack.js), which needs no canvas, and packed into the
+   resource by rsrcReplaceImage (js/mac-rsrc-types.js): a PICT, an icon of
+   any of the six kinds, a cursor, a colour icon or a pattern, in the form
+   it had, with a PNG of another size rejected. utilities/image_write_check.mjs
+   compares the result with the decoders over every image of both forks.
 
-   Cythera Data's fork alone. The program's pictures, icons and cursors are
-   in the program's fork, which reaches a download only as the program, and
-   only when a program fix is chosen (basketProgram).
+   Cythera Data's fork is replaced in window.CYTHERA_RSRC_RAW, as the font
+   swap's is, so it is in Replacement Files and the disk image with no more
+   work, and RSRC_PICTURES names what changed for Your Patch. The program's
+   fork is the program's, which leaves the page only as the program: an
+   edit there is kept in APP_RSRC_EDITS with the bytes it replaced, and
+   basketProgram writes the edits into whichever program it builds, so the
+   program is in Replacement Files when its images changed even with no
+   program fix chosen. A Magpie patch has no room for either fork, and the
+   disk image has Cythera Data alone, so basketLeftOut names what each
+   leaves out.
 --------------------------------------------------------------------------- */
-window.RSRC_PICTURES = new Map();   // PICT id -> the PNG's file name, for Your Patch
-function forkPictureEditable(type, fork) {
-  return type === 'PICT' && !!fork && fork === window.CYTHERA_RSRC;
+window.RSRC_PICTURES = new Map();   // 'PICT 130' -> the PNG's file name: Cythera Data's fork
+window.APP_RSRC_EDITS = new Map();  // 'icl8 128' -> {type, id, name, was, now}: the program's fork
+function forkImageSide(fork) {
+  return !fork ? null : fork === window.CYTHERA_RSRC ? 'data' : fork === window.APP_RSRC ? 'app' : null;
 }
-function setForkPicture(id, bytes) {
-  const spec = resourceForkSpec(window.CYTHERA_RSRC);
-  const r = spec.resources.find(x => x.type === 'PICT' && x.id === id);
-  if (!r) throw new Error('PICT ' + id + ' is not in the fork.');
+function forkPictureEditable(type, fork) {
+  return rsrcImageWritable(type) && !!forkImageSide(fork);
+}
+function forkImageKey(type, id) { return type + ' ' + id; }
+function forkImageReplaced(side, type, id) {
+  const k = forkImageKey(type, id);
+  return side === 'app' ? (window.APP_RSRC_EDITS.get(k) || {}).name : window.RSRC_PICTURES.get(k);
+}
+function setForkImage(side, type, id, bytes) {
+  const fork = side === 'app' ? window.APP_RSRC : window.CYTHERA_RSRC;
+  const spec = resourceForkSpec(fork);
+  const r = spec.resources.find(x => x.type === type && x.id === id);
+  if (!r) throw new Error(type + ' ' + id + ' is not in the fork.');
   r.data = bytes;
   const raw = writeResourceFork(spec);
   const reopened = openResourceFork(raw);     // it must read back, or it is not written
-  window.CYTHERA_RSRC_RAW = raw;
-  window.CYTHERA_RSRC = reopened;
+  if (side === 'app') { window.APP_RSRC_RAW = raw; window.APP_RSRC = reopened; }
+  else { window.CYTHERA_RSRC_RAW = raw; window.CYTHERA_RSRC = reopened; }
+  // After Apply to Site Data the program as it arrived is APP_PRISTINE, and
+  // the fixes are built from it; the image is written there too, so that a
+  // restored image does not come back in the next program built.
+  const p = side === 'app' && window.APP_PRISTINE;
+  if (p && p.rsrc) {
+    const ps = resourceForkSpec(openResourceFork(p.rsrc));
+    const pr = ps.resources.find(x => x.type === type && x.id === id);
+    if (pr) { pr.data = bytes; window.APP_PRISTINE = Object.assign({}, p, { rsrc: writeResourceFork(ps) }); }
+  }
   _rsrcArtifactCache.clear();
 }
-function replaceForkPicture(id, png, name) {
-  const fork = window.CYTHERA_RSRC;
-  const entry = fork && (fork.resourcesByType.PICT || []).find(e => e.id === id);
-  if (!entry) throw new Error('PICT ' + id + ' is not in the fork.');
-  const img = pngDecode(png);
-  setForkPicture(id, pictReplacePixels(fork.dataOf('PICT', entry), img.rgba, img.W, img.H));
-  window.RSRC_PICTURES.set(id, name || 'a PNG');
+function replaceForkImage(side, type, id, png, name) {
+  const fork = side === 'app' ? window.APP_RSRC : window.CYTHERA_RSRC;
+  const entry = fork && (fork.resourcesByType[type] || []).find(e => e.id === id);
+  if (!entry) throw new Error(type + ' ' + id + ' is not in the fork.');
+  const was = fork.dataOf(type, entry), img = pngDecode(png);
+  const now = rsrcReplaceImage(type, was, img.rgba, img.W, img.H);
+  setForkImage(side, type, id, now);
+  const k = forkImageKey(type, id);
+  if (side === 'app') {
+    const rec = window.APP_RSRC_EDITS.get(k) || { type, id, was };
+    window.APP_RSRC_EDITS.set(k, Object.assign(rec, { name: name || 'a PNG', now }));
+  } else window.RSRC_PICTURES.set(k, name || 'a PNG');
 }
-function restoreForkPicture(id) {
+function restoreForkImage(side, type, id) {
+  const k = forkImageKey(type, id);
+  if (side === 'app') {
+    const rec = window.APP_RSRC_EDITS.get(k);
+    if (!rec) throw new Error(type + ' ' + id + ' was not replaced.');
+    setForkImage(side, type, id, rec.was);
+    window.APP_RSRC_EDITS.delete(k);
+    return;
+  }
   const orig = window.ARCHIVE_ORIGINAL_RSRC && openResourceFork(window.ARCHIVE_ORIGINAL_RSRC);
-  const entry = orig && (orig.resourcesByType.PICT || []).find(e => e.id === id);
-  if (!entry) throw new Error('The original picture is no longer in the page. Open the file again to get it back.');
-  setForkPicture(id, orig.dataOf('PICT', entry));
-  window.RSRC_PICTURES.delete(id);
+  const entry = orig && (orig.resourcesByType[type] || []).find(e => e.id === id);
+  if (!entry) throw new Error('The original image is no longer in the page. Open the file again to get it back.');
+  setForkImage(side, type, id, orig.dataOf(type, entry));
+  window.RSRC_PICTURES.delete(k);
 }
-function forkPicturePicked(input, id) {
+// The program's fork with the images replaced on the page written into it:
+// basketProgram's, for the program it builds with or without the fixes.
+function programWithImages(rsrc) {
+  const edits = window.APP_RSRC_EDITS;
+  if (!edits || !edits.size) return rsrc;
+  const spec = resourceForkSpec(openResourceFork(rsrc));
+  for (const rec of edits.values()) {
+    const r = spec.resources.find(x => x.type === rec.type && x.id === rec.id);
+    if (!r) throw new Error('This program has no ' + rec.type + ' ' + rec.id + ' to replace.');
+    r.data = rec.now;
+  }
+  return writeResourceFork(spec);
+}
+/* The Finder flags a program is written with: hasBundle (0x2000) when its
+   fork has a BNDL, as the shipped Cythera has. Without the bit the Finder
+   never reads the BNDL, and the program and its documents have blank icons,
+   which is how every program Grimoire wrote came out until 21 October 2026.
+   Read from the fork rather than carried from wherever the program came
+   from, because a program chosen in MacBinary or BinHex and one taken out
+   of the installer come with different records of their flags. */
+function programFinderFlags(rsrc) {
+  try { return (openResourceFork(rsrc).resourcesByType.BNDL || []).length ? 0x2000 : 0; }
+  catch (e) { quiet(e, 'the program\u2019s Finder flags'); return 0; }
+}
+function forkPicturePicked(input, side, type, id) {
   const f = input && input.files && input.files[0];
   if (!f) return;
   f.arrayBuffer().then(buf => {
     input.value = '';
-    try { replaceForkPicture(id, new Uint8Array(buf), f.name); }
-    catch (e) { setStatus('PICT ' + id + ' was not replaced. ' + e.message, true); return; }
-    showMacRsrcDetail('PICT', id, 'data');
-    setStatus('Replaced PICT ' + id + ' with ' + f.name + '. To download it, go to the Patch Generator, Your Patch.');
+    try { replaceForkImage(side, type, id, new Uint8Array(buf), f.name); }
+    catch (e) { setStatus(type + ' ' + id + ' was not replaced. ' + e.message, true); return; }
+    showMacRsrcDetail(type, id, side);
+    setStatus('Replaced ' + type + ' ' + id + ' with ' + f.name + '. To download it, go to the Patch Generator, Your Patch.');
   }).catch(e => setStatus('The page could not read ' + f.name + ': ' + e.message, true));
 }
-function forkPictureRestore(id) {
-  try { restoreForkPicture(id); }
+function forkPictureRestore(side, type, id) {
+  try { restoreForkImage(side, type, id); }
   catch (e) { setStatus(e.message, true); return; }
-  showMacRsrcDetail('PICT', id, 'data');
-  setStatus('Put back the original PICT ' + id + '.');
+  showMacRsrcDetail(type, id, side);
+  setStatus('Put back the original ' + type + ' ' + id + '.');
 }
 
 function showMacRsrcDetail(type, id, source) {
@@ -1363,28 +1423,29 @@ function showMacRsrcDetail(type, id, source) {
       dl.onclick = () => triggerPNGDownload(cv, base + (a.tag ? '_' + safeFileName(a.tag) : '') + '.png');
       box.appendChild(document.createElement('br'));
       box.appendChild(dl);
-      if (forkPictureEditable(type, fork)) {
+      if (forkPictureEditable(type, fork) && a === arts.find(x => x.canvas)) {
+        const side = forkImageSide(fork), replaced = forkImageReplaced(side, type, id);
         const pick = document.createElement('input');
         pick.type = 'file'; pick.accept = '.png,image/png'; pick.style.display = 'none';
-        pick.onchange = () => forkPicturePicked(pick, id);
+        pick.onchange = () => forkPicturePicked(pick, side, type, id);
         const rep = document.createElement('button');
         rep.className = 'secondary';
         rep.style.cssText = 'margin-top:6px;margin-left:6px';
         rep.textContent = 'Replace with a PNG';
-        rep.title = 'Puts a PNG of the same size in this picture’s place';
+        rep.title = 'Puts a PNG of the same size in this image’s place';
         rep.onclick = () => pick.click();
         box.appendChild(rep);
         box.appendChild(pick);
-        if (window.RSRC_PICTURES.has(id)) {
+        if (replaced) {
           const back = document.createElement('button');
           back.className = 'secondary';
           back.style.cssText = 'margin-top:6px;margin-left:6px';
           back.textContent = 'Put the Original Back';
-          back.onclick = () => forkPictureRestore(id);
+          back.onclick = () => forkPictureRestore(side, type, id);
           box.appendChild(back);
           const said = document.createElement('div');
           said.style.cssText = 'font-size:0.75rem;color:#f0ede4;margin-top:4px';
-          said.textContent = 'Replaced with ' + window.RSRC_PICTURES.get(id) + '. It is in Your Patch.';
+          said.textContent = 'Replaced with ' + replaced + '. It is in Your Patch' + (side === 'app' ? ', with the program.' : '.');
           box.appendChild(said);
         }
       }

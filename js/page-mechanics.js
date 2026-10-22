@@ -2118,7 +2118,7 @@ function spanishProgramDownload(both) {
     if (!src) { spanishSay('No program is open. Open the installer, or choose the program in MacBinary or BinHex.', true); return null; }
     let p;
     try { p = translateProgram(src.data, src.rsrc, T); } catch (e) { spanishSay(e.message, true); return null; }
-    const prog = { name: 'Cythera', type: src.type || 'APPL', creator: src.creator || 'Delv', data: p.data, rsrc: p.rsrc };
+    const prog = { name: 'Cythera', type: src.type || 'APPL', creator: src.creator || 'Delv', data: p.data, rsrc: p.rsrc, finderFlags: programFinderFlags(p.rsrc) };
     if (both) {
       const r = spanishBuild(T, true);
       if (!r) return null;
@@ -2909,14 +2909,17 @@ function basketSay(m, bad) {
    Site Data wrote belongs to the patch and is not an edit. The edits are not
    a part that can be taken out, since the file the patch is built on already
    has them; reloading the page is what drops them. */
+const byName = (a, b) => a.localeCompare(b, 'en', { numeric: true });
 function basketEdits() {
   const applied = window.BASKET_APPLIED || new Set();
   const resids = [...(window.EDITED_RESIDS || [])].filter(r => !applied.has(r)).sort((a, b) => a - b);
   // What changed in the resource fork, by name: it is in Replacement Files
   // and the disk image and has no place in a Magpie patch (basketLeftOut).
   const fork = [window.FONT_SWAP && 'the swapped font', window.STRIKE_SWAP && 'the redrawn Seldane script'].filter(Boolean)
-    .concat([...(window.RSRC_PICTURES || new Map()).keys()].sort((a, b) => a - b).map(id => 'PICT ' + id));
-  return { resids, fork, count: resids.length + fork.length };
+    .concat([...(window.RSRC_PICTURES || new Map()).keys()].sort(byName));
+  // And in the program's fork, which goes out as the program (basketProgram).
+  const prog = [...(window.APP_RSRC_EDITS || new Map()).keys()].sort(byName).map(k => k + ' in the program');
+  return { resids, fork, prog, count: resids.length + fork.length + prog.length };
 }
 // What the patch calls itself, which is what Magpie lists it by.
 function basketDescription() {
@@ -2987,13 +2990,24 @@ function basketFork() {
   if (!ids.length) return rsrc;
   try { return applyDataRsrcFixes(rsrc, ids).rsrc; } catch (e) { basketSay(e.message, true); return null; }
 }
-// The program with the chosen fixes, from the program as it arrived, or
-// null with the reason given; `none` when no program fix is chosen.
+// The program with the chosen fixes, from the program as it arrived, and the
+// images replaced in its fork (programWithImages), or null with the reason
+// given; `none` when neither a program fix nor an image is chosen.
 function basketProgram() {
-  if (!appFixChosen().length) return 'none';
-  const r = appFixBuild();
-  if (!r) { const n = document.getElementById('dataFixNote'); basketSay(n && n.textContent ? n.textContent : 'The program could not be fixed.', true); return null; }
-  return { name: 'Cythera', type: r.src.type, creator: r.src.creator, data: r.data, rsrc: r.rsrc };
+  const images = !!(window.APP_RSRC_EDITS && window.APP_RSRC_EDITS.size);
+  if (!appFixChosen().length && !images) return 'none';
+  let src, data, rsrc;
+  if (appFixChosen().length) {
+    const r = appFixBuild();
+    if (!r) { const n = document.getElementById('dataFixNote'); basketSay(n && n.textContent ? n.textContent : 'The program could not be fixed.', true); return null; }
+    src = r.src; data = r.data; rsrc = r.rsrc;
+  } else {
+    src = appFixSource();
+    if (!src) { basketSay('No program is open.', true); return null; }
+    data = src.data; rsrc = src.rsrc;
+  }
+  try { rsrc = programWithImages(rsrc); } catch (e) { basketSay(e.message, true); return null; }
+  return { name: 'Cythera', type: src.type, creator: src.creator, data, rsrc, finderFlags: programFinderFlags(rsrc) };
 }
 // The replacement files: Cythera Data merged with its fork's fixes, and
 // the program when a program fix is chosen.
@@ -3028,9 +3042,9 @@ function basketPatch() {
 // fonts, and the program's fixes. The disk has Cythera Data alone beside
 // its install script, so the program's fixes are not on it either.
 function basketLeftOut(where) {
-  if (where === 'disk') return appFixChosen().map(f => f.title);
+  if (where === 'disk') return appFixChosen().map(f => f.title).concat(basketEdits().prog);
   if (where !== 'magpie') return [];
-  return DATA_RSRC_FIXES.filter(f => window.BACKSTAGE_CHOSEN.has(f.id)).map(f => f.title).concat(basketEdits().fork, appFixChosen().map(f => f.title));
+  return DATA_RSRC_FIXES.filter(f => window.BACKSTAGE_CHOSEN.has(f.id)).map(f => f.title).concat(basketEdits().fork, appFixChosen().map(f => f.title), basketEdits().prog);
 }
 /* As a Disk Image: Cythera Data as the replacement files have it, on a
    disk with the Install and Play script that puts it in the game's folder
@@ -3163,7 +3177,7 @@ function renderPatchBar() {
   if (ed.count) {
     const c = el('span', 'patchBarChip', ed.count + (ed.count === 1 ? ' edit' : ' edits'));
     c.title = 'What you changed on the site: ' + (ed.resids.length ? ed.resids.length + ' resource' + (ed.resids.length === 1 ? '' : 's') : '') +
-      (ed.resids.length && ed.fork.length ? ', and ' : '') + ed.fork.join(' and ') + '. Reloading the page drops them.';
+      (ed.resids.length && ed.fork.length + ed.prog.length ? ', and ' : '') + ed.fork.concat(ed.prog).join(' and ') + '. Reloading the page drops them.';
     items.appendChild(c);
   }
   for (const p of b.parts) chip(p.label, function () { basketRemove(p.key); });

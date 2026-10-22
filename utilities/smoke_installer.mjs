@@ -634,11 +634,11 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!r.third || !r.back) fail('apply to site', 'Apply with no program fix did not put the program back: ' + JSON.stringify(r));
       else console.log('  apply to site: option-p applied to the site\u2019s program and parsed, the same program in Replacement Files, applied again, and the program as it arrived put back');
     }
-    /* An edit keeps the program (21 October 2026). A tune replaced with a
+    /* The program is not dropped by an edit (21 October 2026). A tune replaced with a
        MIDI file goes through applyResourceEdit, which parses the rebuilt
        file again; that parse dropped the program taken out of the
-       installer, so Replacement Files with a program fix chosen said "No
-       program is open." The edit here writes the tune's own bytes back, and
+       installer, so Replacement Files with a program fix chosen showed "No
+       program is open." The edit here writes the tune's bytes back unchanged, and
        the file and the dirty list are put back afterwards. */
     {
       const r = ctx.__peek(`(() => {
@@ -654,9 +654,56 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         window.EDITED_RESIDS = dirty;
         return { edited, kept, prog, note };
       })()`);
-      if (!r.edited) fail('edit keeps program', 'the tune was not written back: ' + JSON.stringify(r));
-      else if (!r.kept || !r.prog) fail('edit keeps program', 'the program went with the edit: ' + JSON.stringify(r));
-      else console.log('  edit keeps program: a tune rewritten, and Replacement Files still has the program with option-p chosen');
+      if (!r.edited) fail('program after an edit', 'the tune was not written back: ' + JSON.stringify(r));
+      else if (!r.kept || !r.prog) fail('program after an edit', 'the program went with the edit: ' + JSON.stringify(r));
+      else console.log('  program after an edit: a tune rewritten, and Replacement Files still has the program with option-p chosen');
+    }
+    /* An image in the program's fork replaced from a PNG (21 October 2026):
+       icl8 128 with a block painted in goes into the program; with no
+       program fix chosen, Replacement Files has the program, with the new
+       icl8 and hasBundle set, and the MacBinary written from it has the
+       flag at bytes 73 and 101; with Put the Original Back the program is out
+       of Replacement Files again. The PNG is made here with node's zlib. */
+    {
+      const { deflateSync, crc32 } = await import('node:zlib');
+      const png = (W, H, rgba) => {
+        const chunk = (tag, body) => { const len = Buffer.alloc(4); len.writeUInt32BE(body.length); const tb = Buffer.concat([Buffer.from(tag), body]); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(tb)); return Buffer.concat([len, tb, crc]); };
+        const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4); ihdr[8] = 8; ihdr[9] = 6;
+        const raw = Buffer.alloc((W * 4 + 1) * H);
+        for (let y = 0; y < H; y++) Buffer.from(rgba.buffer, rgba.byteOffset + y * W * 4, W * 4).copy(raw, y * (W * 4 + 1) + 1);
+        return new Uint8Array(Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]));
+      };
+      const was = ctx.__peek(`(() => { const e = APP_RSRC.resourcesByType.icl8.find(x => x.id === 128); const d = APP_RSRC.dataOf('icl8', e); const a = exportArtifacts(APP_RSRC, 'icl8', e, d)[0]; return { d, px: a.canvas._px.data }; })()`);
+      const px = new Uint8Array(was.px);
+      for (let y = 12; y < 20; y++) for (let x = 12; x < 20; x++) { px.set([0, 0, 0, 255], (y * 32 + x) * 4); }
+      ctx.SMOKE_ICON_PNG = png(32, 32, px);
+      const r = ctx.__peek(`(() => {
+        fixPreset('none');
+        replaceForkImage('app', 'icl8', 128, window.SMOKE_ICON_PNG, 'icon.png');
+        showMacRsrcDetail('icl8', 128, 'app');
+        const text = (function all(el) { return (el.textContent || '') + (el.children || []).map(all).join(''); })(document.getElementById('sheetGrid'));
+        const now = APP_RSRC.dataOf('icl8', APP_RSRC.resourcesByType.icl8.find(x => x.id === 128));
+        const files = basketFiles();
+        const prog = files && files.entries.find(e => e.name === 'Cythera');
+        const inProg = !!prog && (() => { const f = openResourceFork(prog.rsrc); const d = f.dataOf('icl8', f.resourcesByType.icl8.find(x => x.id === 128)); return d.length === now.length && d.every((x, i) => x === now[i]); })();
+        const bin = prog ? writeMacBinary(prog) : null;
+        const left = basketLeftOut('disk');
+        forkPictureRestore('app', 'icl8', 128);
+        const back = APP_RSRC.dataOf('icl8', APP_RSRC.resourcesByType.icl8.find(x => x.id === 128));
+        const after = basketFiles();
+        fixPreset('tested');
+        return { buttons: /Replace with a PNG/.test(text) && /Put the Original Back/.test(text) && /with the program/.test(text),
+                 now: Array.from(now), inProg, flags: prog ? prog.finderFlags : null, bin73: bin ? bin[73] : null, bin101: bin ? bin[101] : null,
+                 left: left.some(t => /icl8 128/.test(t)), back: Array.from(back), afterProg: !!after && after.entries.some(e => e.name === 'Cythera'), note: (document.getElementById('patchBarNote') || {}).textContent || '' };
+      })()`);
+      const sameAs = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+      if (!r.buttons) fail('program image', 'the icl8\u2019s page does not offer Replace with a PNG and Put the Original Back with the program named');
+      else if (sameAs(r.now, Array.from(was.d))) fail('program image', 'the icl8 did not change');
+      else if (!r.inProg) fail('program image', 'Replacement Files has no program with the new icl8: ' + r.note);
+      else if (r.flags !== 0x2000 || r.bin73 !== 0x20 || r.bin101 !== 0) fail('program image', 'the program is not written with hasBundle: ' + JSON.stringify([r.flags, r.bin73, r.bin101]));
+      else if (!r.left) fail('program image', 'the icl8 is not in the disk image\u2019s list of what it leaves out');
+      else if (!sameAs(r.back, Array.from(was.d)) || r.afterProg) fail('program image', 'Put the Original Back did not put back the shipped icl8, or the program stayed in Replacement Files');
+      else console.log('  program image: icl8 128 from a PNG, in Replacement Files with the program and hasBundle (MacBinary bytes 73 and 101), listed as left off the disk, and the shipped bytes put back');
     }
     ctx.showCategory('AIRULES');
     const rows = (REGISTRY.get('sheetGrid').children || []);

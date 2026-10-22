@@ -62,6 +62,7 @@ function resetDerivedCaches(keepProgram) {
     window.APP_PEF = null;
     window.APP_PRISTINE = null;
     window.APP_RSRC_STATE = '';
+    window.APP_RSRC_EDITS = new Map();   // the images replaced in the program dropped
   }
   window.RSRC_SOURCE = 'data';
   window.MAP_VIEW_MEMORY = Object.create(null);

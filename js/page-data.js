@@ -3505,7 +3505,7 @@ function downloadInstallerFile(index) {
   if (!entry) return;
   const got = viseExtract(inst.archive, entry);
   if (!got.crcOk) setStatus('Warning: the installer’s checksum for ' + entry.name + ' does not match what came out.', true);
-  downloadBlob(writeMacBinary({ name: entry.name, type: entry.type, creator: entry.creator, data: got.data, rsrc: got.rsrc }),
+  downloadBlob(writeMacBinary({ name: entry.name, type: entry.type, creator: entry.creator, finderFlags: entry.finderFlags, data: got.data, rsrc: got.rsrc }),
                safeFileName(entry.name) + '.bin');
 }
 function showInstallerText(index) {
