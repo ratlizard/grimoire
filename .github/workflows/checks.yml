@@ -23,13 +23,13 @@ jobs:
     env:
       TMPDIR: ${{ github.workspace }}/tmp
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: grimoire
           submodules: true
           fetch-depth: 0   # version_check.mjs compares against origin/main
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: ratlizard/wolflizard
           ref: cythera-detailed
@@ -52,19 +52,19 @@ jobs:
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           echo "mac-files at ${ref:-main}"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: ratlizard/mac-files
           ref: ${{ steps.macfiles.outputs.ref }}
           path: mac-files
 
       # The player calls functions nothing in grimoire does (reach_check.mjs).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: ratlizard/ratlizard.github.io
           path: ratlizard.github.io
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: latest
 
@@ -83,7 +83,7 @@ jobs:
           echo "LLVM_MC=$(command -v llvm-mc-22)" >> "$GITHUB_ENV"
 
       # The installer fetch_game.mjs downloads and the art pack, kept between runs.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: tmp
           key: grimoire-inputs-v1
