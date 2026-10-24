@@ -1876,6 +1876,22 @@ const DATA_FIXES = [
   { id: 'text-sapphire-wisdom', parent: 'text', choice: 'sapphire', group: 'text', short: '“Sapphire Books of Wisdom”, as in the To Do list', title: 'Standardize to “Sapphire Books of Wisdom”, as in the To Do list' },
   { id: 'text-oxford', parent: 'text', choice: 'oxford', group: 'text', short: 'Use them: “bread, and meat”', title: 'Standardize lists to a comma before the last “and” or “or”' },
   { id: 'text-no-oxford', parent: 'text', choice: 'oxford', group: 'text', short: 'Don’t use them: “bread and meat”', title: 'Standardize lists to no comma before the last “and” or “or”' },
+  /* An "&" cuts a text short (24 October 2026; bugs.md, *Found reading the
+     program's text and path code*). The program's text layout reads "&" as
+     markup, the edge of a section shown only when a bit of the caller's
+     flags is 1, and every caller but one passes 0, so nothing after the
+     first "&" shows. Two texts use it for "and": in the stock game
+     Aloiphos B stops at "lapis lazuli" and Eurybates's answer to "job" at
+     "I'm the cook". A program change cannot mend them, since the "&" is
+     markup either way. The bow shop's title, "Handcrafted bows & arrows!",
+     shows whole in the same game and is left. */
+  { id: 'ampersand', group: 'text', stage: 'text', title: 'The book Aloiphos B and Eurybates’s answer to “job” appear in full, instead of stopping at an “&”',
+    played: 'fork, PowerPC, 24 October 2026, alone and in “All Fixes”. Aloiphos B, used on its shelf in Pnyx, goes on past "lapis lazuli and jasper are there", and Eurybates answers "job" with "I’m the cook and hunter for the camp.", against "lapis lazuli" and "I’m the cook" unpatched',
+    plan: () => ({ textEdits: [
+      dataFixT('Aloiphos B, "lapis lazuli & jasper"', 0x021D, 'lapis lazuli & jasper', 'lapis lazuli and jasper', 1),
+      dataFixT('Aloiphos B, "jasmine & rose"', 0x021D, 'jasmine  & rose', 'jasmine  and rose', 1),
+      dataFixT('Eurybates, "cook & hunter"', 0x1818, 'cook & hunter', 'cook and hunter', 1),
+    ] }) },
 
   /* ---- Books and notes, and factual errors (the stage "text") ------------
      Off unless chosen, as Design Changes are (DATA_FIX_GROUPS). The books'
