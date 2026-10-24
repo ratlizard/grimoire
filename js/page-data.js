@@ -1295,7 +1295,7 @@ function savedGameParts() {
   add(0x0400, 'the live game, five tagged chunks: the quest values and flags, the active monsters with their queued activities, the spell effects in flight, the open windows, and the 256 gremlin frames (SaveToFile)');
   add(0x0401, 'the To Do list (SaveToDo)');
   add(0x0404, 'the twenty macro slots, with 0xFF for an unassigned one (SaveMacros)');
-  add(0xF307, 'the store the scripts keep things in between sessions, 256 KB. Each block starts with eight bytes giving its number and its kind, and an empty store is one free block (THeap::Save)');
+  add(0xF307, 'the lists, tables and strings the scripts make, which last from one session to the next. Each block starts with eight bytes giving its size, its number and its kind, and an empty store is one free block (THeap::Save)');
   add(0xF308, '4,096 two-byte entries, one for each thing that has something in that store, each giving where in the store to find it (THeap::Save)');
   for (let n = 0; n < 256; n++) add(0xE000 | n, 'a page of the journal, 8 KB. Each entry is its length, the day, what kind of entry it is, who spoke and the text (TJournalSegment::Flush)');
   return out;
