@@ -306,6 +306,34 @@ const APP_FIXES = [
       { at: 0x402C8, was: [0xA87D001C, 0x7C852050, 0x7C641BD6, 0x7C630734],
         asm: ['lha 3, 28(29)', 'sub 4, 4, 5', 'addi 3, 3, 4          ; the gap', 'divw 3, 4, 3          ; a page'] }] },
 
+  // TCachedSegFiles::RefindSegment, which CompileAIFile calls after it writes
+  // an imported combat AI into User Custom Data, freed the cached copy of
+  // entry 0 of the segment's page instead of the segment's, and kept the last
+  // archive it found the segment in, the oldest, so the scenario's default for
+  // user slots 1 to 7 came back. The first site finds the entry before the
+  // free; the second stops at the first archive found, the newest, as AddFile
+  // orders them (the workbench's bugs.md, Found reading the program's archive
+  // code).
+  { id: 'ai-import', kind: 'fix', title: 'A combat AI imported in the user behavior editor is used at once, instead of after the game starts again, and replaces the old copy in memory',
+    bug: 'A combat AI imported into user slots 1 to 7 is not used until the game is started again, and a recompiled AI can keep its old copy',
+    sites: [
+      { at: 0x7D9BC,
+        was: [0x801B0000, 0x28000000, 0x41820020, 0x807C0000, 0x38A00001, 0x809B0000, 0x4BFFEF7D, 0x60000000,
+              0x38000000, 0x901B0000, 0x57C01D78, 0x7F7B0214, 0x38000000, 0x901B0004],
+        asm: ['rlwinm 0, 30, 3, 21, 28 ; the entry of this segment', 'add 27, 27, 0', 'lwz 0, 0(27)', 'cmplwi 0, 0',
+              'beq @0x7D9EC', 'lwz 3, 0(28)', 'li 5, 1', 'lwz 4, 0(27)', 'bl @0x7C950            ; TCache::Free',
+              'nop', 'li 0, 0', 'stw 0, 0(27)', 'li 0, 0', 'stw 0, 4(27)          ; no archive yet'] },
+      { at: 0x7DA74,
+        was: [0x7FE00734, 0x5403103A, 0x38030004, 0x7C1C002E, 0x901B0004],
+        asm: ['slwi 3, 31, 2', 'addi 3, 3, 4', 'lwzx 0, 28, 3', 'stw 0, 4(27)', 'b @0x7DA98            ; the first found, the newest'] }] },
+
+  // TCachedSegFiles::RemoveFile skipped an entry of the removed archive that
+  // had no cached copy, so opening another saved game during play left it on
+  // the freed archive. The branch goes to the clearing instead of past it.
+  { id: 'open-during-play', kind: 'fix', title: 'Opening another saved game during play clears every reference to the game it closes, so nothing is read from memory it freed',
+    bug: 'Opening another saved game during play leaves the archive table on freed memory',
+    sites: [{ at: 0x7DC54, was: [0x41820028], asm: ['beq @0x7DC6C          ; no cached copy: clear the entry all the same'] }] },
+
   // ---- New code ---------------------------------------------------------------
   { id: 'containers-weight', kind: 'fix', title: 'A thing put in a container someone carries counts against that carrier’s weight too',
     played: 'fork, 68K, 22 October 2026, alone: the hero’s Body set to 1 by an edit, a sack in the pack opened by a double-click and a flatbread dragged from the floor into it; with the fix "There isn’t room." and the bread stays on the floor, against the bread put in the sack unpatched; with the hero’s Body as it was, the fix lets the bread in. The PowerPC half was not played, nor Mac OS',
