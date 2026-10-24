@@ -882,5 +882,730 @@ const ROUTINE_NOTES = {
     "text": "Releases every frame and the 'acur' (`DisposeHandle`, `0x00FD58`, `0x00FD88`)."
    }
   ]
+ },
+ "TApWidget": {
+  "opening": "The widget layer draws the windows built of controls, which in the shipped\nprogram is the Preferences window (`TApPrefWindow`). A widget is a pair of\nwords, a vtable and a control. With the Appearance Manager present the control\nis a Control Manager `ControlHandle`, and without it a `T7Widget` object.\nOne adapter at toc 16780 does the work for whichever kind is in use, and\n`TApWindow::AddAppearance` makes it on first use.",
+  "routines": [
+   {
+    "name": "TApWidget::SetFont",
+    "entry": 76,
+    "text": "Sets a part's font. It reads the part's 24-byte `'font'` record\n(`ControlFontStyleRec`, through the widget's `GetData`, `0x000090`), with the flags\nfirst set to 255, then sets the flags to 0x47 and the font to the value given\n(`0x000098` to `0x0000AC`) and writes the record back (`SetData`,\n`0x0000C8`). The flags 0x47 mark the font, the face, the size and the\njustification as set. When `GetData` fails, as it does for every widget of the\nSystem 7 adapter, the record's other fields are whatever the stack held."
+   },
+   {
+    "name": "TApWidget::SetData",
+    "entry": 276,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 8), with the widget's control (`0x00015C`)."
+   },
+   {
+    "name": "TApWidget::GetData",
+    "entry": 420,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 12), with the widget's control (`0x0001F4`)."
+   },
+   {
+    "name": "TApWidget::SetAlignment",
+    "entry": 572,
+    "text": "Sets a part's justification, as `SetFont` does, writing the value given at\n`+10` of the `'font'` record (`0x00029C`) with the flags 0x47."
+   },
+   {
+    "name": "TApWidget::DisposeRoot",
+    "entry": 18192,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 56), with the widget's control (`0x00473C`)."
+   },
+   {
+    "name": "TApWidget::Activate",
+    "entry": 18304,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 28), with the widget's control (`0x0047A8`)."
+   },
+   {
+    "name": "TApWidget::Deactivate",
+    "entry": 18412,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 32), with the widget's control (`0x004814`)."
+   },
+   {
+    "name": "TApWidget::Enable",
+    "entry": 18520,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 36), with the widget's control (`0x004880`)."
+   },
+   {
+    "name": "TApWidget::Disable",
+    "entry": 18624,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 40), with the widget's control (`0x0048E8`)."
+   },
+   {
+    "name": "TApWidget::SetValue",
+    "entry": 18728,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 16), with the widget's control (`0x004958`)."
+   },
+   {
+    "name": "TApWidget::GetValue",
+    "entry": 18844,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 20), with the widget's control (`0x0049C4`)."
+   },
+   {
+    "name": "TApWidget::GetReference",
+    "entry": 18952,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 24), with the widget's control (`0x004A30`)."
+   },
+   {
+    "name": "TApWidget::Embed",
+    "entry": 19064,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 44), with the widget's control (`0x004AB0`)."
+   },
+   {
+    "name": "TApWidget::HandleWidgetClick",
+    "entry": 19192,
+    "text": "Passes the call to the adapter at toc 16780 (vtable offset 48), with the widget's control (`0x004B38`)."
+   }
+  ]
+ },
+ "TApWindow": {
+  "opening": "A `TWindow` built of widgets. Its root widget's control is at `+16`.",
+  "routines": [
+   {
+    "name": "TApWindow::AddAppearance",
+    "entry": 15584,
+    "text": "Makes the adapter on first use (`0x003CFC`). The adapter is a\n`TAppearanceAdapter` when byte 22 of the application object is 1 (`0x003D10`,\n`0x003D30` to `0x003D38`), which `TApp`'s start-up sets when `Gestalt('appr')`\nreports the Appearance Manager, and a `T7Adapter` otherwise (`0x003D58` to\n`0x003D60`). It then makes the window's root widget (`CreateRoot`, `0x003D7C`)\nand stores its control at `+16` (`0x003D88`)."
+   },
+   {
+    "name": "TApWindow::HandleMessage",
+    "entry": 15824,
+    "text": "Passes a message below 0x20202020 to the application's `HandleCommand` (vtable\noffset 148, `0x003DE8` to `0x003E08`). A message of four characters, which is\n0x20202020 or more, goes no further here."
+   },
+   {
+    "name": "TApWindow::SelfWidget",
+    "entry": 15968,
+    "text": "Returns the root widget, the widget vtable with the control at `+16` (`0x003E60` to `0x003E6C`)."
+   },
+   {
+    "name": "TApWindow::~TApWindow",
+    "entry": 16032,
+    "text": "Disposes of the root widget (the adapter's `DisposeRoot`, `0x003EDC`), runs\n`TWindow::~TWindow` (`0x003EEC`) and frees the object when the flag is above 0."
+   },
+   {
+    "name": "TApWindow::MouseRoutine",
+    "entry": 16204,
+    "text": "Finds the widget under the mouse (the adapter's `FindWidgetUnderMouse`,\n`0x003F90`) and, when there is one, tracks the click in it (`HandleWidgetClick`,\n`0x003FD4`, with -1 for the control's default action). When the click ends in\npart 11, a checkbox, it turns the value over, 1 for 0 and 0 for 1 (`0x003FF0`\nto `0x004038`). For a click that ends in any part it reads the control's\nreference number (`GetReference`, `0x004054`) and calls the window's\n`HandleMessage` with the widget, the reference number as the message and the\npart (vtable offset 132, `0x004078`)."
+   },
+   {
+    "name": "TApWindow::DrawRoutine",
+    "entry": 16592,
+    "text": "Passes the call to the adapter's `DrawRoutine` with the window (`0x0040F4`)."
+   },
+   {
+    "name": "TApWindow::ActivateRoutine",
+    "entry": 16696,
+    "text": "Passes the call to the adapter's `ActivateRoutine` with the window (`0x00415C`)."
+   },
+   {
+    "name": "TApWindow::DeactivateRoutine",
+    "entry": 16804,
+    "text": "Passes the call to the adapter's `DeactivateRoutine` with the window (`0x0041C8`)."
+   },
+   {
+    "name": "TApWindow::KeyRoutine",
+    "entry": 16916,
+    "text": "Passes the key to the adapter's `KeyRoutine` with the window (`0x004240`)."
+   },
+   {
+    "name": "TApWindow::IdleRoutine",
+    "entry": 17028,
+    "text": "Passes the call to the adapter's `IdleRoutine` with the window (`0x0042A8`)."
+   }
+  ]
+ },
+ "TAppearanceAdapter": {
+  "opening": "The adapter for the Appearance Manager. Each widget is a Control Manager\ncontrol, and each method makes the matching Control Manager call. A control's reference\nnumber is the message the window receives for a click in it.",
+  "routines": [
+   {
+    "name": "TAppearanceAdapter::SetData",
+    "entry": 776,
+    "text": "Calls `SetControlData` with the control, the part, the tag, the size and the data (`0x00033C`)."
+   },
+   {
+    "name": "TAppearanceAdapter::GetData",
+    "entry": 908,
+    "text": "Calls `GetControlData` with the control, the part, the tag, the size, the buffer and the size read (`0x0003C8`)."
+   },
+   {
+    "name": "TAppearanceAdapter::SetValue",
+    "entry": 1052,
+    "text": "Calls `SetControlValue` (`0x000438`)."
+   },
+   {
+    "name": "TAppearanceAdapter::GetValue",
+    "entry": 1156,
+    "text": "Returns `GetControlValue` (`0x000498`)."
+   },
+   {
+    "name": "TAppearanceAdapter::GetReference",
+    "entry": 1252,
+    "text": "Returns `GetControlReference` (`0x0004F8`)."
+   },
+   {
+    "name": "TAppearanceAdapter::Activate",
+    "entry": 1352,
+    "text": "Calls `ActivateControl` (`0x00055C`)."
+   },
+   {
+    "name": "TAppearanceAdapter::Deactivate",
+    "entry": 1448,
+    "text": "Calls `DeactivateControl` (`0x0005BC`)."
+   },
+   {
+    "name": "TAppearanceAdapter::Enable",
+    "entry": 1548,
+    "text": "Highlights the control with 0, active (`HiliteControl`, `0x00061C` to `0x000624`)."
+   },
+   {
+    "name": "TAppearanceAdapter::Disable",
+    "entry": 1648,
+    "text": "Highlights the control with 255, inactive (`HiliteControl`, `0x000680` to `0x000688`)."
+   },
+   {
+    "name": "TAppearanceAdapter::Embed",
+    "entry": 1748,
+    "text": "Embeds the control in the container given (`EmbedControl`, `0x0006F4`)."
+   },
+   {
+    "name": "TAppearanceAdapter::HandleWidgetClick",
+    "entry": 1864,
+    "text": "Returns 0 for a control highlighted with 255 (byte 17 of its record,\n`0x000768` to `0x000778`), and otherwise the part `HandleControlClick` returns\n(`0x000790`)."
+   },
+   {
+    "name": "TAppearanceAdapter::CreateRoot",
+    "entry": 2052,
+    "text": "Makes the window's root control (`CreateRootControl`, `0x00082C`) and returns it as a widget (`0x000838` to `0x000840`)."
+   },
+   {
+    "name": "TAppearanceAdapter::DisposeRoot",
+    "entry": 2204,
+    "text": "Does nothing. The Window Manager disposes of the controls with the window."
+   },
+   {
+    "name": "TAppearanceAdapter::NewTApControl",
+    "entry": 2272,
+    "text": "Embeds a new control in the parent widget given (the adapter's `Embed`,\n`0x000940`) and returns it as a widget (`0x000948`, `0x000950`)."
+   },
+   {
+    "name": "TAppearanceAdapter::NewGroupBox",
+    "entry": 2500,
+    "text": "Makes a group box with a title, procID 160 (`NewControl`, `0x0009F8`,\n`0x000A1C`), and embeds it (`NewTApControl`, `0x000A38`)."
+   },
+   {
+    "name": "TAppearanceAdapter::NewSlider",
+    "entry": 2724,
+    "text": "Makes a slider with the value, the minimum and the maximum given and procID 48\nplus the variant given (`0x000AD8`, `NewControl` at `0x000B00`), and embeds\nit."
+   },
+   {
+    "name": "TAppearanceAdapter::NewCheckBox",
+    "entry": 2952,
+    "text": "Makes a checkbox, procID 1, with the value given and a range of 0 to 1 (`0x000BB8`, `0x000BBC`, `NewControl` at `0x000BE0`), and embeds it."
+   },
+   {
+    "name": "TAppearanceAdapter::NewPushButton",
+    "entry": 3176,
+    "text": "Makes a push button, procID 0 (`0x000C9C`, `NewControl` at `0x000CC0`), and embeds it."
+   },
+   {
+    "name": "TAppearanceAdapter::NewStaticIcon",
+    "entry": 3400,
+    "text": "Makes an icon control that does not track, procID 321, with the icon's resource number as its value\n(`0x000D78`, `0x000D88`, `NewControl` at `0x000DA0`), and embeds it."
+   },
+   {
+    "name": "TAppearanceAdapter::NewStaticText",
+    "entry": 3620,
+    "text": "Makes a static text control, procID 288 (`0x000E30`, `NewControl` at\n`0x000E90`), embeds it, sets its font (`TApWidget::SetFont`, `0x000EC8`), and\nsets its `'text'` data to the Pascal string given (`0x000ED4` to `0x000EF8`)."
+   },
+   {
+    "name": "TAppearanceAdapter::FindWidgetUnderMouse",
+    "entry": 3972,
+    "text": "Returns the control under a point as a widget (`FindControlUnderMouse`, `0x000FB8`), with its part written back."
+   },
+   {
+    "name": "TAppearanceAdapter::DrawRoutine",
+    "entry": 4156,
+    "text": "Draws every control of the window (`DrawControls`, `0x001054`)."
+   },
+   {
+    "name": "TAppearanceAdapter::ActivateRoutine",
+    "entry": 4268,
+    "text": "Activates the root control at `+16` (`ActivateControl`, `0x0010C4`)."
+   },
+   {
+    "name": "TAppearanceAdapter::DeactivateRoutine",
+    "entry": 4384,
+    "text": "Deactivates the root control at `+16` (`DeactivateControl`, `0x001138`)."
+   },
+   {
+    "name": "TAppearanceAdapter::KeyRoutine",
+    "entry": 4504,
+    "text": "Passes the current key to the control with the keyboard focus\n(`GetKeyboardFocus`, `0x0011BC`, then `HandleControlKey`, `0x0011F4`), with the\nkey code, the character and the modifiers of the event record at `+4` of the\napplication object (`0x0011CC` to `0x0011F0`)."
+   },
+   {
+    "name": "TAppearanceAdapter::IdleRoutine",
+    "entry": 4688,
+    "text": "Gives the window's controls idle time (`IdleControls`, `0x001268`)."
+   }
+  ]
+ },
+ "T7Adapter": {
+  "opening": "The adapter for System 7, with no Appearance Manager. Each widget's control is\na `T7Widget` object, and each call goes to that object's methods. Checkboxes\nand push buttons are still Control Manager controls inside a\n`T7ControlWidget`. The program draws the group box, the icon, the text and the\nslider.",
+  "routines": [
+   {
+    "name": "T7Adapter::SetData",
+    "entry": 11076,
+    "text": "Calls the widget's `SetData` (`0x002B90`), and returns -30581, `errDataNotSupported`, for no widget (`0x002B6C`)."
+   },
+   {
+    "name": "T7Adapter::GetData",
+    "entry": 11280,
+    "text": "Calls the widget's `GetData` (`0x002C64`), and returns -30581 for no widget (`0x002C3C`)."
+   },
+   {
+    "name": "T7Adapter::SetValue",
+    "entry": 11496,
+    "text": "Calls the widget's `SetValue` (`0x002D14`) when there is one."
+   },
+   {
+    "name": "T7Adapter::GetValue",
+    "entry": 11656,
+    "text": "Returns the widget's `GetValue` (`0x002DB4`), and 0 for no widget (`0x002DA0`)."
+   },
+   {
+    "name": "T7Adapter::GetReference",
+    "entry": 11820,
+    "text": "Returns the reference number at `+4` of the widget (`0x002E3C`), and 0 for no widget."
+   },
+   {
+    "name": "T7Adapter::Activate",
+    "entry": 11892,
+    "text": "Calls the widget's `Activate` (`0x002E98`) when there is one."
+   },
+   {
+    "name": "T7Adapter::Deactivate",
+    "entry": 12044,
+    "text": "Calls the widget's `Deactivate` (`0x002F30`) when there is one."
+   },
+   {
+    "name": "T7Adapter::Enable",
+    "entry": 12200,
+    "text": "Calls the widget's `Enable` (`0x002FCC`) when there is one."
+   },
+   {
+    "name": "T7Adapter::Disable",
+    "entry": 12348,
+    "text": "Calls the widget's `Disable` (`0x003060`) when there is one."
+   },
+   {
+    "name": "T7Adapter::Embed",
+    "entry": 12496,
+    "text": "Calls the widget's `Embed` with the parent given (`0x003104`) when there is one."
+   },
+   {
+    "name": "T7Adapter::HandleWidgetClick",
+    "entry": 12624,
+    "text": "Returns the widget's `HandleWidgetClick` (`0x003194`), and 0 for no widget (`0x003174`)."
+   },
+   {
+    "name": "T7Adapter::CreateRoot",
+    "entry": 12800,
+    "text": "Makes a `T7Widget` of 20 bytes with no children for the window's root (`0x00320C` to `0x00325C`) and returns it as a widget."
+   },
+   {
+    "name": "T7Adapter::DisposeRoot",
+    "entry": 12984,
+    "text": "Deletes the root's `T7Widget` (its destructor with 1, `0x0032EC` to `0x0032F4`).\nThat destructor frees the root's list of children and nothing else, so every\nwidget below the root, with its color icon or slider, stays in memory after\nthe window closes. Found reading, not shown in a run."
+   },
+   {
+    "name": "T7Adapter::NewT7Control",
+    "entry": 13124,
+    "text": "Wraps a Control Manager control in a new `T7ControlWidget` of 24 bytes\n(`0x00335C` to `0x003394`) and embeds it in the parent given (the adapter's\n`Embed`, `0x0033CC`)."
+   },
+   {
+    "name": "T7Adapter::NewGroupBox",
+    "entry": 13380,
+    "text": "Makes a `T7GroupBox` of 284 bytes with the rectangle and the title given (`0x003460` to `0x0034A0`) and embeds it (`0x0034DC`)."
+   },
+   {
+    "name": "T7Adapter::NewSlider",
+    "entry": 13660,
+    "text": "Makes a `T7SliderWidget` of 24 bytes from the arguments given (`0x003578` to `0x0035E0`) and embeds it (`0x00361C`)."
+   },
+   {
+    "name": "T7Adapter::NewCheckBox",
+    "entry": 13984,
+    "text": "Makes a checkbox control, procID 1 with a range of 0 to 1 (`0x0036C4` to `0x0036DC`, `NewControl` at `0x0036F8`), and wraps it (`NewT7Control`, `0x003718`)."
+   },
+   {
+    "name": "T7Adapter::NewPushButton",
+    "entry": 14208,
+    "text": "Makes a push button control, procID 0 (`0x0037B0`, `NewControl` at `0x0037D8`), and wraps it (`NewT7Control`, `0x0037F8`)."
+   },
+   {
+    "name": "T7Adapter::NewStaticIcon",
+    "entry": 14432,
+    "text": "Makes a `T7IconWidget` of 32 bytes with the rectangle and the icon number given (`0x00387C` to `0x0038BC`) and embeds it (`0x0038F8`)."
+   },
+   {
+    "name": "T7Adapter::NewStaticText",
+    "entry": 14712,
+    "text": "Makes a `T7LabelWidget` of 288 bytes with the rectangle and the text given\n(`0x003994` to `0x0039D4`), sets its font (`TApWidget::SetFont`, `0x0039FC`)\nand embeds it (`0x003A20`)."
+   },
+   {
+    "name": "T7Adapter::FindWidgetUnderMouse",
+    "entry": 15012,
+    "text": "Returns the root widget's `FindWidgetUnderMouse` for a point (`0x003AE8`), and no widget for a window with no root (`0x003AF8` to `0x003B04`)."
+   },
+   {
+    "name": "T7Adapter::DrawRoutine",
+    "entry": 15208,
+    "text": "Draws the root widget and so every widget below it (`0x003B94`)."
+   },
+   {
+    "name": "T7Adapter::ActivateRoutine",
+    "entry": 15336,
+    "text": "Does nothing."
+   },
+   {
+    "name": "T7Adapter::DeactivateRoutine",
+    "entry": 15400,
+    "text": "Does nothing."
+   },
+   {
+    "name": "T7Adapter::KeyRoutine",
+    "entry": 15464,
+    "text": "Does nothing, so under System 7 a key reaches no control."
+   },
+   {
+    "name": "T7Adapter::IdleRoutine",
+    "entry": 15524,
+    "text": "Does nothing."
+   }
+  ]
+ },
+ "T7Widget": {
+  "opening": "A widget of the System 7 adapter, and the root of each window's widgets. It has\nits reference number at `+4` and a list of children from `+8`, a growable array\nwith its capacity at `+8`, its count at `+12` and its entries at `+16`. A\nmethod that a kind of widget does not need does nothing here.",
+  "routines": [
+   {
+    "name": "T7Widget::Embed",
+    "entry": 4800,
+    "text": "Adds the widget to the parent's children (`0x0013AC`). A full array grows to\ntwice its capacity, or to 1 from empty (`0x0013B4` to `0x0013CC`), with its\nentries copied across and the old array freed (`0x001444` to `0x001480`). It\nthrows `length_error` (\"vector::insert length error\") past 0x3FFFFFFF entries\n(`0x001330` to `0x001374`) and `bad_alloc` when the allocation fails\n(`0x0013E4` to `0x00140C`)."
+   },
+   {
+    "name": "T7Widget::DrawRoutine",
+    "entry": 6068,
+    "text": "Draws each child in order (`0x0017D4` to `0x001800`)."
+   },
+   {
+    "name": "T7Widget::FindWidgetUnderMouse",
+    "entry": 6216,
+    "text": "Calls each child's `FindWidgetUnderMouse` in order and returns the first widget found (`0x001874` to `0x0018B8`), or no widget."
+   },
+   {
+    "name": "T7Widget::HandleWidgetClick",
+    "entry": 6452,
+    "text": "Returns 0."
+   },
+   {
+    "name": "T7Widget::~T7Widget",
+    "entry": 6732,
+    "text": "Frees the list of children (`0x001A98` to `0x001A9C`), not the children, and frees the object when the flag is above 0."
+   },
+   {
+    "name": "T7Widget::SetData",
+    "entry": 11228,
+    "text": "Returns -30581, `errDataNotSupported`."
+   },
+   {
+    "name": "T7Widget::GetData",
+    "entry": 11440,
+    "text": "Returns -30581, `errDataNotSupported`."
+   },
+   {
+    "name": "T7Widget::SetValue",
+    "entry": 11612,
+    "text": "Does nothing."
+   },
+   {
+    "name": "T7Widget::GetValue",
+    "entry": 11772,
+    "text": "Returns 0."
+   },
+   {
+    "name": "T7Widget::Activate",
+    "entry": 12000,
+    "text": "Does nothing."
+   },
+   {
+    "name": "T7Widget::Deactivate",
+    "entry": 12152,
+    "text": "Does nothing."
+   },
+   {
+    "name": "T7Widget::Enable",
+    "entry": 12304,
+    "text": "Does nothing."
+   },
+   {
+    "name": "T7Widget::Disable",
+    "entry": 12452,
+    "text": "Does nothing."
+   },
+   {
+    "name": "T7Widget::ActivateRoutine",
+    "entry": 17132,
+    "text": "Does nothing."
+   },
+   {
+    "name": "T7Widget::DeactivateRoutine",
+    "entry": 17184,
+    "text": "Does nothing."
+   },
+   {
+    "name": "T7Widget::KeyRoutine",
+    "entry": 17240,
+    "text": "Does nothing."
+   },
+   {
+    "name": "T7Widget::IdleRoutine",
+    "entry": 17288,
+    "text": "Does nothing."
+   }
+  ]
+ },
+ "T7ControlWidget": {
+  "opening": "A Control Manager control as a widget of the System 7 adapter, 24 bytes, with\nthe `ControlHandle` at `+20`.",
+  "routines": [
+   {
+    "name": "T7ControlWidget::T7ControlWidget",
+    "entry": 6536,
+    "text": "Stores the reference number at `+4` and the control at `+20` (`0x0019CC`, `0x0019F4`), with no children."
+   },
+   {
+    "name": "T7ControlWidget::SetValue",
+    "entry": 6928,
+    "text": "Calls `SetControlValue` (`0x001B30`)."
+   },
+   {
+    "name": "T7ControlWidget::GetValue",
+    "entry": 7032,
+    "text": "Returns `GetControlValue` (`0x001B90`)."
+   },
+   {
+    "name": "T7ControlWidget::Activate",
+    "entry": 7128,
+    "text": "Highlights the control with 0 (`HiliteControl`, `0x001BF4`)."
+   },
+   {
+    "name": "T7ControlWidget::Deactivate",
+    "entry": 7228,
+    "text": "Highlights the control with 255 (`HiliteControl`, `0x001C58`)."
+   },
+   {
+    "name": "T7ControlWidget::Enable",
+    "entry": 7332,
+    "text": "Highlights the control with 0 (`HiliteControl`, `0x001CC0`)."
+   },
+   {
+    "name": "T7ControlWidget::Disable",
+    "entry": 7432,
+    "text": "Highlights the control with 255 (`HiliteControl`, `0x001D24`)."
+   },
+   {
+    "name": "T7ControlWidget::DrawRoutine",
+    "entry": 7532,
+    "text": "Draws the control (`Draw1Control`, `0x001D84`)."
+   },
+   {
+    "name": "T7ControlWidget::FindWidgetUnderMouse",
+    "entry": 7632,
+    "text": "Returns this widget when the point is inside the control's rectangle\n(`PtInRect`, `0x001E0C`) and `FindControl` finds this control there\n(`0x001E30` to `0x001E4C`), with the part written back (`0x001E3C`)."
+   },
+   {
+    "name": "T7ControlWidget::HandleWidgetClick",
+    "entry": 7880,
+    "text": "Tracks the click (`TrackControl`, `0x001EF0`) and returns the part."
+   },
+   {
+    "name": "T7ControlWidget::~T7ControlWidget",
+    "entry": 17764,
+    "text": "Frees the list of children and frees the object when the flag is above 0. The control stays for the Window Manager."
+   }
+  ]
+ },
+ "T7GroupBox": {
+  "opening": "A group box drawn by the program under System 7, 284 bytes, with its rectangle\nat `+20` and its title, a Pascal string, at `+28`.",
+  "routines": [
+   {
+    "name": "T7GroupBox::T7GroupBox",
+    "entry": 8028,
+    "text": "Stores the reference number, the rectangle and the title (`0x001FD4` to `0x001FE0`)."
+   },
+   {
+    "name": "T7GroupBox::DrawRoutine",
+    "entry": 8244,
+    "text": "Frames the rectangle with its top 16 lower (`FrameRect`, `0x002074` to\n`0x002080`), draws the title in the system font at that line, 4 in from the\nleft, over the frame (`TextMode` 0, `MoveTo`, `DrawString`, `0x002088` to\n`0x0020B0`), and draws the children (`T7Widget::DrawRoutine`, `0x0020C8`)."
+   },
+   {
+    "name": "T7GroupBox::~T7GroupBox",
+    "entry": 17552,
+    "text": "Frees the list of children and frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "T7IconWidget": {
+  "opening": "A color icon drawn by the program under System 7, 32 bytes, with its rectangle\nat `+20` and the `CIconHandle` at `+28`.",
+  "routines": [
+   {
+    "name": "T7IconWidget::T7IconWidget",
+    "entry": 8464,
+    "text": "Stores the reference number and the rectangle, and loads the `cicn` of the number given (`GetCIcon`, `0x002190`)."
+   },
+   {
+    "name": "T7IconWidget::~T7IconWidget",
+    "entry": 8680,
+    "text": "Disposes of the icon (`DisposeCIcon`, `0x00221C`), frees the list of children and frees the object when the flag is above 0."
+   },
+   {
+    "name": "T7IconWidget::DrawRoutine",
+    "entry": 8908,
+    "text": "Draws the icon in its rectangle (`PlotCIcon`, `0x0022E8`)."
+   }
+  ]
+ },
+ "T7LabelWidget": {
+  "opening": "Static text drawn by the program under System 7, 288 bytes, with its rectangle\nat `+20`, the text, a Pascal string, at `+28`, the justification at `+284` and\nthe font at `+286`.",
+  "routines": [
+   {
+    "name": "T7LabelWidget::T7LabelWidget",
+    "entry": 9012,
+    "text": "Stores the reference number, the rectangle and the text (`PLstrcpy`, `0x0023B8`), with a justification of 0 and a font of -1 (`0x0023C0` to `0x0023D0`)."
+   },
+   {
+    "name": "T7LabelWidget::SetData",
+    "entry": 9248,
+    "text": "Accepts only `'font'` data (`0x002420`, `0x002428`), and returns -30581 for any\nother (`0x002464`). From the record it copies the font when the flags have 0x01\n(`0x002438` to `0x002444`) and the justification when they have 0x40\n(`0x00244C` to `0x002458`)."
+   },
+   {
+    "name": "T7LabelWidget::DrawRoutine",
+    "entry": 9380,
+    "text": "Draws the text in its rectangle with `TETextBox` and the justification\n(`0x00256C`). A font of -1 draws in the system font, -2 in Geneva 10 and -3 in\nGeneva 10 bold (`0x0024DC` to `0x002554`). Any other value draws in the\napplication font, set before the test (`0x0024B4` to `0x0024D4`). After\n`TETextBox` it sets the application font, size 0 and plain text again."
+   },
+   {
+    "name": "T7LabelWidget::~T7LabelWidget",
+    "entry": 17336,
+    "text": "Frees the list of children and frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "T7SliderWidget": {
+  "opening": "A slider drawn by the program's slider routines under System 7, 24 bytes,\nwith the slider at `+20` (`CreateSlider`).",
+  "routines": [
+   {
+    "name": "T7SliderWidget::T7SliderWidget",
+    "entry": 9696,
+    "text": "Stores the reference number and makes the slider from the other arguments (`CreateSlider`, `0x00268C`)."
+   },
+   {
+    "name": "T7SliderWidget::~T7SliderWidget",
+    "entry": 9980,
+    "text": "Disposes of the slider (`DisposeSlider`, `0x002730`), frees the list of children and frees the object when the flag is above 0."
+   },
+   {
+    "name": "T7SliderWidget::SetValue",
+    "entry": 10208,
+    "text": "Sets the slider's value (`SetSliderValue`, `0x002800`)."
+   },
+   {
+    "name": "T7SliderWidget::GetValue",
+    "entry": 10312,
+    "text": "Returns the slider's value (`GetSliderValue`, `0x002860`)."
+   },
+   {
+    "name": "T7SliderWidget::Activate",
+    "entry": 10408,
+    "text": "Enables the slider (`SetSliderEnabled` with 1, `0x0028AC` to `0x0028C4`)."
+   },
+   {
+    "name": "T7SliderWidget::Deactivate",
+    "entry": 10508,
+    "text": "Disables the slider (`SetSliderEnabled` with 0, `0x002910` to `0x002928`)."
+   },
+   {
+    "name": "T7SliderWidget::DrawRoutine",
+    "entry": 10612,
+    "text": "Draws the slider (`DrawSlider`, `0x00298C`)."
+   },
+   {
+    "name": "T7SliderWidget::FindWidgetUnderMouse",
+    "entry": 10712,
+    "text": "Returns this widget, with part 129, when the point is inside the slider's rectangle (`PtInRect`, `0x002A10`, `0x002A24`)."
+   },
+   {
+    "name": "T7SliderWidget::HandleWidgetClick",
+    "entry": 10916,
+    "text": "Tracks the drag (`TrackSlider`, `0x002AC4`) and returns 129 when the value changed, and 0 otherwise."
+   }
+  ]
+ },
+ "TApPrefWindow": {
+  "opening": "The Preferences window, a `TApWindow`. It has three groups, Sound, Game Control\nand Miscellaneous, and the buttons Save, Cancel and, when InputSprocket is\npresent, Set Controls.... The widgets are at fixed places in the object.\n\n| at | widget | message |\n|---|---|---|\n| `+20` | Sound Volume slider, 1 to 8 | `svol` |\n| `+28` | Mute checkbox for sound | `smut` |\n| `+36` | System Volume checkbox | `ssys` |\n| `+44` | Music Volume slider | `mvol` |\n| `+52` | Mute checkbox for music | `mmut` |\n| `+60` | Graphics Quality slider, 0 to 2 | none |\n| `+68` | Ambient Sounds checkbox | `ambs` |\n| `+76` | Live Dragging checkbox | none |\n| `+84` | Manually Place Containers checkbox | none |\n| `+92` | Use 'ZoomRects' checkbox | none |\n| `+100` | Walk around obstacles checkbox | none |\n| `+108` | Motion Filters checkbox | none |\n\nThe sound settings are 6 bytes at `+116` as the window opened and at `+122` as\nthey are now. The ambient switch is at `+0`, the music volume at `+2` and the\nsound volume at `+4`, where 0 means muted and -1 the system volume. The other\nsettings are the 4 bytes of the \"UI Prefs\" record at toc -5216.",
+  "routines": [
+   {
+    "name": "TApPrefWindow::GetCurSettings",
+    "entry": 663796,
+    "text": "Reads the saved sound settings (`TPrefs::GetOrdinal`), \"Volume\" with 5 if there\nis none, \"Music\" with 8 and \"Ambient\" with 1 (`0x0A210C` to `0x0A2168`)."
+   },
+   {
+    "name": "TApPrefWindow::AdjustSettings",
+    "entry": 664032,
+    "text": "Reads the sound settings from the widgets. The sound volume is the slider's\nvalue, 0 for a checked Mute and -1 for a checked System Volume (`0x0A2204` to\n`0x0A225C`). The music volume is its slider's value, or 0 for a checked music\nMute (`0x0A2260` to `0x0A2298`), and the ambient switch is the\ncheckbox (`0x0A22B0`)."
+   },
+   {
+    "name": "TApPrefWindow::ApplySettings",
+    "entry": 664356,
+    "text": "Sets the game's sound volume, music volume and ambient sounds from a record\n(`TAudio::SetSoundVolume`, `SetMusicVolume`, `EnableAmbient`, `0x0A234C` to\n`0x0A2374`), each with 1 as the last argument, so that each one also writes\nits preference."
+   },
+   {
+    "name": "TApPrefWindow::SaveSettings",
+    "entry": 664552,
+    "text": "Applies the current sound settings (`0x0A2410`) and writes the checkboxes into\nthe \"UI Prefs\" record. Walk around obstacles is 0x40 of its second byte\n(`0x0A242C`), Live Dragging 0x01 of its first (`0x0A244C`), Motion Filters\n0x08 of the second (`0x0A249C`), Use 'ZoomRects' 0x80 of the second\n(`0x0A24BC`) and Manually Place Containers 0x40 of the first (`0x0A24DC`). Live\nDragging is also copied to bytes 103, 104 and 105 of the application object\n(`0x0A2458` to `0x0A2484`). Graphics Quality 0 clears 0x80 and 0x02 of the\nfirst byte, 1 sets 0x80 alone and 2 sets both (`0x0A24F8` to `0x0A2584`). It\nthen saves the 4 bytes as \"UI Prefs\" (`TPrefs::SavePrefs`, `0x0A259C`)."
+   },
+   {
+    "name": "TApPrefWindow::AddContent",
+    "entry": 665076,
+    "text": "Builds the window. Under the Appearance Manager it gives it the theme's\nbackground (`SetThemeWindowBackground`, `0x0A2648`). It reads the saved sound\nsettings into `+116` and copies them to `+122` (`0x0A265C` to `0x0A267C`),\nand makes the three groups with their widgets through the adapter in the\norder of the table above. The sound slider starts at the saved volume, or 5\nwhen it is not above 0 (`0x0A273C` to `0x0A2750`), with the icons 128 and 129\nbeside it (`0x0A27C0`, `0x0A2864`). Graphics Quality starts from bits 0x80 and\n0x02 of the \"UI Prefs\" record's first byte (`0x0A2E08` to `0x0A2E30`), with\nthe labels Better Performance and Better Quality. Set\nControls... appears only when `HasISSupport` returns true (`0x0A349C` to\n`0x0A34A8`)."
+   },
+   {
+    "name": "TApPrefWindow::KeyRoutine",
+    "entry": 669048,
+    "text": "Turns Escape into Cancel (`canc`, `0x0A359C`, `0x0A3608` to `0x0A3634`),\nReturn and Enter into Save (`save`, `0x0A35AC` to `0x0A35FC`), and \"i\" into\nSet Controls... when InputSprocket is present (`iscf`, `0x0A35C4`, `0x0A3640`\nto `0x0A367C`). It passes every other key to the adapter (`0x0A3688` to\n`0x0A36A0`)."
+   },
+   {
+    "name": "TApPrefWindow::HandleMessage",
+    "entry": 669428,
+    "text": "Acts on a widget's message. After each change to sound it reads and applies\nthe settings at once (`AdjustSettings`, `ApplySettings`), and most also play\ninterface sound 5 (`TAudio::PlayIFSound`).\n\n- `svol` unchecks and enables both Mute and System Volume (`0x0A3810` to\n  `0x0A3860`).\n- `smut` disables System Volume while Mute's value is 1 and enables it\n  otherwise (`0x0A3894` to `0x0A38D4`). `ssys` does the same to Mute\n  (`0x0A3908` to `0x0A3948`).\n- `mvol` unchecks the music's Mute (`0x0A397C` to `0x0A398C`), and `mvol`\n  and `mmut` play no sound.\n- `save` sets byte 29 of the application object to 1 and saves\n  (`SaveSettings`, `0x0A39CC` to `0x0A39E0`).\n- `canc` applies the settings the window opened with (`0x0A39E8` to\n  `0x0A39F0`) and sets byte 29 to 1.\n- `iscf` opens InputSprocket's configuration (`ConfigureIS`, `0x0A3A08`).\n- A message of 0, the reference number of every widget without a message in\n  the table, plays the sound and then goes to `TApWindow::HandleMessage`, as\n  every message not listed does (`0x0A3A14` to `0x0A3A38`)."
+   },
+   {
+    "name": "TApPrefWindow::~TApPrefWindow",
+    "entry": 671004,
+    "text": "Runs `TApWindow::~TApWindow` (`0x0A3D48`) and frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "TAppearanceMenu": {
+  "opening": "A `TCommandMenu` with an Appearance Manager command number on each item.",
+  "routines": [
+   {
+    "name": "TAppearanceMenu::TAppearanceMenu",
+    "entry": 62728,
+    "text": "Loads the menu of the number given (`GetMenu`, `0x00F538`) and, when it exists, inserts it before the menu given (`InsertMenu`, `0x00F558`)."
+   },
+   {
+    "name": "TAppearanceMenu::GetCommand",
+    "entry": 62892,
+    "text": "Returns an item's command number (`GetMenuItemCommandID`, `0x00F5D0`), and 0 when the call fails (`0x00F5E8`)."
+   }
+  ]
  }
 };
