@@ -87,6 +87,11 @@ button{font:inherit; color:inherit}
 .btn:hover{border-color:var(--muted)}
 .btn.pri{background:var(--aqua); border-color:var(--aqua); color:var(--aqua-ink); font-weight:600}
 .btn[disabled]{opacity:.4; cursor:not-allowed}
+/* With nothing to redo, Redo is invisible, and its space in the row stays
+   empty. When it was removed from the layout instead, its appearance
+   pushed Undo along by the width of Redo, so a second tap where Undo had
+   been landed on Redo and restored what the first tap undid. */
+#redo.idle{visibility:hidden}
 .btn.sq{width:28px; padding:5px 0; text-align:center; font-weight:700}
 .btn:focus-visible,.tb:focus-visible,.fx:focus-visible,.pal button:focus-visible,.fdot:focus-visible,
 .artSw:focus-visible,.rampBtn:focus-visible,.dirBtn:focus-visible{
@@ -269,7 +274,10 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   .bar .btn{padding:5px 8px; font-size:0.75rem; min-height:40px}
   .main{display:flex; flex-direction:column; min-height:0}
   .pane{order:1; flex:1 1 auto; min-height:0; padding:6px 8px; gap:5px}
-  .zoomBox{display:none !important}
+  /* Fingers zoom here, so the steps go; Fit stays, as the one way back once
+     a picture is zoomed or dragged aside. */
+  .zoomBox #bZoomOut,.zoomBox #bZoomIn,.zoomBox #rZoom{display:none}
+  .transport .btn{min-height:40px}
   .status span:nth-child(n+4){display:none}
   .paperWrap{padding:0; align-items:flex-start}
   /* the dock: ink on one line, the tools and the creatures on the next */
@@ -293,7 +301,9 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   .tb-grid{display:flex; gap:3px}
   .tb,.fx{width:40px; height:40px}
   .fxBox{display:flex; gap:3px; padding:0; border-top:0}
-  .mobOnly{display:inline-flex; margin-left:auto; justify-content:center}
+  .mobOnly{display:inline-flex; margin-left:auto; justify-content:center; align-items:center}
+  #bSheet{min-height:40px; padding:5px 10px}
+  #bSheet[aria-pressed="true"]{background:var(--aqua); border-color:var(--aqua); color:var(--aqua-ink)}
   /* Only the options scroll, and only when opened. */
   .opts{display:none}
   body.sheet .opts{display:block; position:absolute; left:0; right:0; bottom:100%; z-index:32;
@@ -450,6 +460,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   <nav class="tools" aria-label="Tools">
     <div class="tb-grid" id="tools"></div>
     <div class="fxBox" id="fxBox"></div>
+    <button type="button" class="btn mobOnly" id="bSheet" aria-pressed="false" title="The tool's options"><span id="sheetName">Flow</span>&nbsp;options</button>
   </nav>
 
   <section class="pane">
@@ -472,7 +483,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
         <button type="button" class="btn" id="bFit" hidden>Fit</button>
       </span>
       <button type="button" class="btn" id="undo">Undo</button>
-      <button type="button" class="btn" id="redo" hidden>Redo</button>
+      <button type="button" class="btn idle" id="redo" disabled>Redo</button>
       <button type="button" class="btn" id="clear">Clear</button>
     </div>
 
@@ -515,7 +526,6 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
           <i id="palChip"></i><span>Color</span><span class="mono" id="palIdx">222</span>
         </button>
       </div>
-      <button type="button" class="btn sq mobOnly" id="bSheet" aria-pressed="false" aria-label="Options" title="The tool's options">&#8801;</button>
     </div>
 
     <div class="opts" id="opts">
@@ -1581,7 +1591,7 @@ function snapshot() {
 function refreshHistory() {
   var u = document.getElementById('undo'), r = document.getElementById('redo');
   if (u) u.disabled = !undoStack.length;
-  if (r) r.hidden = !redoStack.length;
+  if (r) { r.disabled = !redoStack.length; r.classList.toggle('idle', !redoStack.length); }
 }
 function draw() {
   var m = frameMap(frame % LOOP), d = imgData.data;
@@ -1637,19 +1647,49 @@ function applyView() {
   art.style.width = Math.round(W * z) + 'px';
   art.style.height = Math.round(H * z) + 'px';
   art.parentNode.style.transform = 'translate(' + Math.round(panX) + 'px,' + Math.round(panY) + 'px)';
+  // At least a thumb's width of the picture stays inside the mat. Panning had
+  // no limit, and on a phone, which shows no zoom buttons, a picture dragged
+  // off the edge could not be brought back.
+  var wrap = document.querySelector('.paperWrap');
+  if (wrap && wrap.clientWidth >= 20) {
+    var a = art.getBoundingClientRect(), w = wrap.getBoundingClientRect();
+    var mx = Math.min(48, a.width / 2), my = Math.min(48, a.height / 2), dx = 0, dy = 0;
+    if (a.right < w.left + mx) dx = w.left + mx - a.right;
+    else if (a.left > w.right - mx) dx = w.right - mx - a.left;
+    if (a.bottom < w.top + my) dy = w.top + my - a.bottom;
+    else if (a.top > w.bottom - my) dy = w.bottom - my - a.top;
+    if (dx || dy) {
+      panX += dx; panY += dy;
+      art.parentNode.style.transform = 'translate(' + Math.round(panX) + 'px,' + Math.round(panY) + 'px)';
+    }
+  }
   var r = document.getElementById('rZoom');
   if (r) r.textContent = (z >= 1 ? Math.round(z * 100) : (z * 100).toFixed(0)) + '%';
   var b = document.getElementById('bFit');
   if (b) b.hidden = (userZ === 1 && !panX && !panY);
 }
+/* Through a zoom, the point under the cursor or between the fingers stays
+ * where it is on the screen. The pan is worked out from where the picture
+ * actually lands rather than from the middle of the mat: on a phone the
+ * picture sits at the top of the mat, and a pinch reckoned about the middle
+ * slid the picture out from under the fingers. (u, v) is that point as a
+ * fraction of the picture, and (sx, sy) its place on the screen. */
+function holdUnder(u, v, sx, sy) {
+  applyView();
+  var a = art.getBoundingClientRect();
+  panX += sx - (a.left + u * a.width);
+  panY += sy - (a.top + v * a.height);
+  applyView();
+}
+function pointOnArt(sx, sy) {
+  var a = art.getBoundingClientRect();
+  return [(sx - a.left) / Math.max(1, a.width), (sy - a.top) / Math.max(1, a.height)];
+}
 function zoomAbout(f, sx, sy) {
   var nz = Math.max(1, Math.min(24, userZ * f));
   if (nz === userZ) return;
-  var wrap = document.querySelector('.paperWrap').getBoundingClientRect();
-  var cx = sx - wrap.left - wrap.width / 2 - panX, cy = sy - wrap.top - wrap.height / 2 - panY;
-  var k = nz / userZ;
-  panX -= cx * (k - 1); panY -= cy * (k - 1);
-  userZ = nz; applyView();
+  var uv = pointOnArt(sx, sy);
+  userZ = nz; holdUnder(uv[0], uv[1], sx, sy);
 }
 function resetView() { userZ = 1; panX = 0; panY = 0; applyView(); }
 addEventListener('resize', fitCanvas);
@@ -2266,46 +2306,120 @@ function pos(e) {
   var r = art.getBoundingClientRect();
   return [Math.floor((e.clientX - r.left) / r.width * W), Math.floor((e.clientY - r.top) / r.height * H)];
 }
-var pts = new Map(), gesture = null;
+/*
+ * Every pointer goes to the mat (.paperWrap), the picture included, so a
+ * second finger joins the pinch wherever it lands. When the picture and the
+ * mat had separate handlers, a second finger on the gray started a second
+ * pan while the first finger went on painting.
+ *
+ * A finger on the picture does not paint immediately: the stroke starts
+ * when it has moved a few pixels, after a short wait, or on lifting it (a
+ * tap). A pinch's second finger nearly always lands within that wait, so
+ * most pinches leave nothing to take back. A mouse or a pen paints from the
+ * moment it presses.
+ *
+ * When a stroke has started, the state before it (`strokeMark`) is
+ * what a second finger puts back: the pixels, the selection and both
+ * history lists. Until October 2026 the stroke was taken back with an undo.
+ * That put the stroke on the redo list, so Redo appeared and pushed Undo
+ * along. A Fill was already finished and not marked as stroking, so it
+ * stayed. A melt (Pick with a ramp ink) saves no undo point, so the undo
+ * took away the edit before it.
+ */
+var TOUCH_WAIT_MS = 90, TOUCH_SLOP_PX = 6;
+var pts = new Map(), gesture = null, pending = null, strokeMark = null, matPan = null;
+var wrapEl = document.querySelector('.paperWrap');
 function gestureState() {
   var a = [];
   pts.forEach(function (v) { a.push(v); });
   var d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
   return { d: d, mx: (a[0].x + a[1].x) / 2, my: (a[0].y + a[1].y) / 2 };
 }
-art.addEventListener('pointerdown', function (e) {
+function startStroke(p) {
+  strokeMark = { px: idx.slice(), w: W, h: H, sel: sel && sel.slice(),
+    top: undoStack[undoStack.length - 1], redo: redoStack.slice() };
+  begin(p[0], p[1]);
+}
+function startPending() {
+  if (!pending) return;
+  var p = pending.p;
+  clearTimeout(pending.timer); pending = null;
+  startStroke(p);
+}
+function cancelStroke() {
+  if (pending) { clearTimeout(pending.timer); pending = null; }
+  var m = strokeMark;
+  if (!m) return;
+  strokeMark = null;
+  stroking = false; selDrag = null; lasso = null; baseCopy = null;
+  meltStops = []; meltTook = [];
+  if (m.w !== W || m.h !== H) resize(m.w, m.h, false);
+  idx = m.px; sel = m.sel;
+  while (undoStack.length && undoStack[undoStack.length - 1] !== m.top) undoStack.pop();
+  redoStack = m.redo;
+  refreshHistory(); drawSel(); refreshTool(); draw();
+}
+function endMatPan() { matPan = null; wrapEl.classList.remove('panning'); }
+wrapEl.addEventListener('pointerdown', function (e) {
   e.preventDefault();
   // The settings panel floats over the picture; a touch on the picture is how
   // you dismiss it, and that touch is not also a stroke.
   if (!pts.size && sheetOpen()) { setSheet(false); return; }
   pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  wrapEl.setPointerCapture(e.pointerId);
   if (pts.size === 2) {
-    if (stroking) { stroking = false; undoOnce(); }   // that first finger was not a stroke after all
-    gesture = gestureState(); gesture.z0 = userZ; gesture.px = panX; gesture.py = panY;
+    cancelStroke(); endMatPan();
+    var g = gestureState(), uv = pointOnArt(g.mx, g.my);
+    gesture = { d: g.d, u: uv[0], v: uv[1], z0: userZ };
     return;
   }
   if (pts.size > 2) return;
-  art.setPointerCapture(e.pointerId);
-  var p = pos(e); begin(p[0], p[1]);
+  // A drag on the gray around the picture moves it, with a finger, a pen or
+  // a mouse; a drag on the picture paints.
+  if (e.target !== art) {
+    matPan = { id: e.pointerId, x: e.clientX, y: e.clientY, px: panX, py: panY };
+    wrapEl.classList.add('panning');
+    return;
+  }
+  var p = pos(e);
+  if (e.pointerType === 'touch')
+    pending = { id: e.pointerId, x: e.clientX, y: e.clientY, p: p, timer: setTimeout(startPending, TOUCH_WAIT_MS) };
+  else startStroke(p);
 });
-art.addEventListener('pointermove', function (e) {
-  if (pts.has(e.pointerId)) pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+wrapEl.addEventListener('pointermove', function (e) {
+  if (!pts.has(e.pointerId)) return;
+  pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (pts.size >= 2 && gesture) {
     e.preventDefault();
     var g = gestureState();
     userZ = Math.max(1, Math.min(24, gesture.z0 * (g.d / Math.max(1, gesture.d))));
-    panX = gesture.px + (g.mx - gesture.mx);
-    panY = gesture.py + (g.my - gesture.my);
+    holdUnder(gesture.u, gesture.v, g.mx, g.my);
+    return;
+  }
+  if (matPan && e.pointerId === matPan.id) {
+    e.preventDefault();
+    panX = matPan.px + (e.clientX - matPan.x);
+    panY = matPan.py + (e.clientY - matPan.y);
     applyView(); return;
+  }
+  if (pending && e.pointerId === pending.id) {
+    if (Math.hypot(e.clientX - pending.x, e.clientY - pending.y) < TOUCH_SLOP_PX) return;
+    startPending();
   }
   if (!stroking) return;
   e.preventDefault(); var p = pos(e); extend(p[0], p[1]);
 });
 ['pointerup', 'pointercancel'].forEach(function (n) {
-  art.addEventListener(n, function (e) {
+  wrapEl.addEventListener(n, function (e) {
+    if (!pts.has(e.pointerId)) return;
     pts.delete(e.pointerId);
     if (pts.size < 2) gesture = null;
-    if (!pts.size) end();
+    if (matPan && e.pointerId === matPan.id) endMatPan();
+    if (pending && e.pointerId === pending.id) {
+      if (n === 'pointerup') startPending();
+      else { clearTimeout(pending.timer); pending = null; }
+    }
+    if (!pts.size) { end(); strokeMark = null; }
   });
 });
 // Trackpad and wheel: a pinch is reported as ctrl+wheel, plain wheel zooms too.
@@ -2318,33 +2432,11 @@ document.querySelector('.paperWrap').addEventListener('touchmove', function (e) 
   e.preventDefault();
 }, { passive: false });
 
-/* ---- dragging the mat -------------------------------------------------
- * The canvas itself is for painting, so panning had nowhere to live but a
- * two-finger gesture and a mouse wheel. The grey around it is doing nothing:
- * drag there -- with a finger, a pen or a mouse -- and the picture moves.
+/* ---- the mat's wheel ---------------------------------------------------
+ * Dragging the mat is handled with every other pointer, above.
  */
 (function () {
-  var wrap = document.querySelector('.paperWrap'), pan = null;
-  wrap.addEventListener('pointerdown', function (e) {
-    if (e.target === art) return;                 // strokes on the picture are handled there
-    e.preventDefault();
-    wrap.setPointerCapture(e.pointerId);
-    pan = { id: e.pointerId, x: e.clientX, y: e.clientY, px: panX, py: panY };
-    wrap.classList.add('panning');
-  });
-  wrap.addEventListener('pointermove', function (e) {
-    if (!pan || e.pointerId !== pan.id) return;
-    e.preventDefault();
-    panX = pan.px + (e.clientX - pan.x);
-    panY = pan.py + (e.clientY - pan.y);
-    applyView();
-  });
-  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (n) {
-    wrap.addEventListener(n, function (e) {
-      if (!pan || e.pointerId !== pan.id) return;
-      pan = null; wrap.classList.remove('panning');
-    });
-  });
+  var wrap = document.querySelector('.paperWrap');
   // Wheeling over the mat zooms the same way wheeling over the picture does.
   wrap.addEventListener('wheel', function (e) {
     if (e.target === art) return;
@@ -2564,7 +2656,12 @@ var USES = {
     b.type = 'button'; b.className = 'tb'; b.dataset.tool = t.id;
     b.setAttribute('aria-pressed', 'false');
     b.innerHTML = '<svg viewBox="0 0 24 24"></svg>';
-    b.addEventListener('click', function () { setTool(t.id); });
+    // On a phone a second tap on the tool in hand opens its options, as the
+    // Options button beside the tools does.
+    b.addEventListener('click', function () {
+      if (t.id === tool && sheetButtonShown()) { setSheet(!sheetOpen()); return; }
+      setTool(t.id);
+    });
     host.appendChild(b);
   });
   var fxHost = document.getElementById('fxBox');
@@ -2614,6 +2711,7 @@ function refreshTool() {
   var f = face(tool);
   document.getElementById('optTitle').textContent = f.name + (sel ? ' \u00b7 in selection' : '');
   document.getElementById('optHelp').textContent = f.help;
+  document.getElementById('sheetName').textContent = f.name;
   [].forEach.call(document.querySelectorAll('.tb'), function (b) {
     var ff = face(b.dataset.tool);
     b.querySelector('svg').innerHTML = I[ff.icon];
@@ -3304,15 +3402,19 @@ function setAdvanced(on) {
  * it was: nothing is refitted, nothing is squeezed, and the first touch on the
  * picture puts the panel away instead of painting under it.
  */
+/* The button that opens it is named for the tool in hand ("Flow options"),
+ * in the tool row. Until October 2026 it was a bare "≡" at the end of the
+ * ink row, which nobody took for the way to a tool's settings. */
 function setSheet(on) {
-  var btn = document.getElementById('bSheet');
   document.body.classList.toggle('sheet', on);
-  if (btn) {
-    btn.setAttribute('aria-pressed', String(on));
-    btn.innerHTML = on ? '&#10003;' : '&#8801;';
-  }
+  var btn = document.getElementById('bSheet');
+  if (btn) btn.setAttribute('aria-pressed', String(on));
 }
 function sheetOpen() { return document.body.classList.contains('sheet'); }
+function sheetButtonShown() {
+  var btn = document.getElementById('bSheet');
+  return !!btn && getComputedStyle(btn).display !== 'none';
+}
 (function () {
   var btn = document.getElementById('bSheet');
   if (!btn) return;
