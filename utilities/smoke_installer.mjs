@@ -45,6 +45,62 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       if (!/0x437B8/.test(one) || !/KeyRoutine\(short\)/.test(one)) fail('executable', 'a routine chip does not land on the routine: ' + one.slice(0, 200));
       else console.log(`  executable: ${pef.routines.length} routines named, ${pef.loader.symbols.length} imports from ${pef.loader.libraries.length} libraries; KeyRoutine at 0x437B8`);
     }
+    /* The routine notes, v1.330.0: what a routine does in plain words,
+       written in the workbench (js/delv-routinenotes.js), each claim citing
+       the instructions that show it. The workbench checks its addresses
+       against its own reading of the program; this holds them to the page's
+       reading of the shipped one, which is what a visitor's link rings.
+       Every text's entry must start a routine of its name, and every address
+       in a routine's text must lie in that routine or start another; in a
+       class's opening it must lie in one of the class's routines. Then the
+       page must show a text with its addresses as links and its callers
+       read from the code. The negative control is a copy of the notes with
+       one address moved into another routine, which must be caught. */
+    try {
+      const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
+      const notes = peek('ROUTINE_NOTES');
+      // By the demangled name, or by the mangled one where the page's demangler
+      // stops short of the workbench's (a conversion operator, __opPc__8TSegLoadFv).
+      const named = (r, name) => {
+        if (!r) return false;
+        if (r.name === name || r.name.startsWith(name + '(')) return true;
+        const [cls, fn] = name.split('::');
+        return !!fn && r.mangled.includes(cls.length + cls) && (r.mangled.startsWith(fn + '__') || r.mangled.startsWith('__' + fn + '__'));
+      };
+      const misplaced = set => {
+        const bad = [];
+        for (const [cls, k] of Object.entries(set)) {
+          const ranges = [];
+          for (const n of k.routines) {
+            const r = ctx.exeRoutineAt(n.entry);
+            if (!r || r.offset !== n.entry || !named(r, n.name)) { bad.push(n.name + ' starts no routine of its name at 0x' + n.entry.toString(16)); continue; }
+            ranges.push(r);
+            for (const m of n.text.matchAll(/`0x([0-9A-F]{6})`/g)) {
+              const v = parseInt(m[1], 16), at = ctx.exeRoutineAt(v);
+              if (!(v >= r.offset && v < r.offset + r.length) && !(at && at.offset === v)) bad.push(n.name + ' cites 0x' + m[1]);
+            }
+          }
+          for (const m of k.opening.matchAll(/`0x([0-9A-F]{6})`/g)) {
+            const v = parseInt(m[1], 16), at = ctx.exeRoutineAt(v);
+            if (!ranges.some(r => v >= r.offset && v < r.offset + r.length) && !(at && at.offset === v)) bad.push(cls + "'s opening cites 0x" + m[1]);
+          }
+        }
+        return bad;
+      };
+      const routines = Object.values(notes).reduce((n, k) => n + k.routines.length, 0);
+      const cites = JSON.stringify(notes).match(/`0x[0-9A-F]{6}`/g).length;
+      const bad = misplaced(notes);
+      const moved = JSON.parse(JSON.stringify(notes));
+      const enc = moved.TSegFile.routines.find(n => n.name === 'TSegFile::Encrypt');
+      enc.text = enc.text.replace('`0x07BA58`', '`0x07BB0C`');
+      ctx.openPefRoutine('TSegFile::Encrypt');
+      const page = all(REGISTRY.get('sheetGrid'));
+      if (bad.length) fail('routine notes', bad.length + ' misplaced: ' + bad.slice(0, 4).join('; '));
+      else if (!misplaced(moved).some(b => /Encrypt cites 0x07BB0C/.test(b))) fail('routine notes', 'an address moved into Decrypt was not caught');
+      else if (!/What It Does/.test(page) || !new RegExp('jumpToExeAt\\(' + 0x07BA58 + '\\)[^>]*>0x07BA58<').test(page) || !/Called From[\s\S]*TSegFile::Decrypt/.test(page))
+        fail('routine notes', 'the routine page does not show the text with its links and callers (' + page.slice(0, 200) + ')');
+      else console.log(`  routine notes: ${Object.keys(notes).length} classes, ${routines} routines, ${cites} cited addresses, each in its routine, and a moved address caught`);
+    } catch (e) { fail('routine notes', e.stack || e.message); }
     /* The program's figures on the Mechanics sheet, v1.51.0: the clock,
        hunger, healing, poison, the talk balloon, what a command spends and
        who is whose enemy, each read out of the application's code with the

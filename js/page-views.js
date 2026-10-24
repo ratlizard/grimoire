@@ -151,8 +151,13 @@ function exeCalls(op, name) {
 }
 // Every call of a routine anywhere in the code, by one scan kept with the program.
 function exeCallersOf(name) {
-  const img = appImage(), pef = appPef(); if (!img) return [];
   const target = exeRoutineNamed(name); if (!target) return [];
+  return exeCallSitesOf(target.offset).map(at => { const r = exeRoutineAt(at); const ops = exeOpsOf(r); return { routine: r, ops, i: ops.findIndex(o => o.at === at) }; }).filter(c => c.routine && c.i >= 0);
+}
+// The addresses of every bl that reaches an offset. By offset, since two
+// overloads share a name and exeRoutineNamed finds the first.
+function exeCallSitesOf(offset) {
+  const img = appImage(), pef = appPef(); if (!img) return [];
   if (!pef.callIndex) {
     pef.callIndex = new Map();
     for (let at = 0; at + 4 <= img.code.length; at += 4) {
@@ -163,7 +168,7 @@ function exeCallersOf(name) {
       (pef.callIndex.get(to) || pef.callIndex.set(to, []).get(to)).push(at);
     }
   }
-  return (pef.callIndex.get(target.offset) || []).map(at => { const r = exeRoutineAt(at); const ops = exeOpsOf(r); return { routine: r, ops, i: ops.findIndex(o => o.at === at) }; }).filter(c => c.routine && c.i >= 0);
+  return pef.callIndex.get(offset) || [];
 }
 // A number in an instruction, with its address: { v, exe }.
 function exeVal(op, v) { return op ? { v, exe: op.at } : null; }
@@ -635,6 +640,46 @@ function exeListingHTML(r, ringAt, why) {
   });
   return '<pre class="pane exeListing" style="max-height:none' + (plainOn ? ';white-space:pre-wrap' : '') + '">' + lines.join('\n') + '</pre>';
 }
+/* What a routine and its class do, in plain words: ROUTINE_NOTES
+   (js/delv-routinenotes.js), written in the workbench from the
+   instructions, read twice and compared, every claim citing the
+   instructions that show it. A text is found by the routine's entry, never
+   its name, which two overloads share. In a text an address in backticks
+   is a link that rings that instruction in the visitor's copy of the program
+   (jumpToExeAt), so a claim is checked against the code it cites in one
+   click; a routine's name in backticks is a link to it; any other name is
+   set as code. *Stars* are a title, and lines starting "- " a list. */
+function routineNoteAt(offset) {
+  if (typeof ROUTINE_NOTES === 'undefined') return null;
+  if (!routineNoteAt.byEntry) {
+    routineNoteAt.byEntry = new Map();
+    for (const cls of Object.keys(ROUTINE_NOTES)) for (const r of ROUTINE_NOTES[cls].routines) routineNoteAt.byEntry.set(r.entry, r);
+  }
+  return routineNoteAt.byEntry.get(offset) || null;
+}
+function routineNoteHTML(text) {
+  const inline = line => line.split('`').map((part, k) => {
+    if (k % 2 === 0) return svEsc(part).replace(/\*([^*]+)\*/g, '<i>$1</i>');
+    if (/^0x[0-9A-F]{6}$/.test(part)) return svLink(part, 'jumpToExeAt(' + parseInt(part, 16) + ')');
+    if (/^[A-Za-z_]\w*::~?\w+$/.test(part) && exeRoutineNamed(part)) return svLink(part, 'openPefRoutine(\'' + part + '\')');
+    return '<code>' + svEsc(part) + '</code>';
+  }).join('');
+  return text.split(/\n\s*\n/).map(block => {
+    const lines = block.split('\n');
+    if (!/^- /.test(lines[0])) return '<p class="mechLede">' + inline(lines.join(' ')) + '</p>';
+    const items = [];
+    for (const l of lines) { if (/^- /.test(l)) items.push(l.slice(2)); else items[items.length - 1] += ' ' + l.trim(); }
+    return '<ul class="mechLede">' + items.map(i => '<li>' + inline(i) + '</li>').join('') + '</ul>';
+  }).join('');
+}
+// Where a routine is called from, read from the visitor's program: each
+// caller once, a link to the call.
+function routineCallersHTML(r) {
+  const seen = new Map();
+  for (const at of exeCallSitesOf(r.offset)) { const c = exeRoutineAt(at); if (c && !seen.has(c.offset)) seen.set(c.offset, { c, at }); }
+  if (!seen.size) return '<p class="mechLede">No call in the program reaches it directly. A routine called through a table of addresses, as a virtual routine is, has no direct call.</p>';
+  return '<p class="mechLede">' + [...seen.values()].map(x => svLink(x.c.name, 'jumpToExeAt(' + x.at + ')')).join(', ') + '.</p>';
+}
 function renderAppPefSheet() {
   stopAllViewActivity();
   const grid = document.getElementById('sheetGrid');
@@ -649,12 +694,16 @@ function renderAppPefSheet() {
     const box = document.createElement('div');
     box.className = 'mechView';
     const hexv = n => '0x' + (n >>> 0).toString(16).toUpperCase();
+    const note = routineNoteAt(view.offset);
     box.innerHTML = '<div class="foldAll" style="justify-content:flex-start">' + svLink('All routines', 'pefBackToList()') + ' ' +
       [['words', 'Plain Words'], ['pseudo', 'Pseudo-code'], ['code', 'Code']].map(v => window.EXE_VIEW === v[0]
         ? '<span class="inspDim">' + v[1] + '</span>' : svLink(v[1], 'exeSetView(\'' + v[0] + '\')')).join(' ') + '</div>' +
       '<div class="changesHead">' + svEsc(view.name) + '</div>' +
       '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
       (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes, and a slot in the program’s table of addresses shows what the game stores there when it starts.</p>' +
+      (note ? '<div class="mechSub">What It Does</div>' + routineNoteHTML(note.text) : '') +
+      '<div class="mechSub">Called From</div>' + routineCallersHTML(view) +
+      '<div class="mechSub">Instructions</div>' +
       exeListingHTML(view, window.PEF_VIEW.at, window.PEF_VIEW.why);
     grid.appendChild(box);
     out.textContent = view.name + ', ' + (view.length / 4) + ' instructions';
@@ -686,8 +735,12 @@ function renderAppPefSheet() {
   const row = r => '<tr>' + num(hex(r.offset)) + num(r.length.toLocaleString()) + '<td title="' + svEsc(r.mangled) + '">' + svLink(r.name, 'jumpToExeAt(' + r.offset + ')') + '</td></tr>';
   const table = list => '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">at</th><th class="num">bytes</th><th>routine</th></tr></thead><tbody>' + list.map(row).join('') + '</tbody></table></div>';
   if (q) h += rs.length ? table(rs) : '<div class="changesNote">No routine matches.</div>';
-  else h += [...byClass.entries()].sort((a, b) => (a[0] || '~').localeCompare(b[0] || '~')).map(([c, list]) =>
-    '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(c || 'functions outside a class') + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + list.length + '</b></span></span></summary><div class="mechBody">' + table(list) + '</div></details>').join('');
+  else h += [...byClass.entries()].sort((a, b) => (a[0] || '~').localeCompare(b[0] || '~')).map(([c, list]) => {
+    const words = typeof ROUTINE_NOTES !== 'undefined' && ROUTINE_NOTES[c];
+    const told = list.filter(r => routineNoteAt(r.offset)).length;
+    return '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(c || 'functions outside a class') + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + list.length + '</b></span>' +
+      (told ? '<span class="mechStat"><b>' + told + '</b> described</span>' : '') + '</span></summary><div class="mechBody">' + (words ? routineNoteHTML(words.opening) : '') + table(list) + '</div></details>';
+  }).join('');
   h += '<p class="mechLede" style="margin-top:10px">The page decodes each name from the compiler’s shorthand, and leaves it as written where it cannot.</p>';
   box.innerHTML = h;
   grid.appendChild(box);
