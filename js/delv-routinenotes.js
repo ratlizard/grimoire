@@ -388,6 +388,176 @@ const ROUTINE_NOTES = {
    }
   ]
  },
+ "TStyleRun": {
+  "opening": "One run of text in a single style, a node of the list that a `TTextContext`\nbuilds, 20 bytes. It has the run's x on its line at `+0` (a short, 0 for the\nfirst run of a line), its width in pixels at `+2`, its text style (an index for\n`SetText`) at `+4`, a byte at `+6` that is 1 for a highlighted keyword, a byte\nat `+7` that is 1 when the keyword's word goes on into the next run, the text's\naddress at `+8`, its length at `+12` and the next run at `+16`.",
+  "routines": [
+   {
+    "name": "TStyleRun::TStyleRun",
+    "entry": 482232,
+    "text": "Makes the first run of a text, at x -1, in style 5, not highlighted and empty (`0x075BB8` to `0x075BF4`)."
+   },
+   {
+    "name": "TStyleRun::TStyleRun",
+    "entry": 482340,
+    "text": "Makes a run after another one, copying its 20 bytes, linking itself in after\nit (`0x075C50`) and starting at the text address given with a length of 0\n(`0x075C54`, `0x075C58`)."
+   },
+   {
+    "name": "TStyleRun::Draw",
+    "entry": 482452,
+    "text": "Draws the run at a line's position, in its style (`SetText`, `0x075CBC`). With\nthe text color 33 (black) it draws plain text (`AADrawText`, `0x075D1C`), in the\nhighlight color when the run is a keyword (`0x075CC8` to `0x075CD8`). With any\nother color it draws the text with a shadow (`TTextContext::DrawTextOutlined`,\n`0x075D54`), in the highlight color for a keyword and with a black\nshadow."
+   }
+  ]
+ },
+ "TTextContext": {
+  "opening": "A text laid out in lines for drawing from the game's markup, such as the text\nof a conversation, a message or a scripted window. The object has the width at\n`+0`, the first `TStyleRun` at `+4` and at `+8` one block with every run's\ncharacters. A run whose x is 0 starts a line.",
+  "routines": [
+   {
+    "name": "TTextContext::TTextContext",
+    "entry": 482712,
+    "text": "Lays out a text. Its arguments are the text and its length, the width in\npixels, a base text style and a word of flags. It reads the markup into runs as\nfollows.\n\n- A carriage return or a line feed starts a new line (`0x075E40` to\n  `0x075E98`).\n- An `@` makes the next word a keyword, a highlighted run (`0x075EA4` to\n  `0x075EE8`), until the first character that is not a letter. That character\n  starts a plain run, and a byte at its `+7` records that the word goes on\n  when the character is not a space, a line break or 0 (`0x075EF8` to\n  `0x075FBC`).\n- A `<` followed by a digit d switches to text style base + 5 + 3 × d, a `<`\n  with no digit to base + 8 (`0x075FCC` to `0x076064`), and a `>` back to base\n  + 5 (`0x076074` to `0x0760B8`).\n- An `&` followed by a digit n, or none for 1, opens a section, and the next `&`\n  closes it (`0x0760C0` to `0x076188`). The section shows when bit n of the\n  flags is 1 and hides otherwise (`0x07611C` to `0x07616C`). Text outside any\n  section shows unless bit 0 is 1 (`0x075E08` to `0x075E2C`). The closing `&`\n  hides the text after it when bit 0 is 1 (`0x076174` to `0x076184`) and\n  otherwise leaves it as the section was, so after a hidden section the text\n  stays hidden until a section that shows. Every call but one passes flags\n  of 0, so in those an `&` hides the rest of the text. The book Aloiphos B\n  writes \"lapis lazuli & jasper\" and would stop after \"lapis lazuli\". Found\n  reading, not shown in a run.\n\nIt then measures each run (`TextWidth`, `0x0761EC`), copies every run's\ncharacters into one block (`NewPtr`, `BlockMoveData`, `0x076234` to\n`0x076270`) and breaks the runs into lines no wider than the width\n(`StyledLineBreak`, `0x07633C`). A keyword whose word goes on into the next run\nbreaks with that run as one piece (`0x0762FC` to `0x076318`). A run that\nbreaks inside splits into two (`0x076448` to `0x0764C8`), with its trailing\nspaces trimmed (`VisibleLength`, `0x0764A4`). A run that would break at its\nfirst character moves whole to the next line (`0x076428` to `0x076438`)."
+   },
+   {
+    "name": "TTextContext::NumLines",
+    "entry": 484652,
+    "text": "Returns the number of lines, the runs that start a line and are not empty\n(`0x076568` to `0x076580`), and 0 for a text with one empty run."
+   },
+   {
+    "name": "TTextContext::Draw",
+    "entry": 484816,
+    "text": "Draws the text from a point, a line height apart, and returns the y one line\nbelow the last (`0x0766A8`). At each run that starts a line it adds the widths\nof the line's runs (`0x076628` to `0x076650`), justifies the line (`Justify`,\n`0x076660`) and moves down a line. It draws each run (`TStyleRun::Draw`,\n`0x076684`) in the text and highlight colors given."
+   },
+   {
+    "name": "TTextContext::Justify",
+    "entry": 485096,
+    "text": "Returns a line's starting x for a justification, the x given for 0 (left), the\nx less half the line's width for 1 (centered, `0x076710` to `0x07671C`), and\nthe x less the whole width for -1 (right, `0x076724`). Any other value gives\nthe x unchanged (`0x0766FC`, `0x076704`)."
+   },
+   {
+    "name": "TTextContext::DrawTextOutlined",
+    "entry": 485212,
+    "text": "Draws text with a shadow, in the shadow color one pixel down and to the right\n(`0x0767E4` to `0x076800`) and then in the text color at the point (`0x076840`\nto `0x07685C`), and then sets the text color back to black. A color from 0 up is a QuickDraw color\nconstant (`ForeColor`). One below 0 is an entry of the game's color table\n(`RGBForeColor`, entry -n of the table at toc -30216). When the text and the\nshadow are both black (33, or -255) the shadow becomes white, 30 (`0x076768`\nto `0x0767A4`)."
+   },
+   {
+    "name": "TTextContext::~TTextContext",
+    "entry": 485564,
+    "text": "Frees every run (`0x0768E8` to `0x0768F8`), disposes of the characters' block (`DisposePtr`, `0x076908`) and frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "TBufferGWorld": {
+  "opening": "An offscreen drawing buffer that lives on the stack. Its constructor, which the\ncompiler builds inline at each place that makes the object, saves the current port and\ndevice at `+4` and `+8`, stores the offscreen `GWorld` at `+12` and sets it as\nthe port for drawing. The destructor copies the result to the saved port.",
+  "routines": [
+   {
+    "name": "TBufferGWorld::~TBufferGWorld",
+    "entry": 238272,
+    "text": "Sets the saved port back (`SetGWorld`, `0x03A2E4`), reads the port's rectangle\nand widens it by the rectangle's left and top coordinates (`InsetRect` with\nboth negated, `0x03A318`), copies the offscreen picture into the port over that\nrectangle (`CopyBits`, `0x03A348`),\nand frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "THood": {
+  "opening": "The neighborhood, the list of things near the party that the game draws and\nupdates, from the current zone's list of things. The object has a byte at `+0`\nthat is 1 when the neighborhood is every thing in the zone, the center square\nat `+2` and `+4`, the count at `+6` and from `+8` the things' numbers, two bytes\neach, up to 2,048 (`THood::AddToHood`, `0x06C9E0`), or 16,384 with grimoire's\n`hood-size` fix.\n\nIn a zone of fewer than 1,536 things the neighborhood is all of them\n(`THood::ResetHood`, `0x06C7C4`), and a move never rebuilds it. In a larger\nzone it is the things within 32 squares of its center (`0x06C890` to\n`0x06C8DC`), and a move of more than 16 squares from the center rebuilds it\n(`THood::MoveHood`, `0x06C6A8` to `0x06C6F0`).",
+  "routines": [
+   {
+    "name": "THood::THood",
+    "entry": 443964,
+    "text": "Makes an empty neighborhood centered off the map, at (-100, -100) (`0x06C63C` to `0x06C654`)."
+   },
+   {
+    "name": "THood::MoveHood",
+    "entry": 444032,
+    "text": "Rebuilds the neighborhood around a square (`ResetHood`, `0x06C70C`) when the\nsquare is more than 16 from the center on either axis (`0x06C6A8` to\n`0x06C6F0`) and the neighborhood is not every thing in the zone."
+   },
+   {
+    "name": "THood::ForceReset",
+    "entry": 444248,
+    "text": "Moves the center off the map and sets the byte at `+0` to 0, so that the next `MoveHood` rebuilds (`0x06C758` to `0x06C768`)."
+   },
+   {
+    "name": "THood::ResetHood",
+    "entry": 444312,
+    "text": "Rebuilds the neighborhood around a square. It sets the byte at `+0` to 1 when\nthe zone has fewer than 1,536 things (`0x06C7C0` to `0x06C7DC`), and goes\nthrough the zone's things from 1, records of 16 bytes (`0x06C7FC`). It considers\na thing whose first byte, less 0x80, is 0 to 4, 0x20 to 0x24, 0x42 or 0x44\n(`0x06C804` to `0x06C848`). It always adds a count-down egg, first byte 0x42\nand kind 10 (`0x06C870` to `0x06C880`). In a large zone, for a thing more than\n32 squares from the center (`0x06C890` to `0x06C8DC`) it re-arms an egg whose\nfirst byte is 0xC2 to 0x42 (`0x06C8E4` to `0x06C8F0`), deletes a thing whose\nfirst byte has 0x20 (`DeleteProp`, `0x06C904`), and leaves the thing out. It\nthrows \"Too many objects in the neighborhood\" once the count reaches 2,048\n(`0x06C92C` to `0x06C948`)."
+   },
+   {
+    "name": "THood::AddToHood",
+    "entry": 444836,
+    "text": "Adds a thing's number to the neighborhood (`0x06C9D8`), throws when the count\nreaches 2,048 (`0x06C9DC` to `0x06C9FC`), and at 1,536 or more sets the byte at\n`+0` to 0 so that the next move rebuilds (`ForceReset`, `0x06CA04` to\n`0x06CA28`)."
+   },
+   {
+    "name": "THood::RemoveFromHood",
+    "entry": 445032,
+    "text": "Removes a thing's number, moving the last entry into its place (`0x06CA74` to `0x06CAC0`)."
+   }
+  ]
+ },
+ "TPathFinder": {
+  "opening": "The search a character uses to find its way, one object at toc -30412. It works\nin a window of 31 by 31 squares centered on the view's center (the view object\nat toc -30408, x at `+8` and y at `+10`), with a byte for each square from\n`+0`. Before a search each byte is 8, for not reached\n(`TPathFinder::ResetPaths`, `0x05A254` to `0x05A260`). The start's byte is 255,\na step found blocked is -2, and any other value is the direction the search\nreached the square in. The open list has up to 100 squares of 12 bytes from\n`+964` (x, y, weight and the next square), with its head at `+2164`, its free\nlist at `+2168`, the closest square found at `+2172`, the number of squares in\nuse at `+2176`, the goal at `+2178` and `+2180`, the start at `+2182` and\n`+2184`, and the mover's attributes for `TGameSys::TryMove` at `+2188`.\n\nA direction is a number from 0 to 7, clockwise from north, with 0 north, 1\nnorth-east, 2 east, 3 south-east, 4 south, 5 south-west, 6 west and 7\nnorth-west. A step in a direction moves x by 1 for 1 to 3 and by -1 for 5 to 7,\nand y by -1 for 7, 0 and 1 and by 1 for 3 to 5 (`TPathFinder::CanSimpleNavigate`,\n`0x05A6A8` to `0x05A718`).",
+  "routines": [
+   {
+    "name": "TPathFinder::ResetPaths",
+    "entry": 369220,
+    "text": "Sets every square of the window to 8, for not reached, and empties the open list (`0x05A254` to `0x05A284`)."
+   },
+   {
+    "name": "TPathFinder::CalcWeight",
+    "entry": 369356,
+    "text": "Returns a square's Manhattan distance to the goal, the difference in x plus the difference in y (`0x05A2D8` to `0x05A2FC`)."
+   },
+   {
+    "name": "TPathFinder::AddCandidate",
+    "entry": 369468,
+    "text": "Adds a square to the open list, kept in order of weight from the smallest\n(`0x05A3B4` to `0x05A41C`), ahead of any square of equal weight. The square comes\nfrom the free list (`0x05A358` to `0x05A368`) or else the next of the\n100 (`0x05A370` to `0x05A394`). Once all 100 are in use and none is free, the\nsquare is not added (`0x05A374`)."
+   },
+   {
+    "name": "TPathFinder::AddNegCandidate",
+    "entry": 369768,
+    "text": "Adds a square to the open list in order of weight from the largest, for `FurthestPoint` (`0x05A4E0` to `0x05A548`)."
+   },
+   {
+    "name": "TPathFinder::NextCandidate",
+    "entry": 370068,
+    "text": "Removes and returns the first square of the open list, or 0 (`0x05A598` to `0x05A5B8`)."
+   },
+   {
+    "name": "TPathFinder::FreeCandidate",
+    "entry": 370168,
+    "text": "Puts a square on the free list (`0x05A5F8` to `0x05A600`)."
+   },
+   {
+    "name": "TPathFinder::CanSimpleNavigate",
+    "entry": 370264,
+    "text": "Returns 1 when a straight walk from one square to another succeeds. It steps one\nsquare at a time in the direction from where it is to the goal\n(`FindDirection`, `0x05A69C`) and tries each step with `TGameSys::TryMove` and\nthe attributes given (`0x05A73C`), and returns 0 at the first step that\nfails."
+   },
+   {
+    "name": "TPathFinder::FindWaypoint",
+    "entry": 370632,
+    "text": "Finds a path (`FindPath`, `0x05A80C`) and, when the search found one, the\nfurthest square along it that a straight walk reaches (`FindFirstWaypoint`,\n`0x05A838`), written back through the two pointers. It returns `FindPath`'s\nresult."
+   },
+   {
+    "name": "TPathFinder::FindFirstStep",
+    "entry": 370848,
+    "text": "Writes back through the two pointers the first step from the start toward the\nclosest square found. It walks back from that square, by the direction in each\nsquare's byte, until it meets the start's 255 (`0x05A8F4` to `0x05A9B0`), and\nthe step it last walked back, turned round, is the answer (`0x05A9B4` to\n`0x05A9C0`). The loop never ends. It reads each byte sign-extended (`extsb`,\n`0x05A9A8`) and compares it with 255 (`0x05A9AC`), which a sign-extended byte\nnever equals, so at the start it walks on. The program's one call, in\n`TActiveMonster::DoMove`, is for behavior 17, which nothing in the shipped game\nsets. Grimoire's `walk-to` fix met the hang when played and compares with -1\ninstead. After `FindPath` returns 0 for a start that is the goal, `+2172` is\nstill 0 from `ResetPaths`, and the walk starts from address 0."
+   },
+   {
+    "name": "TPathFinder::FindFirstWaypoint",
+    "entry": 371200,
+    "text": "Walks back from the closest square found toward the start and writes back\nthrough the two pointers the first square on the way that a straight walk from\nthe start reaches (`CanSimpleNavigate`, `0x05AA84`). The walk ends at the\nstart at the latest, since a straight walk from the start to itself succeeds.\nA test for a step back onto a square marked -2 calls `DebugStr` with \"Back step\ninto wall!\" (`0x05AB54` to `0x05AB60`). The test compares the sign-extended\nbyte with 254, which never matches, so the message never shows. Found reading,\nnot shown in a run."
+   },
+   {
+    "name": "TPathFinder::FindPath",
+    "entry": 371656,
+    "text": "Looks for a way from a square to a goal for a mover. It returns 32767 at once\nwhen the start is more than 15 squares from the view's center on either axis\n(`0x05AC14` to `0x05AC58`), and 0 when the start is the goal (`0x05ACC4` to\n`0x05ACD4`). The attributes for the moves are the mover's with 0x08000000\nadded (`GetMonstAttrs`, `0x05ACE8`), or 0x88000004 with no mover\n(`0x05ACFC`). It is a best-first search by distance to the goal. It always\nexpands the open square nearest the goal and tries the eight steps from it\ninside the window (`0x05AD40` to `0x05AF08`). A step onto a square not\nreached that `TGameSys::TryMove` allows marks the square with its direction\nand opens it (`0x05AEB0` to `0x05AED8`). A blocked orthogonal step marks the\nsquare -2, and a blocked diagonal leaves it for another way (`0x05AEE0` to\n`0x05AEFC`). The search stops at the goal (`0x05AD10` to `0x05AD20`), when the\nopen list is empty, or at the first square that opens nothing once the search\nhas expanded a square 1 from the goal (`0x05AD24` to `0x05AD30`, `0x05AF0C` to\n`0x05AF20`), since the search sets its record of that square once and never\nclears it.\nThe closest square it reached is at `+2172`. It returns 32767 when the closest square is the start (`0x05AF84` to\n`0x05AFAC`), and otherwise that square's distance from the goal."
+   },
+   {
+    "name": "TPathFinder::FurthestPoint",
+    "entry": 372752,
+    "text": "Looks for the reachable square furthest from a point, for a mover running away,\nwith the attributes given and 0x08000000 added (`0x05B0B8`). The search\nexpands the square furthest from the point first (`AddNegCandidate`), only\ntwo squares or more in from the window's edges (`0x05B1F8` to `0x05B288`), and\nstops at the first square at the edge of the area the view shows (`0x05B0D4`\nto `0x05B164`). It writes the furthest square it reached back through the two\npointers (`0x05B3B8` to `0x05B3CC`)."
+   },
+   {
+    "name": "TPathFinder::FindDirection",
+    "entry": 373788,
+    "text": "Returns the direction of a step (dx, dy) from the ratio 1000 × dx / dy, with\nboundaries at ±410 and ±2,420 (`0x05B440` to `0x05B4D8`), about 22.5 and 67.5\ndegrees. A step with dy of 0 is east when dx is above 0 and west otherwise,\n(0, 0) among them (`0x05B41C` to `0x05B438`)."
+   }
+  ]
+ },
  "THeap": {
   "opening": "The store of the game's persistent objects, the lists, strings and tables that\nscripts make, which a save includes. The program makes one heap at startup,\nwith 4,096 references and 262,144 bytes (`CreateGlobals`), and the global at toc\n-30284 points at it. The object has the heap's memory at `+0`, a table of chunk\naddresses by reference number at `+4`, the number of references at `+8` (a\nshort) and the heap's size in bytes at `+12` (`THeap::InitHeap`, `0x0AB358` to\n`0x0AB380`). Beside it the heap allocates a second block once, 8,192 bytes at\nthe address in the global at toc -30428 (`0x0AB3D0`), 4,096 halfwords with the\nreference number of each thing's table (`PropItem::AllocateFrame`). A save has\nthe heap as resource `0xF307` and the second block as `0xF308` (`THeap::Save`,\n`0x0AB850` and `0x0AB880`).\n\nThe heap is a run of chunks, each an 8-byte header and its data. The header\nhas the data's size at `+0`, the reference number at `+4` and, in the byte at\n`+6`, a bit 0x80, a type in bits 0x70 (0 for a free chunk), a bit 0x08 that\nmeans the chunk has 4 bytes more than its size rounded up to 4\n(`THeap::DataChunkSize`, `0x0AC06C` to `0x0AC088`), a bit 0x04, and with the\nbyte at `+7` a 10-bit count (`THeap::Free`, `0x0AB4C0` to `0x0AB508`). A chunk's\ndata is its size rounded up to 4, plus the 4 bytes when bit 0x08 is 1, and the\nnext chunk follows it (`THeap::Next`). Nothing collects garbage\n(`THeap::PerformGC` is empty). An object goes when its count of references\nfalls to 0 (`THeapObj::DecRef`).",
   "routines": [
