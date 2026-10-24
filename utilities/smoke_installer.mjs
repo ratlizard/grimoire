@@ -97,7 +97,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       const page = all(REGISTRY.get('sheetGrid'));
       if (bad.length) fail('routine notes', bad.length + ' misplaced: ' + bad.slice(0, 4).join('; '));
       else if (!misplaced(moved).some(b => /Encrypt cites 0x07BB0C/.test(b))) fail('routine notes', 'an address moved into Decrypt was not caught');
-      else if (!/What It Does/.test(page) || !new RegExp('jumpToExeAt\\(' + 0x07BA58 + '\\)[^>]*>0x07BA58<').test(page) || !/Called From[\s\S]*TSegFile::Decrypt/.test(page))
+      else if (!/>Description</.test(page) || !new RegExp('jumpToExeAt\\(' + 0x07BA58 + '\\)[^>]*>0x07BA58<').test(page) || !/>Callers<[\s\S]*TSegFile::Decrypt/.test(page))
         fail('routine notes', 'the routine page does not show the text with its links and callers (' + page.slice(0, 200) + ')');
       else console.log(`  routine notes: ${Object.keys(notes).length} classes, ${routines} routines, ${cites} cited addresses, each in its routine, and a moved address caught`);
     } catch (e) { fail('routine notes', e.stack || e.message); }

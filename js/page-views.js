@@ -701,8 +701,8 @@ function renderAppPefSheet() {
       '<div class="changesHead">' + svEsc(view.name) + '</div>' +
       '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
       (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes, and a slot in the program’s table of addresses shows what the game stores there when it starts.</p>' +
-      (note ? '<div class="mechSub">What It Does</div>' + routineNoteHTML(note.text) : '') +
-      '<div class="mechSub">Called From</div>' + routineCallersHTML(view) +
+      (note ? '<div class="mechSub">Description</div>' + routineNoteHTML(note.text) : '') +
+      '<div class="mechSub">Callers</div>' + routineCallersHTML(view) +
       '<div class="mechSub">Instructions</div>' +
       exeListingHTML(view, window.PEF_VIEW.at, window.PEF_VIEW.why);
     grid.appendChild(box);
