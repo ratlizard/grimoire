@@ -278,6 +278,116 @@ const ROUTINE_NOTES = {
    }
   ]
  },
+ "TInterp": {
+  "opening": "The interpreter of the game's scripts, the byte code in `Cythera Data` that\ngrimoire's `js/delv-script.js` disassembles (its `DVM_OPS` table has the\nmnemonics used here). One object runs one script resource. It has the\narguments' base on the value stack at `+0`, the locals' base at `+4`, the\nscript's deciphered bytes at `+8` and the resource's id at `+12` (the\nconstructor, `0x0833C0`).\n\nValues are `VAddr` words (`VAddr` has the types). The value stack is one\narray for all interpreters, its base in the global at toc -29440 and its\ndepth in the halfword at toc -29444 (`data+0x72750`). True, False and None are\nthe words in the globals at toc -29844, -29712 and -30416. A pending exception\nis the pointer in the global at toc -29436. While it is set, `DoExpr` and\n`DoInterpAt` return at their next opcode (`0x07DE4C`, `0x080D78`) and the\ninterpreter's destructor throws it (`0x083544`).\n\n`DoExpr` evaluates expression opcodes and `DoInterpAt` runs statements. The\nexpression opcodes 0x40 to 0x9F go through a jump table at toc +5236\n(`0x07DE78`), and the statement opcodes through a chain of compares\n(`0x080DD8`). A system call is opcode 0xA0 up, entry `opcode - 0xA0` of a\ntable of 96 routine pointers at toc +8176 (`0x0806D0`), from `RangeIter`\n(0xA0) to `cbDebugStr` (0xFE), each named in the program.",
+  "routines": [
+   {
+    "name": "TInterp::DoExpr",
+    "entry": 515580,
+    "text": "Evaluates one expression, pushing its value onto the value stack. It reads\nopcodes from the program counter its second argument points at until the\nexpression ends (opcode 0x40, `0x07DE8C`). The opcodes do as follows.\n\n- 0x00 to 0x2F push a local, from `+4` (`0x080620`). 0x30 to 0x3F push an\n  argument, from `+0` (`0x08066C`).\n- `byte`, `short` and `word` push a constant, 28 bits. A `word` of type 1 is\n  made relative to the value stack's frame (`0x07DF84`).\n- `string` and `data` push a far address to the bytes inline in the script,\n  and skip them (`0x07DFE8`, `0x07E07C`).\n- `load_far_word` reads the 4-byte word at a resource and an offset, through\n  `TCachedSegFiles::GetEncryptedSegment` (`0x07E170`, `lwzx` at `0x07E1BC`),\n  and throws \"Can't fetch global from segment\" when the segment cannot be\n  had. `load_near_word` reads a word of the current script (`0x07E318`).\n- `global` pushes `GetGlobal` of its number (`0x07E2B0`).\n- `index` pushes `At` of an object and an index, or None when the object is a\n  number (`0x07E398`).\n- `has_member` pushes True when the object is a game object (type 4) whose\n  class answers the method, through `Dispatch` (`0x07E4B8`), and False\n  otherwise. `class_member` pushes what the class has under that number.\n- `get_field` reads a game object's field through `GetField` (`0x07E6EC`).\n  `cast` turns a number into a reference to an object of the type given, and\n  converts another object through `Ctor` (`0x07E86C`). `is_type` pushes\n  True for a game object of that class.\n- `add` and `sub` work on numbers, add a number to a game object's id or a\n  type-3 value's low 12 bits (`0x07F36C`, `0x07F3EC`), and push the left\n  value for any other pair. `div` and `mod` give 0 when dividing by 0\n  (`0x07F8E0`). The comparisons give True or False for two numbers and push\n  the left value for any other pair (`0x07FB1C`, `0x07FB84`). `eq` and `ne` use `IsEqual` (`0x07FF6C`).\n- `gui` with 0 converts a value. With a number n it evaluates its arguments\n  and makes a scripted window object through `CreateSysObj` (`0x07EA7C`).\n- `call_subroutine` runs a routine of the same script (`DoInterpAt`,\n  `0x07EB54`), and `call_resource` a whole script in a new `TInterp`\n  (`0x07EBF4`). `call_index` runs a routine a value names, a script (type 6)\n  or a far address into one.\n- `method` sends a method to the object that is its first argument. A game\n  object runs its class's script for the method, through `Dispatch`\n  (`0x07F084`), or the default script, resource `0x3000` plus the method's\n  number (`0x07F108`), when its class has none. A system object goes to\n  `DispatchSysObj` (`0x07F004`) and a heap object to `DispatchHeapObj`\n  (`0x07F1D8`). Any other value is the result itself (`0x07F254`).\n- 0xA0 and up are the system calls (`0x0806E4`).\n\nAny other opcode throws \"Bad expr opcode\" (`0x080780`)."
+   },
+   {
+    "name": "TInterp::IsTrue",
+    "entry": 526692,
+    "text": "Returns whether a value counts as true in a condition. True, a number other\nthan 0, a game object (type 4), a type-2 or type-3 value and a far address are\ntrue. False, None, 0 and every other type, a heap object (type 7) among them,\nare false (`0x080A08` to `0x080AA8`)."
+   },
+   {
+    "name": "TInterp::IsEqual",
+    "entry": 527068,
+    "text": "Returns whether two values are equal. When both are strings (`IsString`) it\ncompares their text (`strcmp`, `0x080B3C`). Otherwise it compares the words."
+   },
+   {
+    "name": "TInterp::DoInterpAt",
+    "entry": 527512,
+    "text": "Runs the statements of a script from an offset until a `return`, an `exit` or\na pending exception, and stores the result through its first argument. The\nstatements do as follows.\n\n- `subroutine` opens a routine, reserving its locals on the value stack\n  (`0x080ED0`).\n- `set_local` writes a local or an argument (`0x080F40`, `0x080FA8`).\n  `write_near_word` writes a word of the script in memory, which is not saved\n  (`0x081178`). `write_far_word` writes the 4-byte word at a resource and an\n  offset in the deciphered copy and saves the resource enciphered to the most\n  recently added archive (`0x080FB0`, `stwx` at `0x081088`,\n  `SaveEncryptedSegment` at `0x0810B0`). A resource that cannot be had throws\n  \"Can't set global in segment\" (`0x0810F4`).\n- `set_index` stores through `AtPut` only for a number from 0 below the\n  object's length (`0x081214` to `0x081278`), so it never makes a list longer.\n  `set_field` writes a game object's field (`SetField`, `0x08132C`) and\n  `set_global` a global (`SetGlobal`, `0x081388`).\n- `branch` jumps to an offset (`0x0813D8`). `switch` jumps through a table of\n  offsets for a number from 0 below the table's count, and past the table for\n  any other value (`0x081434` to `0x081498`).\n- `if` jumps to its target when the condition is true. `if_not` runs what\n  follows when it is true and jumps to its target when it is false\n  (`IsTrue`, `0x0818F0` and `0x081990`).\n- `print` writes a value to the message pane, a number by \"%d\", True, False\n  and None as \"true\", \"false\" and \"None\", a game object by `PrintObj`, and a\n  global string or a string as its text, through `HandleMapping` and `OutStr`\n  (`0x081504` to `0x081750`). A byte below 0x80 in place of a statement\n  starts text to print in the same way (`0x082368`).\n- `return` stores its value as the result and ends the routine (`0x0817C8`).\n- `exit` calls the conversation object's virtual routines at offsets 260 and\n  276, the second with the input's 64 bytes (`0x081A04` to `0x081A28`), and\n  puts \"bye\" in the input when it is still empty (`0x081A30` to `0x081A44`).\n  `conversation_prompt` reads a prompt's text (`0x081A5C`). One starting\n  with `*` has the player type a line into the input through routine 276\n  (`0x081AA4`). Any other is passed to routine 280, and the one character it\n  answers becomes the input (`0x081AD4` to `0x081B04`).\n  `conversation_response` jumps to its target when the input starts with one\n  of its comma-separated keywords, or the keyword is `*` (the runtime's `strncmp`, called\n  at `0x081BA4`). It skips no space after a comma, so a\n  keyword written after \", \" needs a space typed first. Parium's, Crito's\n  and Apis's lists, \"inn, pari\", \"inn, crit\" and \"inn, apis\", are such\n  lists.\n- `ai_state` makes an exception of 16 bytes, with \"Raise\", the state's\n  number and a value, and sets it pending (`0x081C64` to `0x081CB8`). The\n  interpreter then returns at its next opcode, and its destructor throws\n  it. `gui_close` releases a heap object or deletes a\n  system object (`0x08184C`, `0x0818AC`).\n- The calls run as in `DoExpr`, and the result is dropped. A system call as a\n  statement is the same (`0x0823EC`).\n\nAny other opcode throws \"Bad statement opcode\" (`0x082464`). When an\nexception passes through, the value stack goes back to the routine's frame and\nthe result is None (`0x0824F8` to `0x082580`)."
+   },
+   {
+    "name": "TInterp::DoInterp",
+    "entry": 534104,
+    "text": "Runs a method of an object with no arguments, pushing the object and calling `DoInterp0`."
+   },
+   {
+    "name": "TInterp::DoInterp",
+    "entry": 534260,
+    "text": "Runs a method of an object with one argument, pushing both and calling `DoInterp0`."
+   },
+   {
+    "name": "TInterp::DoInterp",
+    "entry": 534472,
+    "text": "Runs a method of an object with two arguments, pushing all three and calling `DoInterp0`."
+   },
+   {
+    "name": "TInterp::DoInterp",
+    "entry": 534724,
+    "text": "Runs a method of an object with four arguments, pushing all five and calling `DoInterp0`."
+   },
+   {
+    "name": "TInterp::DoInterpRoutine",
+    "entry": 535052,
+    "text": "Runs a whole script resource from its start with three arguments, in a new\n`TInterp` (`0x082AA0`, `DoInterpAt` at `0x082AC4`)."
+   },
+   {
+    "name": "TInterp::DoInterp0",
+    "entry": 535348,
+    "text": "Runs a method of an object whose arguments are on the value stack, as the\n`method` opcode does: a game object's class script, the default script\n`0x3000` plus the method (`0x082C4C`), `DispatchSysObj`, or `DispatchHeapObj`.\nIt also runs a far address as a routine at that offset (`0x082D7C`) and a\ntype-6 value as a whole script (`0x082E34`). Any other value gives None."
+   },
+   {
+    "name": "TInterp::Dispatch",
+    "entry": 536284,
+    "text": "Looks up a method in a class's script. It deciphers the class script\n(`GetEncryptedSegment`, `0x082F04`), whose first halfword is the offset of its\ntable of methods, and returns 1 with the entry for the method (`At`,\n`0x082F40`) when it is not None, and 0 otherwise or when the class has no\nscript."
+   },
+   {
+    "name": "TInterp::GetString",
+    "entry": 536496,
+    "text": "Copies text from a script into a buffer, up to a zero byte or a byte of 0x80 or\nabove, which is where the next opcode starts (`0x082FD4`), and returns the\naddress after it."
+   },
+   {
+    "name": "TInterp::VAddrToPtr",
+    "entry": 536604,
+    "text": "Returns a pointer for a value, by its type through a jump table at toc +5620\n(`0x083080`). A far address points into its deciphered segment (`0x0830A4`). A\nframe reference points into the value stack (`0x0830C4`). An element of an\narray in a script resource points at that element. A global string comes from\n`GetGlobStr`. A game object gives its name (`SysObjToString`, or its method 2,\n`0x0831D8`). A heap string gives its characters. True, False and None give\n\"True\", \"False\" and \"None\" (`0x083258` to `0x0832A4`), where `print` writes\n\"true\" and \"false\". Any other value\nthrows."
+   },
+   {
+    "name": "TInterp::TInterp",
+    "entry": 537532,
+    "text": "Makes an interpreter for a script resource. It deciphers the script\n(`GetEncryptedSegment`, `0x083400`) and locks it in the cache while the object\nlives (`TCache::Lock`, `0x08341C`), sets the frame to the top of the value\nstack, and discards any pending exception (`0x083460` to `0x083484`)."
+   },
+   {
+    "name": "TInterp::~TInterp",
+    "entry": 537808,
+    "text": "Unlocks the script (`TCache::Unlock`, `0x083508`). When an exception is\npending it throws it (`0x083544`), which is how a raise leaves the routine\nthat ran the script."
+   },
+   {
+    "name": "TInterp::Len",
+    "entry": 538028,
+    "text": "Returns a value's length, 0 for a number, a heap object's length, a game\nobject's answer to method 3 (`0x083684`, `0x0836AC`), an array's count in a\nscript resource, or a string's `strlen`."
+   },
+   {
+    "name": "TInterp::At",
+    "entry": 538520,
+    "text": "Returns the element at an index, through a game object's method 4\n(`0x083864`, `0x08388C`), a heap object's `At` (`0x0838E4`), or the byte of a\nstring or the element of an array in a script resource. A number or None gives\nNone."
+   },
+   {
+    "name": "TInterp::AtPut",
+    "entry": 539316,
+    "text": "Stores a value at an index, through a heap object's `AtPut` (`0x083B48`), a\ngame object's method 5 (`0x083BD4`, `0x083C00`), or, for an array in a script\nresource, the word at the index in memory, with no check of the index against\nthe array's count (`0x083C58`). `set_index` checks the length first. A\nnumber or None is left as it is."
+   },
+   {
+    "name": "TInterp::HasProperty",
+    "entry": 540472,
+    "text": "Returns the entry a class's script has for a method or property, through `Dispatch`, or None."
+   },
+   {
+    "name": "TInterp::GetProperty",
+    "entry": 540648,
+    "text": "Returns the element at an index of what a class's script has under a number (`Dispatch`, then `At`, `0x084048`), or None."
+   },
+   {
+    "name": "TInterp::IsString",
+    "entry": 605716,
+    "text": "Returns the characters of a value that is a string, or 0. A far address or\ntype-3 value whose bytes are text, a heap string (`0x093F04`) and global\nstrings 1, 2 and 10 (`GetGlobStr`, `0x093F14` to `0x093F40`) are strings. It returns 0 for numbers and\nevery other value."
+   }
+  ]
+ },
  "THeap": {
   "opening": "The store of the game's persistent objects, the lists, strings and tables that\nscripts make, which a save includes. `CreateGlobals` makes the one heap, with\n4,096 references and 262,144 bytes, and the global at toc -30284 points at it.\nThe object has the heap's memory at `+0`,\na table of chunk addresses by reference number at `+4`, the number of\nreferences at `+8` (a short) and the heap's size in bytes at `+12`\n(`THeap::InitHeap`, `0x0AB358` to `0x0AB380`). A second block of 8,192 bytes,\nthe address in the global at toc -30428, is allocated once beside it\n(`0x0AB3D0`), 4,096 halfwords that `PropItem::AllocateFrame` fills with the\nreference numbers of things' tables. A save has the heap as resource `0xF307` and the second block as\n`0xF308` (`THeap::Save`, `0x0AB850` and `0x0AB880`).\n\nThe heap is a run of chunks, each an 8-byte header and its data. The header\nhas the data's size at `+0`, the reference number at `+4` and, in the byte at\n`+6`, a bit 0x80, a type in bits 0x70 (0 for a free chunk), a bit 0x08 set when\nthe chunk has 4 bytes more than its size rounded up to 4 (`THeap::DataChunkSize`,\n`0x0AC06C` to `0x0AC088`), a bit 0x04, and with the byte at `+7` a 10-bit\ncount (`THeap::Free`, `0x0AB4C0` to `0x0AB508`). A chunk's data is its size\nrounded up to 4, plus the 4 bytes when bit 0x08 is set, and the next chunk\nfollows it (`THeap::Next`). Nothing collects garbage (`THeap::PerformGC` is\nempty). An object is freed when its count of references falls to 0\n(`THeapObj::DecRef`).",
   "routines": [
