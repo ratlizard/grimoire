@@ -491,8 +491,8 @@ if (dataPath && existsSync(dataPath) && typeof ctx.mapRoofSections === 'function
 // (DELVMOD_SOUND_NAMES), shown with the names from outside the game's text. The
 // copy is typed, so it is compared with the wiki page each run: the same ids,
 // each name the wiki's less its "*" marks and bracketed notes (and a "[sic]"
-// the copy adds), and no entry for a name of question marks alone. A wiki page
-// that changes, or a slip in the copy, fails here.
+// the copy adds), the "?" and "??" entries included. A wiki page that changes,
+// or a slip in the copy, fails here.
 {
   const page = `${delvPath}/wiki/Cythera Data Subindex 144.md`;
   const mine = peek('DELVMOD_SOUND_NAMES');
@@ -503,7 +503,7 @@ if (dataPath && existsSync(dataPath) && typeof ctx.mapRoofSections === 'function
     const wiki = new Map();
     for (const line of readFileSync(page, 'utf8').split('\n')) {
       const m = /^Index \d+, ID ([0-9A-F]{4}) Length: \d+ bytes\s*(.*)$/.exec(line.trim());
-      if (m && !/^\?+$/.test(clean(m[2]))) wiki.set(parseInt(m[1], 16), clean(m[2]));
+      if (m) wiki.set(parseInt(m[1], 16), clean(m[2]));
     }
     const bad = [];
     for (const [id, name] of wiki) if ((mine[id] || '').replace(/ \[sic\]$/, '') !== name) bad.push(`0x${id.toString(16).toUpperCase()} wiki "${name}", here "${mine[id] || ''}"`);
