@@ -2329,7 +2329,83 @@ const DATA_FIXES = [
       if (edits.length !== 66) throw new Error('the targeted spells are ' + edits.length / 2 + ', not 33');
       return { edits };
     } },
+  // A door makes its opening sound when it closes (25 October 2026). The
+  // metal, windowed and oak doors' Use (0x1003, 0x1007, 0x100B) plays sound
+  // 1 for any aspect below 9, the unlocked ones, and 25 for a locked one,
+  // then turns the door through the helper 0xE40, which swaps the first and
+  // third aspects it is passed and the second and fourth: 1 and 5, 3 and 7.
+  // The unlocking helper 0xE44 leaves a door at the third or fourth, 5 or 7,
+  // so those are closed and 1 and 3 open. The password door (0x1114, the
+  // Degree Hall's) passes 1, 3, 13 and 15, and both copies on the maps start
+  // at 13 and 15, closed; it plays sound 1 in two places. So a door used at
+  // an aspect below 5 is open and closes, and plays sound 32 here, a short
+  // impact nothing else plays, which the maintainer heard as a door closing;
+  // any other unlocked door opens and still plays sound 1. Each call to
+  // PlaySound is replaced by the choice of the two, the rest of Use as it was.
+  // The calls are found by their instructions, not given by offset: with
+  // every fix chosen, an earlier stage moves the password door's.
+  // workbench doc/bugs.md, *Found tracing the missile sounds*.
+  { id: 'door-close-sound', group: 'design', stage: 'apart', title: 'A door now makes a closing sound when it closes, instead of its opening sound',
+    plan: (s) => ({ edits: [[0x1003, 1], [0x1007, 1], [0x100B, 1], [0x1114, 2]].flatMap(([resid, n]) => dataFixDoorSounds(s, resid, n)) }) },
+  // A thrown or shot missile's flight sound is one the archive lacks (25
+  // October 2026). The ranged attack (0x3042) gives the missile a thrown
+  // weapon's Thrown element 3 or the ammunition's Ammunition element 1 as
+  // the sound that follows it in stereo (ShootEffect, TGameViewer::DoMissile,
+  // a TSoundTracker), and the small hole (0x1163) shoots two missiles with
+  // sound 13. That is 13 for the arrow, the magic arrow, the sling stone, the
+  // spear and the mystic spear, and 14 for the dagger and the cleaver, and
+  // 0x910D and 0x910E are not in the archive, so all of them fly in silence.
+  // Sound 34 (0x9122), which nothing plays, is a whoosh that swells to its
+  // middle (work/sfx-guides/missiles.py in the workbench), the maintainer's
+  // choice for the flight. The rolling pin's 15, the one flight sound the
+  // archive has, stays. workbench doc/bugs.md, *Found tracing the missile sounds*.
+  { id: 'missile-flight-sound', group: 'design', stage: 'apart', title: 'Arrows, sling stones, spears, daggers and cleavers now whoosh as they fly, instead of flying in silence',
+    edits: [0x0098, 0x0059].map(at => ({ what: 'the small hole’s missile', resid: 0x1163, at, replaceOp: true, expect: { [at]: 'byte 0x0D' }, code: 'byte 0x22' })),
+    dataEdits: [
+      [0x105F, 0x2B, 3, 14, 'the dagger'], [0x10AB, 0x2B, 3, 14, 'the cleaver'],
+      [0x1064, 0x2B, 3, 13, 'the spear'], [0x1178, 0x2B, 3, 13, 'the mystic spear'],
+      [0x1065, 0x2D, 1, 13, 'the magic arrow'], [0x1066, 0x2D, 1, 13, 'the arrow'], [0x1068, 0x2D, 1, 13, 'the sling stone'],
+    ].map(([resid, key, el, was, what]) => dataFixClassElement(what + '’s flight sound', resid, key, el, was, 34)) },
 ];
+// The sound of a door used: 32 when its aspect is below 5 (open, so it
+// closes), 1 otherwise, in place of each call that played 1 alone and is
+// followed by the door's turn (0xE40) or the jump past the locked sound. A
+// door has `n` of them; any other count stops the build. Highest first, so
+// each edit's offsets are still as found.
+function dataFixDoorSounds(s, resid, n) {
+  const play = k => ['sys PlaySound', 'byte 0x' + k.toString(16).toUpperCase().padStart(2, '0'), 'arg Arg00', 'get_field x (0x1)', 'arg Arg00', 'get_field y (0x2)', 'end'];
+  const seq = play(0x01), ops = dataPatchListing(s, resid).ops, what = 'the door 0x' + resid.toString(16).toUpperCase(), out = [];
+  for (let i = 0; i + seq.length < ops.length; i++) {
+    if (!seq.every((t, k) => ops[i + k].text === t)) continue;
+    const next = ops[i + seq.length];
+    if (!(next.text === 'call_resource 0xE40' || next.text.startsWith('branch '))) continue;
+    const expect = {}; seq.forEach((t, k) => { expect[ops[i + k].at] = t; });
+    out.push({ what: what + '’s sound', resid, at: ops[i].at, to: next.at, expect,
+      code: ['if_not', 'arg Arg00', 'get_field aspect (0x3)', 'byte 0x05', 'lt', 'then -> opens', ...play(0x20), 'branch played', 'opens:', ...play(0x01), 'played:'].join('\n') });
+  }
+  if (out.length !== n) throw new Error(what + ' plays its sound ' + out.length + ' times, not ' + n);
+  return out.sort((a, b) => b.at - a.at);
+}
+// Element `el` of a class's data array under `key`, `was` before and `to`
+// after, found through the class's table (dvmDiscover) in the bytes as the
+// stage has them, so an edit that moved the array still finds it.
+function dataFixClassElement(what, resid, key, el, was, to) {
+  return { what, resid, fn: b => {
+    const d = dvmDiscover(b, resid), toff = d ? d.tableOffset : null;
+    if (toff === null || (b[toff] & 0xF0) !== 0xA0) throw new Error('no class table');
+    const count = u16be(b, toff) & 0x0FFF;
+    for (let i = 0, p = toff + 2; i < count; i++, p += 6) {
+      if (u16be(b, p + 4) !== key) continue;
+      const off = u32be(b, p) & 0xFFFF, words = dvmArrayWords(b, off);
+      if (!words || words.length <= el) throw new Error('key 0x' + key.toString(16) + ' has no element ' + el);
+      if (words[el] !== was) throw new Error('key 0x' + key.toString(16) + ' element ' + el + ' is ' + words[el] + ', not ' + was);
+      const o = off + 2 + 4 * el;
+      b[o] = (to >>> 24) & 0xFF; b[o + 1] = (to >>> 16) & 0xFF; b[o + 2] = (to >>> 8) & 0xFF; b[o + 3] = to & 0xFF;
+      return 'key 0x' + key.toString(16).toUpperCase() + ' element ' + el + ', ' + was + ' to ' + to;
+    }
+    throw new Error('no key 0x' + key.toString(16));
+  } };
+}
 
 /* ---- The text: this project's list ----------------------------------------
    The misspellings and slips in Cythera's text that the pass of 24 September
