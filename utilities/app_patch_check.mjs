@@ -195,7 +195,8 @@ function holdPatched(fixes, label) {
 }
 const all = holdPatched(FIXES, 'every fix');
 const alone = new Map();
-for (const f of FIXES) alone.set(f.id, holdPatched([f], f.id));
+// "Alone" is a fix with the fixes it needs, which the applier requires.
+for (const f of FIXES) alone.set(f.id, holdPatched([f, ...(f.needs || []).map(n => FIXES.find(g => g.id === n))], f.id));
 
 // ---- 5. the 68K half against the workbench's ---------------------------------
 // js/delv-appfixes68k.js is written by the workbench's export_js.py, with a

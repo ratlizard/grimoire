@@ -26,6 +26,9 @@
                  section and app_patch.mjs leave it out unless it is chosen
      bug         the entry's title in the workbench's bugs.md, where there
                  is one
+     needs       [ids]: fixes that must be chosen with this one, because it
+                 calls code they change (walk-path and walk-to's
+                 FindFirstStep); the applier stops without them
      script      a hook's method and what it is sent, for a script's
                  writer, shown under the fix; the title states what it lets a
                  script do (19 October 2026)
@@ -581,6 +584,113 @@ const APP_FIXES = [
            'lwz 3, 0(21)', 'lha 4, 318(1)', 'lha 5, 316(1)', 'li 6, 0',
            'bl @WalkToLocation__8TGameSysFssUc',
            'keyDone:', 'b @0x27378'] },
+
+  // With walk-to, a click on a thing out of reach moves the hero one
+  // square. walk-path is the other choice, made for the Board's player
+  // (ratlizard.github.io's board-native), where a game piece set down on
+  // the map presses a command's key and then a single click under the
+  // piece. The map stays centered on the hero, so after one step the piece
+  // no longer sits over its target, and a second click would name another
+  // square. With walk-path, a command armed by its key and clicked on a
+  // thing walks the hero there, a turn a step, and then the command acts:
+  // - Use (3) and Take (5), when the branch found the thing out of reach
+  //   (308(1) is 0), walk until the hero stands beside it, then continue
+  //   with 308(1) set, so UseCommand or TakeCommand acts as in the shipped
+  //   game. For a thing already in the hero's pack, Take goes to the branch
+  //   unchanged, which prints its line.
+  // - Talk (2), on a character (TActiveMonster::GetCharacter), walks until
+  //   the hero stands beside them, then the talk opens. The shipped game
+  //   talks at any distance in sight. A shopkeeper behind a counter, whom no
+  //   path reaches, is talked to from the nearest square the path finder
+  //   finds.
+  // - Attack (1) on a thing attacks first, as the shipped game does, so a
+  //   missile weapon or a spell still acts from where the hero stands.
+  //   AttackCommand(s) calls the attack script (DoInterp, method 28). When
+  //   the answer is not a number and the target is a character, it prints
+  //   "It is too far away to attack" (0x55408) and returns without a turn.
+  //   In the shipped program it returns nothing: r3 is whatever its last
+  //   call left there. Here it returns 1 after that line and 0 otherwise,
+  //   and on 1 the hero walks and attacks again. No caller of it reads r3.
+  // The walk is XDirection's keyboard step, repeated: SyncTaskMaster, then
+  // MoveCommand in the direction walk-to's step finds (FindPath, then
+  // FindFirstStep through the cursor table at TOC -3258), then MoveAll,
+  // which moves everyone else and draws. It stops beside the target, when
+  // FindPath finds nothing nearer (32767), when a step leaves the hero on
+  // the same square, when the mouse button is down (ISButton, as the held
+  // walk of MouseRoutine reads it, so a tap stops the walk), or after 40
+  // steps. FindPath looks no further than 15 squares from the view's
+  // center, which ends a long walk before the count does. A fight does not
+  // stop it: MoveAll lets every creature act each step, as walking by the
+  // keys does, and a tap stops the walk.
+  // It needs walk-to's word at 0x5A9AC, without which FindFirstStep never
+  // returns, so the applier requires walk-to beside it (needs). With both,
+  // walk-to's step at 0x272CC and 0x27348 still runs when the walk ends
+  // short of the thing; that step goes nowhere the walk could not reach.
+  { id: 'walk-path', kind: 'change', title: 'A command chosen by its key and clicked on something out of reach walks the hero there, a turn a step, and then acts, instead of one step a click',
+    needs: ['walk-to'],
+    sites: [{ at: 0x2722C, was: [0x80A28B28], asm: ['b @cave               ; was lwz 5, -29912(2)'] },
+            { at: 0x55418, was: [0x48000014], asm: ['b @tooFar             ; was b 0x5542C'] },
+            { at: 0x5542C, was: [0x800100A8], asm: ['b @attackEnd          ; was lwz 0, 168(1)'] }],
+    cave: ['lha 6, 312(1)', 'cmpwi 6, 0', 'beq @back             ; not on a thing, the shipped path',
+           'lwz 5, -29912(2)', 'lha 5, 0(5)           ; the command armed',
+           'cmpwi 5, 1', 'beq @attack', 'cmpwi 5, 2', 'beq @talk', 'cmpwi 5, 3', 'beq @use', 'cmpwi 5, 5', 'beq @take',
+           'b @back',
+           'take:', 'lha 3, 312(1)', 'bl @GetPropParent__Fs', 'extsh 3, 3', 'lha 4, 0(22)', 'cmpw 3, 4',
+           'beq @back             ; in the hero’s pack already',
+           'use:', 'lwz 7, 308(1)', 'cmpwi 7, 0', 'bne @back             ; in reach, the shipped path',
+           'lha 3, 318(1)', 'lha 4, 316(1)', 'lwz 5, 4(29)', 'li 6, 0', 'bl @approach',
+           'cmpwi 3, 1', 'bne @back             ; no walk ended beside it',
+           'li 7, 1', 'stw 7, 308(1)         ; in reach now', 'b @back',
+           'talk:', 'lha 3, 312(1)', 'bl @GetCharacter__14TActiveMonsterFs', 'cmpwi 3, 0', 'beq @back',
+           'lha 3, 318(1)', 'lha 4, 316(1)', 'lwz 5, 4(29)', 'lha 6, 312(1)', 'bl @approach', 'b @back',
+           'attack:', 'lwz 3, 0(21)', 'lha 4, 312(1)', 'bl @AttackCommand__8TGameSysFs',
+           'cmpwi 3, 1', 'bne @done              ; attacked, or failed for another reason',
+           'lha 3, 318(1)', 'lha 4, 316(1)', 'lwz 5, 4(29)', 'lha 6, 312(1)', 'bl @approach',
+           'cmpwi 3, 0', 'beq @done',
+           'lwz 3, 0(21)', 'lha 4, 312(1)', 'bl @AttackCommand__8TGameSysFs',
+           'done:', 'b @0x27378',
+           'back:', 'lwz 5, -29912(2)', 'b @0x27230',
+           'tooFar:', 'li 3, 1', 'lwz 0, 168(1)', 'b @0x55430',
+           'attackEnd:', 'li 3, 0', 'lwz 0, 168(1)', 'b @0x55430',
+           // approach(x, y, port, follow) walks the character in control
+           // toward the square and returns 0 if they end away from it, 1 if
+           // they walked beside it, 2 if they stood beside it already. With
+           // follow a thing's number (Talk and Attack pass the character's),
+           // the square is read again from that thing's map record each
+           // step, since a person moves while the hero walks. It sets the
+           // port back to the window's before it returns.
+           'approach:', 'mflr 0', 'stw 0, 8(1)', 'stwu 1, -96(1)', 'stmw 26, 72(1)',
+           'mr 30, 3', 'mr 31, 4                ; the target', 'stw 5, 64(1)          ; the window’s port',
+           'mr 29, 6                ; the character to follow, or 0', 'li 28, 40              ; steps at most',
+           'step:', 'cmpwi 29, 0', 'beq @fixed', 'mr 3, 29', 'bl @squareOf', 'mr 30, 3', 'mr 31, 4',
+           'fixed:', 'bl @here', 'mr 26, 3', 'mr 27, 4',
+           'subf 5, 30, 3', 'srawi 6, 5, 31', 'xor 5, 5, 6', 'subf 5, 6, 5', 'cmpwi 5, 1', 'bgt @far',
+           'subf 5, 31, 4', 'srawi 6, 5, 31', 'xor 5, 5, 6', 'subf 5, 6, 5', 'cmpwi 5, 1', 'bgt @far',
+           'li 3, 1', 'cmpwi 28, 40', 'bne @out', 'li 3, 2', 'b @out',
+           'far:', 'cmpwi 28, 0', 'beq @stop', 'addi 28, 28, -1',
+           'bl @ISButton__Fv', 'clrlwi. 3, 3, 24', 'bne @stop             ; a tap',
+           'lwz 3, -30412(2)', 'li 4, 0', 'mr 5, 26', 'mr 6, 27', 'mr 7, 30', 'mr 8, 31',
+           'bl @FindPath__11TPathFinderFP14TActiveMonsterssss',
+           'extsh 3, 3', 'cmpwi 3, 32767', 'beq @stop',
+           'lwz 3, -30412(2)', 'addi 4, 1, 56', 'addi 5, 1, 58', 'bl @FindFirstStep__11TPathFinderFRsRs',
+           'lha 4, 56(1)', 'lha 5, 58(1)', 'addi 5, 5, 2', 'mulli 5, 5, 5', 'add 4, 4, 5', 'addi 4, 4, 2', 'slwi 4, 4, 1',
+           'addi 3, 2, -3258', 'lhax 4, 3, 4          ; the direction', 'cmplwi 4, 7', 'bgt @stop',
+           'sth 4, 60(1)',
+           'bl @SyncTaskMaster__11TTaskMasterFv',
+           'lwz 3, -30128(2)', 'lwz 3, 0(3)', 'lha 4, 60(1)', 'bl @MoveCommand__8TGameSysFQ28TGameSys10EDirection',
+           'bl @MoveAll__14TActiveMonsterFv',
+           'bl @here', 'cmpw 3, 26', 'bne @step', 'cmpw 4, 27', 'bne @step',
+           'stop:', 'li 3, 0',
+           'out:', 'mr 26, 3', 'lwz 3, 64(1)', 'bl @0xC2118           ; SetPort', 'lwz 2, 20(1)', 'mr 3, 26',
+           'lmw 26, 72(1)', 'addi 1, 1, 96', 'lwz 0, 8(1)', 'mtlr 0', 'blr',
+           // here: the square of the character in control, read as walk-to
+           // reads it; squareOf: the square of the thing numbered r3, from
+           // the same table (0x271C4 reads a thing's record there too)
+           'here:', 'lwz 3, -30356(2)', 'lha 3, 0(3)',
+           'squareOf:', 'slwi 3, 3, 4',
+           'lwz 6, -30268(2)', 'lwz 6, 0(6)', 'add 6, 6, 3',
+           'lwz 3, 0(6)', 'rlwinm 3, 3, 8, 0, 12', 'srawi 3, 3, 20',
+           'lha 4, 2(6)', 'rlwinm 4, 4, 20, 0, 12', 'srawi 4, 4, 20', 'blr'] },
 
   // TJournalList::AppendEntry adds one List Manager row a wrapped line and
   // sets 12 bytes of cell data in it, and the List Manager stores its cell
