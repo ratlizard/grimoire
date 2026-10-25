@@ -537,6 +537,8 @@ guide carried it*.
 | quicktime instruments | `qtmusic_check.mjs` | QuickTime 3's instruments unpacked from its installer, every sample found, every part of the game's tunes given an instrument, and the theme's render pinned |
 | midi import | `midi_import_check.mjs` | `qtmaWrite` rebuilding the shipped tunes' headers byte for byte, and each tune back from its own MIDI file through `midiToQtma`, with controls |
 | resource snapshot | `rsrc_snapshot.mjs` | a hash of the classic-Mac decoders over both forks |
+| resource_dasm | `dasm_check.mjs` | the page's exports of every picture, icon, cursor, pattern, color table, font glyph, sound and string of both forks against resource_dasm's, with the known differences named (a skip without resource_dasm) |
+| resource_dasm control | `dasm_check.mjs --control` | one resource of each kind changed on grimoire's side, and each change reported |
 | disk image | `hfs_check.mjs` | `writeHfsImage` structurally |
 | disk image in the fork | `hfs_check.mjs` | every volume it writes read back through systemless's reader, forks byte for byte; skipped without the fork's `examples/hfs_dump.rs` |
 
@@ -720,6 +722,25 @@ zero in that kind, so three 8-bit pictures came out as one colour; and a
 count words. Both other implementations already had both right, so these
 were this side's alone; the resource snapshot moved from `4d4c7cf6e1b1` to
 `3850dee3cd55` for exactly those four pictures.
+
+**resource_dasm is a third opinion, and the only one that reads every kind.**
+fuzziqersoftware's C++ decoder (MIT) was written with no knowledge of this
+one, and `utilities/dasm_check.mjs` compares what the page exports with what
+it writes, resource by resource, for both forks. Pictures, icons, cursors and
+patterns are compared pixel by pixel, color tables entry by entry, and every
+glyph of the two fonts, the sounds' samples and the strings in full. The
+check runs the project's macOS release, which the workspace has beside the
+repositories, and skips without it, so it runs on this machine and not on
+GitHub. Its header has what it allows and why. A color channel may be one
+step of 255 apart, from the two programs' different ways of turning
+QuickDraw's 16 bits into 8. The 4-bit icons are compared by index, because
+resource_dasm's 16-color table is an approximation of Apple's and the page's
+is Apple's, as read out of the ROMs. It found three differences, each read
+to its cause. Two are resource_dasm's (glyph R of both fonts is wider than
+its cell, and resource_dasm cuts off its last columns). One is this side's.
+`mctb` 129 is a menu color table, a count and 30-byte menu color entries, and
+`COLOR_TABLE_TYPES` lists it with the clut family, so the page draws its
+bytes as color swatches.
 
 **The HFS writer is the exception that proves the rule, and it is labelled as
 one.** `js/mac-hfs.js` was written *from* systemless's `src/disk_image/hfs.rs`
