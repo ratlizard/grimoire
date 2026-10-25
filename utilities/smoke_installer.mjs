@@ -61,9 +61,11 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       const notes = peek('ROUTINE_NOTES');
       // By the demangled name, or by the mangled one where the page's demangler
       // stops short of the workbench's (a conversion operator, __opPc__8TSegLoadFv).
+      // The routines outside a class, under the key '', go by the whole mangled
+      // symbol (GetTileName__FsPcUcUc), since two of a name differ only by it.
       const named = (r, name) => {
         if (!r) return false;
-        if (r.name === name || r.name.startsWith(name + '(')) return true;
+        if (r.name === name || r.name.startsWith(name + '(') || r.mangled === name) return true;
         const [cls, fn] = name.split('::');
         return !!fn && r.mangled.includes(cls.length + cls) && (r.mangled.startsWith(fn + '__') || r.mangled.startsWith('__' + fn + '__'));
       };
