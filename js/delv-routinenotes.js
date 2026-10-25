@@ -2603,6 +2603,1101 @@ const ROUTINE_NOTES = {
    }
   ]
  },
+ "MemRange": {
+  "opening": "",
+  "routines": [
+   {
+    "name": "MemRange::Test",
+    "entry": 636956,
+    "text": "Compares the checksum of a block of memory with the one stored beside it. It\nreckons the checksum of the long at `+4` bytes from the address at `+0`\n(`CalcChecksum`, `0x09B830` to `0x09B838`) and calls `DebugStr` with \"Failed Sanity Checksum\"\nwhen the result differs from the long at `+8` (`0x09B83C` to `0x09B84C`).\nThe checksum routine always returns 0, so the test never reads the memory and\nfails exactly when the long at `+8` is other than 0. The one caller is\n`TSanityChunk::CheckSanity`."
+   }
+  ]
+ },
+ "SCombatAIHeader": {
+  "opening": "",
+  "routines": [
+   {
+    "name": "SCombatAIHeader::CompileHeader",
+    "entry": 713308,
+    "text": "Reads the first line of a combat AI source file, `NAME \"<name>\"`, into the\nobject for `CompileAIFile`, and returns 0, or an error message. It first sets the\nname's length, byte 0, and the 8 bytes at `+24` to 0 (`0x0AE274` to `0x0AE2A4`).\nThe first token has to be `NAME` and the second `\"` (`GetToken`, `strcmp`,\n`0x0AE2A8` to `0x0AE308`). An empty first token returns \"Empty line\", another word\n\"Expecting Script NAME\", and anything but the quote \"Expecting double-quoted\nstring (\"Script Name\")\" (`0x0AE2C0`, `0x0AE2E0`, `0x0AE30C`). The name is the\ntext after the quote up to the next `\"`, the end of the line or 23 characters,\na Pascal string from byte 1 (`0x0AE314` to `0x0AE360`), so the routine cuts a\nlonger name short and accepts a name with no closing quote. The token buffer at\n`56(1)` has 64 bytes below the saved registers at `120(1)`, and `GetToken` has no\nbound, so a first or second token of 64 or more characters overwrites the\ncaller's r30 and r31, and one of 80 or more the return address at `136(1)`\n(`0x0AE25C` to `0x0AE278`). The file is one the player imports, `CompileAIFile`'s one\ncaller being `TEditUserBehavior::DialogItemRoutine`, whose dialog reads \"Import AI\nsource file\"."
+   }
+  ]
+ },
+ "TAIList": {
+  "opening": "The list of the user combat AIs in `TEditUserBehavior`'s dialog, a `TListBox`\nwhose row n is combat AI 176 plus n.",
+  "routines": [
+   {
+    "name": "TAIList::TAIList",
+    "entry": 725456,
+    "text": "Makes the list as a `TListBox` from the view, the bounds, the cell size and the\nwindow given, with the flags 1, 0, 0 and 1, which `TListBox::TListBox` passes to\n`LNew` in that order, so the list draws, has no grow box and has a vertical scroll\nbar alone (`0x0B11E0` to `0x0B1218`). It sets the vtable to `TAIList`'s and replaces the scroll bar with a\ncontrol of definition 16,016, `'CDEF'` 1001 with variation 0, the game's scroll bar\n(`TListBox::ChangeScrollBars`, `0x0B1220` to `0x0B1230`). It returns the object."
+   },
+   {
+    "name": "TAIList::LDEFDraw",
+    "entry": 725648,
+    "text": "Draws a cell, row n of the list, as the name of combat AI 176 plus n\n(`GetCombatAIName`, `0x0B12A8` to `0x0B12B8`), so row 0 is \"User Combat AI #1\"\nwhen no resource names it. It fills the cell with white, `+194` of the QuickDraw globals at toc -30444 (named from their offsets, an inference) (`FillRect`, `0x0B12C8` to\n`0x0B12D4`), and moves the pen 3 pixels in from the left, with the text centered\nby height (`GetFontInfo`, `MoveTo`, `0x0B12BC` to `0x0B1310`). When row n's byte\nin the table at `data+0x77BC4` is other than 0, it first draws \" -\" in red\n(`ForeColor` 205, `DrawString`, `0x0B1318` to `0x0B133C`) and sets the color back\nto black (33, `0x0B1344` to `0x0B1348`). The selected row's byte flips between 0\nand 1 in `TEditUserBehavior::DialogItemRoutine`, and `PerformAI` reads it for the\nAIs 176 to 206. Then it\ndraws the name (`0x0B1350` to `0x0B1354`) and inverts a selected cell in the\nhighlight color (`LMSetHiliteMode`, `InvertRect`, `0x0B135C` to `0x0B1380`)."
+   },
+   {
+    "name": "TAIList::~TAIList",
+    "entry": 726776,
+    "text": "Sets the vtable to `TAIList`'s and runs `TListBox::~TListBox`, which disposes of\nthe list (`0x0B1714` to `0x0B1724`), and frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "TArchetypeList": {
+  "opening": "The list of archetypes in `TCreatePlayerDialog`'s dialog, a `TListBox`.",
+  "routines": [
+   {
+    "name": "TArchetypeList::TArchetypeList",
+    "entry": 657688,
+    "text": "Makes the list as a `TListBox` from the view, the bounds, the cell size and the\nwindow given, with the flags 1, 0, 0 and 1, which `TListBox::TListBox` passes to\n`LNew` in that order, so the list draws, has no grow box and has a vertical scroll\nbar alone (`0x0A0928` to `0x0A0960`). It sets the vtable to `TArchetypeList`'s and replaces the scroll bar with a\ncontrol of definition 16,016, `'CDEF'` 1001 with variation 0, the game's scroll bar\n(`TListBox::ChangeScrollBars`, `0x0A0968` to `0x0A0978`). It returns the object."
+   },
+   {
+    "name": "TArchetypeList::LDEFDraw",
+    "entry": 657888,
+    "text": "Draws a cell as `TListBox::LDEFDraw` does, on a white background, which it sets\nto white, `+194` of the QuickDraw globals at toc -30444 (named from their offsets, an inference) for the call (`BackPat`, `0x0A09E4` to `0x0A0A0C`, `0x0A0A2C`). After it the\nbackground is the pixel pattern of tile 420 (`SetTilePat`, `BackPixPat`,\n`0x0A0A34` to `0x0A0A40`), the dialog's background."
+   },
+   {
+    "name": "TArchetypeList::~TArchetypeList",
+    "entry": 671148,
+    "text": "Sets the vtable to `TArchetypeList`'s and runs `TListBox::~TListBox`, which\ndisposes of the list (`0x0A3DD4` to `0x0A3DD8`), and frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "TCheckButtonCDEF": {
+  "opening": "The control definition object of the game's check boxes, `'CDEF'` 1000 with variation 1\nin the low 3 bits, a `TCDEF` whose drawing is `DrawCheck` with tile 427. `TRadioButtonCDEF` is the\nsame code with tile 428.",
+  "routines": [
+   {
+    "name": "TCheckButtonCDEF::TCheckButtonCDEF",
+    "entry": 681632,
+    "text": "Makes a `TCDEF` for the control (`0x0A66C4`) and sets the vtable to `TCheckButtonCDEF`'s (`0x0A66CC` to\n`0x0A66D4`)."
+   },
+   {
+    "name": "TCheckButtonCDEF::Create",
+    "entry": 681772,
+    "text": "Allocates 8 bytes and makes a check box in them for the control given (`0x0A6740` to `0x0A6764`), and\nreturns it, or 0 when the allocation fails."
+   },
+   {
+    "name": "TCheckButtonCDEF::DrawAPart",
+    "entry": 681920,
+    "text": "Draws the control with `DrawCheck`, the control's rectangle, its title, `+40` of\nthe record, a state and tile 427 (`0x0A689C` to `0x0A68B8`). The state is 1 when the\nhighlight, byte 17 of the record, is 10 or 1 (`0x0A67DC` to `0x0A67F8`), 2 for a\nhighlight of 255, inactive (`0x0A6800` to `0x0A6828`), 3 for a value, the short at `+18`,\nother than 0 (`0x0A6830` to `0x0A6844`), and 0 otherwise. So state 1 shows over a check, and an\ninactive box never shows its check. With bit 3 of the variation code set,\nApple's `useWFont` (an inference from the number), it first sets the port's font,\nsize and style to the window's (`TextFont`, `TextSize`, `TextFace`, `0x0A6854` to `0x0A6894`),\nwhich changes nothing on the screen, since `DrawCheck` sets text style 0 for the\nlabel and sets the port's back after it."
+   },
+   {
+    "name": "TCheckButtonCDEF::~TCheckButtonCDEF",
+    "entry": 691072,
+    "text": "Sets the vtable to `TCheckButtonCDEF`'s and runs `TCDEF::~TCDEF` (`0x0A8B9C` to `0x0A8BAC`), and frees the\nobject when the flag is above 0."
+   },
+   {
+    "name": "TCheckButtonCDEF::GetPreferedCTable",
+    "entry": 691220,
+    "text": "Returns the color table that `data+0x60D6C` points to (`0x0A8C14` to `0x0A8C18`)."
+   }
+  ]
+ },
+ "TRadioButtonCDEF": {
+  "opening": "The control definition object of the game's radio buttons, `'CDEF'` 1000 with variation 2\nin the low 3 bits, a `TCDEF` whose drawing is `DrawCheck` with tile 428. `TCheckButtonCDEF` is the\nsame code with tile 427.",
+  "routines": [
+   {
+    "name": "TRadioButtonCDEF::TRadioButtonCDEF",
+    "entry": 682292,
+    "text": "Makes a `TCDEF` for the control (`0x0A6958`) and sets the vtable to `TRadioButtonCDEF`'s (`0x0A6960` to\n`0x0A6968`)."
+   },
+   {
+    "name": "TRadioButtonCDEF::Create",
+    "entry": 682432,
+    "text": "Allocates 8 bytes and makes a radio button in them for the control given (`0x0A69D4` to `0x0A69F8`), and\nreturns it, or 0 when the allocation fails."
+   },
+   {
+    "name": "TRadioButtonCDEF::DrawAPart",
+    "entry": 682580,
+    "text": "Draws the control with `DrawCheck`, the control's rectangle, its title, `+40` of\nthe record, a state and tile 428 (`0x0A6B30` to `0x0A6B4C`). The state is 1 when the\nhighlight, byte 17 of the record, is 10 or 1 (`0x0A6A70` to `0x0A6A8C`), 2 for a\nhighlight of 255, inactive (`0x0A6A94` to `0x0A6ABC`), 3 for a value, the short at `+18`,\nother than 0 (`0x0A6AC4` to `0x0A6AD8`), and 0 otherwise. So state 1 shows over a check, and an\ninactive box never shows its check. With bit 3 of the variation code set,\nApple's `useWFont` (an inference from the number), it first sets the port's font,\nsize and style to the window's (`TextFont`, `TextSize`, `TextFace`, `0x0A6AE8` to `0x0A6B28`),\nwhich changes nothing on the screen, since `DrawCheck` sets text style 0 for the\nlabel and sets the port's back after it."
+   },
+   {
+    "name": "TRadioButtonCDEF::~TRadioButtonCDEF",
+    "entry": 690852,
+    "text": "Sets the vtable to `TRadioButtonCDEF`'s and runs `TCDEF::~TCDEF` (`0x0A8AC0` to `0x0A8AD0`), and frees the\nobject when the flag is above 0."
+   },
+   {
+    "name": "TRadioButtonCDEF::GetPreferedCTable",
+    "entry": 691000,
+    "text": "Returns the color table that `data+0x60D6C` points to (`0x0A8B38` to `0x0A8B3C`)."
+   }
+  ]
+ },
+ "TPortraitList": {
+  "opening": "The list of portraits in `TCreatePlayerDialog`'s dialog, a `TListBox` of three\nrows and two columns, whose bounds the dialog's constructor builds. Its cells\nshow resources `0x88EF` to `0x88F1` and `0x88F5` to `0x88F7`, and of the twelve from\n`0x88EF` to `0x88FA` the other six are never drawn.",
+  "routines": [
+   {
+    "name": "TPortraitList::TPortraitList",
+    "entry": 656944,
+    "text": "Makes the list as a `TListBox` from the view, the bounds, the cell size and the\nwindow given, with the flags 1, 0, 0 and 1, which `TListBox::TListBox` passes to\n`LNew` in that order, so the list draws, has no grow box and has a vertical scroll\nbar alone (`0x0A0640` to `0x0A0678`). It sets the vtable to `TPortraitList`'s and\nreplaces the scroll bar with a control of definition 16,016, `'CDEF'` 1001 with\nvariation 0, the game's scroll bar (`TListBox::ChangeScrollBars`, `0x0A0680` to\n`0x0A0690`). It returns the object."
+   },
+   {
+    "name": "TPortraitList::LDEFDraw",
+    "entry": 657144,
+    "text": "Draws cell (h, v) as the portrait in resource `0x88EF` plus 6h plus v, 64 by 64\npixels at the cell's top left (`SetRect`, `OffsetRect`, `0x0A0794` to `0x0A07C0`,\n`0x0A07C8` to `0x0A07E8`). It reads the resource from the archive at\n`data+0x181EC` (`TCachedSegFiles::GetSegment`) and unpacks it into the buffer at\n`data+0x76356` (`LZUnpack`, `0x0A07F8` to `0x0A0800`), the pixels of a copy of the pixel map record at toc -5276 with the\nbounds (0, 0, 64, 64) and rows of 64 bytes (`0x0A0700` to `0x0A07B4`,\n`0x0A0808` to `0x0A0810`). It erases the cell's square and copies the picture\ninto the current port with white left out (the transfer mode 36, `CopyBits`, `0x0A080C` to `0x0A0864`). Before the copy it sets the\nbackground color to the one it reads, twice, which changes nothing (`GetBackColor`,\n`RGBBackColor`, `0x0A081C` to `0x0A0838`). A missing resource leaves the square\nerased (`0x0A0870` to `0x0A0874`). Neither this routine nor `LDEFHilite` marks a\nselected cell."
+   },
+   {
+    "name": "TPortraitList::LDEFHilite",
+    "entry": 657620,
+    "text": "Does nothing (`0x0A08D4`), so the List Manager's highlighting of a cell changes\nnothing in the list."
+   },
+   {
+    "name": "TPortraitList::~TPortraitList",
+    "entry": 660228,
+    "text": "Sets the vtable to `TPortraitList`'s and runs `TListBox::~TListBox`, which\ndisposes of the list (`0x0A1320` to `0x0A1330`), and frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "TWIcon": {
+  "opening": "A picture in a scripted window, a widget of 32 by 32 pixels that shows one tile.\nThe window's routine that adds an icon, `TScriptedWindow::DisplayAddIcon`, makes\nit. Its tile number is the short at `+36`,\nafter the widget's fields.",
+  "routines": [
+   {
+    "name": "TWIcon::TWIcon",
+    "entry": 568724,
+    "text": "Makes a widget of the window given at the h and v given, 32 by 32 pixels\n(`0x08ADA8` to `0x08ADD0`), and sets the vtable to `TWIcon`'s (`0x08ADD4` to\n`0x08ADDC`). Its tile is minus n for a number n below 0 (`0x08ADE4` to\n`0x08ADE8`), and otherwise the first tile of prop type n's low 10 bits, from the\ntable of shorts at `data+0x60568`, plus n shifted right 10 (`0x08ADF0` to\n`0x08AE08`), so a script gives a tile directly as its negative, or a type and a\nframe as type plus 1,024 times the frame."
+   },
+   {
+    "name": "TWIcon::TWIcon",
+    "entry": 568928,
+    "text": "Makes the widget from a stream, the reverse of `Marshal`, and reads its tile\nwith the format `\"h\"` (`TStream::ReadData`, slot 44, `0x08AE7C` to `0x08AEA0`)."
+   },
+   {
+    "name": "TWIcon::Marshal",
+    "entry": 569072,
+    "text": "Writes the widget to a stream, first its kind, `'wIcn'`, with the format `\"l\"`\n(`TStream::WriteData`, slot 40, `0x08AEF8` to `0x08AF24`), then the widget's fields\n(`0x08AF2C` to `0x08AF34`), then its tile with `\"h\"` (`0x08AF3C` to\n`0x08AF50`)."
+   },
+   {
+    "name": "TWIcon::Draw",
+    "entry": 569248,
+    "text": "Draws the tile into the widget's rectangle in the port given, a copy of the pixel map record at toc -5276\nwith the address of the tile's 1,024 bytes of pixels, from the pointer at\n`data+0x60564`, with white left out (the transfer mode 36, `CopyBits`, `0x08AFAC` to `0x08B05C`)."
+   },
+   {
+    "name": "TWIcon::~TWIcon",
+    "entry": 588660,
+    "text": "Sets the vtable to `TWIcon`'s and then to the widget's (`0x08FB90` to\n`0x08FBA4`), and frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "TWListList": {
+  "opening": "The List Manager list inside a list widget of a scripted window, a `TListBox`\nthat `TWList::TWList` makes. Each cell's data is 4 bytes and then its text.",
+  "routines": [
+   {
+    "name": "TWListList::TWListList",
+    "entry": 581480,
+    "text": "Makes the list as a `TListBox` with every argument given, the four flags\nincluded, and leaves the scroll bars as `LNew` made them (`0x08DF7C` to `0x08DFBC`). It sets the vtable\nto `TWListList`'s (`0x08DFC4` to `0x08DFCC`) and returns the object."
+   },
+   {
+    "name": "TWListList::LDEFDraw",
+    "entry": 581680,
+    "text": "Draws a cell's text. It erases the cell's rectangle (`EraseRect`, `0x08E060` to\n`0x08E064`), moves the pen 3 pixels in from the left, with the text centered by\nheight (`GetFontInfo`, `MoveTo`, `0x08E048` to `0x08E058`, `0x08E06C` to\n`0x08E0A0`), and draws the cell's data from its fifth byte, its length less 4\n(`AADrawText`, `0x08E0A8` to `0x08E0CC`), so the first 4 bytes stay unshown. It\nthen inverts a selected cell in the highlight color (`LMSetHiliteMode`,\n`InvertRect`, `0x08E0D4` to `0x08E0F8`)."
+   },
+   {
+    "name": "TWListList::LDEFHilite",
+    "entry": 581968,
+    "text": "Inverts the cell's rectangle in the highlight color (`LMSetHiliteMode`,\n`InvertRect`, `0x08E160` to `0x08E178`), where `TListBox::LDEFHilite` draws the\ncell again."
+   },
+   {
+    "name": "TWListList::~TWListList",
+    "entry": 588108,
+    "text": "Sets the vtable to `TWListList`'s and runs `TListBox::~TListBox`, which disposes\nof the list (`0x08F968` to `0x08F978`), and frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "TProgBarCDEF": {
+  "opening": "The control definition object of the game's progress bars, `'CDEF'` 1001 with\nvariation 1 in the low 3 bits, a `TCDEF`. Its art is tile 421, the thumb in the\ntop half and the track in the bottom half.",
+  "routines": [
+   {
+    "name": "TProgBarCDEF::TProgBarCDEF",
+    "entry": 684568,
+    "text": "Makes a `TCDEF` for the control (`0x0A723C`) and sets the vtable to\n`TProgBarCDEF`'s (`0x0A7244` to `0x0A724C`)."
+   },
+   {
+    "name": "TProgBarCDEF::Create",
+    "entry": 684704,
+    "text": "Allocates 8 bytes and makes a progress bar in them for the control given\n(`0x0A72B4` to `0x0A72D8`), and returns it, or 0 when the allocation fails."
+   },
+   {
+    "name": "TProgBarCDEF::CalcThumb",
+    "entry": 684848,
+    "text": "Returns the left edge of the thumb, 32 pixels wide, the control's left plus the\nwidth less 32 times the value less the minimum, over the maximum less the minimum\n(`0x0A7334` to `0x0A73B8`). With less than 16 pixels to move in, or a maximum not\nabove the minimum, it returns the control's left (`0x0A737C` to `0x0A738C`,\n`0x0A73C0`). The value goes untested against the two ends, so a value past the\nmaximum puts the thumb past the bar's right end."
+   },
+   {
+    "name": "TProgBarCDEF::DrawAPart",
+    "entry": 685056,
+    "text": "Draws the bar. The track is the bottom half of tile 421 across the control's\nrectangle (`ExpandHorizontally`, `0x0A741C` to `0x0A7454`). With a minimum below\nthe maximum (`0x0A745C` to `0x0A7468`), it then copies the top left 32 by 16 pixels\nof tile 421 onto the bar at the thumb's place, in the source copy mode\n(`SetRect`, `CalcThumb`, `OffsetRect`, `CopyBits`, `0x0A746C` to `0x0A7570`), and\ndraws a number in text style 1, centered across the thumb, with half the style's\nascent below its middle (`SetText`, `StringWidth`, `MoveTo`, `AADrawText`,\n`0x0A7578` to `0x0A7610`). The number is the control's reference, the long at\n`+36` of the record, not its value (`NumToString`, `0x0A7584` to `0x0A7594`), so\nthe figure on the thumb and the thumb's place come from two different fields. A bar whose\nminimum is not below its maximum shows the track alone."
+   },
+   {
+    "name": "TProgBarCDEF::~TProgBarCDEF",
+    "entry": 690216,
+    "text": "Sets the vtable to `TProgBarCDEF`'s and runs `TCDEF::~TCDEF` (`0x0A8844` to\n`0x0A8854`), and frees the object when the flag is above 0."
+   },
+   {
+    "name": "TProgBarCDEF::GetPreferedCTable",
+    "entry": 690360,
+    "text": "Returns the color table that `data+0x60D6C` points to (`0x0A88B8` to\n`0x0A88BC`)."
+   }
+  ]
+ },
+ "TPixCacheBase": {
+  "opening": "The cache of the 256 interface pictures, unpacked into blocks of a `TCache`, the\none at `+4`. For picture n it has the height and the width as shorts at `+8` and\n`+10` plus 4n, a count of users as a short at `+1032` plus 2n, and the address of\nthe unpacked pixels at `+1544` plus 4n, which the `TCache` clears when it frees\nthe block. Slot 8 gives a picture's packed data and slot 12 lets it go, and the\none subclass, `TPixCacheFromCachedSegFiles`, reads them from resources `0x8F00`\nup.",
+  "routines": [
+   {
+    "name": "TPixCacheBase::TPixCacheBase",
+    "entry": 475956,
+    "text": "Sets the vtable and the cache given at `+4` (`0x07433C` to `0x074344`), and\nclears the address and the count of users of each of the 256 pictures, leaving the\nsizes as they are (`0x07434C` to `0x074380`)."
+   },
+   {
+    "name": "TPixCacheBase::NewPix",
+    "entry": 476096,
+    "text": "Fills the pixel map given for picture n and counts one more user of it. The map\nstarts as a copy of the pixel map record at toc -5276 (`0x0743C8` to `0x074450`).\nA picture already unpacked moves to the head of the cache's ring (`TCache::Touch`,\n`0x074460` to `0x074474`), and the map receives its bounds (0, 0, width, height), rows of the width rounded up to 4 bytes, with the pixel map bit `0x8000`, and its pixels (`0x07447C` to `0x0744FC`). Otherwise\nthe routine reads the packed data through slot 8, whose first two shorts are the\nwidth and the height (`0x074504` to `0x07452C`), stores the two sizes\n(`0x074548` to `0x074564`), allocates rows times height bytes in the cache for the\npicture's address (`TCache::Allocate`, `0x07456C` to `0x0745B8`) and unpacks the\ndata from its fifth byte (`LZUnpack`, `0x0745D0` to `0x0745D8`). It then lets the\ndata go through slot 12 and sets the count to 1 (`0x0745E0` to `0x074608`). It\nreturns 0, -43 when slot 8 gives no data (`0x074614`) and -108 when the\nallocation fails (`0x0745C8`). The -108 return skips slot 12, so the packed data\nstays where slot 8 left it (`0x0745BC` to `0x0745CC`). Every unpacking sets the\ncount to 1 and does not add 1 to the count it had. A picture that the cache freed while\nseveral users held it therefore counts one user after its next `NewPix`, and the\nfirst `ReleasePix` of the others frees it (an inference, since whether the\nholders lock their pictures in the cache is not traced)."
+   },
+   {
+    "name": "TPixCacheBase::DoneData",
+    "entry": 476768,
+    "text": "Does nothing (`0x074660`), the slot that a subclass fills to let a picture's\npacked data go."
+   },
+   {
+    "name": "TPixCacheBase::LoadPix",
+    "entry": 476820,
+    "text": "Gives the pixel map given the address of picture n's pixels, unpacking the\npicture again when the cache has freed it (`0x0746AC` to `0x0746C4`, `0x07476C` to\n`0x074780`). The new block's size is the map's rows times the stored height\n(`0x0746F0` to `0x074724`), so the map must be one that `NewPix` filled. The\nroutine neither moves the block to the head of the ring nor counts a user. It\nreturns 0, -43 when slot 8 gives no data (`0x0746E8`) and -108 when the\nallocation fails (`0x07473C`), and as in `NewPix` the -108 return skips slot 12\n(`0x074730` to `0x074740`)."
+   },
+   {
+    "name": "TPixCacheBase::ReleasePix",
+    "entry": 477136,
+    "text": "Counts one user fewer of picture n, and when the count reaches 0 frees its block\nin the cache and clears its address (`TCache::Free`, `0x0747E8` to `0x074864`).\nWith a count already at 0 it does nothing (`0x0747F8` to `0x074800`). It returns\n0."
+   }
+  ]
+ },
+ "TToDoList": {
+  "opening": "The list of the to-do window, a `TListBox` that `TToDo` makes. Each cell's data is\nthe address of one of the 256 to-do entries of 8 bytes at `data+0x6E334`, a flag byte at `+0`, other\nthan 0 for a done entry, and the entry's text as a script value at `+4`.",
+  "routines": [
+   {
+    "name": "TToDoList::TToDoList",
+    "entry": 485748,
+    "text": "Makes the list as a `TListBox` from the view, the bounds, the cell size and the\nwindow given, with the flags 1, 0, 0 and 1, which `TListBox::TListBox` passes to\n`LNew` in that order, so the list draws, has no grow box and has a vertical scroll\nbar alone (`0x076984` to `0x0769BC`). It sets the vtable to `TToDoList`'s and\nreplaces the scroll bar with a control of definition 16,016, `'CDEF'` 1001 with\nvariation 0, the game's scroll bar (`TListBox::ChangeScrollBars`, `0x0769C4` to\n`0x0769D4`), fills the list (`RebuildList`, `0x0769DC` to `0x0769E0`) and returns\nthe object."
+   },
+   {
+    "name": "TToDoList::LDEFDraw",
+    "entry": 485956,
+    "text": "Draws a cell, an entry's box and its text. It erases the cell (`EraseRect`,\n`0x076A74`) and draws nothing more unless the cell's data is 4 bytes (`0x076A7C` to\n`0x076A84`), the entry's address (`LGetCell`, `0x076A88` to `0x076AA0`). The box is\n16 by 16 pixels, 2 in from the cell's left with its top 8 above the cell's middle\n(`OffsetRect`, `0x076AA8` to `0x076AF0`), the top left quarter of tile 427 for an\nentry not done and the top right quarter for a done one, the same art as an\nunchecked and a checked check box (`0x076AF8` to `0x076B94`), copied with white\nleft out (the transfer mode 36, `CopyBits`, `0x076B9C` to `0x076BBC`). The text,\nthe entry's script value as a string (`TInterp::VAddrToPtr`, `0x076BC4` to\n`0x076BCC`), goes in text style 4 3 pixels right of the box, 4 above its bottom\n(`MoveTo`, `SetText`, `0x076BD4` to `0x076BFC`), when the string is not 0\n(`AADrawText`, `0x076C04` to `0x076C24`). It then inverts a selected cell in the\nhighlight color (`LMSetHiliteMode`, `InvertRect`, `0x076C2C` to `0x076C50`)."
+   },
+   {
+    "name": "TToDoList::LDEFHilite",
+    "entry": 486572,
+    "text": "Inverts the cell's rectangle in the highlight color (`LMSetHiliteMode`,\n`InvertRect`, `0x076CBC` to `0x076CD4`), where `TListBox::LDEFHilite` draws the\ncell again."
+   },
+   {
+    "name": "TToDoList::RebuildList",
+    "entry": 486696,
+    "text": "Fills the list from the 256 to-do entries of 8 bytes at `data+0x6E334`, a flag byte at `+0`, other\nthan 0 for a done entry, and the entry's text as a script value at `+4`, the entries whose text is other than the script's \"nothing\", the word at `data+0x77374`, those not\ndone first and then the done ones, each in the order of the table (`0x076E14` to\n`0x076F14`). It first counts those entries (`0x076D54` to `0x076D8C`) and adds rows\nat the end, or deletes rows from the top, until the list has that many\n(`LAddRow`, `LDelRow`, `0x076D90` to `0x076E0C`), and sets each cell to the entry's\naddress, 4 bytes (`LSetCell`). Drawing is off while it works (`LSetDrawingMode`,\n`0x076D3C` to `0x076D4C`, `0x076F18` to `0x076F20`), and then it erases the list's\nview in the list's port and draws the list within the port's visible region\nthrough slot 52, `Update` (`0x076F28` to `0x076F84`)."
+   },
+   {
+    "name": "TToDoList::~TToDoList",
+    "entry": 488160,
+    "text": "Sets the vtable to `TToDoList`'s and runs `TListBox::~TListBox`, which disposes\nof the list (`0x0772FC` to `0x07730C`), and frees the object when the flag is above\n0."
+   }
+  ]
+ },
+ "TScriptPickItemDrawer": {
+  "opening": "The drawer of one line of a list that a script offers the player to pick from,\n12 bytes, its vtable at `+0`, a format string at `+4` and a script list of the\nvalues the format uses at `+8`. The script call `cbPickItem` makes an array of 20\nof them, 12 bytes each (an inference from the sizes of its `construct array`\ncall). In the format, `|` ends a column, `%d`, `%s`, `%i`, `%n` and `%p` each use\nthe next value, and any other character goes on the line as it is.",
+  "routines": [
+   {
+    "name": "TScriptPickItemDrawer::GetItemHeight",
+    "entry": 614680,
+    "text": "Returns the line's height, 32 when the format has `%i`, a picture, and 20\notherwise (`0x09612C` to `0x096158`)."
+   },
+   {
+    "name": "TScriptPickItemDrawer::DrawItem",
+    "entry": 614820,
+    "text": "Draws the line in the rectangle given, its text in yellow (69), or in red (205)\nfor a selected line, with a black shadow (`0x0961D4` to `0x0961F8`). It\ngathers text into a buffer and draws it at each `|` and at the end of the format\n(`TextWidth`, `TTextContext::Justify`, `TTextContext::DrawTextOutlined`,\n`0x096214` to `0x0962AC`, `0x0966B8` to `0x09673C`), with the ascent and descent\nof text style 6 to center it by height. The first column starts 2 pixels in from\nthe left (`0x0961FC` to `0x096208`), and each later one where the pen stopped.\nAfter a `|`, a `.` centers the next column and a `-` aligns it right\n(`0x0962B0` to `0x0962DC`), and a number n places it n percent of the way across\nthe rectangle, rounded (`0x0962E0` to `0x096374`). `%d` writes the next value as a\nnumber and `%s` as a string (`sprintf`, `0x096388` to `0x096428`). `%i` draws a\n32-by-32 picture, tile the first tile of prop type n's low 10 bits, from the table of shorts at\n`data+0x60568`, plus n shifted right 10, for a value whose top 4 bits, its type, are\n0, with white left out, centered by height at the\ncolumn's place (`0x09642C` to `0x0965C0`), shifted left 16 for a centered column\nand 32 for a right one (`0x096560` to `0x096598`), and moves the column's place\n36 to the right (`0x0965D8`). A tile of 0 draws nothing. It also moves the pen 0\nacross and 36 down (`Move`, `0x0965C8` to `0x0965D0`). Text gathered before a\n`%i` in the same column goes out only at the next `|` or the end, at the place\nafter the picture, so it shows to the picture's right. `%n` writes the name of\nthe same tile, with the third argument 1 (`GetTileName`, `0x0965E4` to\n`0x096674`), and `%p` and any other letter after `%` use up a value and draw\nnothing (`0x096678` to `0x096698`). The buffer at `148(1)` has 92 bytes below the\nsaved registers at `240(1)`, and nothing bounds what goes into it. A `%` as the\nformat's last character reads the ending zero byte as its letter and steps past it\n(`0x096388`, `0x096690` to `0x096694`), so the loop goes on through the memory after\nthe format."
+   },
+   {
+    "name": "TScriptPickItemDrawer::TScriptPickItemDrawer",
+    "entry": 617712,
+    "text": "Sets the vtable, first to the base class's and then to this class's, the format\nto 0 and the values to the script's \"nothing\", the word at `data+0x77374`\n(`0x096CF4` to `0x096D18`)."
+   }
+  ]
+ },
+ "TFadeInTextImageObject": {
+  "opening": "An image object that dissolves a picture in over 10 ticks, the base of\n`TStringFadeInTextImageObject`, which draws a string. A work area is a world at\n`+0` and a rectangle at `+4`. The object has a place at `+4`, the work area of its\npicture at `+12` (the world) and `+16` (the rectangle), a second work area at `+24` and\n`+28`, which the background comes from, a byte at `+36`, a rectangle at `+38`,\nthe count of ticks at `+46` and a short at `+48`.",
+  "routines": [
+   {
+    "name": "TFadeInTextImageObject::TFadeInTextImageObject",
+    "entry": 645192,
+    "text": "Sets the vtable, the place given, the two work areas, the byte and the short\n(`0x09D868` to `0x09D8E0`), and the count of ticks to 0 (`0x09D8DC`). The rectangle\nat `+38` is the first work area's with its bottom raised by the short\n(`0x09D8E4` to `0x09D8FC`). It then erases the first work area's rectangle in its\nworld (`SetGWorld`, `EraseRect`, `0x09D900` to `0x09D938`)."
+   },
+   {
+    "name": "TFadeInTextImageObject::Tick",
+    "entry": 645548,
+    "text": "On the first tick it copies the background into the object's world, the second\nwork area's pixels at the object's place, the size of the object's rectangle\n(`OffsetRect`, `CopyBits` in the source copy mode, `0x09DA1C` to `0x09DA8C`), and\ndraws the object's picture over it through slot 16 with the rectangle\n(`0x09DA94` to `0x09DAA4`). It also sets the three shorts at `+50`, `+52` and `+54`\nto 1,024 (`0x09D9FC` to `0x09DA18`). On each later tick it multiplies the three by\n6/5, or sets all three to 65,535 once the first would reach it (`0x09DAC8` to\n`0x09DB88`). Nothing in this class or in `TStringFadeInTextImageObject::Render`\nreads those three. Every tick adds 1 to the count (`0x09DB8C` to `0x09DB94`)."
+   },
+   {
+    "name": "TFadeInTextImageObject::DisBits",
+    "entry": 646188,
+    "text": "Copies a share of the pixels of a rectangle of 8-bit pixels from one buffer to\nanother, in a fixed scattered order, the percent given of width times height\n(`0x09DC68` to `0x09DCBC`). The order comes from a shift register, a number of as\nmany bits as the width and the height need together (`bitwidth`, `0x09DCD0` to\n`0x09DCE0`), stepped right with an exclusive-or of the tap from the table at toc\n+9352 when the bit shifted out is 1 (`0x09DD88` to `0x09DD9C`). Its high bits are\nthe row and its low bits the column, and the routine passes over a place outside\nthe rectangle (`0x09DD30` to `0x09DD84`). The register starts at the tap when the fourth\nargument is 0 (`0x09DD0C` to `0x09DD28`). It never reaches 0, so the last pixel of\nthe count is always the top left one (`0x09DDA0` to `0x09DDB0`). With the same\nstart each call copies the same pixels first, so a larger percent adds pixels to\nthose a smaller one copied."
+   },
+   {
+    "name": "TFadeInTextImageObject::Apply",
+    "entry": 646676,
+    "text": "Draws the object into the work area given, at the work area's rectangle's top\nleft plus the object's place (`OffsetRect`, `0x09DE2C` to `0x09DE7C`). After 10\nticks it copies the whole picture (`IsDone`, `CopyBits`, `0x09DE84` to\n`0x09DEB8`). Before that it copies 10 percent of the pixels for each tick so far\n(`DisBits`, with the start 0, `0x09DF3C` to `0x09DF74`), so the picture builds up\nover 10 ticks. The address of the source's first pixel counts the source\nrectangle's top times the destination's row length (`0x09DF24` to `0x09DF48`), not the source's,\nwhich reads the wrong row for a rectangle whose top is not 0 when the two worlds'\nrows differ in length."
+   },
+   {
+    "name": "TFadeInTextImageObject::IsDone",
+    "entry": 647116,
+    "text": "Returns whether the count of ticks has reached 10 (`0x09DFCC` to `0x09DFE4`)."
+   }
+  ]
+ },
+ "TGremlin": {
+  "opening": "The gremlins, 256 scripted objects of kind 120, whose scripts are the segments\n`0x1F00` plus n. Every routine is static and works on the table of 256 gremlins at `data+0x773BC`, 4 bytes each, a state as\na short at `+0` and the number of a heap frame for the script's fields as a short\nat `+2`, 0 when it has none. A state of 2 marks a gremlin with no script.",
+  "routines": [
+   {
+    "name": "TGremlin::AllocateFrame",
+    "entry": 708548,
+    "text": "Returns the heap frame of the gremlin entry given, making one first when it has\nnone (`THeapObj::THeapObj` with 2, `0x0ACFD8` to `0x0AD00C`)."
+   },
+   {
+    "name": "TGremlin::ClearGremlins",
+    "entry": 708692,
+    "text": "Clears the table of 256 gremlins at `data+0x773BC`, 1,024 bytes (`memset`, `0x0AD05C` to `0x0AD080`), and sets the state\nof each gremlin with no segment in the archive at `data+0x181EC` to 2\n(`ObjIDToSegmentID` with kind 120, `TCachedSegFiles::Exists`, `0x0AD090` to\n`0x0AD0C4`). Its caller is `TDelverApp::NewModel`, for a new game."
+   },
+   {
+    "name": "TGremlin::SaveGremlins",
+    "entry": 708900,
+    "text": "Writes the table of 256 gremlins at `data+0x773BC` to a stream as a chunk `'Grem'` of its 1,024 bytes (`BeginChunk`,\n`Write`, `EndChunk`, slots 48, 24 and 52, `0x0AD12C` to `0x0AD178`)."
+   },
+   {
+    "name": "TGremlin::LoadGremlins",
+    "entry": 709064,
+    "text": "Reads the table of 256 gremlins at `data+0x773BC` from a stream's chunk `'Grem'`, 1,024 bytes (`ReadChunk`, `Read`,\nslots 56 and 28, `0x0AD1D0` to `0x0AD208`). Nothing tests whether the read found\nthe chunk, or its length."
+   },
+   {
+    "name": "TGremlin::GetField",
+    "entry": 709208,
+    "text": "Gives a script field of gremlin n. Field 20 is the state, read as an unsigned\nshort, so a state below 0 comes back as 65,536 plus it (`0x0AD2A0` to\n`0x0AD2B0`). Field 17 is True when the gremlin has a heap frame and False when it\nhas none (`0x0AD2B8` to `0x0AD2F0`). Field 18 is the frame itself, the object\n`0x7000` in the high half and the frame's number in the low, made when it is\nmissing (`0x0AD288` to `0x0AD290`, `AllocateFrame`, `0x0AD2F8` to `0x0AD31C`).\nFields 0 to 16, 19 and 21 up give the script's \"nothing\", the word at\n`data+0x77374` (`0x0AD294`, `0x0AD324` to `0x0AD330`)."
+   },
+   {
+    "name": "TGremlin::SetField",
+    "entry": 709492,
+    "text": "Sets gremlin n's state to the low 16 bits of the value given for field 20 (`0x0AD378`\nto `0x0AD39C`). Any other field changes nothing."
+   },
+   {
+    "name": "TGremlin::OnEnter",
+    "entry": 709588,
+    "text": "For each gremlin whose state is 0 or 3 and up, not 1, 2 or below 0, it runs\nthe gremlin's method 20, the object `0x4078` in the high half and the gremlin's\nnumber in the low, with one argument, the value given (`TInterp::DoInterp`, `0x0AD3FC` to `0x0AD444`).\nIts callers are `TGameSys::HeartBeat` and `TGameViewer::ChangeZone`."
+   },
+   {
+    "name": "TGremlin::OnSignal",
+    "entry": 709796,
+    "text": "For each gremlin whose state is 0 or 3 and up, not 1, 2 or below 0, it runs\nthe gremlin's method 21, the object `0x4078` in the high half and the gremlin's\nnumber in the low, with one argument, the signal given as a number (`TInterp::DoInterp`, `0x0AD4D0` to\n`0x0AD524`). Its caller is `TGameSys::SendSignal`."
+   }
+  ]
+ },
+ "TBark": {
+  "opening": "A talk balloon, a line of words over a prop, 16 bytes. It has its vtable at `+0`,\nan offscreen world of 128 by 32 pixels at `+4`, a byte at `+8`, other than 0 while\nthe balloon shows, the prop's number as a short at `+10` and the balloon's variant,\n0 to 7, as a short at `+12`. In the variant, bit 0 marks a prop above the present\ncharacter, bit 1 a prop in its column or right of it, and bit 2 two lines.\nThe shapes are the regions that `InitBalloons` makes. The static routines work on\nthe four barks whose addresses are at `data+0x6A8C8`, made on the first call of `SetBark`.",
+  "routines": [
+   {
+    "name": "TBark::TBark",
+    "entry": 400640,
+    "text": "Sets the vtable (`0x061D28` to `0x061D30`) and makes the world, 8 bits deep, 128 by\n32, with the color table that `data+0x60D6C` points to (`SetRect`, `NewGWorld`,\n`0x061D10` to `0x061D5C`), throwing \"Can't allocate bark\" when that fails\n(`0x061D64` to `0x061D80`). It locks the world's pixels (`0x061D88` to `0x061D98`),\nsets bit `0x4000` of the flags of the world's color table and gives the world the\npalette that `data+0x60D68` points to (`SetPalette`, `0x061DA0` to `0x061DC8`). The\nvariant and the showing byte start at 0 (`0x061DD0` to `0x061DE0`), and the world's\ntext is style 5 (`SetText`, `0x061DEC` to `0x061E28`)."
+   },
+   {
+    "name": "TBark::~TBark",
+    "entry": 401012,
+    "text": "Sets the vtable and frees the object when the flag is above 0 (`0x061E90` to\n`0x061EA8`). Nothing disposes of the world."
+   },
+   {
+    "name": "TBark::Draw",
+    "entry": 401132,
+    "text": "Copies the balloon onto the current port through the variant's region as the\nmask, in the source copy mode (`CopyBits`, `0x06207C` to `0x062094`). The place is\nthe prop's square less the present character's, from the location words of\nprop record n and of the character record at `data+0x28558` plus 32 times the short\nat `data+0x19C66`, plus the short at `+2` of the record that `data+0x6A8C0` points to, both ways,\ntimes 32, plus 16 and the variant's two shorts in the table at `data+0x6A8D8`, the\nsecond across and the first down (`0x061EF4` to `0x061FD8`). With bit `0x80` of\nbyte 0 of the \"UI Prefs\" record at toc -5216, set in the shipped record (`0x98`),\nand bit `0x04` of the prop's flags, it adds 8 times bits 0 and 1 of the prop's\nbyte 6 across and 8 times bits 4 and 5 down (`0x061F64` to `0x061F74`, `0x061FCC` to `0x062000`). The region moves to\nthe place for the copy and back after it (`OffsetRgn`, `0x062004` to `0x062010`,\n`0x06209C` to `0x0620A8`). Before the copy the seed of the world's color table\nbecomes the long at `data+0x60D74` (`0x062048` to `0x062078`)."
+   },
+   {
+    "name": "TBark::SetMessage",
+    "entry": 401640,
+    "text": "Draws the words given into the balloon's world for prop n. It erases the world\n(`EraseRect`, `0x062108` to `0x062140`), stores n and sets the variant from\nthe prop's square less the present character's, from the location words of\nprop record n and of the character record at `data+0x28558` plus 32 times the short\nat `data+0x19C66` (`0x06216C` to `0x062210`). The words center on x 68 for a prop left of the\npresent character and on 60 otherwise. Words 112 pixels wide or less go on one\nline at a baseline of 11 (`TextWidth`, `MoveTo`, `AADrawText`, `0x062310` to\n`0x06234C`). Wider ones break once to fit 112 pixels, the first line at a baseline\nof 13 and the rest at 25, the variant's bit 2 set (`StyledLineBreak`, `0x062214`\nto `0x062304`), and the second line goes untested against the width. The routine\nthen frames the variant's region in the world (`FrameRgn`, `0x062354` to\n`0x062364`) and sets the world back (`0x06236C` to `0x06237C`)."
+   },
+   {
+    "name": "TBark::SetBark",
+    "entry": 402372,
+    "text": "Shows the string given over prop n and returns the tick when it should go, 240\nafter the present one (`TickCount`, `0x062518` to `0x062520`). The first call runs\n`InitBalloons` and makes the four barks whose addresses are at `data+0x6A8C8`, each 0 when the allocation fails, which nothing tests\nafter (`0x0623D0` to `0x06245C`). The balloon is the one already over prop n, or\nelse the first that is not showing (`0x062460` to `0x0624C4`). With neither, the\nroutine returns 0 (`0x0624C8` to `0x0624D0`). It marks the balloon as showing and\ndraws the words into it (`TInterp::VAddrToPtr`, `SetMessage`, `0x0624D8` to\n`0x062514`)."
+   },
+   {
+    "name": "TBark::RemoveBark",
+    "entry": 402788,
+    "text": "Marks every balloon over prop n as not showing (`0x062568` to `0x0625B4`)."
+   },
+   {
+    "name": "TBark::DrawBarks",
+    "entry": 402924,
+    "text": "Draws each of the four barks whose addresses are at `data+0x6A8C8` that is showing (`Draw`, `0x0625F4` to `0x062640`)."
+   }
+  ]
+ },
+ "TDrawerWDEF": {
+  "opening": "The window definition object of the game's drawers, `'WDEF'` 1002, a `TWDEF`. A\ndrawer has a title bar 18 pixels high above its content and opens upward from its\nbottom edge, its height 0 or 64 and up in steps of 16, the shorts at `+12` and\n`+14`.",
+  "routines": [
+   {
+    "name": "TDrawerWDEF::Create",
+    "entry": 677612,
+    "text": "Allocates 16 bytes and makes a drawer's definition in them for the window and\nthe variation code given (`0x0A5700` to `0x0A5724`), and returns it, or 0 when\nthe allocation fails."
+   },
+   {
+    "name": "TDrawerWDEF::TDrawerWDEF",
+    "entry": 677760,
+    "text": "Makes a `TWDEF` for the window (`0x0A57A4`), sets the vtable to `TDrawerWDEF`'s\n(`0x0A57AC` to `0x0A57B8`), and sets the smallest open height, `+12`, to 64 and the\nstep, `+14`, to 16 (`0x0A57B0` to `0x0A57C4`)."
+   },
+   {
+    "name": "TDrawerWDEF::DrawUnhilited",
+    "entry": 677908,
+    "text": "Draws the frame. It frames the structure region's bounds and, within them, a\ntitle bar of 18 pixels at the top (`FrameRect`, `0x0A5828` to `0x0A5860`), and\nfills the bar inside its frame with the top half of tile 412 (`InsetRect`,\n`ExpandHorizontally`, `0x0A5868` to `0x0A5888`). Under the title it draws a tab\nfrom the bottom half of the same tile, 16 pixels wider than the title and\ncentered (`0x0A590C` to `0x0A5960`), and then the title in text style 0,\ncentered across the bar and by the style's ascent down it (`SetText`,\n`StringWidth`, `MoveTo`, `AADrawText`, `0x0A58C4` to `0x0A59D4`), with the title's\nhandle locked meanwhile (`HGetState`, `HLock`, `HSetState`, `0x0A58CC` to\n`0x0A58F0`, `0x0A59E4` to `0x0A59F0`). It calls `TryDrawContent`, which does\nnothing (`0x0A59DC` to `0x0A59E0`), and sets the port's font, style and size back\n(`0x0A5890` to `0x0A58C0`, `0x0A59F8` to `0x0A5A1C`)."
+   },
+   {
+    "name": "TDrawerWDEF::DrawHilited",
+    "entry": 678508,
+    "text": "Draws the frame through slot 16, `DrawUnhilited`, with the same variation code\n(`0x0A5A7C` to `0x0A5A90`), so an active drawer looks the same as an inactive\none."
+   },
+   {
+    "name": "TDrawerWDEF::Grow",
+    "entry": 678620,
+    "text": "Draws the outline of a drawer during a resize and, while the button is down, stores\nthe new size in the rectangle given. The new height is the rectangle's height\nfitted to the drawer's sizes, 0 for a height of 0 or less, 64 for up to 64, and\notherwise 64 plus a whole number of steps of 16, rounded (`0x0A5AFC` to\n`0x0A5B70`). The content's bottom stays where it is and its top moves to the\nbottom less the height, from the content region's bounds, or for a closed drawer\nfrom the structure region's, inset by 1 and less the bar (`EmptyRect`,\n`InsetRect`, `0x0A5B74` to `0x0A5BE8`). The routine then moves the top down 16 at a\ntime until the bar clears the first 20 pixels of the screen, the menu bar (an\ninference) (`0x0A5BF0` to `0x0A5C0C`). The rectangle receives the size only while\n`StillDown` returns other than 0 (`0x0A5C10` to `0x0A5C2C`). The outline is the\nrectangle 1 wider each side and 18 taller at the top, with a line under the bar\nwhen the content is not empty (`FrameRect`, `MoveTo`, `LineTo`, `0x0A5C30` to\n`0x0A5C9C`)."
+   },
+   {
+    "name": "TDrawerWDEF::Test",
+    "entry": 679152,
+    "text": "Returns the part of the window at a point, 1, the content, inside the content\nregion, and 3 everywhere else (`PtInRgn`, `0x0A5D04` to `0x0A5D2C`), Apple's\n`wInGrow` (an inference from the number), so a press on the bar resizes the\ndrawer."
+   },
+   {
+    "name": "TDrawerWDEF::CalcRegions",
+    "entry": 679280,
+    "text": "Sets the content region to the rectangle given (`RectRgn`, `0x0A5D90` to\n`0x0A5D98`) and the structure region to it 1 wider each side and 16 taller at the\ntop for an empty one, or 17 taller otherwise (`InsetRect`, `RectRgn`, `0x0A5DA0`\nto `0x0A5E14`)."
+   },
+   {
+    "name": "TDrawerWDEF::~TDrawerWDEF",
+    "entry": 691508,
+    "text": "Sets the vtable to `TDrawerWDEF`'s and runs `TWDEF::~TWDEF` (`0x0A8D50` to\n`0x0A8D60`), and frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "TWindow": {
+  "opening": "The base of the game's windows. The object has its vtable at `+0`, its window's\nrecord at `+4` and its flags as a short at `+8`. The window's kind, `+108` of the\nrecord, is 31,364 and its reference is the object. The vtable's slots are 8 the\ndestructor, 12 `DrawRoutine`, 16 `NeedsRedraw`, 20 `ActivateRoutine`, 24\n`DeactivateRoutine`, 28 `MenuRoutine`, 32 `CommandRoutine`, 36 `CloseRoutine`, 40\n`MouseRoutine`, 44 `KeyRoutine`, 48 `GetResizeRect`, 52 `ResizeRoutine`, 56\n`ZoomRoutine`, 60 `CursorRoutine`, 64 `IdleRoutine`, 68 `LoopTask`, 72\n`HandleDragWindow`, 76 `HandleSelectWindow`, 80 `HandleResizeWindow`, 84\n`HandleMonitorChanged`, 88 `HandleZoomWindow`, 92 `GetOwningGD`, 96\n`ForceOnGDevice`, 100 `PutInALayer`, 104 `Select`, 108 `Show`, 112 `Hide`, 116\n`HandleDeactivate`, 120 `HandleActivate`, 124 `Dock` and 128 `UnDock`.\n\nThe flags' low 3 bits are the window's layer. From front to back the layers stack\n3 (and 4 up), 1, 0 and 2. Bit `0x08` hides the window while the player is away from the game and bit `0x10` while a modal state lasts, and `0x4000` marks a window that one of\nthe two hid. Bit `0x20` stops a click from selecting the window, and `0x40` makes the\nwindow dock. Bits `0x100` to `0x2000` say how the window follows a screen whose\nsize changes (`HandleMonitorChanged`).",
+  "routines": [
+   {
+    "name": "TWindow::TWindow",
+    "entry": 36548,
+    "text": "Sets the vtable, no window and flags of 0 (`0x008EC4` to `0x008ED8`)."
+   },
+   {
+    "name": "TWindow::~TWindow",
+    "entry": 36612,
+    "text": "Sets the vtable (`0x008F20` to `0x008F24`) and, with a window, hides it through\nslot 112, `Hide`, and disposes of it (`DisposeWindow`, `0x008F28` to `0x008F4C`). It\nclears the window's address and frees the object when the flag is above 0\n(`0x008F54` to `0x008F6C`)."
+   },
+   {
+    "name": "TWindow::TWindow",
+    "entry": 36784,
+    "text": "Sets the vtable (`0x008FC0`, `0x008FD8`) and adopts the window given with the\nflags given (`Init`, `0x008FDC`)."
+   },
+   {
+    "name": "TWindow::TWindow",
+    "entry": 36908,
+    "text": "Sets the vtable (`0x00904C` to `0x009054`) and makes a window from the `'WIND'`\nresource given, in front of the others, a color window when the byte at `+20` of\nthe application object at `data+0x60E0C` is other than 0 and a plain one otherwise (`GetNewCWindow`, `GetNewWindow`,\n`0x00903C` to `0x00909C`), and adopts it with the flags given (`Init`, `0x0090A0`\nto `0x0090AC`). The new window goes untested, so a failed `GetNewWindow` reaches\n`Init` with address 0."
+   },
+   {
+    "name": "TWindow::Init",
+    "entry": 37112,
+    "text": "Makes the window given the current port and the object's window (`SetPort`,\n`0x00911C` to `0x009124`), puts it in its layer with the flags given through slot\n100, `PutInALayer` (`0x009128` to `0x009138`), sets its kind to 31,364 and its\nreference to the object (`SetWRefCon`, `0x009140` to `0x009150`)."
+   },
+   {
+    "name": "TWindow::NeedsRedraw",
+    "entry": 37824,
+    "text": "Returns 1 when the window is visible and its update region, `+122` of the record,\nis a region that is not empty, and 0 otherwise, or with no window (`EmptyRgn`,\n`0x0093D8` to `0x00941C`)."
+   },
+   {
+    "name": "TWindow::AnyNeedsRedraw",
+    "entry": 37988,
+    "text": "Returns 1 when any window from the front with a `TWindow` answers 1 to slot 16,\n`NeedsRedraw`, and 0 otherwise (`FrontWindow`, `GetTWindow`, `0x009478` to\n`0x0094CC`)."
+   },
+   {
+    "name": "TWindow::DrawRoutine",
+    "entry": 38168,
+    "text": "Does nothing (`0x009518`)."
+   },
+   {
+    "name": "TWindow::ActivateRoutine",
+    "entry": 38360,
+    "text": "Does nothing (`0x0095D8`)."
+   },
+   {
+    "name": "TWindow::DeactivateRoutine",
+    "entry": 38608,
+    "text": "Does nothing (`0x0096D0`)."
+   },
+   {
+    "name": "TWindow::MenuRoutine",
+    "entry": 38856,
+    "text": "Returns 0 (`0x0097C8`)."
+   },
+   {
+    "name": "TWindow::CommandRoutine",
+    "entry": 38908,
+    "text": "Closes the window through slot 36, `CloseRoutine`, for command 4 and returns 1, and\nreturns 0 for any other command (`0x009814` to `0x009838`)."
+   },
+   {
+    "name": "TWindow::CloseRoutine",
+    "entry": 39036,
+    "text": "Hides the window through slot 112, `Hide` (`0x00988C` to `0x009898`)."
+   },
+   {
+    "name": "TWindow::MouseRoutine",
+    "entry": 39132,
+    "text": "Does nothing (`0x0098DC`)."
+   },
+   {
+    "name": "TWindow::KeyRoutine",
+    "entry": 39668,
+    "text": "Sends the keys 256, 257, 258, 259 and 8 as the commands 11, 12, 13, 14 and 15\nthrough slot 32, `CommandRoutine` (`0x009B0C` to `0x009BC4`). Any other key does\nnothing. The keys 256 to 259 are F1 to F4, which `TApp::TranslateKey` makes of\nApple's key codes `0x7A`, `0x78`, `0x63` and `0x76`, and 8 is the character of the\nDelete key. A dialog's command routine, `TDialog::CommandRoutine`, handles the\ncommands 12 to 15 as Cut, Copy, Paste and Clear."
+   },
+   {
+    "name": "TWindow::ResizeRoutine",
+    "entry": 40460,
+    "text": "Does nothing (`0x009E0C`)."
+   },
+   {
+    "name": "TWindow::ZoomRoutine",
+    "entry": 40508,
+    "text": "Zooms the window. A window that docks, bit `0x40`, undocks through slot 128 when\nits port's rectangle has no height, and otherwise docks through slot 124 with a\nwidth of 80 and a step of 16 (`0x009E50` to `0x009EA4`). The routine erases any other window and zooms it to its user state (`EraseRect`, `ZoomWindow` with 7, Apple's `inZoomIn`, `0x009EB0` to `0x009ED8`), and then runs slot 52, `ResizeRoutine`\n(`0x009EE0` to `0x009EEC`). The part given goes unread."
+   },
+   {
+    "name": "TWindow::Dock",
+    "entry": 40756,
+    "text": "Docks the window as a strip of its title bar at the right edge of the main\nscreen, the width given, and zooms it there (`ZoomWindow` with 8, Apple's\n`inZoomOut`, `0x00A054` to `0x00A07C`). The routine works out the place, the standard state of the window's state data at `+130` of the record, unless the state already has no height (`0x009F5C` to `0x009F88`). Its right is the screen's right and its\nleft that less the width (`0x009F8C` to `0x009FB0`, `0x00A020` to `0x00A034`). Its\ntop is 40 plus the step times a count of docks, the short at `data+0x60E04`, which\nstarts at 0 (the byte at `data+0x60E02` marking it) and goes up 1 each time, so the\nfirst dock goes at 40 plus the step. A place within 20 pixels of the screen's bottom\nstarts the count again at 1 (`0x009FB4` to `0x00A01C`). The window's user state\nthen becomes the docked place and its standard state the place it had\n(`0x00A084` to `0x00A0B8`), so the next zoom undocks it."
+   },
+   {
+    "name": "TWindow::UnDock",
+    "entry": 41212,
+    "text": "Zooms the window to its standard state, the size it had before it docked\n(`ZoomWindow` with 8, `0x00A10C` to `0x00A154`), and swaps the window's user and\nstandard states (`0x00A15C` to `0x00A190`), so the next zoom docks it again."
+   },
+   {
+    "name": "TWindow::CursorRoutine",
+    "entry": 41424,
+    "text": "Sets the cursor through slot 72 of the application object at `data+0x60E0C`, `ResetCursor` (`0x00A1D4` to\n`0x00A1EC`)."
+   },
+   {
+    "name": "TWindow::IdleRoutine",
+    "entry": 41528,
+    "text": "Does nothing (`0x00A238`)."
+   },
+   {
+    "name": "TWindow::LoopTask",
+    "entry": 41768,
+    "text": "Does nothing (`0x00A328`)."
+   },
+   {
+    "name": "TWindow::GetTWindow",
+    "entry": 41848,
+    "text": "Returns the `TWindow` of the window given, its reference, when the window's kind\nis 31,364, and 0 otherwise or for no window (`NoDA`, `GetWRefCon`, `0x00A380` to\n`0x00A3B8`). The test of `NoDA` always passes, since it returns 1."
+   },
+   {
+    "name": "TWindow::HandleDragWindow",
+    "entry": 41988,
+    "text": "Moves the window while the player drags it from the point given. A docked window,\nbit `0x40` and a port with no height, does not move (`0x00A420` to `0x00A444`), and\nnothing happens when the button is already up (`WaitMouseUp`, `0x00A448` to\n`0x00A454`). With the byte at `+103` of the application object at `data+0x60E0C` other than 0 the window moves with the mouse. Clipped to the desktop less the windows in front of it (`GetGrayRgn`,\n`DiffRgn`, `0x00A48C` to `0x00A4D4`), it moves each time the mouse does\n(`GetMouse`, `MoveWindow`, `0x00A4F0` to `0x00A588`, `StillDown`, `0x00A6AC`), and\nwith the byte at `+104` other than 0 the routine draws it again as it goes, its update region through slot 12, `DrawRoutine`, and the other windows' updates through slot\n164 of the application, `HandleUpdateEvt`, until `CheckUpdate` finds none, the\napplication's event record at `+4` kept aside meanwhile (`0x00A590` to\n`0x00A69C`). Otherwise the outline of the structure region follows the mouse within\nthe screen (`DragGrayRgn`, `0x00A6CC` to `0x00A764`), and the window moves by the distance once the player releases the button, unless the drag ends outside the limit or\ngoes nowhere (`MoveWindow`, `0x00A778` to `0x00A7CC`). The two walks that cut the\nwindows in front out of the clip stop only at this window, with no test for the\nend of the list (`0x00A4AC` to `0x00A4D4`, `0x00A70C` to `0x00A730`), so a window missing\nfrom the list after `FrontWindow` sends them through address 0. Neither path puts\nback the Window Manager port's clip (`0x00A48C`, `0x00A6F4`)."
+   },
+   {
+    "name": "TWindow::HandleSelectWindow",
+    "entry": 43036,
+    "text": "Selects the window through slot 104, `Select`, unless its flags have bit `0x20`\n(`0x00A830` to `0x00A848`)."
+   },
+   {
+    "name": "TWindow::GetResizeRect",
+    "entry": 43164,
+    "text": "Sets the rectangle given to the limits of a resize, 64 to 32,000 pixels each way\n(`SetRect`, `0x00A8A0` to `0x00A8C0`)."
+   },
+   {
+    "name": "TWindow::HandleResizeWindow",
+    "entry": 43276,
+    "text": "Resizes the window as the player drags its size box from the point given, within\nthe limits from slot 48, `GetResizeRect` (`GrowWindow`, `0x00A928` to `0x00A948`),\nand when the size changed sets it (`SizeWindow`, `0x00A950` to `0x00A96C`) and runs\nslot 52, `ResizeRoutine` (`0x00A974` to `0x00A980`)."
+   },
+   {
+    "name": "TWindow::HandleZoomWindow",
+    "entry": 43480,
+    "text": "Tracks a press in the zoom box (`TrackBox`, `0x00A9F8` to `0x00AA00`) and, when the\nplayer releases it inside, zooms the window through slot 56, `ZoomRoutine`, with the\npart given (`0x00AA08` to `0x00AA20`)."
+   },
+   {
+    "name": "TWindow::HandleMonitorChanged",
+    "entry": 43640,
+    "text": "Moves and sizes the window after the screen given changes from the first\nrectangle given to the second, when slot 92, `GetOwningGD`, names that screen\n(`0x00AA98` to `0x00AAAC`). The size grows or shrinks with the screen's width for\nflag `0x1000` and with its height for `0x2000` (`0x00AB0C` to `0x00AB60`). Across,\nflags `0x300` together keep the window's middle at the same share of the screen\n(`MapPt`, `0x00AB64` to `0x00ABC4`), `0x100` preserves its distance from the right edge\n(`0x00ABC8` to `0x00ABF0`), and with neither the window's distance from the left edge\nstays the same (`0x00AC50` to `0x00AC64`). Flag `0x200` alone means to keep the window\ncentered, but the instructions add the old centered place to the new one rather\nthan taking their difference (`0x00ABF8` to `0x00AC48`). Down, flags `0xC00`,\n`0x400` and `0x800` do the same with the height, the bottom edge and the centered\nplace, the same addition included for `0x800` (`0x00AC68` to `0x00AD4C`), and with\nneither the top edge stays (`0x00AD50` to `0x00AD64`). The routine sizes and moves the window only when the size or the place changed (`SizeWindow`, `MoveWindow`,\n`0x00AD68` to `0x00ADDC`)."
+   },
+   {
+    "name": "TWindow::GetOwningGD",
+    "entry": 44608,
+    "text": "Returns the screen that the window is most on. It starts with the screen given\nand the area where the rectangle given meets the window's port's rectangle\n(`SectRect`, `0x00AE6C` to `0x00AEBC`), and then switches to any screen whose rectangle\nmeets the port's rectangle over as large an area or more (`GetDeviceList`,\n`TestDeviceAttribute` with 13, `GetNextDevice`, `0x00AEC0` to `0x00AF70`). The\nport's rectangle is in the window's local coordinates, so the areas count from the\nscreen's top left, not from where the window is (an inference). With no overlap at\nall it returns 0."
+   },
+   {
+    "name": "TWindow::ForceOnGDevice",
+    "entry": 45000,
+    "text": "Moves the window back onto the screen given when less than 32 pixels of it, either\nway, lie within the screen's content less 10 pixels each side (`GetGDevContent`,\nslot 132 of the application object at `data+0x60E0C`, `InsetRect`, `SectRect`, `0x00AFE4` to `0x00B098`). It moves the\nwindow left and up until its right and bottom edges are inside, then right and\ndown until its left and top edges are, so a window too big for the screen ends at\nits top left (`MoveWindow`, `0x00B09C` to `0x00B134`). The corners of the port's\nrectangle go to global coordinates with no `SetPort` first (`LocalToGlobal`,\n`0x00B000`, `0x00B010`), so they come out right only when the window is already the\ncurrent port."
+   },
+   {
+    "name": "TWindow::PutInALayer",
+    "entry": 45644,
+    "text": "Sets the window's flags to those given and moves the window into its layer, the window's layer, the low 3 bits of its flags\n(`0x00B26C` to `0x00B2F0`). A window of layer 2 goes behind all the others\n(`SendBehind`), one of layer 3 and up to the front, one of layer 1 behind the backmost\nvisible window of layer 3, and one of layer 0 behind the backmost visible window of\nlayer 1, or else of layer 3, each to the front when there is none\n(`FindLayer`, `SendBehind`, `BringToFront`, `0x00B2F0` to `0x00B310`). A visible\nwindow is then selected through slot 104, `Select` (`0x00B318` to\n`0x00B334`)."
+   },
+   {
+    "name": "TWindow::Select",
+    "entry": 45956,
+    "text": "Brings the window forward in its layer and draws it. A window of layer 1 not\nalready the frontmost of its layer goes behind the backmost window of layer 3, or to\nthe front, and shows (`0x00B3C8` to `0x00B420`). For a window of layer 0 not\nalready the frontmost of its layer, the routine deactivates the old one through slot\n116, puts the window behind the backmost of layer 1, or else of layer 3, or to the\nfront, shows it and activates it through slot 120 (`0x00B42C` to `0x00B4E8`). A\nwindow of layer 0 already in front shows and activates (`0x00B4F4` to `0x00B514`).\nOther layers stay where they are. Every window then has its update drawn through slot\n12, `DrawRoutine` (`BeginUpdate`, `EndUpdate`, `0x00B51C` to `0x00B54C`)."
+   },
+   {
+    "name": "TWindow::Show",
+    "entry": 46660,
+    "text": "Shows a hidden window by its layer (`0x00B660` to `0x00B768`). A window of layer 2\nshows where it is. One of layer 0 shows and activates through slot 120, and\ndeactivates the old frontmost window of layer 0 when the old one is in front of the\nnew (`InFrontOf`, `0x00B6A0` to `0x00B704`). Showing a window leaves the order as it\nwas, so the old window then stays in front without its highlight, and the new one\ngains none in `HandleActivate`, since it is not the frontmost. When the new window is in\nfront, both keep a highlight. The test reads as the reverse of its purpose (an\ninference). One of layer 1 comes to the front, shows and\nactivates (`0x00B734` to `0x00B760`), and one of layer 3 shows through\n`ShowWindow` (`0x00B710` to `0x00B714`). A window of layer 4 and up stays\nhidden."
+   },
+   {
+    "name": "TWindow::Hide",
+    "entry": 47016,
+    "text": "Hides a visible window by its layer (`0x00B7BC` to `0x00B91C`). A window of layer\n2 or 1 just hides. When the frontmost window of layer 0 hides, the routine activates the next one through slot 120 and puts the hidden window behind it (`0x00B7FC` to\n`0x00B868`). When the frontmost window of layer 3 hides, the routine activates the next of layer 3, or else the frontmost of layer 0, the same way (`0x00B86C` to `0x00B8F4`). A\nwindow of layer 4 and up stays visible."
+   },
+   {
+    "name": "TWindow::HandleActivate",
+    "entry": 47444,
+    "text": "Activates the window for the reasons given, bits such as 8, the game's return,\nand 16, the end of a modal state, when it is not highlighted (`0x00B96C` to\n`0x00B97C`). A window whose flags share a bit with the reasons loses bit `0x4000`\nand goes through `ShowHide` with 0, which hides it, not shows it (`0x00B980` to\n`0x00B9A4`). A window that `HandleDeactivate` hid for a reason therefore stays\nhidden, and `Resume` and `EndModal` pass over hidden windows in any case. A window of layer 1, or one of\nlayer 0 that is the frontmost visible window of layer 0 (`FindLayer`), gains its highlight and runs slot 20, `ActivateRoutine`\n(`HiliteWindow`, `0x00B9AC` to `0x00BA28`)."
+   },
+   {
+    "name": "TWindow::HandleDeactivate",
+    "entry": 47736,
+    "text": "Deactivates a highlighted window for the reasons given (`0x00BA90` to\n`0x00BAA0`). A window of layer 1, or one of layer 0 that is the frontmost visible window of layer 0 (`FindLayer`) while the byte at\n`+101` of the application object at `data+0x60E0C` is 0, loses its highlight and runs slot 24, `DeactivateRoutine`\n(`HiliteWindow`, `0x00BAA4` to `0x00BB34`). A window whose flags share a bit with the\nreasons then hides and gains bit `0x4000` (`ShowHide`, `0x00BB3C` to\n`0x00BB60`)."
+   },
+   {
+    "name": "TWindow::Suspend",
+    "entry": 48048,
+    "text": "Deactivates the windows as the player switches away from the game, with the\nreason 8 through slot 116, `HandleDeactivate`. During a modal state, by the count of modal states, the short at `data+0x60E00`, the routine deactivates only the frontmost visible window of layer 3 (`FindLayer`)\n(`0x00BBB8` to `0x00BC00`), and otherwise every visible window that has a `TWindow`, front to back (`0x00BC0C` to\n`0x00BC58`)."
+   },
+   {
+    "name": "TWindow::Resume",
+    "entry": 48288,
+    "text": "Activates the windows as the player comes back to the game, with the reason 8\nthrough slot 120, `HandleActivate`, during a modal state only the frontmost visible window of layer 3 (`FindLayer`) (`0x00BCA8` to\n`0x00BCF0`) and otherwise every visible window that has a `TWindow`, from the window\nlist (`LMGetWindowList`, `0x00BCFC` to `0x00BD48`)."
+   },
+   {
+    "name": "TWindow::BeginModal",
+    "entry": 48528,
+    "text": "Adds 1 to the count of modal states, the short at `data+0x60E00`, and for the first modal state deactivates every visible window that has a `TWindow`, front to back with the reason 16\nthrough slot 116 (`0x00BD98` to `0x00BE14`)."
+   },
+   {
+    "name": "TWindow::EndModal",
+    "entry": 48732,
+    "text": "Lowers the count of modal states, the short at `data+0x60E00` by 1, and when it reaches 0 activates every visible window that has a `TWindow`, front to back with the reason 16 through slot\n120 (`0x00BE64` to `0x00BEE0`)."
+   },
+   {
+    "name": "TWindow::FindLayer",
+    "entry": 48932,
+    "text": "Returns the frontmost visible window of the layer given that has a `TWindow`, or\nthe backmost when the first argument is 0, or 0 when there is none (`FrontWindow`,\n`GetTWindow`, `0x00BF40` to `0x00BFA0`)."
+   }
+  ]
+ },
+ "TStringFadeInTextImageObject": {
+  "opening": "A `TFadeInTextImageObject` whose picture is a string, the C string at `+56`,\ndrawn in lines whose height is the short at `+48`.",
+  "routines": [
+   {
+    "name": "TStringFadeInTextImageObject::TStringFadeInTextImageObject",
+    "entry": 647204,
+    "text": "Makes a `TFadeInTextImageObject` from the two work areas, the place, the line\nheight and the byte given (`0x09E038` to `0x09E064`), sets the vtable and stores\nthe string (`0x09E068` to `0x09E078`)."
+   },
+   {
+    "name": "TStringFadeInTextImageObject::Render",
+    "entry": 647404,
+    "text": "Draws the string into the rectangle given, broken into lines as wide as the\nrectangle (`StyledLineBreak`, `VisibleLength`). It first counts the lines\n(`0x09E10C` to `0x09E1A0`), and centers the block of lines, the count times the\nline height, down the rectangle (`0x09E1A4` to `0x09E1D0`). Each line starts\nat the rectangle's left with its baseline at the line's top, so the first line\nsits its ascent above the centered block (`MoveTo`, `DrawText`, `0x09E1E0` to\n`0x09E2BC`). The text is cyan (273) and the color black again after it\n(`ForeColor`, `0x09E1D4` to `0x09E1D8`, `0x09E2C0` to `0x09E2C4`)."
+   }
+  ]
+ },
+ "TDrawerWindow": {
+  "opening": "A window that opens and closes like a drawer at the bottom of its place, a\n`TWindow` drawn by `TDrawerWDEF`. The object adds a byte at `+12`, other than 0\nwhile the drawer is open, and the height it had when last closed as a short at\n`+14`. Its vtable's slots 132 and 136 are `BecomeVisible` and `BecomeNotVisible`.",
+  "routines": [
+   {
+    "name": "TDrawerWindow::~TDrawerWindow",
+    "entry": 487672,
+    "text": "Sets the vtable to `TDrawerWindow`'s and runs `TWindow::~TWindow` (`0x077114` to\n`0x077124`), and frees the object when the flag is above 0."
+   },
+   {
+    "name": "TDrawerWindow::HandleResizeWindow",
+    "entry": 679532,
+    "text": "Opens, closes or resizes the drawer from a press on its bar. Nothing happens\nwhen the button is already up (`WaitMouseUp`, `0x0A5E8C` to `0x0A5E98`). While the\nbutton is down it draws the window definition's outline in the exclusive-or mode with the\ngray pattern, on the desktop less the windows in front of the drawer, and moves the\noutline's top with the mouse (`TDrawerWDEF::Grow` through slot 40 of the definition\nobject in the window's data at `+130`, `GetMouse`, `StillDown`, `0x0A5E84` to\n`0x0A6014`). A press with no movement opens a closed drawer to the height it had,\nor closes an open one and records its height (`0x0A6044` to `0x0A60D4`). A drawer\nthat had no height to go back to receives a rectangle 1 high, run through `Grow`, which\nchanges it only while the button is down (`0x0A6088` to `0x0A60B4`). That call\ncomes after the pen is back to black and the caller's port is current again\n(`0x0A601C` to `0x0A603C`), and `Grow` draws its outline as well, so a solid black\noutline stays in whatever port was current. A drawer\nreaching 0 high runs slot 136, `BecomeNotVisible`, and one leaving 0 runs slot 132,\n`BecomeVisible`, each marking the byte at `+12` (`0x0A60F4` to `0x0A6158`). The\nroutine sizes a taller drawer and then moves it up by the difference, so its bottom\nstays, and moves a shorter one down and then sizes it (`SizeWindow`, `MoveWindow`,\n`0x0A6160` to `0x0A6238`), each followed by slot 52, `ResizeRoutine`. Last it\nredraws every window through slot 64 of the application object at `data+0x60E0C`,\n`RedrawAllNow` (`0x0A6254` to `0x0A6264`)."
+   },
+   {
+    "name": "TDrawerWindow::HandleMonitorChanged",
+    "entry": 680640,
+    "text": "Moves and sizes the drawer as `TWindow::HandleMonitorChanged` does, for the main screen, the device at `data+0x60D78` alone\n(`0x0A62C8` to `0x0A6300`)."
+   },
+   {
+    "name": "TDrawerWindow::GetOwningGD",
+    "entry": 680812,
+    "text": "Returns the main screen, the device at `data+0x60D78` (`0x0A636C` to `0x0A6370`), whatever the window's place."
+   },
+   {
+    "name": "TDrawerWindow::BecomeVisible",
+    "entry": 680888,
+    "text": "Does nothing (`0x0A63B8`)."
+   },
+   {
+    "name": "TDrawerWindow::BecomeNotVisible",
+    "entry": 680944,
+    "text": "Does nothing (`0x0A63F0`)."
+   }
+  ]
+ },
+ "TPixsWDEF": {
+  "opening": "The window definition object of the windows framed by a picture, `'WDEF'` 1001, a\n`TWDEF` of 76 bytes. The picture is one of the interface pictures of the picture cache that `data+0x6E20C` points to, its shape\nthe window's structure. The object has the picture's pixel map at `+12`, a region\nat `+64` for the part of the close bar outside the picture, the content's place in\nthe picture as the shorts at `+68` (across) and `+70` (down), and the picture's\nnumber at `+72`. All three come from the window's reference at its making, the\nnumber its high half and the two places its two low bytes.",
+  "routines": [
+   {
+    "name": "TPixsWDEF::Create",
+    "entry": 674168,
+    "text": "Allocates 76 bytes and makes a picture frame's definition in them for the window\nand the variation code given (`0x0A498C` to `0x0A49B0`), and returns it, or 0 when\nthe allocation fails."
+   },
+   {
+    "name": "TPixsWDEF::~TPixsWDEF",
+    "entry": 674312,
+    "text": "Sets the vtable (`0x0A4A24` to `0x0A4A28`), lets go of the picture in the picture cache that `data+0x6E20C` points to when\nits number is not 0 (`TPixCacheBase::ReleasePix`, `0x0A4A2C` to `0x0A4A44`),\ndisposes of the region at `+64` (`0x0A4A4C` to `0x0A4A50`) and runs `TWDEF::~TWDEF`\n(`0x0A4A58` to `0x0A4A60`), and frees the object when the flag is above 0."
+   },
+   {
+    "name": "TPixsWDEF::TPixsWDEF",
+    "entry": 674496,
+    "text": "Makes a `TWDEF` for the window (`0x0A4AE8`) and sets the vtable (`0x0A4AF0` to\n`0x0A4AF8`). It reads the window's reference (`GetWRefCon`, `0x0A4AFC`) into the\npicture's number and the content's two places (`0x0A4B04` to `0x0A4B28`), and\nstarts the pixel map as a copy of the record at toc -5276 (`0x0A4B08`, `0x0A4B2C` to\n`0x0A4B90`). With a variation code of 0 it fills the map from the picture cache that `data+0x6E20C` points to, and leaves the\npixels at 0 when that fails (`TPixCacheBase::NewPix`, `0x0A4B94` to `0x0A4BBC`).\nAny other code leaves them at 0 (`0x0A4BC4` to `0x0A4BC8`). It then makes the\nregion at `+64` (`NewRgn`, `0x0A4BCC` to `0x0A4BD4`)."
+   },
+   {
+    "name": "TPixsWDEF::HiliteCloseBox",
+    "entry": 674864,
+    "text": "Draws the close box, 16 by 16 pixels at the structure's left, a quarter of the way\ndown less 4, the top left 16 by 16 quarter of tile 431, or its bottom left quarter for a highlight\nother than 0, in the source copy mode (`OffsetRect`, `CopyBits`, `0x0A4C34` to\n`0x0A4D80`)."
+   },
+   {
+    "name": "TPixsWDEF::DrawUnhilited",
+    "entry": 675276,
+    "text": "Draws the frame. With a variation code of 0 it first unpacks the picture again\nwhen the cache freed it (`TPixCacheBase::LoadPix`, `0x0A4DF0` to `0x0A4E0C`), and\nwith no pixels it draws nothing (`0x0A4E14` to `0x0A4E1C`). A window with a close\nbox receives its close bar, the region at `+64` moved to the box's place (`OffsetRgn`,\n`0x0A4E3C` to `0x0A4E9C`). The bar starts with tile 431's top left 16 by 16 quarter as the box\n(`0x0A4EA4` to `0x0A4FF4`), repeats columns 16 to 23 through the region as the mask,\n8 pixels at a time (`0x0A4FFC` to `0x0A5094`), and ends with columns 24 to 31, at the\nwindow's middle plus 8, or 32 past the box when that is further (`0x0A4F88` to\n`0x0A4FC8`, `0x0A5098` to `0x0A50E0`). Then the picture goes on with the picture's bottom right corner at the structure region's, its top the\nbounds' bottom less the picture's height and its left their right less its width, through the\nstructure region less the content region and the bar's region as the mask\n(`NewRgn`, `DiffRgn`, `CopyBits`, `0x0A50E8` to `0x0A5188`)."
+   },
+   {
+    "name": "TPixsWDEF::ContentFromFrame",
+    "entry": 676328,
+    "text": "Copies a window's whole frame picture, with no mask, into the\nport given, or the current port when it is 0 (`0x0A51F0` to `0x0A5214`). The\npicture goes where the frame puts it, the picture's bottom right corner at the structure region's, its top the\nbounds' bottom less the picture's height and its left their right less its width, moved so the content's top left is at\n(0, 0) (`OffsetRect`, `0x0A5218` to `0x0A52AC`), unpacked again when the cache freed\nit (`TPixCacheBase::LoadPix`, `0x0A52B4` to `0x0A52C4`), and copied in the source\ncopy mode (`CopyBits`, `0x0A52CC` to `0x0A52E4`), so only the port's clip limits it\nto the content. The routine ignores `LoadPix`'s result and copies with no test of the\naddress of the pixels, which is 0 after a failed allocation and the old address\nafter a failed load. The object is the one in the window's data at `+130`\n(`0x0A5220`)."
+   },
+   {
+    "name": "TPixsWDEF::DrawHilited",
+    "entry": 676676,
+    "text": "Draws the frame through slot 16, `DrawUnhilited`, with the same variation code\n(`0x0A5354` to `0x0A5368`), so an active window looks the same as an inactive\none."
+   },
+   {
+    "name": "TPixsWDEF::Test",
+    "entry": 676784,
+    "text": "Returns the part of the window at a point, 1, the content, inside the content\nregion (`PtInRgn`, `0x0A53C8` to `0x0A53E4`), 4, the close box, inside the close box, 16 by 16 pixels at the structure's left, a quarter of the way\ndown less 4 for a\nwindow with one (`PtInRect`, `0x0A53EC` to `0x0A5470`), and 2, the frame,\neverywhere else (`0x0A5478`), Apple's `wInContent`, `wInGoAway` and `wInDrag` (an\ninference from the numbers)."
+   },
+   {
+    "name": "TPixsWDEF::CalcRegions",
+    "entry": 677052,
+    "text": "Sets the content region to the rectangle given (`RectRgn`, `0x0A54D8` to\n`0x0A54E8`). With the picture's pixels (`TPixCacheBase::LoadPix` for a variation\ncode of 0, `0x0A54F0` to `0x0A551C`) the structure region becomes the picture's\nshape (`MyPMToRegion`, `0x0A5520` to `0x0A5538`), moved so the content's place in\nthe picture falls at the rectangle's top left (`OffsetRgn`, `0x0A553C` to\n`0x0A555C`), and the content region shrinks to the part within it (`SectRgn`,\n`0x0A5564` to `0x0A557C`). For a window with a close box the bar is a rectangle 16\nhigh from 16 left of the shape to its middle, at least 32 wide, a quarter of the\nway down less 4 (`0x0A5584` to `0x0A5630`). Its part outside the shape becomes the\nregion at `+64` and joins the structure (`RectRgn`, `DiffRgn`, `UnionRgn`,\n`0x0A5634` to `0x0A5670`). Without the pixels, or when the shape fails, the\nstructure region is the rectangle given (`0x0A567C` to `0x0A5698`)."
+   }
+  ]
+ },
+ "TDialog": {
+  "opening": "The base of the dialogs that the game draws itself, those of `TCreatePlayerDialog`, `TAIDebug` and\n`TEditUserBehavior`, a `TWindow` of layer 3 around a Dialog Manager dialog. Its\nvtable adds slot 132, `DialogItemRoutine`, for an item the player uses, and slot\n136, `DialogDrawRoutine`.",
+  "routines": [
+   {
+    "name": "TDialog::TDialog",
+    "entry": 37280,
+    "text": "Makes the `TWindow` (`0x0091BC`), sets the vtable (`0x0091C0` to `0x0091D0`), makes\nthe dialog from the `'DLOG'` resource given, in front of the other windows\n(`GetNewDialog`, `0x0091C4` to `0x0091D4`), adopts it with the flags 3, layer 3\n(`TWindow::Init`, `0x0091DC` to `0x0091EC`), and gives its user items their drawing\nroutine (`InstallUserItems`, `0x0091F0` to `0x0091F4`)."
+   },
+   {
+    "name": "TDialog::InstallUserItems",
+    "entry": 37436,
+    "text": "Gives every user item of the dialog, an item of type 0 with or without the\ndisabled bit, `MyDrawDialogItem` as its routine (`CountDITL`, `GetDialogItem`,\n`SetDialogItem`, `0x009284` to `0x0092F0`), through a routine descriptor made once and\nkept at `data+0x60E08` (`NewRoutineDescriptor`, `0x009250` to `0x009280`)."
+   },
+   {
+    "name": "TDialog::DrawRoutine",
+    "entry": 38216,
+    "text": "Draws the dialog (`DrawDialog`, `0x009558` to `0x009560`)."
+   },
+   {
+    "name": "TDialog::DialogDrawRoutine",
+    "entry": 38308,
+    "text": "Does nothing (`0x0095A4`)."
+   },
+   {
+    "name": "TDialog::ActivateRoutine",
+    "entry": 38412,
+    "text": "It passes the event record at `+4` of the application object at `data+0x60E0C` to the Dialog Manager with the window's\nkind set to 2 for the call, the dialog kind, and to 31,364 again after it\n(`DialogSelect`, `0x009628` to `0x009650`), and sends an item that the event hits to slot 132,\n`DialogItemRoutine` (`0x009658` to `0x009670`)."
+   },
+   {
+    "name": "TDialog::DeactivateRoutine",
+    "entry": 38660,
+    "text": "It passes the event record at `+4` of the application object at `data+0x60E0C` to the Dialog Manager with the window's\nkind set to 2 for the call, the dialog kind, and to 31,364 again after it\n(`DialogSelect`, `0x009720` to `0x009748`), and sends an item that the event hits to slot 132,\n`DialogItemRoutine` (`0x009750` to `0x009768`)."
+   },
+   {
+    "name": "TDialog::MouseRoutine",
+    "entry": 39188,
+    "text": "It passes the event record at `+4` of the application object at `data+0x60E0C` to the Dialog Manager with the window's\nkind set to 2 for the call, the dialog kind, and to 31,364 again after it\n(`DialogSelect`, `0x009930` to `0x009958`), and sends an item that the event hits to slot 132,\n`DialogItemRoutine` (`0x009960` to `0x009978`)."
+   },
+   {
+    "name": "TDialog::DialogItemRoutine",
+    "entry": 39388,
+    "text": "Does nothing (`0x0099DC`)."
+   },
+   {
+    "name": "TDialog::DialogKeyEquiv",
+    "entry": 39440,
+    "text": "Uses item n as a key would. A control item, of type 4 to 7 with or without the\ndisabled bit, flashes highlighted for 8 ticks (`GetDialogItem`, `HiliteControl` with\n10 and then 0, `Delay`, `0x009A2C` to `0x009A8C`), and every item goes to slot 132,\n`DialogItemRoutine` (`0x009A94` to `0x009AA4`)."
+   },
+   {
+    "name": "TDialog::KeyRoutine",
+    "entry": 39948,
+    "text": "Cuts, copies and pastes in the dialog's text for the keys 257, 258 and 259, F2,\nF3 and F4 (`DialogCut`, `DialogCopy`, `DialogPaste`, `0x009C2C` to `0x009C78`).\nFor any other key, it passes the event record at `+4` of the application object at `data+0x60E0C` to the Dialog Manager with the window's\nkind set to 2 for the call, the dialog kind, and to 31,364 again after it\n(`DialogSelect`, `0x009C84` to `0x009CAC`), and sends an item that the event hits to slot 132,\n`DialogItemRoutine` (`0x009CB4` to `0x009CCC`)."
+   },
+   {
+    "name": "TDialog::CommandRoutine",
+    "entry": 40232,
+    "text": "Handles the commands 12 to 15, Cut, Copy, Paste and Clear, in the dialog's text,\nand returns 1 (`DialogCut`, `DialogCopy`, `DialogPaste`, `DialogDelete`, `0x009D3C`\nto `0x009DB4`). Any other command goes to `TWindow::CommandRoutine` (`0x009DB8` to\n`0x009DC0`)."
+   },
+   {
+    "name": "TDialog::IdleRoutine",
+    "entry": 41576,
+    "text": "It passes the event record at `+4` of the application object at `data+0x60E0C` to the Dialog Manager with the window's\nkind set to 2 for the call, the dialog kind, and to 31,364 again after it\n(`DialogSelect`, `0x00A284` to `0x00A2AC`), and sends an item that the event hits to slot 132,\n`DialogItemRoutine` (`0x00A2B4` to `0x00A2CC`)."
+   },
+   {
+    "name": "TDialog::~TDialog",
+    "entry": 67212,
+    "text": "Sets the vtable to `TDialog`'s and runs `TWindow::~TWindow`, which disposes of\nthe window (`0x0106A8` to `0x0106B8`), and frees the object when the flag is above\n0."
+   }
+  ]
+ },
+ "TCreatePlayerDialog": {
+  "opening": "The dialog for making the hero, `'DLOG'` 133, a `TDialog`. Its items are 1 OK, 2\nCancel, 3 the portrait, 5 Male and 6 Female, 7 the list of archetypes, 8 the\narchetype's description, 9 its attributes and 10 its aptitudes. The object adds the\nanswer as a short at `+12`, 1 for OK and 0 for Cancel, the sex as a short at `+14`,\n1 for Male and 0 for Female, the archetype as a short at `+16`, the portrait list at\n`+20`, the archetype list at `+24`, and the handles of the descriptions, the\nattributes and the aptitudes, resources `0x204`, `0x205` and `0x206`, at `+28`, `+32`\nand `+36`.",
+  "routines": [
+   {
+    "name": "TCreatePlayerDialog::TCreatePlayerDialog",
+    "entry": 658072,
+    "text": "Makes the dialog from `'DLOG'` 133 (`TDialog::TDialog`, `0x0A0AB0` to `0x0A0AC8`)\nand dresses it in the game's controls (`FaceADialog`, `0x0A0ACC` to `0x0A0ADC`).\nThe portrait list fills item 3 less 1 pixel each side and 16 on the right for its\nscroll bar, cells of 64 by 64 in three rows and two columns, with its selection\nflags 0 (`TPortraitList::TPortraitList`, `0x0A0AE4` to `0x0A0BA0`), so it shows one\nportrait at a time. The archetype list fills item 7 the same way, cells of 200 by\n20 in one column (`TArchetypeList::TArchetypeList`, `0x0A0BA4` to `0x0A0C1C`).\nBoth allocations go untested, and a failed one stores 0, which the\nportrait list's next steps read through at once (`0x0A0B5C` to `0x0A0B9C`) and\n`LAddRow` reads for the archetype list (`0x0A0CD8`). The\nlist's rows are the names in resource `0x203` of the scenario at `data+0x181FC`,\ndecrypted, the count in the low 12 bits of the first short and each name entry n of a resource, the text at the offset in the short at `4` plus 4n\n(`TSegFile::LoadSegment`, `TSegFile::Decrypt`, `LAddRow`, `LSetCell`, `0x0A0C20` to\n`0x0A0D28`), copied through the buffer at `data+0x76316`, and the routine selects\nits first row (slot 12, `0x0A0D30` to `0x0A0D40`). The routine then loads and decrypts\n`0x204`, `0x205` and `0x206` (`0x0A0D48` to `0x0A0E6C`). A missing resource throws\n\"No Archetype names\", \"No Archetype descriptions\", \"No Archetype stats\" or \"No\nArchetype skills\". Male starts on (`SetControlValue`, `0x0A0E74` to `0x0A0EA4`),\nthe window shows, filled with the pattern of tile 420 (`ShowWindow`, `FillCRect`,\n`0x0A0EA8` to `0x0A0ECC`), and archetype 0's texts go on (`AdjustCurArch`,\n`0x0A0ED4` to `0x0A0EDC`)."
+   },
+   {
+    "name": "TCreatePlayerDialog::AdjustCurArch",
+    "entry": 659244,
+    "text": "Makes archetype n the present one and draws its texts. It stores n\n(`0x0A0F64`), and erases items 8, 9 and 10 and draws in each, in text style 4,\nentry n of a resource, the text at the offset in the short at `4` plus 4n, `0x204`, `0x205` and `0x206` (`GetDialogItem`, `EraseRect`, `TETextBox`,\n`0x0A0F50` to `0x0A10DC`), and sets text style 0 again after (`0x0A10E4` to\n`0x0A10E8`). Each text passes through a buffer of 256 bytes on the stack with no\nbound (`strcpy`, `0x0A0FAC`, `0x0A1038`, `0x0A10B8`)."
+   },
+   {
+    "name": "TCreatePlayerDialog::DrawRoutine",
+    "entry": 659788,
+    "text": "Fills the window with the pattern of tile 420 (`SetTilePat`, `FillCRect`,\n`0x0A115C` to `0x0A1178`) and draws the dialog (`TDialog::DrawRoutine`,\n`0x0A1180` to `0x0A1184`)."
+   },
+   {
+    "name": "TCreatePlayerDialog::~TCreatePlayerDialog",
+    "entry": 659928,
+    "text": "Sets the vtable (`0x0A11F4` to `0x0A11F8`), destroys the portrait list\n(slot 60, `0x0A11FC` to `0x0A1214`), disposes of the dialog and of the three handles\n(`DisposeDialog`, `DisposeHandle`, `0x0A121C` to `0x0A1274`), clears the window and\nruns `TWindow::~TWindow` (`0x0A127C` to `0x0A129C`), and frees the object when the flag\nis above 0. Nothing destroys the archetype list at `+24`."
+   },
+   {
+    "name": "TCreatePlayerDialog::GetPortrait",
+    "entry": 660372,
+    "text": "Returns the portrait's number, 240 plus 6 times the portrait list's visible\ncolumn plus its visible row, the shorts at `+22` and `+20` of the list's record\n(`0x0A139C` to `0x0A13CC`). So the portrait is the one in view, Male's column 0 or\nFemale's column 1, scrolled to row 0, 1 or 2. The hero's portrait is resource\n`0x87FF` plus this number, which `CreatePlayer` reads."
+   },
+   {
+    "name": "TCreatePlayerDialog::DialogItemRoutine",
+    "entry": 660492,
+    "text": "Handles a press on an item. Cancel sets the answer to 0, and OK sets it to 1 and\nthe archetype to the list's selection (slot 8), each setting the byte at `+29` of the application object at `data+0x60E0C`\nto 1 (`0x0A1460` to `0x0A14AC`). Male, when Female was on, turns Female off and\nMale on and scrolls the portrait list one column left (`SetControlValue`, `LScroll`,\n`0x0A14B0` to `0x0A152C`), and Female does the opposite, one column right\n(`0x0A1538` to `0x0A15B4`)."
+   },
+   {
+    "name": "TCreatePlayerDialog::DialogDrawRoutine",
+    "entry": 661016,
+    "text": "Draws a user item. The routine draws items 3 and 7, the two lists, within the\nwindow's visible region through slot 52, `Update`, and frames them (`FrameRect`,\n`0x0A164C` to `0x0A16B4`), and item 8 draws the present archetype's texts (`AdjustCurArch`,\n`0x0A16BC` to `0x0A16D0`)."
+   },
+   {
+    "name": "TCreatePlayerDialog::MouseRoutine",
+    "entry": 661292,
+    "text": "Sends a press in item 7 to the archetype list (slot 48, `Click`), and draws the\nnew archetype's texts when the selection changed (`GetDialogItem`, `PtInRect`,\n`AdjustCurArch`, `0x0A1750` to `0x0A17F8`). A press in item 3 goes to the portrait\nlist (`0x0A1800` to `0x0A1848`), and any other press to `TDialog::MouseRoutine`\n(`0x0A1854` to `0x0A1860`)."
+   }
+  ]
+ },
+ "TPushButtonCDEF": {
+  "opening": "The control definition object of the game's push buttons, `'CDEF'` 1000 with variation 0 in the\nlow 3 bits, a `TCDEF`. Its drawing is `DrawButton`.",
+  "routines": [
+   {
+    "name": "TPushButtonCDEF::TPushButtonCDEF",
+    "entry": 681004,
+    "text": "Makes a `TCDEF` for the control (`0x0A6450`) and sets the vtable to `TPushButtonCDEF`'s (`0x0A6458` to\n`0x0A6460`)."
+   },
+   {
+    "name": "TPushButtonCDEF::Create",
+    "entry": 681144,
+    "text": "Allocates 8 bytes and makes a push button in them for the control given (`0x0A64CC` to `0x0A64F0`), and\nreturns it, or 0 when the allocation fails."
+   },
+   {
+    "name": "TPushButtonCDEF::DrawAPart",
+    "entry": 681292,
+    "text": "Draws the control with `DrawButton`, the control's rectangle, its title, `+40` of\nthe record, and a state (`0x0A660C` to `0x0A6624`), 1 when the highlight, byte 17\nof the record, is 10 or 1 (`0x0A6568` to `0x0A6584`), 2 for a highlight of 255,\ninactive (`0x0A658C` to `0x0A65B4`), and 0 otherwise. The states are tiles 424, 425\nand 426. With bit 3 of the variation code set, Apple's `useWFont` (an inference from the\nnumber), it first sets the port's font, size and style to the window's (`TextFont`,\n`TextSize`, `TextFace`, `0x0A65C4` to `0x0A6604`), which changes nothing on the screen, since\n`DrawButton` sets the title's text style and the port's back after it."
+   },
+   {
+    "name": "TPushButtonCDEF::~TPushButtonCDEF",
+    "entry": 691292,
+    "text": "Sets the vtable to `TPushButtonCDEF`'s and runs `TCDEF::~TCDEF` (`0x0A8C78` to `0x0A8C88`), and frees the\nobject when the flag is above 0."
+   },
+   {
+    "name": "TPushButtonCDEF::GetPreferedCTable",
+    "entry": 691436,
+    "text": "Returns the color table that `data+0x60D6C` points to (`0x0A8CEC` to `0x0A8CF0`)."
+   }
+  ]
+ },
+ "TNumberCDEF": {
+  "opening": "The control definition object of the game's numbers with no arrows, `'CDEF'` 1002 with variation 1 in the\nlow 3 bits, a `TCDEF`. Its drawing is `DrawNumberField`.",
+  "routines": [
+   {
+    "name": "TNumberCDEF::TNumberCDEF",
+    "entry": 682952,
+    "text": "Makes a `TCDEF` for the control (`0x0A6BEC`) and sets the vtable to `TNumberCDEF`'s (`0x0A6BF4` to\n`0x0A6BFC`)."
+   },
+   {
+    "name": "TNumberCDEF::Create",
+    "entry": 683088,
+    "text": "Allocates 8 bytes and makes a number in them for the control given (`0x0A6C64` to `0x0A6C88`), and\nreturns it, or 0 when the allocation fails."
+   },
+   {
+    "name": "TNumberCDEF::DrawAPart",
+    "entry": 683232,
+    "text": "Draws the control's value, the short at `+18` of the record, as a number field\nwith no arrows (`DrawNumberField` with the part -1, `0x0A6D54` to `0x0A6D70`). With bit 3 of the variation code set, Apple's `useWFont` (an inference from the\nnumber), it first sets the port's font, size and style to the window's (`TextFont`,\n`TextSize`, `TextFace`, `0x0A6D0C` to `0x0A6D4C`), which changes nothing on the screen, since\n`DrawNumberField`, through `DrawButton`, sets the title's text style and the port's back after it."
+   },
+   {
+    "name": "TNumberCDEF::~TNumberCDEF",
+    "entry": 690644,
+    "text": "Sets the vtable to `TNumberCDEF`'s and runs `TCDEF::~TCDEF` (`0x0A89F0` to `0x0A8A00`), and frees the\nobject when the flag is above 0."
+   },
+   {
+    "name": "TNumberCDEF::GetPreferedCTable",
+    "entry": 690784,
+    "text": "Returns the color table that `data+0x60D6C` points to (`0x0A8A60` to `0x0A8A64`)."
+   }
+  ]
+ },
+ "TEditNumberCDEF": {
+  "opening": "The control definition object of the game's editable numbers, `'CDEF'` 1002 with variation 0 in the\nlow 3 bits, a `TCDEF`. Its drawing is `DrawNumberField`, with the two arrows that step the number.",
+  "routines": [
+   {
+    "name": "TEditNumberCDEF::TEditNumberCDEF",
+    "entry": 683500,
+    "text": "Makes a `TCDEF` for the control (`0x0A6E10`), sets the vtable to `TEditNumberCDEF`'s and\nthe control's action routine, `+32` of the record, to -1 (`0x0A6E18` to `0x0A6E2C`),\nApple's sign that the definition itself handles a press held down (an inference)."
+   },
+   {
+    "name": "TEditNumberCDEF::Create",
+    "entry": 683656,
+    "text": "Allocates 8 bytes and makes a editable number in them for the control given (`0x0A6E9C` to `0x0A6EC0`), and\nreturns it, or 0 when the allocation fails."
+   },
+   {
+    "name": "TEditNumberCDEF::Test",
+    "entry": 683804,
+    "text": "Returns the part of the field at the point given, 20 for the up arrow and 21 for\nthe down arrow (`FindNumberFieldPart`, `0x0A6F34` to `0x0A6F54`)."
+   },
+   {
+    "name": "TEditNumberCDEF::Action",
+    "entry": 683940,
+    "text": "Steps the value while the player holds an arrow, 1 up for part 20 and 1 down for\npart 21 (`0x0A6FC0` to `0x0A6FE4`), within the control's minimum and maximum, the\nshorts at `+20` and `+22` (`SetControlValue`, `0x0A7040` to `0x0A70A4`). The next\nstep waits for the tick at `data+0x77360`. The first step comes at once and sets\nthat tick a double-click time later (`LMGetDoubleTime`), and each later one 10 ticks\nafter the last (`TickCount`, `0x0A6FF0` to `0x0A703C`)."
+   },
+   {
+    "name": "TEditNumberCDEF::DrawAPart",
+    "entry": 684272,
+    "text": "Draws the control's value, the short at `+18` of the record, as a number field\nwith its arrows, the highlight, byte 17 of the record, as the part pressed\n(`DrawNumberField`, `0x0A7164` to `0x0A7180`), and with no highlight sets the tick of\nthe next step back to 0, so the next press steps at once (`0x0A7188` to\n`0x0A719C`). With bit 3 of the variation code set, Apple's `useWFont` (an inference from the\nnumber), it first sets the port's font, size and style to the window's (`TextFont`,\n`TextSize`, `TextFace`, `0x0A711C` to `0x0A715C`), which changes nothing on the screen, since\n`DrawNumberField`, through `DrawButton`, sets the title's text style and the port's back after it."
+   },
+   {
+    "name": "TEditNumberCDEF::~TEditNumberCDEF",
+    "entry": 690428,
+    "text": "Sets the vtable to `TEditNumberCDEF`'s and runs `TCDEF::~TCDEF` (`0x0A8918` to `0x0A8928`), and frees the\nobject when the flag is above 0."
+   },
+   {
+    "name": "TEditNumberCDEF::GetPreferedCTable",
+    "entry": 690572,
+    "text": "Returns the color table that `data+0x60D6C` points to (`0x0A898C` to `0x0A8990`)."
+   }
+  ]
+ },
+ "TBorderWDEF": {
+  "opening": "The window definition object of the game's framed windows, `'WDEF'` 1000, a\n`TWDEF` of 12 bytes. The frame is `FrameBox`'s, 16 pixels deep, with the window's\ntitle on its top edge. A variation code of 4 adds a size box at the bottom right,\nand 1 draws the frame's other edges and no title.",
+  "routines": [
+   {
+    "name": "TBorderWDEF::Create",
+    "entry": 671524,
+    "text": "Allocates 12 bytes and makes a framed window's definition in them for the window\nand the variation code given (`0x0A3F38` to `0x0A3F5C`), and returns it, or 0 when\nthe allocation fails."
+   },
+   {
+    "name": "TBorderWDEF::TBorderWDEF",
+    "entry": 671672,
+    "text": "Makes a `TWDEF` for the window (`0x0A3FDC`) and sets the vtable to `TBorderWDEF`'s\n(`0x0A3FE4` to `0x0A3FEC`)."
+   },
+   {
+    "name": "TBorderWDEF::DrawUnhilited",
+    "entry": 671804,
+    "text": "Draws the frame around the bounds of the structure region, `+114` of the window's record with `FrameBox` (`0x0A4060` to `0x0A4070`). The style is\n2, a close box in the top left corner, for a window with a close box, the byte at\n`+112` of its record, and 0 otherwise (`0x0A407C` to `0x0A4094`), plus 4, a size box\nin the bottom right corner, for the variation code 4, or 1, the other quarters of the\nedges' tiles, for the code 1 (`0x0A4098` to `0x0A40C0`). The window's title,\n`+134` of the record, goes on the top edge with its handle locked meanwhile\n(`HGetState`, `HLock`, `HSetState`, `0x0A40D0` to `0x0A4148`), except for the code\n1 or a window with no title (`0x0A4154` to `0x0A4160`). It then calls\n`TryDrawContent`, which does nothing (`0x0A4168` to `0x0A416C`)."
+   },
+   {
+    "name": "TBorderWDEF::HiliteCloseBox",
+    "entry": 672196,
+    "text": "Draws the close box at the top left of the bounds of the structure region, `+114` of the window's record, highlighted or not by the third\nargument (`HiliteGoAwayFrame`, `0x0A41D4` to `0x0A4200`)."
+   },
+   {
+    "name": "TBorderWDEF::DrawHilited",
+    "entry": 672332,
+    "text": "Draws the frame through slot 16, `DrawUnhilited`, with the same variation code\n(`0x0A4260` to `0x0A4270`), so an active window looks the same as an inactive\none."
+   },
+   {
+    "name": "TBorderWDEF::Grow",
+    "entry": 672444,
+    "text": "Draws the outline of a window during a resize and, while the button is down,\nstores the new size in the rectangle given. The new size is a square whose side is\nthe rectangle's shorter side rounded to a multiple of 64, from its top left\n(`0x0A42D4` to `0x0A4368`), stored only while `StillDown` returns other than 0\n(`0x0A436C` to `0x0A4388`). A test that adds 1 to an even count can never pass,\nsince the count is twice a number plus 1 (`0x0A432C` to `0x0A433C`), and a\nrectangle under 32 pixels on its shorter side becomes a square of side 0. The\noutline is that square and a second rectangle 16\npixels outside it, for the frame (`FrameRect`, `InsetRect`, `0x0A438C` to\n`0x0A43B0`)."
+   },
+   {
+    "name": "TBorderWDEF::Test",
+    "entry": 672768,
+    "text": "Returns the part of the window at a point, 1, the content, inside the content\nregion (`PtInRgn`, `0x0A4418` to `0x0A443C`), 4, the close box, inside the 16 by 16\npixels at the top left of the bounds of the structure region, `+114` of the window's record for a window with a close box (`PtInRect`, `0x0A4440`\nto `0x0A44A4`), 3, the size box, inside the 16 by 16 at its bottom right for the\nvariation code 4 (`0x0A44A8` to `0x0A4508`), and 2, the frame, everywhere else\n(`0x0A450C`), Apple's `wInContent`, `wInGoAway`, `wInGrow` and `wInDrag` (an\ninference from the numbers)."
+   },
+   {
+    "name": "TBorderWDEF::CalcRegions",
+    "entry": 673108,
+    "text": "Sets the content region to the rectangle given and the structure region to it 16\npixels wider on each side (`RectRgn`, `InsetRect`, `0x0A4574` to `0x0A45B4`)."
+   },
+   {
+    "name": "TBorderWDEF::~TBorderWDEF",
+    "entry": 691792,
+    "text": "Sets the vtable to `TBorderWDEF`'s and runs `TWDEF::~TWDEF` (`0x0A8E6C` to\n`0x0A8E7C`), and frees the object when the flag is above 0."
+   }
+  ]
+ },
+ "TThinBorderWDEF": {
+  "opening": "The window definition object of the game's windows with a thin frame, `'WDEF'` 1003,\na `TWDEF` of 12 bytes, the frame of style 8 of `FrameBox`, 8 pixels at the sides and\n4 at the top and bottom, with no title.",
+  "routines": [
+   {
+    "name": "TThinBorderWDEF::Create",
+    "entry": 673292,
+    "text": "Allocates 12 bytes and makes a thin frame's definition in them for the window and\nthe variation code given (`0x0A4620` to `0x0A4644`), and returns it, or 0 when the\nallocation fails."
+   },
+   {
+    "name": "TThinBorderWDEF::TThinBorderWDEF",
+    "entry": 673444,
+    "text": "Makes a `TWDEF` for the window (`0x0A46C8`) and sets the vtable to\n`TThinBorderWDEF`'s (`0x0A46D0` to `0x0A46D8`)."
+   },
+   {
+    "name": "TThinBorderWDEF::DrawUnhilited",
+    "entry": 673580,
+    "text": "Draws the frame around the bounds of the structure region, `+114` of the window's record with `FrameBox` in style 8 and no title (`0x0A473C` to\n`0x0A4768`), and calls `TryDrawContent`, which does nothing (`0x0A4770` to\n`0x0A4774`)."
+   },
+   {
+    "name": "TThinBorderWDEF::DrawHilited",
+    "entry": 673732,
+    "text": "Draws the frame through slot 16, `DrawUnhilited`, with the same variation code\n(`0x0A47D8` to `0x0A47E8`)."
+   },
+   {
+    "name": "TThinBorderWDEF::Test",
+    "entry": 673848,
+    "text": "Returns 1, the content, for a point inside the content region, and 0, no part,\neverywhere else (`PtInRgn`, `0x0A4854` to `0x0A4874`), so the frame neither drags\nnor closes the window."
+   },
+   {
+    "name": "TThinBorderWDEF::CalcRegions",
+    "entry": 673980,
+    "text": "Sets the content region to the rectangle given and the structure region to it 8\npixels wider at the sides and 4 at the top and bottom (`RectRgn`, `InsetRect`,\n`0x0A48DC` to `0x0A491C`)."
+   },
+   {
+    "name": "TThinBorderWDEF::~TThinBorderWDEF",
+    "entry": 691648,
+    "text": "Sets the vtable to `TThinBorderWDEF`'s and runs `TWDEF::~TWDEF` (`0x0A8DDC` to\n`0x0A8DEC`), and frees the object when the flag is above 0."
+   }
+  ]
+ },
  "": {
   "opening": "",
   "routines": [
@@ -2620,6 +3715,11 @@ const ROUTINE_NOTES = {
     "name": "what__Q23std9exceptionCFv",
     "entry": 18140,
     "text": "Returns \"exception\" (`0x0046DC`)."
+   },
+   {
+    "name": "ExitToShell__FPCUc",
+    "entry": 19560,
+    "text": "Ends the game after a fatal error. It sets the screen's gamma back\n(`GammaFadeIn` with 10, `0x004C78` to `0x004C7C`). `\"Fatal Error: \"` and the\nmessage given become the alert's text (`ParamText`, `0x004C84` to `0x004C94`). It shows the\narrow and the stop alert 1024 (`InitCursor`, `StopAlert`, `0x004C9C` to `0x004CAC`),\nshows the menu bar again through slot 100 of the application object at\n`data+0x60E0C`, `ShowMenuBar` (`0x004CB4` to `0x004CC4`), and quits\n(`ExitToShell`, `0x004CCC`)."
    },
    {
     "name": "LoadTiles__Fv",
@@ -2675,6 +3775,11 @@ const ROUTINE_NOTES = {
     "name": "DeleteProp__Fs",
     "entry": 31116,
     "text": "Deletes prop n, from 256 up to the count and not already free (`0x0079A4` to\n`0x0079D8`). It releases the prop's frame (`THeapObj::DecRef`, `0x0079DC` to\n`0x007A14`), marks the record free, flags 255, linked to the chain's head at\n`data+0x27D44` (`0x007A1C` to `0x007A54`), and removes it from the neighborhood\n(`THood::RemoveFromHood`, `0x007A58`). The routine drops the last record from the count, and any other becomes the chain's head (`0x007A60` to `0x007A88`). Then the routine deletes every prop from 256 whose holder or container is n the same way\n(`0x007A8C` to `0x007AD4`)."
+   },
+   {
+    "name": "GetCharacterName__FsPcUc",
+    "entry": 32064,
+    "text": "Writes the name of character n into the buffer given. Character 1 is the hero, the\nPascal string at `+32` of the record at `data+0x60F44`, copied as a C string of at\nmost 31 characters (`strncpy`, `0x007D60` to `0x007DA4`). For any other character\nthe name is the string of the script value with `0x3000` plus n in its high half\nand 513 in its low, copied with no bound (`TInterp::VAddrToPtr`, `strcpy`,\n`0x007DD0` to `0x007E00`), when\nthe third argument is other than 0 or bit `0x80` of byte 8 of the character's record\nis 1, the records being 32 bytes each from `data+0x28558` (`0x007DAC` to\n`0x007DCC`). Otherwise, or when that string is 0, the name is the plural name of the\ncharacter's tile, the first tile of the prop type in the low 10 bits of the record's\n`+4`, from the table of shorts at `data+0x60568` (`GetTileName` with 1,\n`0x007E08` to `0x007E30`)."
    },
    {
     "name": "MovePartyBetweenLevels__Fssss",
@@ -3147,6 +4252,11 @@ const ROUTINE_NOTES = {
     "text": "The window definition that the registered `'WDEF'` resources run, with the\nvariation code, the window, the message and its parameter. Message 3, a new\nwindow, makes the window's `TWDEF` object (`TWDEFRegister::CreateController`) and\nstores it in the window's data handle at `+130` (`0x06F9C8` to `0x06F9F4`). For\nthe other messages, with an object (`0x06FA48` to `0x06FA58`), the jump table at\ntoc +4248 sends message 0 to slot 12, `Draw`, when the window is visible\n(`0x06FA7C` to `0x06FAA0`), 1 to slot 32 for the part hit (`0x06FAAC` to\n`0x06FAC8`), 2 to slot 36 with the port's rectangle in global coordinates\n(`0x06FAD0` to `0x06FB1C`), 4 to the destructor (`0x06FB28` to `0x06FB40`), 5 to\nslot 40, `Grow`, 6 to slot 44, `DrawSizeBox`, 7 to slot 48, `GetFeatures`, and 8 to\nslot 52, `GetRegion`, with the region and its code (`0x06FB4C` to `0x06FBC4`).\nMessages 0, 1, 5 and 6 run with the ports synchronized (`SyncPorts`,\n`0x06FA34` to `0x06FA44`), the color port's fill pattern and the port set back\nafter (`0x06FBD8` to `0x06FBF0`), except for a window with no object, where the\nroutine returns early (`0x06FA54` to `0x06FA58`) and leaves both as `SyncPorts`\nleft them. It returns the slot's answer for messages 1, 7\nand 8, and 0 otherwise."
    },
    {
+    "name": "FrameBox__FR4RectsPUc",
+    "entry": 459692,
+    "text": "Draws a frame inside a rectangle, of the style given, with the Pascal title given\non its top edge (`0x0703CC` to `0x070440`). Style 8 is a thin frame from tile 413,\nits corners the tile's corners, 8 wide and 4 high (`CopyBits`, `0x070604` to\n`0x0707CC`), and its edges filled with patterns of the tile's edges between them\n(`SubTilePat`, `FillCRect`, `0x070444` to `0x0705FC`). Any other style is a frame 16\npixels deep. Its top and bottom edges are patterns of tile 416's top and bottom\nquarters, the left ones or, with bit `0x01` of the style, the right ones\n(`0x0707D8` to `0x070A58`), and its left and right edges tile 417's left and right\nquarters, the top ones or, with that bit, the bottom ones (`0x070A60` to\n`0x070B08`). The corners are tile 418's quarters (`CopyBits`, `0x070B10` to\n`0x070D74`), but with bit `0x02` the top left corner is tile 423's top left quarter,\nand with bit `0x04` the bottom right corner is tile 423's bottom right quarter\n(`0x070B60` to `0x070BA0`, `0x070C8C` to `0x070CCC`). A title goes on a tab from the\nbottom half of tile 412, 16 pixels wider than the title and centered across the top\nedge, in text style 0 (`ExpandHorizontally`, `AADrawText`, `0x070808` to `0x070914`),\nthe edge's pattern on either side of it (`0x07091C` to `0x0709A8`), and the port's\nfont, style and size go back after (`0x0709B0` to `0x0709D4`). Every copy is in the\nsource copy mode. The tiles' pixels are 1,024 bytes from the pointer at `data+0x60564` plus 1,024\ntimes the tile's number, 32 bytes a row, read through a copy of the pixel map record\nat toc -5276."
+   },
+   {
     "name": "HiliteGoAwayFrame__FR4RectUc",
     "entry": 462416,
     "text": "Draws a window's close box at the rectangle's top left, 16 by 16 pixels from image\n423 of the 1,024-byte images, 32 by 32 pixels of 8 bits, from the address stored at `data+0x60564`, its top left quarter, or its top right quarter for a second argument other than 0 (`0x070E58` to `0x070F38`), copied as it is into the present port\n(`CopyBits`, `0x070F40` to `0x070F68`)."
@@ -3175,6 +4285,16 @@ const ROUTINE_NOTES = {
     "name": "ExpandHorizontally__FR4Rects",
     "entry": 465804,
     "text": "Draws a button's face across a rectangle from a tile, its height stretched or cut\nto fit. The tile's columns 0 to 7 go at the left (`0x071C30` to `0x071C6C`), its\ncolumns 8 to 23 repeat, 16 pixels at a time, until a copy starts within 16 of the\nright (`0x071DA8` to `0x071F34`), and its columns 16 to 31 go at the right\n(`SetRect`, `0x071F38` to `0x071F6C`), each with the source copy mode (`CopyBits`).\nIn a rectangle 32 or more high `CopyBits` stretches the 32 rows to its height\n(`0x071D78` to `0x071DA0`). A lower one has its top half drawn from the tile's\ntop rows and its bottom half from the bottom rows, each at their size, so the middle rows go missing (`0x071C84` to `0x071D6C`). The routine places the bottom half from the middle down by the top half's height (`0x071CC4` to `0x071D3C`), so for an odd height the rectangle's last row stays undrawn. The tile's pixels are 1,024 bytes from the pointer at `data+0x60564` plus 1,024\ntimes the tile's number, 32 bytes a row, read through a copy of the pixel map\nrecord at toc -5276."
+   },
+   {
+    "name": "DrawButton__FR4RectPUc12eButtonState",
+    "entry": 467184,
+    "text": "Draws a button in a rectangle, its face tile 424 plus the state given across the\nrectangle (`ExpandHorizontally`, `0x072138` to `0x072140`), so the states 0 to 3 are\ntiles 424 to 427, and its Pascal title centered on it when there is one. The title is\nin text style 1 in a rectangle lower than 32 pixels and style 0 otherwise\n(`SetText`, `0x07217C` to `0x0721A4`), centered across the rectangle and by the\nstyle's ascent down it (`StringWidth`, `MoveTo`, `AADrawText`, `0x0721C4` to\n`0x072260`), and in state 2 in the dark gray at `data+0x0911C`, red, green and blue\neach `0x4000` (`RGBForeColor`, `0x0721CC` to `0x0721F0`). The color is black again\nafter, and the port's font, style and size go back to what they were (`0x07214C` to\n`0x072178`, `0x072268` to `0x072298`). State 4 flashes the button, state 3 for 8\nticks and then state 0 (`Delay`, `0x0720FC` to `0x072134`). The tiles' pixels are 1,024 bytes from the pointer at `data+0x60564` plus 1,024\ntimes the tile's number, 32 bytes a row, read through a copy of the pixel map record\nat toc -5276."
+   },
+   {
+    "name": "DrawNumberField__FR4Rectss",
+    "entry": 467692,
+    "text": "Draws a number field, the number given on the face of tile 415, the state -9 of\n`DrawButton` (`NumToString`, `0x07233C` to `0x072358`). With a part other than -1\nthe face leaves 16 pixels on the right for the arrows (`0x07230C` to `0x072338`),\nwhich fill them, 16 by 32 from tile 429's left columns (`0x072368` to `0x072458`).\nFor part 20 the up arrow, the top half, comes from tile 430 instead, pressed, and for\npart 21 the down arrow does (`0x072464` to `0x0725F8`). Each copy is in the source\ncopy mode (`CopyBits`). A part other than -1, 0, 20 and 21 narrows the face but\ndraws no arrows (`0x072338`, `0x072534` to `0x07253C`). The tiles' pixels are 1,024 bytes from the pointer at `data+0x60564` plus 1,024\ntimes the tile's number, 32 bytes a row, read through a copy of the pixel map record\nat toc -5276."
    },
    {
     "name": "FindNumberFieldPart__FR4Rect5Point",
@@ -3415,6 +4535,11 @@ const ROUTINE_NOTES = {
     "name": "DispatchWidgetMethod__Q215TScriptedWindow7TWidgetFssP5VAddr",
     "entry": 556064,
     "text": "Returns the script's \"nothing\", the word at `data+0x77374` (`0x087C20` to `0x087C28`)."
+   },
+   {
+    "name": "GetField__Q215TScriptedWindow7TWidgetFs",
+    "entry": 556160,
+    "text": "Gives a widget's script field n through the pointer given. Fields 56, 57 and 58\nare the three values at `+4`, `+8` and `+12` (`0x087CA0` to `0x087CE8`), field 59 is\nthe object of the widget's window, at `+32` (`TScriptedWindow::FindScriptedWindow`,\n`0x087CEC` to `0x087D00`), and any other field is the script's \"nothing\", the word at\n`data+0x77374` (`0x087D08` to `0x087D10`)."
    },
    {
     "name": "SetField__Q215TScriptedWindow7TWidgetFs5VAddr",
@@ -3810,6 +4935,11 @@ const ROUTINE_NOTES = {
     "name": "GetCombatAIName__FsPUc",
     "entry": 724392,
     "text": "Writes the name of combat AI n as a Pascal string. When resource `0x360` plus n\nexists with 32 bytes or more, the name is its first 32 bytes read as a Pascal\nstring (`0x0B0DC0` to `0x0B0E2C`). Otherwise it is \"Scenario Combat AI #\" and n\nless 207 for n from 208 up (`0x0B0E34` to `0x0B0E70`), and \"User Combat AI #\"\nand n less 175 below that (`0x0B0E78` to `0x0B0EA8`)."
+   },
+   {
+    "name": "CompileAIFile__FR6FSSpecs",
+    "entry": 724728,
+    "text": "Compiles a combat AI source file into combat AI n of the user's file. It opens\nthe file (`FSp_fopen`, `0x0B0F28` to `0x0B0F38`) and reads it a line at a time, up to\n1,024 bytes (`0x0B0F54` to `0x0B0F6C`, an inference from the arguments of the\nruntime call). The routine passes over a line of spaces and tabs alone, and a line\nwhose first byte is `;`, a comment, but only in the first column, since the test is on the\nbuffer's first byte rather than the first after the spaces (`0x0B0F74` to\n`0x0B0FEC`). The first other line is the header (`SCombatAIHeader::CompileHeader`),\n32 bytes, and each line after it an entry (`SCombatAIEntry::CompileLine`), 8 bytes,\neach added to a handle (`PtrAndHand`, `0x0B0FF0` to `0x0B10C8`). On an error it\nprints `\"Line #%d: %s\"` with the line, and `\"Error with script header: %s\\n\"` or\n`\"Error with script code: %s\\n\"` with the error, to the status window that\n`data+0x64614` points to (`TStatusWindow::myprintf`), beeps and stops with nothing saved (`SysBeep`,\n`0x0B100C` to `0x0B1044`, `0x0B1078` to `0x0B10B0`). Otherwise, with a header, it\nsaves the handle as resource `0x360` plus n of the user's file that `data+0x181F0`\npoints to, writes the file's table or flushes the file, has the cache find the\nsegment again (`TSegFile::SaveSegment`, `TSegFile::SaveTOC`, `PBFlushFileSync`,\n`TCachedSegFiles::RefindSegment`, `0x0B10CC` to `0x0B1158`), and prints\n`\"Combat AI #%d compiled.\\n\"` with n less 175 (`0x0B1160` to `0x0B1170`). With no\nuser file open the routine skips the save, the table and the cache (`0x0B10E0` to\n`0x0B10F0`) and prints the same message, for a compiled AI that went nowhere. It then disposes of the\nhandle and closes the file (`0x0B1178` to `0x0B1188`)."
    },
    {
     "name": "MyFindSymbol",
