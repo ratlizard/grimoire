@@ -1275,7 +1275,211 @@ function buildFooterScene(bare) {
   return IMG;
 }
 
-return { build: buildFooterScene, W: FS_W, H: FS_H };
+/* ---- Falls: a gorge at night, drawn for a phone held upright ---------------
+ * 108 by 160 fills a portrait phone at three screen pixels to one: the
+ * picture area runs from 334 by 489 (a 360 by 780 phone) to 386 by 624
+ * (412 by 915), and fitCanvas() rounds the zoom down to a whole number, so
+ * anything wider than 111 or taller than 163 drops to two. The Cave, 512 by
+ * 176, leaves most of an upright phone empty. It is built here to share the
+ * Cave's noise, dither and rock, and every ramp moves as the Cave's do:
+ *   water  the falls (phase falling downward), the pool's rings (falling
+ *          outward from where the fall lands) and stars that twinkle
+ *   magic  an aurora across the sky, its phase running along it
+ *   leaf   the moonlit edge of the pines, the shimmer running down each,
+ *          and fireflies
+ *   fire   a stone lantern on the far bank, its glow and its reflection
+ *   earth  the wet sand of the near shore
+ * Everything else is still paint, so the night stays dark: of the pool, only
+ * a dither falling off with distance from the fall is on the water ramp. */
+const FL_W = 108, FL_H = 160;
+function buildFalls() {
+  const W = FL_W, H = FL_H, IMG = new Uint8Array(W*H);
+  const put = (x,y,v) => { x|=0; y|=0; if (x>=0 && x<W && y>=0 && y<H) IMG[y*W+x] = v; };
+  const pick = (ramp,t,x,y) => {
+    const f = clamp(t,0,1)*(ramp.length-1);
+    const i = Math.floor(f);
+    return ramp[clamp(i + (bay(x,y) < f-i ? 1 : 0), 0, ramp.length-1)];
+  };
+  const SKY   = [127,126,125,124,123,122,121];
+  const HILLS = [223,222,221,220,219,218];
+  const PINE  = [223,111,110,109,108,107];
+  const MOON  = [0x33,0x32,0x31,0xFE];
+  const SAND  = [0x8F,0x8E,0x8D,0x8C,0x8B];
+
+  const POOL_Y = 124, SHORE_Y = 150;
+  const MOON_X = 80, MOON_Y = 24, MOON_R = 8;
+  const LIP_Y = 46;
+  const leftTop  = x => LIP_Y + 4*fbm(x*1.7, 5, 20) + (40-x)*0.10;
+  const leftEdge = y => 40 + 3*fbm(9, y*1.3, 18) - 3*smooth(LIP_Y, LIP_Y+10, y) + 9*smooth(104, POOL_Y+2, y);
+  const rightTop = x => 98 - (x-60)*0.62 + 5*fbm(x*1.4, 31, 22);
+  const FALL_X = 40, HIT_X = 48;
+  const fallCx = y => FALL_X + 7*Math.pow(clamp((y-LIP_Y)/(POOL_Y-LIP_Y),0,1), 0.6) + 0.8*Math.sin(y*0.21);
+  const LAMP_X = 88, LAMP_Y = Math.round(rightTop(88)) - 1;
+
+  // ---- 1. sky, darkest at the top
+  for (let y=0; y<H; y++) for (let x=0; x<W; x++)
+    put(x, y, pick(SKY, 0.05 + 0.80*smooth(0, 96, y) + 0.08*fbm(x, y, 30), x, y));
+  // the moon's halo, then the moon, lit from the upper right
+  for (let y=MOON_Y-26; y<MOON_Y+26; y++) for (let x=MOON_X-26; x<MOON_X+26; x++) {
+    const d = Math.hypot(x-MOON_X, y-MOON_Y);
+    if (d > MOON_R && d < 22 && rnd(x+1, y+3) < 0.40*Math.pow(1-(d-MOON_R)/14, 2)) put(x, y, 123);
+    if (d <= MOON_R) {
+      const lit = clamp(0.55 + 0.06*(x-MOON_X) - 0.05*(y-MOON_Y), 0, 1);
+      const pit = fbm(x*3, y*3, 5) > 0.62 ? 0.35 : 0;
+      put(x, y, pick(MOON, lit - pit + (d > MOON_R-1 ? -0.3 : 0), x, y));
+    }
+  }
+  // ---- 2. the aurora: a thin curtain hanging from a wavering line, in rays.
+  // Its colors are the magic ramp's four pinks, which are loud, so it is
+  // sparse and fades fast below its hem; a dense band read as speckle.
+  for (let x=0; x<W; x++) {
+    const top = 8 + 7*Math.sin(x*0.05 + 1.3) + 3*fbm(x, 3, 26);
+    const ray = Math.pow(noise(x*1.0, 40, 3), 2.2);              // rays: bright columns, dark gaps
+    const len = 10 + 14*noise(x, 55, 11);
+    for (let y=Math.floor(top); y<top+len; y++) {
+      const fall = (y-top)/len, dm = Math.hypot(x-MOON_X, y-MOON_Y);
+      if (dm < MOON_R+4) continue;
+      const dens = (y - top < 1.2 ? 0.55 : 0.70*Math.pow(1-fall, 1.6)*(0.15 + ray));
+      if (rnd(x+3, y+1) < dens) put(x, y, magic(x*0.28 - y*0.10));
+    }
+  }
+  // ---- 3. stars: still ones, and a few on the water ramp, which twinkle
+  for (let i=0; i<70; i++) {
+    const x = Math.floor(hash2(i, 5)*W), y = Math.floor(Math.pow(hash2(i, 7), 1.3)*74);
+    if (Math.hypot(x-MOON_X, y-MOON_Y) < MOON_R+6) continue;
+    const b = hash2(i, 9);
+    if (b > 0.80) {
+      put(x, y, water(8*hash2(i, 11)));
+      if (b > 0.94) { put(x-1, y, 0xD3); put(x+1, y, 0xD3); put(x, y-1, 0xD3); put(x, y+1, 0xD3); }
+    } else put(x, y, b > 0.45 ? 0xD3 : 0xD6);
+  }
+  // ---- 4. the far hills, a rim of moonlight along their tops
+  for (let x=0; x<W; x++) {
+    const top = 72 - 16*fbm(x*1.2+400, 9, 46) - 6*noise(x+70, 3, 14);
+    for (let y=Math.floor(top); y<POOL_Y; y++) {
+      const d = y-top;
+      put(x, y, pick(HILLS, d < 1.5 && x > 40 ? 0.30 : 0.04 + 0.12*fbm(x*2, y*2, 9), x, y));
+    }
+  }
+  // ---- 5. the far bank: broken rock rising to the right
+  for (let x=58; x<W; x++) {
+    const top = rightTop(x);
+    for (let y=Math.floor(top); y<POOL_Y+3; y++) {
+      const b = blocks(x*2.2, y*2.2, -1, -1), d = y-top;
+      put(x, y, pick(ROCK_COOL, 0.04 + 0.34*b - 0.12*smooth(0, 26, d) + (d < 1.2 ? 0.22 : 0), x, y));
+    }
+  }
+  // ---- 6. the near cliff the fall pours off, lit from the moon's side
+  for (let y=0; y<SHORE_Y; y++) for (let x=0; x<W; x++) {
+    if (y < leftTop(x) || x > leftEdge(y)) continue;
+    const b = blocks(x*2.2+40, y*2.2, 1, -1), edge = leftEdge(y)-x;
+    let t = 0.04 + 0.34*b + 0.16*smooth(6, 0, edge) - 0.12*smooth(70, 140, y);
+    if (y - leftTop(x) < 1.2) t += 0.22;
+    put(x, y, pick(ROCK_COOL, t, x, y));
+  }
+  // ---- 7. pines, the moonlit edge on the leaf ramp
+  function pine(cx, base, h, seed) {
+    for (let k=0; k<h; k++) {
+      const y = base-k, f = k/h;
+      const half = (1-f)*h*0.30*(0.75 + 0.25*Math.sin(k*1.9 + seed)) + 0.6;
+      for (let x=Math.floor(cx-half); x<=cx+half; x++) {
+        const u = (x-cx)/half;
+        if (u > 0.35 && bay(x,y) < u-0.25) put(x, y, leaf(-k*0.55 + 2*rnd(x, seed)));
+        else put(x, y, pick(PINE, 0.08 + 0.35*Math.max(0, u) + 0.15*rnd(x+seed, y), x, y));
+      }
+    }
+    put(cx, base+1, 0x8E); put(cx, base+2, 0x8E);
+  }
+  pine(98, Math.round(rightTop(98)), 26, 1);
+  pine(76, Math.round(rightTop(76)), 18, 2);
+  pine(105, Math.round(rightTop(105))+1, 30, 3);
+  pine(66, Math.round(rightTop(66)), 12, 4);
+  pine(8, Math.round(leftTop(8)), 22, 5);
+  pine(22, Math.round(leftTop(22)), 15, 6);
+  pine(31, Math.round(leftTop(31)), 9, 7);
+
+  // ---- 8. the pool: dark, with rings out from where the fall lands
+  for (let y=POOL_Y; y<SHORE_Y+6; y++) for (let x=0; x<W; x++) {
+    if (y < SHORE_Y && x <= leftEdge(y) && y < POOL_Y+3) continue;
+    const d = Math.hypot(x-HIT_X, (y-POOL_Y-2)*2.6);
+    let v = pick(SKY, 0.15 + 0.25*smooth(POOL_Y, SHORE_Y, y) + 0.1*fbm(x*2, y*4, 9), x, y);
+    // Rings: the water ramp where the ring pattern crests, thinning out with
+    // distance, so the night pool stays dark and the rings still read.
+    const near = Math.exp(-d/26), crest = 0.5 + 0.5*Math.cos(d*0.55 + 2*fbm(x*2, y*3, 7));
+    if (rnd(x+5, y+9) < 0.04 + 0.85*near*crest) v = water(-d*0.45 + 1.5*fbm(x*2, y*3, 7));
+    put(x, y, v);
+  }
+  // the moon's road across it, and the lantern's
+  for (let y=POOL_Y+1; y<SHORE_Y; y++) {
+    const spread = 2 + (y-POOL_Y)*0.35;
+    for (let x=Math.floor(MOON_X-spread); x<=MOON_X+spread; x++)
+      if ((y & 1) === 0 && rnd(x+7, y) < 0.55*(1-Math.abs(x-MOON_X)/spread)) put(x, y, pick(MOON, 0.2 + 0.5*rnd(x, y+3), x, y));
+    if (y < POOL_Y+16 && (y % 3) !== 1 && rnd(LAMP_X, y) < 0.8)
+      put(LAMP_X + (rnd(y, 2) < 0.5 ? 0 : 1), y, fire(8*rnd(y, 5)));
+  }
+  // ---- 9. the stream along the clifftop that feeds the fall (its phase falls
+  // toward the lip, so it runs that way), the fall in fine strands, and where
+  // it lands
+  for (let x=24; x<=FALL_X+1; x++) {
+    const top = leftTop(x), w = 1.2 + 1.6*smooth(24, FALL_X, x);
+    for (let y=Math.floor(top-w*0.5); y<=top+w*0.5; y++) put(x, y, water(-x*0.6 + 3*noise(x*5, y*5, 4)));
+  }
+  for (let y=Math.floor(LIP_Y)-1; y<POOL_Y+4; y++) {
+    const fall = clamp((y-LIP_Y)/(POOL_Y-LIP_Y), 0, 1), cx = fallCx(y);
+    const hw = 2.2 + 4.5*Math.pow(fall, 0.8);
+    for (let x=Math.floor(cx-hw); x<=cx+hw; x++) {
+      const t = Math.abs(x-cx)/hw;
+      if (t > 1 || (t > 0.72 && rnd(x,y) < (t-0.72)*3)) continue;
+      if (y > POOL_Y && rnd(x+3,y) < (y-POOL_Y)/4) continue;
+      put(x, y, water(-y*0.5 - t*1.6 + 5*noise(x*9, 11, 5) + 3*fbm(x*2.2, y*0.12, 9)));
+    }
+    if (hash2(y, 29) < 0.24) put(cx + (hash2(y,7)<0.5?-1:1)*(hw+1+hash2(y,11)*4), y, water(8*hash2(y,73)));
+  }
+  for (let y=POOL_Y-9; y<POOL_Y+5; y++) for (let x=HIT_X-16; x<=HIT_X+16; x++) {
+    const d = Math.hypot((x-HIT_X)/16, (y-POOL_Y-1)/(y < POOL_Y+1 ? 9 : 4));
+    if (d < 1 && rnd(x+211, y) < 1.1*(1-d)*(1-d) + 0.10*(1-d)) put(x, y, water(8*rnd(x+3, y+7)));
+  }
+  for (let y=POOL_Y-28; y<POOL_Y-3; y++) for (let x=HIT_X-18; x<=HIT_X+18; x++) {    // mist
+    const d = Math.hypot((x-HIT_X)/18, (POOL_Y-3-y)/25);
+    if (d < 1 && rnd(x+422, y+5) < 0.16*Math.pow(1-d, 1.4)*(0.5 + fbm(x*1.3, y, 9))) put(x, y, water(8*rnd(x+9, y+13)));
+  }
+  // ---- 10. the stone lantern, and its light on the bank
+  for (let y=LAMP_Y-24; y<LAMP_Y+14; y++) for (let x=LAMP_X-20; x<LAMP_X+20; x++) {
+    if (x < 58 || y < rightTop(x) || y > POOL_Y+2) continue;
+    const d = Math.hypot(x-LAMP_X, (y-LAMP_Y+6)*1.2);
+    if (d < 15 && bay(x,y) < 0.9*Math.pow(1-d/15, 1.2)) put(x, y, pick(ROCK_WARM, 0.12 + 0.55*Math.pow(1-d/15, 1.5), x, y));
+  }
+  for (let k=0; k<5; k++) { put(LAMP_X, LAMP_Y-k, 0xDA); put(LAMP_X+1, LAMP_Y-k, 0xDB); }
+  for (let x=LAMP_X-1; x<=LAMP_X+2; x++) put(x, LAMP_Y-5, 0xD9);
+  for (let y=LAMP_Y-8; y<LAMP_Y-5; y++) { put(LAMP_X-1, y, 0xDB); put(LAMP_X+2, y, 0xDB); put(LAMP_X, y, fire(8*rnd(LAMP_X, y))); put(LAMP_X+1, y, fire(8*rnd(LAMP_X+1, y))); }
+  for (let x=LAMP_X-2; x<=LAMP_X+3; x++) put(x, LAMP_Y-9, 0xD8);
+  for (let x=LAMP_X-1; x<=LAMP_X+2; x++) put(x, LAMP_Y-10, 0xD9);
+  put(LAMP_X, LAMP_Y-11, 0xD8); put(LAMP_X+1, LAMP_Y-11, 0xD8);
+
+  // ---- 11. the near shore: wet sand on the earth ramp, and stones
+  for (let x=0; x<W; x++) {
+    const top = SHORE_Y - 2*Math.sin(x*0.09 + 0.5) - 2*fbm(x*2, 77, 14);
+    for (let y=Math.floor(top); y<H; y++) {
+      const d = y-top;
+      let v = d < 2 ? earth(x*0.32 + 3*fbm(x*1.5, y, 7)) : pick(SAND, 0.10 + 0.55*fbm(x*1.8, y*2.2, 8) - 0.1*smooth(0, 10, d), x, y);
+      if (d >= 3 && rnd(x+1, y+2) < 0.10) v = earth(8*rnd(x+3, y+5));
+      put(x, y, v);
+    }
+  }
+  for (let i=0; i<9; i++) {
+    const sx = 4 + hash2(i, 81)*100, sy = SHORE_Y + 3 + hash2(i, 83)*6, r = 1.5 + hash2(i, 85)*2.5;
+    for (let y=Math.floor(sy-r); y<=sy+r*0.6; y++) for (let x=Math.floor(sx-r*1.4); x<=sx+r*1.4; x++)
+      if (Math.hypot((x-sx)/1.4, y-sy) < r) put(x, y, pick(ROCK_COOL, 0.15 + 0.5*clamp((sy-y)/r + 0.3*(x-sx)/r, 0, 1), x, y));
+  }
+  // ---- 12. fireflies over the water and among the pines
+  for (let i=0; i<16; i++) {
+    const x = 6 + hash2(i, 91)*96, y = 84 + hash2(i, 93)*60;
+    put(x, y, leaf(8*hash2(i, 95)));
+    if (hash2(i, 97) < 0.4) put(x+1, y, leaf(8*hash2(i, 99)));
+  }
+  return IMG;
+}
+return { build: buildFooterScene, W: FS_W, H: FS_H, falls: buildFalls, FW: FL_W, FH: FL_H };
 })();
 /* ================= palette ==============================================
  * The palette is a growable list, not a fixed 256. A base palette seeds it --
@@ -4482,6 +4686,9 @@ var SCENES = [
   { id: 'cave', name: 'Cave', w: CAVE.W, h: CAVE.H, note: 'all five ramps',
     run: async function () { idx.set(CAVE.build()); } },
 
+  { id: 'falls', name: 'Falls', w: CAVE.FW, h: CAVE.FH, note: 'a gorge at night, made for an upright phone',
+    run: async function () { idx.set(CAVE.falls()); } },
+
   { id: 'cavebare', name: 'Cave, bare', w: CAVE.W, h: CAVE.H, note: 'same rock, nothing moving, paint your own',
     run: async function () { idx.set(CAVE.build(true)); } },
 
@@ -4553,8 +4760,18 @@ document.getElementById('rSize').textContent = W + '×' + H;
 if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) {
   playing = false; playBtn.textContent = 'Play';
 }
+/* An upright phone opens on Falls, which is drawn to fill one; anything else
+ * opens on the Cave, a strip that fills a wide screen. The test is the
+ * stylesheet's: the width the dock appears at, held upright. */
+function firstScene() {
+  var upright = window.matchMedia && matchMedia('(max-width:860px) and (orientation:portrait)').matches;
+  for (var i = 0; i < SCENES.length; i++) if (SCENES[i].id === (upright ? 'falls' : 'cave')) return i;
+  return 0;
+}
 (async function () {
-  await loadScene(SCENES[0]);
+  var first = firstScene();
+  document.getElementById('sceneSel').value = String(first);
+  await loadScene(SCENES[first]);
   try { if (await takeGrimoireHandoff()) { fitCanvas(); } } catch (e) { /* no handoff, or an unreadable one */ }
   undoStack.length = 0; redoStack.length = 0; refreshHistory();
   dirty = false;                                  // the example is not your work
