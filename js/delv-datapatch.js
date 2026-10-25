@@ -32,10 +32,16 @@
              answer needs, since the jump there is the previous keyword
              test skipping to the next one, and must still reach it.
              `replaceOp: true` replaces the one instruction at `at`.
-     dataEdits: [{ what, resid, fn }] -- fn (b) => string | Uint8Array,
+     dataEdits: [{ what, resid, fn, create? }] -- fn (b) => string | Uint8Array,
              run on the decrypted bytes (a copy); it edits b in place and
              returns a log line, or returns a new array to replace the
              resource, or throws when the bytes are not what it expects.
+             `create: true` makes a resource the file does not have: fn
+             receives the bytes made for it so far in the session, or
+             none, and returns the new array; finishDataPatch adds it to
+             the archive, encrypted as every resource below 0x8000 is (the
+             rule delv-archive.js's scenario builder gives a new piece).
+             The gong's painting class was the first (25 October 2026).
      textEdits: [{ what, resid, find, replace, count?, mid?, at?, optional? }]
              -- every occurrence of the text `find` in the resource (count
              is how many there must be; omitted means at least one) is
@@ -219,8 +225,10 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
   // Data edits first: a resource laid out afresh (the name table) must
   // be whole before a text edit looks for a word in it.
   for (const d of dataEdits) try {
-    const b = s.bytesOf(d.resid).slice();
+    const b = d.create ? (s.plain.get(d.resid) || new Uint8Array(0)).slice() : s.bytesOf(d.resid).slice();
+    if (d.create && !s.plain.has(d.resid) && getResourceBytes(s.arc, d.resid)) throw new Error('0x' + d.resid.toString(16).toUpperCase() + ' is in the file already');
     const res = d.fn(b);
+    if (d.create && !(res instanceof Uint8Array)) throw new Error('a resource made new must be returned whole');
     // A data edit may return a new array (a resource laid out afresh) or a
     // line about the array it edited in place.
     const line = res instanceof Uint8Array ? 'laid out again, ' + b.length + ' to ' + res.length + ' bytes' : res;
@@ -321,7 +329,10 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
 function finishDataPatch(s) {
   const changed = [];
   for (const [resid, data] of s.plain) {
-    const r = s.spec.resources.find(x => x.resid === resid);
+    let r = s.spec.resources.find(x => x.resid === resid);
+    // A resource a fix made (`create`) is added, as a Magpie patch adds a
+    // gremlin's script that the shipped file lacks.
+    if (!r) { r = { resid, data, encrypted: resid < 0x8000 }; s.spec.resources.push(r); s.spec.resources.sort((a, b) => a.resid - b.resid); changed.push(resid); continue; }
     const was = smartDecrypt(getResourceBytes(s.arc, resid), resid).data;
     r.data = data;
     if (was.length !== data.length || was.some((v, i) => v !== data[i])) changed.push(resid);

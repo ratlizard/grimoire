@@ -2355,18 +2355,75 @@ const DATA_FIXES = [
   // sound 13. That is 13 for the arrow, the magic arrow, the sling stone, the
   // spear and the mystic spear, and 14 for the dagger and the cleaver, and
   // 0x910D and 0x910E are not in the archive, so all of them fly in silence.
-  // Sound 34 (0x9122), which nothing plays, is a whoosh that swells to its
-  // middle (work/sfx-guides/missiles.py in the workbench), the maintainer's
-  // choice for the flight. The rolling pin's 15, the one flight sound the
-  // archive has, stays. workbench doc/bugs.md, *Found tracing the missile sounds*.
-  { id: 'missile-flight-sound', group: 'design', stage: 'apart', title: 'Arrows, sling stones, spears, daggers and cleavers now whoosh as they fly, instead of flying in silence',
+  // The numbers follow how the missile flies: Thrown element 2, True for the
+  // dagger, the cleaver and the rolling pin, makes 0x3042 pass 1 as
+  // ShootEffect's sixth value, which cbMissileFX gives DoMissile and which
+  // there builds a TMissileSpinner (cmpwi 0, 1 at 0x05F2F0) rather than a
+  // straight TMissileThrower. So 13 is the straight fliers' sound, 14 the
+  // spinning blades' and 15, the one the archive has, the rolling pin's spin.
+  // The straight fliers take sound 34 (0x9122), which nothing plays, a
+  // whoosh that swells to its middle (work/sfx-guides/missiles.py in the
+  // workbench); the dagger and the cleaver take 15, the spinning sound, at
+  // the maintainer's word. workbench doc/bugs.md, *Found tracing the missile sounds*.
+  { id: 'missile-flight-sound', group: 'design', stage: 'apart', title: 'Arrows, sling stones and spears now whoosh as they fly, and daggers and cleavers whir as they spin, instead of flying in silence',
     edits: [0x0098, 0x0059].map(at => ({ what: 'the small hole’s missile', resid: 0x1163, at, replaceOp: true, expect: { [at]: 'byte 0x0D' }, code: 'byte 0x22' })),
     dataEdits: [
-      [0x105F, 0x2B, 3, 14, 'the dagger'], [0x10AB, 0x2B, 3, 14, 'the cleaver'],
-      [0x1064, 0x2B, 3, 13, 'the spear'], [0x1178, 0x2B, 3, 13, 'the mystic spear'],
-      [0x1065, 0x2D, 1, 13, 'the magic arrow'], [0x1066, 0x2D, 1, 13, 'the arrow'], [0x1068, 0x2D, 1, 13, 'the sling stone'],
-    ].map(([resid, key, el, was, what]) => dataFixClassElement(what + '’s flight sound', resid, key, el, was, 34)) },
+      [0x105F, 0x2B, 3, 14, 15, 'the dagger'], [0x10AB, 0x2B, 3, 14, 15, 'the cleaver'],
+      [0x1064, 0x2B, 3, 13, 34, 'the spear'], [0x1178, 0x2B, 3, 13, 34, 'the mystic spear'],
+      [0x1065, 0x2D, 1, 13, 34, 'the magic arrow'], [0x1066, 0x2D, 1, 13, 34, 'the arrow'], [0x1068, 0x2D, 1, 13, 34, 'the sling stone'],
+    ].map(([resid, key, el, was, to, what]) => dataFixClassElement(what + '’s flight sound', resid, key, el, was, to)) },
+  // The gong is drawn and has a sound, and nothing joins them (25 October
+  // 2026). 0xF004 names tiles 0x892 and 0x893 "gong"; they lie at the end of
+  // the painting's run (prop type 344, base tile 0x88C), so a painting at
+  // aspect 6 or 7 shows the gong. Sound 43 (0x912B), delvmod's "Gong", is
+  // played by nothing. No placed painting has aspect 6 or 7 and paintings have
+  // no class, so nothing in the shipped game changes: a Hidden Bug, at the
+  // maintainer's word. The fix makes the painting a class (0x1158), the
+  // bell's class (0x10C1) copied: its table's two far addresses renamed to
+  // the new resource, its ClassFlags entry made None so paintings keep the
+  // flags they had (none), and its Use, which rings the bell and swings it
+  // through eight aspects, replaced by one that plays sound 43 where the
+  // painting stands when it shows the gong and otherwise answers as the
+  // default Use (0x3009) does for a prop without a class, as every painting
+  // did. 0x3009 is the default for method 9, Use, by delvmod's numbering,
+  // which the defaults bear out (0x3020 EveryTurn, 0x3041 TakeDamage); the
+  // archive's symbol for it, "CanWear", is from a numbering the scripts do
+  // not use. workbench doc/bugs.md, *Found tracing the missile sounds*.
+  { id: 'gong-sound', group: 'hidden', title: 'A gong, a painting showing the gong’s picture, now sounds when used, instead of doing nothing',
+    parts: [
+      { stage: 'further', plan: (s) => ({ dataEdits: [{ what: 'the painting’s class, from the bell’s', resid: 0x1158, create: true, fn: b => dataFixGongClass(b, s.bytesOf(0x10C1)) }] }) },
+      { stage: 'apart', edits: [{ what: 'the painting’s Use sounds the gong', resid: 0x1158, at: 0x000F, to: 0x0099,
+          expect: { 0x000F: 'sys PlaySound', 0x0010: 'byte 0x08', 0x0099: 'return' },
+          code: ['if_not', 'arg Arg00', 'get_field aspect (0x3)', 'byte 0x06', 'eq', 'arg Arg00', 'get_field aspect (0x3)', 'byte 0x07', 'eq', 'or', 'then -> painting',
+                 'sys PlaySound', 'byte 0x2B', 'arg Arg00', 'get_field x (0x1)', 'arg Arg00', 'get_field y (0x2)', 'end',
+                 'branch rung',
+                 'painting:',
+                 'return', 'call_resource 0x3009', 'arg Arg00', 'end', 'end',
+                 'rung:'].join('\n') }] },
+    ] },
 ];
+// The painting's class (0x1158) as a copy of the bell's (0x10C1), as the
+// session has it: the class table's far addresses, which name the resource
+// they point into, renamed, and the ClassFlags entry (key 39) made None.
+// Only the bell's Use and its flags are in its table.
+function dataFixGongClass(b, bellBytes) {
+  if (b.length) throw new Error('0x1158 is made already');
+  const bell = bellBytes.slice();
+  const d = dvmDiscover(bell, 0x10C1), toff = d ? d.tableOffset : null;
+  if (toff === null || (bell[toff] & 0xF0) !== 0xA0) throw new Error('the bell has no class table');
+  const count = u16be(bell, toff) & 0x0FFF, keys = [];
+  for (let i = 0, p = toff + 2; i < count; i++, p += 6) {
+    const val = u32be(bell, p), key = u16be(bell, p + 4);
+    if (val === 0x5000FFFF) continue;
+    if (((val & 0x7FFF0000) >>> 16) !== 0x10C1) throw new Error('the bell’s key ' + key + ' points outside it');
+    keys.push(key);
+    if (key === 39) { bell[p] = 0x50; bell[p + 1] = 0x00; bell[p + 2] = 0xFF; bell[p + 3] = 0xFF; continue; }
+    const to = (val & 0x8000FFFF) | (0x1158 << 16);
+    bell[p] = to >>> 24; bell[p + 1] = (to >>> 16) & 0xFF; bell[p + 2] = (to >>> 8) & 0xFF; bell[p + 3] = to & 0xFF;
+  }
+  if (keys.sort((x, y) => x - y).join() !== '9,39') throw new Error('the bell’s table has keys ' + keys.join(', ') + ', not Use and ClassFlags');
+  return bell;
+}
 // The sound of a door used: 32 when its aspect is below 5 (open, so it
 // closes), 1 otherwise, in place of each call that played 1 alone and is
 // followed by the door's turn (0xE40) or the jump past the locked sound. A
