@@ -1120,8 +1120,8 @@ const ITEM_FIELD_INFO = {
   0x2A: { gloss:'Melee: damage, reach in squares, damage type, the skill it is used with, the miss sound, the hit sound, and the hit effect (a reference into this resource).' },
   0x2B: { gloss:'Thrown: damage, range, the effect, the sound.' },
   0x2C: { scalar:true, gloss:'Points of protection this armor contributes.' },
-  0x2D: { gloss:'Ammunition: the class a launcher must match, damage, damage type.' },
-  0x2E: { gloss:'Ranged: the ammunition class it fires, range in squares, then sounds.' },
+  0x2D: { gloss:'Ammunition: the class a launcher must match, the sound of its flight, damage type.' },
+  0x2E: { gloss:'Ranged: the ammunition class it fires, range in squares, damage, the sound of a shot.' },
   0x2F: { gloss:'Shield: how much it blocks, and the skill (Shield) added to the block.' },
   0x30: { scalar:true, gloss:'Reagent number, used by alchemy.' },
   0x32: { gloss:'Light this item casts.' },
@@ -1253,34 +1253,51 @@ function classZoomrect(pt) {
 
 /* Every script that reads or writes a class field, by key: the
    `has_member`, `get_field` and `set_field` ops over the whole archive,
-   each with its offset, so an item's field can say who consults it. */
+   each with its offset, so an item's field can say who consults it.
+   `class_member 0xKKNN` reads element NN of the array under key KK, and
+   counts too, with its element (25 October 2026). Before that a script that
+   used an array's elements was linked at its `has_member` test alone, so the
+   Ammunition row reached the combat script at its test for the field, not at
+   the line that plays element 1 as the arrow's flight sound, and no row showed
+   which element a script uses. */
 function dvmFieldReaders() {
   if (DERIVED.FIELD_READERS) return DERIVED.FIELD_READERS;
   const by = new Map();
+  const add = (key, site) => { if (!by.has(key)) by.set(key, []); by.get(key).push(site); };
   for (const e of buildScriptTextIndex()) {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
     for (const o of ops) {
       const m = /^(has_member|get_field|set_field) (?:\S+ )?\(?(0x[0-9A-F]+)\)?$/.exec(o.text);
-      if (!m) continue;
-      const key = parseInt(m[2], 16);
-      if (!by.has(key)) by.set(key, []);
-      by.get(key).push({ resid: e.resid, at: o.at, how: m[1] });
+      if (m) { add(parseInt(m[2], 16), { resid: e.resid, at: o.at, how: m[1] }); continue; }
+      const c = /^class_member 0x([0-9A-F]{2})([0-9A-F]{2})$/.exec(o.text);
+      if (c) add(parseInt(c[1], 16), { resid: e.resid, at: o.at, how: 'class_member', el: parseInt(c[2], 16) });
     }
   }
   return (DERIVED.FIELD_READERS = by);
 }
-// The readers of one key as links, a script once, the first site each.
-function fieldReadersHTML(key, cap) {
-  const all = dvmFieldReaders().get(key) || [];
+// The readers of one key as links, a script once, the first site each, from
+// the reads given (by default the whole key's `has_member`, `get_field` and
+// `set_field` sites).
+function fieldReadersHTML(key, cap, given) {
+  const all = given || (dvmFieldReaders().get(key) || []).filter(s => s.el === undefined);
   const seen = new Map();
   for (const s of all) if (!seen.has(s.resid)) seen.set(s.resid, s);
   const sites = [...seen.values()];
   if (!sites.length) return '';
   const n = cap || 8;
-  return sites.slice(0, n).map(s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid))).join(', ') +
+  const link = s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid));
+  return sites.slice(0, n).map(link).join(', ') +
     (sites.length > n ? ' and ' + countLink((sites.length - n) + ' more', 'The ' + sites.length + ' scripts that read ' + itemFieldLabel(key),
-      sites.map(s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid)))) : '') +
+      sites.map(link)) : '') +
     ' <span style="color:#dcd8cc">(' + all.length + ' site' + (all.length === 1 ? '' : 's') + ')</span>';
+}
+// The scripts that use each element of an array, one line an element, each
+// link opening the script at the read, so a reader can check the gloss's
+// meaning for an element against the code that uses it.
+function fieldElementReadersHTML(key, cap) {
+  const by = new Map();
+  for (const s of dvmFieldReaders().get(key) || []) if (s.el !== undefined) { if (!by.has(s.el)) by.set(s.el, []); by.get(s.el).push(s); }
+  return [...by.keys()].sort((a, b) => a - b).map(el => 'Element ' + el + ': ' + fieldReadersHTML(key, cap, by.get(el)));
 }
 
 /* The ClassFlags word (key 39), by bit: which classes have each. The
@@ -2356,6 +2373,7 @@ function showItemDetail(pt) {
           'No published meaning for this key.</td></tr>') +
         // Who consults it: every script with a has_member, get_field or
         // set_field of this key, the first site in each as a link.
+        fieldElementReadersHTML(f.key, 6).map(line => '<tr><td colspan="2" style="padding:0 0 2px;color:#dcd8cc;font-size:0.75rem">' + line + '</td></tr>').join('') +
         (readers ? '<tr><td colspan="2" style="padding:0 0 6px;color:#dcd8cc;font-size:0.75rem">Read by ' + readers + '</td></tr>'
                  : '<tr><td colspan="2" style="padding:0 0 6px;color:#dcd8cc;font-size:0.75rem">No script in this file reads this entry by name.</td></tr>');
     }
