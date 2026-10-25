@@ -277,6 +277,34 @@ const RESHINTS = {
   0xF00C:"Zoneports", 0xF010:"Faux Prop Information", 0xF011:"Prop-aspect X offsets",
   0xF012:"Prop-aspect Y offsets", 0xF015:"Persistence Store Symbols"
 };
+// The archive's sounds (subindex 144) by delvmod's wiki, page "Cythera Data
+// Subindex 144": a listener wrote them, question marks included. No file of
+// the game has names for these sounds, so they show only with the names from
+// outside the game's text, and a sound's page lists what plays it either way.
+// The names went on 23 September 2026 (v1.163.0) with the other typed labels
+// and came back behind the switch on 25 October 2026, at the maintainer's
+// word. Copied as the wiki has them, less its "*" marks (delv's trouble
+// decoding a sound) and its bracketed notes; the wiki's "?" and "??" entries
+// are left out, as there is no name in them. utilities/delv_crosscheck.mjs
+// compares this table with the wiki page on every run. Several are wrong by
+// what plays them: 41 "Arrow hits" plays only for the gavel and 42 "Fire?"
+// only for the dice.
+const DELVMOD_SOUND_NAMES = {
+  0x9101:'Door opens', 0x9102:'Water/fountain loop', 0x9103:'Swamp loop',
+  0x9104:'Water drip with echo (e.g. cave ambient)', 0x9105:'Chicken cluck',
+  0x9106:'Waves/seashore loop', 0x9107:'Goat bleats', 0x9108:'Bell ring',
+  0x9109:'Secret door opens', 0x910A:'Portcullis opens', 0x910B:'Arrow fired',
+  0x9110:'Combat swing - miss', 0x9111:'Clang', 0x9112:'Damaging hit',
+  0x9113:'Male cry of pain', 0x9114:'Male cry of pain (fatal?)', 0x9115:'Same as 9115 [sic]',
+  0x9116:'Male death?', 0x9117:'Gator roar', 0x9118:'Cave in / earthquake?',
+  0x9119:'Locked (metal?) door', 0x911A:'Locked (wood?) door?', 0x911C:'Bird cry',
+  0x911D:'Another bird', 0x911E:'Eating', 0x911F:'Buzz (?)', 0x9121:'Fire?',
+  0x9123:'Snoring', 0x9124:'Frogs / swamp', 0x9125:'Frog croak', 0x9126:'Cricket',
+  0x9127:'Bomb explosion', 0x9129:'Arrow hits', 0x912A:'Fire?', 0x912B:'Gong',
+  0x912C:'Terrorization, etc', 0x912D:'Mystic arrow, etc', 0x912E:'Magic sound',
+  0x912F:'Vision of the night, etc', 0x9130:'Directed nexus (really annoying magic sound)',
+  0x9131:'Quenching blacksmith sound', 0x9132:'Hammering blacksmith sound'
+};
 // Zone names are the map's entry script's (loadZoneNames) and the editor's
 // list in the resource fork (loadEditorZoneNames). The community's
 // descriptive names for eighteen maps stood here behind the names switch
@@ -523,7 +551,7 @@ function labelForUnnormalized(resid) {
   if (resid === 0x8EFF) return 'Tombstone Slab, a sized image, not a tile sheet';
   if (subn === 141) { const w = tileSheetWords(n); return 'Tile Sheet ' + n + (w ? ': ' + w : ''); }
   if (subn === 142) { const w = pictureWords(resid); return 'General Graphic ' + n + (w ? ': ' + w : ''); }
-  if (subn === 144) return 'Sound ' + n;
+  if (subn === 144) return 'Sound ' + n + (window.SHOW_BUILTIN_LABELS && DELVMOD_SOUND_NAMES[resid] ? ': ' + DELVMOD_SOUND_NAMES[resid] : '');
   return null;
 }
 

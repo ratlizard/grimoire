@@ -486,5 +486,33 @@ if (dataPath && existsSync(dataPath) && typeof ctx.mapRoofSections === 'function
                    `never placed, ${offMap} clipped at the map edge`);
 }
 
+// ---- the sound names from delvmod's wiki -----------------------------------
+// js/page-labels.js copies the wiki's names for the archive's sounds
+// (DELVMOD_SOUND_NAMES), shown with the names from outside the game's text. The
+// copy is typed, so it is compared with the wiki page each run: the same ids,
+// each name the wiki's less its "*" marks and bracketed notes (and a "[sic]"
+// the copy adds), and no entry for a name of question marks alone. A wiki page
+// that changes, or a slip in the copy, fails here.
+{
+  const page = `${delvPath}/wiki/Cythera Data Subindex 144.md`;
+  const mine = peek('DELVMOD_SOUND_NAMES');
+  if (!existsSync(page)) ok('sound names', 'no wiki page in this delvmod, not compared');
+  else if (!mine) fail('sound names', 'DELVMOD_SOUND_NAMES not found in the viewer');
+  else {
+    const clean = s => s.replace(/\*\[[^\]]*\]/g, '').replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+    const wiki = new Map();
+    for (const line of readFileSync(page, 'utf8').split('\n')) {
+      const m = /^Index \d+, ID ([0-9A-F]{4}) Length: \d+ bytes\s*(.*)$/.exec(line.trim());
+      if (m && !/^\?+$/.test(clean(m[2]))) wiki.set(parseInt(m[1], 16), clean(m[2]));
+    }
+    const bad = [];
+    for (const [id, name] of wiki) if ((mine[id] || '').replace(/ \[sic\]$/, '') !== name) bad.push(`0x${id.toString(16).toUpperCase()} wiki "${name}", here "${mine[id] || ''}"`);
+    for (const id of Object.keys(mine).map(Number)) if (!wiki.has(id)) bad.push(`0x${id.toString(16).toUpperCase()} here and not on the wiki`);
+    if (!wiki.size) fail('sound names', 'no entries parsed from the wiki page');
+    else if (bad.length) fail('sound names', bad.slice(0, 5).join('; ') + (bad.length > 5 ? ` (+${bad.length - 5})` : ''));
+    else ok('sound names', `${wiki.size} match the wiki page`);
+  }
+}
+
 console.log(failures ? `\nFAIL — ${failures} problem(s)` : '\ndelvmod cross-check: clean');
 process.exit(failures ? 1 : 0);

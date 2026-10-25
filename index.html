@@ -2133,12 +2133,11 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
     It does not affect something drawn from several frames, like a fountain.</span></div>
   <label><input type="checkbox" id="chkBuiltinLabels" onchange="setBuiltinLabels(this.checked)">
     <span>Names from outside the game’s text
-      <span class="amNote">Hand-identified labels from the delvmod wiki, resource names,
-      tile-sheet names and the prop-type list that the Items, Props and Monsters galleries draw on.
-      On the World map, places that share a name in the game get a name of their own from the editor’s
-      list (“Headwater Ruins” rather than the game’s “Ruins”).
-      When this is off, every gallery shows only names the file itself contains (0xF004 tile names,
-      zone-entry text, resource symbols) and marks the cells that have none.</span></span></label>
+      <span class="amNote">The sounds’ names from the delvmod wiki, written by ear, and short
+      descriptions of the data file’s tables. On the World map, places that share a name in the game
+      get a name from the editor’s list (“Headwater Ruins” rather than the game’s “Ruins”).
+      When this is off, every name on the page comes from the files (the 0xF004 tile names,
+      the zone-entry text, the resource symbols and the program’s resource names).</span></span></label>
   <div id="faceWrap">The font this page uses
     <label><input type="radio" name="faceChoice" value="game" onchange="setFaceChoice(this.value)"> the game’s, from the open file</label>
     <label><input type="radio" name="faceChoice" value="chicago" onchange="setFaceChoice(this.value)"> Chicago</label>
@@ -2689,7 +2688,7 @@ wiki, not from the file. Turn these names on or off in Settings.</div>
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.335.0';
+const GRIMOIRE_VERSION = '1.336.0';
 /* The name at the top, and the tab's icon. The grimoire's tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);
