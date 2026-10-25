@@ -1766,10 +1766,13 @@ function decodeSfntInfo(data){
 // ============================================================
 //  Classic Mac system palettes + indexed icon families
 // ============================================================
-// Standard Mac OS 16-color palette (icl4 / ics4).
+// Standard Mac OS 16-color palette (icl4 / ics4): the clut with seed 4 in
+// the Mac II to Power Macintosh G3 ROMs, each 16-bit channel cut to its high
+// byte, the same as in readColorTable for every other table. Until 25 October
+// 2026 fourteen entries were rounded and two cut, so five were one step off.
 const MAC_4BIT_PAL = [
-  [255,255,255],[252,243,5],[255,100,3],[221,9,7],[242,8,132],[71,0,165],
-  [0,0,211],[2,171,234],[31,183,20],[0,100,18],[86,44,5],[144,113,58],
+  [255,255,255],[252,243,5],[255,100,2],[221,8,6],[242,8,132],[70,0,165],
+  [0,0,212],[2,171,234],[31,183,20],[0,100,17],[86,44,5],[144,113,58],
   [192,192,192],[128,128,128],[64,64,64],[0,0,0]
 ];
 // Standard Mac OS 256-color system palette (icl8 / ics8). Indices 0-214 are

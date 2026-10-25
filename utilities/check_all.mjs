@@ -641,7 +641,7 @@ const CHECKS = [
    expect: 'midi import: 11 shipped headers rebuilt byte for byte; 13401 notes and 7835 controllers back from MIDI where they were (a controller\'s value within 89 of 65536); the controls caught'},
   {page: 'viewer', name: 'resource snapshot', requiredInputs: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
-   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT ea7b0c7651d2'},   // mctb read as menu color entries, 25 October 2026: its line alone moved
+   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT 8e52be1105b5'},   // 25 October 2026: mctb read as menu color entries (ea7b0c7651d2, its line alone moved), then MAC_4BIT_PAL as high bytes (icl4's line alone, ics4 using none of the five entries)
   /* The same decoders held to resource_dasm, a second implementation, on
      every picture, icon, cursor, pattern, color table, font, sound and string
      of both forks; the snapshot above proves them unchanged, and this row
