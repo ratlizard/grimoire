@@ -110,6 +110,9 @@ function describe(type, entry, data) {
     case 'styl': return text(() => G.decodeStyl(data));
     case 'FOND': return text(() => G.decodeFOND(data).text);
     case 'pltt': { const r = G.decodePltt(data); return `pltt:${r.count}:${r.usage}:${canvasSig(r.canvas)}`; }
+    // An mctb was read as a color table, under COLOR_TABLE_TYPES below, until
+    // 25 October 2026; it is menu color entries, read by decodeMctb.
+    case 'mctb': { const m = G.decodeMctb(data); return `mctb:${m.entries.length}:${canvasSig(m.canvas)}:${hash(m.text)}`; }
     case 'NFNT': case 'FONT': { const f = G.decodeNFNT(data);
       return `font:${f.info}:${canvasSig(f.canvas)}:glyphs${f.glyphs.length}:${hash(f.glyphs.map(g => g.code + 'x' + g.width).join(','))}`; }
     case 'cfrg': return G.decodeCfrg ? text(() => G.decodeCfrg(data)) : 'n/a';

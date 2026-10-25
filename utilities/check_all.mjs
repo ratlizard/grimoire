@@ -641,17 +641,17 @@ const CHECKS = [
    expect: 'midi import: 11 shipped headers rebuilt byte for byte; 13401 notes and 7835 controllers back from MIDI where they were (a controller\'s value within 89 of 65536); the controls caught'},
   {page: 'viewer', name: 'resource snapshot', requiredInputs: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
-   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT 1662debd95c1'},
+   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT ea7b0c7651d2'},   // mctb read as menu color entries, 25 October 2026: its line alone moved
   /* The same decoders held to resource_dasm, a second implementation, on
      every picture, icon, cursor, pattern, color table, font, sound and string
      of both forks; the snapshot above proves them unchanged, and this row
-     tests whether they are right. The three known differences are in the
+     tests whether they are right. The two known differences are in the
      harness's header, with the program at fault. The control row changes one
      resource of each kind on grimoire's side and fails unless each is caught. */
   {page: 'viewer', name: 'resource_dasm', requiredInputs: [RESOURCE_DASM, APP_RSRC, DATA_RSRC],
    cmd: ['utilities/dasm_check.mjs', 'index.html', RESOURCE_DASM, `${TMP}/dasm_check`, APP_RSRC, DATA_RSRC],
    grep: /resource_dasm: \d+ resources[^\n]*/,
-   expect: 'resource_dasm: 200 resources compared, 197 match, 3 known differences, 0 other differences, 1420 channels one step apart'},
+   expect: 'resource_dasm: 199 resources compared, 197 match, 2 known differences, 0 other differences, 1420 channels one step apart'},
   {page: 'viewer', name: 'resource_dasm control', requiredInputs: [RESOURCE_DASM, APP_RSRC, DATA_RSRC],
    cmd: ['utilities/dasm_check.mjs', '--control', 'index.html', RESOURCE_DASM, `${TMP}/dasm_check`, APP_RSRC, DATA_RSRC],
    grep: /resource_dasm control: [^\n]*/, expect: 'resource_dasm control: every change caught'},   // the Mac readers' text in plain US English, 22 October 2026: the text of DATA, FOND, LINF, styl, TILE and TxSt moved, no pixels; then CODE's text lost its dash (the old hash came back with the two dashes put back alone)

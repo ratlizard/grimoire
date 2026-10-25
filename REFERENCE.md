@@ -737,10 +737,12 @@ QuickDraw's 16 bits into 8. The 4-bit icons are compared by index, because
 resource_dasm's 16-color table is an approximation of Apple's and the page's
 is Apple's, as read out of the ROMs. It found three differences, each read
 to its cause. Two are resource_dasm's (glyph R of both fonts is wider than
-its cell, and resource_dasm cuts off its last columns). One is this side's.
-`mctb` 129 is a menu color table, a count and 30-byte menu color entries, and
-`COLOR_TABLE_TYPES` lists it with the clut family, so the page draws its
-bytes as color swatches.
+its cell, and resource_dasm cuts off its last columns), and the check
+reports them as known. The third was this side's and is fixed. `mctb` 129 is
+a menu color table, a count and 30-byte menu color entries, and
+`COLOR_TABLE_TYPES` listed it with the clut family, so the page drew it as
+one black swatch. `decodeMctb` reads it as Toolbox Essentials and systemless
+do, and resource_dasm writes it raw, so the check does not compare it.
 
 **The HFS writer is the exception that proves the rule, and it is labelled as
 one.** `js/mac-hfs.js` was written *from* systemless's `src/disk_image/hfs.rs`

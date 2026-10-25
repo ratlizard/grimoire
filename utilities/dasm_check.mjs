@@ -234,18 +234,13 @@ function compareGlyph(ours, theirs, mutate) {
 // Differences read and explained, each with the program at fault. A known
 // difference is printed and passes; one that stops appearing is reported, so
 // a fix on either side is noticed and the entry removed.
-const KNOWN_ALONE = {
-  // An mctb is not a color table. Inside Macintosh: Macintosh Toolbox
-  // Essentials, figures 3-40 and 3-41 (pages 3-156 and 3-157): a count, then
-  // menu color entries of a menu id, an item number and four RGB colors, and
-  // the game's has 30-byte entries, the two bytes after the colors being
-  // MCEntry's mctReserved; the last has menu id -99. systemless reads it the
-  // same way (compiled_menu_color_entries in its menu_manager.rs, 30-byte
-  // records). COLOR_TABLE_TYPES lists it with the clut family, so the page
-  // draws its bytes as color swatches. resource_dasm writes it raw. The fault
-  // is grimoire's.
-  'mctb': 'grimoire reads a menu color table as a color table, and resource_dasm writes it raw',
-};
+//
+// The table is for a type that one program decodes and the other writes raw.
+// It is empty. Its one entry was mctb, which grimoire read as a color table
+// until 25 October 2026 (the log, grimoire/mctb-ws85q7). decodeMctb reads it
+// as menu color entries, resource_dasm writes it raw, and so it is outside
+// the comparison.
+const KNOWN_ALONE = {};
 
 // resource_dasm writes a string's carriage returns as line feeds.
 const theirText = f => readFileSync(f, 'utf8').replace(/\n/g, '\r');
