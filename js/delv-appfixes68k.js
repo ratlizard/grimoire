@@ -63,6 +63,7 @@ const APP_FIXES_68K = {
     { fix: 'ai-import', seg: 1, at: 0x1E416, was: '7000600270014a006706297234040004', now: '600e4e71297234040004600c4e714e71' },  // bra.b $1e426; nop; move.l $4(a2, d3.w), $4(a4); bra.b $1e42e; nop; nop
     { fix: 'open-during-play', seg: 1, at: 0x1E52E, was: '4a926718', now: '42aa0004' },  // clr.l $4(a2)
     { fix: 'afternoon', seg: 3, at: 0x7DE0, was: '7006', now: '7012' },  // moveq #$12, d0
+    { fix: 'spot-tune', seg: 1, at: 0x6A56, was: '6718', now: '6746' },  // beq.b $6a9e
   ],
   caves: [
     { fixes: ['walk-to'], seg: 5, site: 0x663A, was: '4aaeff486700008e', bodies: {
@@ -557,7 +558,7 @@ const APP_FIXES_68K = {
     { fix: 'text-compatible', at: 0x98EE, was: '74686973', now: '77697468' },
     { fix: 'text-compatible', at: 0x9A11, was: '74686973', now: '77697468' },
   ],
-  played: ['afternoon', 'containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'name-clear', 'option-p', 'option-x', 'roster-pose', 'sleeper-unit', 'spell-glow', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
+  played: ['afternoon', 'containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'name-clear', 'option-p', 'option-x', 'roster-pose', 'sleeper-unit', 'spell-glow', 'spot-tune', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
   built: {
     'afternoon': 'a5c5a679bca703b9537ce76a8ffbb979f6def95dd955ecb76af74594888c2234',
     'ai-import': '0b6af25daf450d9a49038b07ee53254d29167f84921499a36828340d7f224743',
@@ -591,6 +592,7 @@ const APP_FIXES_68K = {
     'sleeper-unit': '2e0eb0000a1f94533d056a050d7e72bf6863eb1fd8d2b17a90b04c9bcc871dd6',
     'speech-clear': 'a7b91ddb66d51c5d86f21da10870af5878909ef0da2d0f97b7916bece17b285b',
     'spell-glow': '65733e09cc4bc606b1fbe63aef755b7851da0c05978df73a04a41117315b40d3',
+    'spot-tune': 'f4282e54cf9fed23384f888e205776324efba377f6c45d50c367dc7ef9340670',
     'tab-pane': '9c637c959a023318fbb2db00a6ae03a47c03aed66b7e3e28bad2289b39b73bb5',
     'take-window': '829d15a468584f4714bc3c92dda3d476cf20e0be34db4308bdd81ce8db75d3b9',
     'target-hunger': 'b6e0d502d9d61a44191634e73650cee8e140533210d5f9545baf7da233bc6422',
@@ -602,6 +604,6 @@ const APP_FIXES_68K = {
     'walk-to': 'e9dc95c294c067c41f836ef643962132e0d58e15fa366234b273f7189b25db2c',
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
-    '': 'c4ecbcb3388fedd633ff34a53e7e34e33d4c25596c5e03fae066b85298871855',   // every fix
+    '': '4b6c9fa5d5638020331b449f940fcabfc8c7c194a4c3bfebd541631a6985a828',   // every fix
   },
 };

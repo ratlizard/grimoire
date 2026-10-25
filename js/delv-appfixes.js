@@ -344,6 +344,20 @@ const APP_FIXES = [
     played: 'fork, PowerPC and 68K, 24 October 2026, from the pinned save, with sixteen option-t presses to 13:00, a jump to the square south of Laodice in zone 13 and Talk. The stock program has "Good evening, citizen." and the fix alone and every fix "Good afternoon, citizen." At 19:00 the stock program and the fix alone both have "Good evening, citizen." Not played on Mac OS',
     sites: [{ at: 0x93D70, was: [0x2C1F0006], asm: ['cmpwi 31, 18          ; was 6'] }] },
 
+  // GMSIdle, run at every idle, calls GMSTune::Idle to learn whether the spot
+  // tune has ended, and then resumes the ambient tune in either case, on the
+  // one tune player. So a spot tune is cut off at the next idle, and the
+  // ambient tune starts again from where it paused at every idle after (a
+  // stutter). No shipped script plays a spot tune (script call 0xD5,
+  // cbPlayMusic), so a player meets it only in a mod. With the fix the routine
+  // returns while the spot plays, and the ambient tune resumes once the spot
+  // has ended (the workbench's bugs.md, Found reading the program's music and
+  // list code).
+  { id: 'spot-tune', kind: 'fix', title: 'A tune a script plays once, over the zone’s music, plays to its end before the zone’s music comes back',
+    bug: 'A spot tune may be cut off by the ambient tune at the next idle',
+    played: 'fork, PowerPC and 68K, 24 October 2026, with Cythera Data changed so that zone 13’s entry script plays its tune as a spot tune (script call 0xD5 for 0xD6), and a jump into zone 13 from the pinned save, with the tune trace on. On the stock program the ambient tune is queued over the spot tune one tick after it starts and again at every idle (100,615 times in the 68K run). With the fix alone and with every fix the spot tune plays through, and on PowerPC the ambient tune comes back two ticks after the spot tune’s 159 seconds end. Not played on Mac OS',
+    sites: [{ at: 0x1ACC8, was: [0x41820018], asm: ['beq @0x1AD0C          ; the spot still playing, so the ambient tune stays paused'] }] },
+
   // ---- New code ---------------------------------------------------------------
   { id: 'containers-weight', kind: 'fix', title: 'A thing put in a container someone carries counts against that carrier’s weight too',
     played: 'fork, 68K, 22 October 2026, alone: the hero’s Body set to 1 by an edit, a sack in the pack opened by a double-click and a flatbread dragged from the floor into it; with the fix "There isn’t room." and the bread stays on the floor, against the bread put in the sack unpatched; with the hero’s Body as it was, the fix lets the bread in. The PowerPC half was not played, nor Mac OS',
@@ -911,7 +925,7 @@ const APP_FIX_GROUP = {
   'option-p': 'interface', 'option-x': 'interface', 'drag-northwest': 'interface', 'books-window': 'interface',
   'take-window': 'interface', 'roster-pose': 'interface', 'tab-pane': 'interface', 'gamepad-keys': 'interface',
   'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'widget-renumber': 'interface',
-  'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface',
+  'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
   'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules',
