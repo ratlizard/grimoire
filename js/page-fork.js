@@ -1431,8 +1431,9 @@ function renderMacRsrcSheet() {
         imgwrap.appendChild(canvas);
         cell.appendChild(imgwrap);
         const lbl = document.createElement('div');
-        lbl.className = it.entry.name ? 'lbl' : 'lbl nolabel';
-        lbl.textContent = it.entry.name || rsrcTypeLabel(it.type) || '(unnamed)';
+        const outside = it.entry.name ? null : outsideResourceName(src, it.type, it.entry.id);
+        lbl.className = it.entry.name || outside ? 'lbl' : 'lbl nolabel';
+        lbl.textContent = it.entry.name || outside || rsrcTypeLabel(it.type) || '(unnamed)';
         cell.appendChild(lbl);
         const rid = document.createElement('div');
         rid.className = 'resid';

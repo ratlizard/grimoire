@@ -305,6 +305,20 @@ const DELVMOD_SOUND_NAMES = {
   0x912F:'Vision of the night, etc', 0x9130:'Directed nexus (really annoying magic sound)',
   0x9131:'Quenching blacksmith sound', 0x9132:'Hammering blacksmith sound'
 };
+// The program's 'snd ' resources with no name in the file, by the names
+// Cythera Guides' sounds page gives its recordings of them, each recording
+// found byte for byte in the resource (work/sfx-guides/compare.py in the
+// workbench, 25 October 2026). The six the file names (get, use, look,
+// attack2, talk.snd, Scribble.snd) keep the file's names. Shown, like the
+// sounds' names above, only with the names from outside the game's text.
+const GUIDES_PROGRAM_SOUND_NAMES = {
+  128:'Error', 129:'Window Open', 130:'Window Close', 133:'Select',
+  134:'Button Down', 135:'Button Up', 256:'Explosion'
+};
+function outsideResourceName(src, type, id) {
+  if (!window.SHOW_BUILTIN_LABELS) return null;
+  return src === 'app' && type === 'snd ' ? GUIDES_PROGRAM_SOUND_NAMES[id] || null : null;
+}
 // Zone names are the map's entry script's (loadZoneNames) and the editor's
 // list in the resource fork (loadEditorZoneNames). The community's
 // descriptive names for eighteen maps stood here behind the names switch
