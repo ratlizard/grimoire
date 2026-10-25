@@ -812,6 +812,13 @@ quiet label is quiet by its size, not its colour.
   take a row of their own under the tools, at 40 px. The pixels were extracted with the viewer's own decoders
   driven the way `decoder_snapshot.mjs` drives them; re-extract the same
   way if a frame is ever wrong.
+- **Two drawn scenes, one for each shape of screen.** The Cave
+  (`buildFooterScene`, 512 by 176) opens on a desktop and on a phone held
+  sideways. Falls (`buildFalls`, 108 by 160, a gorge at night) opens on a
+  phone held upright (`firstScene`), since the Cave left most of one empty.
+  Falls is sized so `fitCanvas()` shows it at three screen pixels to one on
+  phones from 360 by 780 to 412 by 915, and its header has the figures. Both
+  are drawn by code in the same module and use all five ramps.
 - **`browser_check.mjs` loads it and requires no console error**, since
   18 September 2026, and that is the whole of what the suite asks of it.
   What was done for its layout, on 6 September 2026, was to drive it in
