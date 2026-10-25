@@ -142,6 +142,25 @@ throws('not a MIDI file', 'midiRead(new Uint8Array(32))', /MThd/);
 ctx.R = 0x9000;
 throws('no tune to copy from', 'midiToQtma(qtmaToMidi(getResourceBytes(ARC, R)).midi, {})', /synthesizer/);
 
+// A tune added under a new number (midiFileAdded and addResource): the file
+// written with tune 0's MIDI as 0x900B must give that tune back from 0x900B,
+// stored enciphered as 0x9000 is, and leave 0x9000 as it was. The page's
+// path goes through parseArchiveBytes and the DOM, and this check covers the
+// archive layer under it.
+ev(`ADDED = (() => {
+  const spec = delverArchiveSpec(DATA);
+  const model = spec.resources.find(r => r.resid === 0x9000);
+  const made = midiToQtma(qtmaToMidi(getResourceBytes(ARC, 0x9000)).midi, { like: getResourceBytes(ARC, 0x9000) }).data;
+  spec.resources.push({ resid: 0x900B, data: made, encrypted: !!model.encrypted });
+  const back = openDelverArchive(writeDelverArchive(spec));
+  return { made, back: getResourceBytes(back, 0x900B), first: getResourceBytes(back, 0x9000), was: getResourceBytes(ARC, 0x9000) };
+})()`);
+const added = ev('ADDED');
+if (!added.back) fail('added tune', '0x900B is not in the written file');
+else if (!same(Array.from(added.back), Array.from(added.made))) fail('added tune', '0x900B does not read back as written');
+if (!same(Array.from(added.first), Array.from(added.was))) fail('added tune', 'adding 0x900B changed 0x9000');
+
 if (failures) process.exit(1);
 console.log(`midi import: ${tunes} shipped headers rebuilt byte for byte; ${notes} notes and ${ctls} controllers back from MIDI where they were` +
   ` (a controller's value within ${worst} of 65536)${controlsOk ? '; the controls caught' : ''}`);
+console.log('added tune: 0x900B reads back from the written file, and 0x9000 is unchanged');

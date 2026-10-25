@@ -929,6 +929,42 @@ function midiFilePicked(input) {
   reader.onerror = () => setStatus('The page could not read ' + f.name + '.', true);
   reader.readAsArrayBuffer(f);
 }
+/* A MIDI file as a new tune, under the first tune number the file does not
+   use (the maintainer, 24 October 2026: the import above only replaces).
+   The tune open is the model midiToQtma copies its header from, as in a
+   replacement. A script plays tune n from resource 0x9000 + n, and no
+   script plays the new number until one is changed, as the status line
+   reminds the visitor. */
+function midiFileAdded(input) {
+  const f = input && input.files && input.files[0];
+  if (!f) return;
+  const like = currentResid;
+  const spec = delverArchiveSpec(ARCHIVE.bytes);
+  const used = new Set(spec ? spec.resources.map(r => r.resid) : []);
+  let resid = 0x9000;
+  while (resid <= 0x90FF && used.has(resid)) resid++;
+  if (resid > 0x90FF) { setStatus('The file uses every tune number, 0 to 255.', true); input.value = ''; return; }
+  const model = spec && spec.resources.find(r => r.resid === like);
+  const reader = new FileReader();
+  reader.onload = () => {
+    input.value = '';
+    try {
+      const made = midiToQtma(new Uint8Array(reader.result), {
+        like: getResourceBytes(ARCHIVE, like), unitsPerSecond: QTMA_UNITS_PER_SECOND,
+        name: QT_LIB ? (n => { try { return QT_LIB.has(n) ? QT_LIB.get(n).name : ''; } catch (e) { quiet(e); return ''; } }) : null });
+      if (!addResource(resid, made.data, model && model.encrypted)) return;
+      jumpToResource(resid);
+      const left = Object.entries(made.dropped).map(([why, n]) => n + ' ' + why).join(', ');
+      setStatus('Added ' + f.name + ' as tune ' + (resid - 0x9000) + ' (0x' + resid.toString(16).toUpperCase() + '): ' + made.parts.length + (made.parts.length === 1 ? ' part, ' : ' parts, ') +
+        made.notes + ' notes, ' + made.seconds.toFixed(1) + ' seconds' + (left ? '. Left out: ' + left : '') +
+        '. A script plays it with PlayMusic(' + (resid - 0x9000) + '). To download the edited file, use Your Patch in Tools › Patch Generator.');
+    } catch (e) {
+      setStatus('The page could not make ' + f.name + ' into a tune: ' + e.message + '.', true);
+    }
+  };
+  reader.onerror = () => setStatus('The page could not read ' + f.name + '.', true);
+  reader.readAsArrayBuffer(f);
+}
 function qtInstrumentsPicked(input) {
   const f = input.files && input.files[0];
   if (!f) return;

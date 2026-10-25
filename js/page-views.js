@@ -2750,6 +2750,8 @@ function renderText(sameResource) {
     if (qtPlayBtn) qtPlayBtn.style.display = 'none';
     const midiInBtn = document.getElementById('midiInBtn');
     if (midiInBtn) midiInBtn.style.display = 'none';
+    const midiAddBtn = document.getElementById('midiAddBtn');
+    if (midiAddBtn) midiAddBtn.style.display = 'none';
     const qtPickBtn = document.getElementById('qtPickBtn');
     if (qtPickBtn) qtPickBtn.style.display = 'none';
     if (subn === 143) {
@@ -2770,6 +2772,7 @@ function renderText(sameResource) {
         if (midiBtn) midiBtn.style.display = '';
         if (qtPlayBtn) qtPlayBtn.style.display = '';
         if (midiInBtn) midiInBtn.style.display = '';
+        if (midiAddBtn) midiAddBtn.style.display = '';
       } catch(e) {
         head += "(the page could not decode this as a QTMA tune: " + e.message + ")\n\n";
       }
@@ -3478,6 +3481,28 @@ function applyResourceEditFromText() {
   const bytes = parseHexBytes(document.getElementById('editBytesText').value);
   if (!bytes) { setStatus('That is not hex. Enter pairs of 0–9 and a–f. The page ignores spaces, and the count must be even.', true); return; }
   if (applyResourceEdit(currentResid, bytes)) cancelResourceEdit();
+}
+
+/* A resource the open file does not have, added: a tune brought in from a
+   MIDI file under a new number (the maintainer, 24 October 2026, after the
+   import could only replace a tune). With `encrypted` set the writer stores
+   it enciphered, as the rest of its subindex is. It joins the edited set,
+   so it is in Your Patch, and a patch can add a resource the game file
+   lacks (mergeDelverPatch). A number already in the file returns false,
+   with the reason on the status line. */
+function addResource(resid, data, encrypted) {
+  const spec = delverArchiveSpec(ARCHIVE.bytes);
+  if (!spec) { setStatus('The page could not read the open file again, so the file is as it was.', true); return false; }
+  if (spec.resources.some(r => r.resid === resid)) { setStatus('0x' + resid.toString(16).toUpperCase() + ' is already in the file.', true); return false; }
+  spec.resources.push({ resid, data, encrypted: !!encrypted });
+  const dirty = new Set(window.EDITED_RESIDS);
+  dirty.add(resid);
+  const name = window.ARCHIVE_SOURCE_NAME || 'archive';
+  parseArchiveBytes(writeDelverArchive(spec), name, { rsrc: window.CYTHERA_RSRC_RAW, via: 'edit' });
+  window.EDITED_RESIDS = dirty;
+  refreshChangesBadge();
+  showEditNotice(resid, 'added', dirty.size);
+  return true;
 }
 
 function applyResourceEdit(resid, newData) {

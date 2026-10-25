@@ -4936,7 +4936,7 @@ function renderMechanicsSheet(value) {
       [], '<ul class="ruleList">' +
         '<li>' + actionChip('Font Replacer', "toolGoTo('FONTS', 'fontSwap')") + ' A TrueType font in place of the game’s.</li>' +
         '<li>' + actionChip('Seldane Script Replacer', "toolGoTo('FONTS', 'strikeSwap')") + ' A TrueType font redrawn as the Seldane script.</li>' +
-        '<li>' + actionChip('MIDI Importer', "toolGoTo('143')") + ' Open a tune under Music, then choose Replace with a MIDI File.</li></ul>');
+        '<li>' + actionChip('MIDI Importer', "toolGoTo('143')") + ' Open a tune under Music, then choose Replace with a MIDI File, or Add a MIDI File as a New Tune to keep it.</li></ul>');
   }
 
   // ---- the hero's colours, as a patch ----
