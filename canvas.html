@@ -198,6 +198,18 @@ body.adv .advOnly.fl{display:flex !important; align-items:center; gap:8px; flex-
 .paperWrap{flex:1; min-height:0; display:flex; align-items:center; justify-content:center;
   padding:2px; overflow:hidden; touch-action:none; cursor:grab}
 .paperWrap.panning{cursor:grabbing}
+.paperWrap{position:relative}
+/* the ramp a melt is making, over the top of the mat while the drag lasts */
+.meltPrev{position:absolute; top:6px; left:50%; transform:translateX(-50%); z-index:5; pointer-events:none;
+  display:flex; flex-direction:column; align-items:center; gap:3px; padding:5px 8px;
+  background:var(--surface); border:1px solid var(--line); border-radius:3px; box-shadow:var(--shadow)}
+.meltPrev[hidden],.meltPrev canvas[hidden]{display:none}
+.meltPrev canvas{width:min(70vw,260px); height:18px; image-rendering:pixelated; display:block; border:1px solid var(--line)}
+.meltPrev span{font-size:0.6875rem; color:var(--ink-2); white-space:nowrap}
+/* The phone's ramp picker: the ramp in hand as its colors, opening a list of
+   every ramp drawn the same way. The menu it replaces named them only. */
+.rampPick{display:none}
+#rampList .rampBtn{margin-bottom:4px; min-height:40px}
 .paper{position:relative; border:1px solid var(--line); border-radius:2px; line-height:0;
   box-shadow:var(--shadow); will-change:transform}
 /* Marching ants ride above the picture rather than in it, so a selection is
@@ -284,12 +296,20 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   .side{order:2; flex:0 0 auto; border-left:0; border-top:1px solid var(--line); position:relative}
   .ink{display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding:6px 8px; border-bottom:0}
   .ink .seg{width:auto}
-  #inkRampBox{display:flex; gap:6px; align-items:center; flex:1 1 auto}
+  #inkRampBox{display:flex; gap:6px; align-items:center; flex:1 1 0; min-width:0}
   #inkRampBox[hidden]{display:none}
   #inkStillBox{flex:1 1 auto}
   #inkStillBox[hidden]{display:none}
   .inkRow{margin-top:0; flex:1 1 110px; grid-template-columns:minmax(0,1fr)}
   #rampPrev{display:none}
+  #rampSel{display:none}
+  /* the picker and, for a ramp of yours, its × on one line */
+  .inkRow{grid-template-columns:minmax(0,1fr) auto}
+  #rampDel{width:40px; min-height:40px}
+  .rampPick{display:flex; align-items:center; gap:7px; min-height:40px; width:100%; min-width:0; padding:4px 8px;
+    background:var(--raise); border:1px solid var(--line); border-radius:3px; color:var(--ink); font:inherit; cursor:pointer}
+  .rampPick canvas{width:48px; height:20px; flex:0 0 auto; image-rendering:pixelated; border:1px solid var(--line); border-radius:2px}
+  .rampPick span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .dirRow .seg.small button{padding:3px 7px}
   .dirRow{margin-top:0}
   .dirRow .eyebrow{display:none}
@@ -323,6 +343,8 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   .ink{display:block; padding:9px 10px; border-bottom:1px solid var(--line-soft)}
   #inkRampBox{display:block}
   #rampPrev{display:block}
+  #rampSel{display:block}
+  .rampPick{display:none}
   .inkRow{grid-template-columns:auto minmax(0,1fr)}
   .tb,.fx{width:36px; height:36px}
   .inkRow{margin-top:7px}
@@ -487,7 +509,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       <button type="button" class="btn" id="clear">Clear</button>
     </div>
 
-    <div class="paperWrap"><div class="paper"><canvas id="art" width="192" height="120"></canvas><canvas id="selOv" width="192" height="120"></canvas></div></div>
+    <div class="paperWrap"><div class="meltPrev" id="meltPrev" hidden><canvas width="16" height="1"></canvas><span></span></div><div class="paper"><canvas id="art" width="192" height="120"></canvas><canvas id="selOv" width="192" height="120"></canvas></div></div>
 
     <div class="status">
       <span>stroke <b id="rDir">none</b></span>
@@ -510,6 +532,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
         <div class="inkRow">
           <canvas id="rampPrev" width="32" height="1"></canvas>
           <select id="rampSel" aria-label="Ramp"></select>
+          <button type="button" class="rampPick" id="rampPick" title="Choose a ramp"><canvas width="32" height="1"></canvas><span id="rampPickName"></span></button>
           <button type="button" class="btn sq" id="rampDel" hidden title="Remove this ramp; the pixels keep their colors" aria-label="Remove this ramp">&times;</button>
         </div>
         <div class="dirRow">
@@ -557,8 +580,10 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
         </div>
       </div>
       <label class="fld" data-for="meltsteps"><span>Ramp colors <b id="vMelt">8</b></span>
-        <input type="range" id="meltN" min="2" max="256" value="8"></label>
-      <div class="fld" data-for="meltpour"><label class="chk" title="The colors you drag across start turning as the new ramp"><input type="checkbox" id="meltPour" checked>
+        <input type="range" id="meltN" min="0" max="17" value="5"></label>
+      <div class="fld" data-for="meltbounce"><label class="chk" title="The ramp runs from the first color to the last and back, so it loops with no seam"><input type="checkbox" id="meltBounce" checked>
+        There and back</label></div>
+      <div class="fld" data-for="meltpour"><label class="chk" title="The colors you drag across start turning as the new ramp, where they touch your drag"><input type="checkbox" id="meltPour" checked>
         Set what you melted turning</label></div>
       <div class="fld" data-for="selmode"><span class="eyebrow lbl">Select by</span>
         <div class="seg" id="selSeg">
@@ -576,7 +601,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       </div>
       <div class="fld" data-for="radial"><label class="chk" title="Bands ring out from where the stroke began"><input type="checkbox" id="radial"> Radial</label></div>
       <div class="fld" data-for="global"><label class="chk" title="Connected or not"><input type="checkbox" id="fillAll"> Everywhere</label></div>
-      <div>
+      <div class="fld" data-for="flags">
         <label class="chk"><input type="checkbox" id="rev"> Reverse</label>
         <label class="chk"><input type="checkbox" id="ragged" checked> Ragged edge</label>
       </div>
@@ -588,6 +613,10 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
   </aside>
 </div>
 </div>
+
+<dialog id="dRamp" aria-label="Ramps"><div class="dh"><span class="eyebrow">Ramps</span>
+  <button type="button" class="btn" data-close>Done</button></div>
+  <div class="db"><div id="rampList"></div></div></dialog>
 
 <dialog id="dPal" aria-label="Palette"><div class="dh"><span class="eyebrow">Colors &amp; depth</span>
   <button type="button" class="btn" data-close>Done</button></div>
@@ -643,11 +672,11 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       palette index. Inside a turning register, that index is how far along the ramp the pixel is,
       and each frame moves the ramp on by one, so a stroke that writes a falling sequence of positions looks like
       color traveling that way. Drag downward and the color falls. Nothing is ever redrawn.</p>
-    <p><strong>The ink sets what the tools are.</strong> With a ramp loaded the seven are Flow,
-      Vortex, Sparkle, Pool, Divert, Select and Melt. With a flat color the same seven are Paint,
-      Shape, Spray, Fill, Smudge, Select and Pick. <strong>Melt</strong> is what Pick becomes when the ink is a
-      ramp. Drag across a run of colors and Melt joins them into a new ramp, then writes the ramp back
-      into the pixels it came from, so they start turning where they are.</p>
+    <p><strong>The ink sets what the tools are.</strong> With a ramp loaded the tools are Flow,
+      Vortex, Sparkle, Pool, Divert, Select, Melt and Pick. With a flat color the first five are Paint,
+      Shape, Spray, Fill and Smudge. Drag across a run of colors with <strong>Melt</strong> and it joins
+      them into a new ramp, then sets the pixels you dragged across turning where they are. With
+      There and back on, the ramp runs to its last color and back, so it loops with no seam.</p>
     <p><strong>Select confines everything.</strong> A box, a lasso or a region is a mask, and all
       painting checks it, so every tool and every creature that paints works inside it and
       nowhere else. Drag from inside a selection to move what is in it.</p>
@@ -1553,11 +1582,12 @@ function bay(x, y) { return (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16; }
  *   modify
  *     divert  Divert   / Smudge   push what is already there about
  *     select  Select   / Select   marquee for cut, copy, paste and confining
- *     pick    Melt     / Pick     take ink off the picture: a ramp, or a colour
+ *     melt    Melt     / Melt     drag across colors to string them into a ramp
+ *     pick    Pick     / Pick     take one color off the picture
  *
- * Melt is Pick's ramp half. For ink of one colour, picking a single colour is
- * enough; a ramp needs more than one pixel to be worth anything,
- * so its half of the tool collects a run of them.
+ * Melt was Pick's ramp half until October 2026, and a toolbox showing a
+ * flat ink had no Melt in it at all. Melt is a separate tool now, the same
+ * under either ink, and it always ends with a ramp loaded.
  */
 var W = 192, H = 120;
 var art = document.getElementById('art'), ctx = art.getContext('2d');
@@ -1578,7 +1608,7 @@ var flowRadial = false;    // waves ring out from where you touched
 var frame = 0, playing = true, rateMs = 140;
 // The one polysemous slider has a separate value for each tool, because Fold at 0 and
 // Force at 0 mean very different things.
-var SPIN_BY = { flow: 0, burst: 0, pool: 0, divert: 2.6, spray: 0, select: 0, pick: 0 };
+var SPIN_BY = { flow: 0, burst: 0, pool: 0, divert: 2.6, spray: 0, select: 0, melt: 0, pick: 0 };
 function amt() { return Math.abs(spin); }
 
 function snapshot() {
@@ -1815,9 +1845,15 @@ function divert(cx, cy, dx, dy, src) {
  * becomes a stop. Let go and those stops are strung into a ramp, quantised
  * to the current depth, switched on and loaded into the ink.
  */
-var meltStops = [], meltTook = [], meltMoved = false, meltSteps = 8, meltFlow = true;
-var MELT_MAX = 24, MELT_TOOK_MAX = 160;
+var meltStops = [], meltTook = [], meltPath = [], meltMoved = false, meltSteps = 8, meltFlow = true, meltBounce = true;
+var MELT_MAX = 24, MELT_TOOK_MAX = 160, MELT_PATH_MAX = 4000;
+// What the Ramp colors slider offers. Every count from 2 to 256 on one slider
+// put 8 inside a few pixels of a phone's width; these are the counts worth
+// having, each one a step of the slider.
+var MELT_STEP_CHOICES = [2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 48, 64, 96, 128, 192, 256];
 function meltSample(x, y) {
+  if (x < 0 || x >= W || y < 0 || y >= H) return;
+  if (meltPath.length < MELT_PATH_MAX) meltPath.push(y * W + x);
   var v = idx[y * W + x];
   if (!v) return;
   // Every still slot the cursor crosses is noted, whether or not it earns a
@@ -1836,32 +1872,102 @@ function meltSample(x, y) {
   }
   meltStops.push(c.slice());
   showStatus('melt: ' + meltStops.length + (meltStops.length < 2 ? ' stop, one more' : ' stops'));
+  paintMeltPreview();
+}
+/* The ramp a melt will make, from the stops collected so far. There and back
+ * (meltBounce) runs from the first stop to the last and back again, so when
+ * the ramp turns round to its start there is no seam: a melt from dark to
+ * light used to jump from its lightest step straight to its darkest once a
+ * turn, and that edge moved through everything painted with it. */
+function meltColors(stops) {
+  var n = Math.max(2, Math.min(4096, meltSteps));
+  if (!meltBounce || stops.length < 2) return rampFromStops(stops, n);
+  var out = [];
+  for (var i = 0; i < n; i++) {
+    var t = 2 * i / n;
+    out.push(stopsAt(stops, t <= 1 ? t : 2 - t));
+  }
+  return out;
+}
+/* While the finger is down, the ramp being made is drawn at the top of the
+ * mat, twice over, so the join where it loops is in view. Before this the
+ * only sign of it was a count in the status line, and the ramp appeared all
+ * at once when the finger came up. */
+function showMeltPreview(on) {
+  var el = document.getElementById('meltPrev');
+  if (!el) return;
+  el.hidden = !on;
+  if (on) paintMeltPreview();
+}
+function paintMeltPreview() {
+  var el = document.getElementById('meltPrev');
+  if (!el || el.hidden) return;
+  var cv = el.querySelector('canvas'), note = el.querySelector('span');
+  if (meltStops.length < 2) {
+    cv.hidden = true;
+    note.textContent = meltStops.length ? 'Drag across another color' : 'Drag across colors';
+    return;
+  }
+  var cols = meltColors(meltStops), n = cols.length;
+  cv.hidden = false;
+  cv.width = n * 2;
+  var g = cv.getContext('2d'), im = g.createImageData(n * 2, 1);
+  for (var x = 0; x < n * 2; x++) {
+    var c = quant(cols[x % n]);
+    im.data[x * 4] = c[0]; im.data[x * 4 + 1] = c[1]; im.data[x * 4 + 2] = c[2]; im.data[x * 4 + 3] = 255;
+  }
+  g.putImageData(im, 0, 0);
+  note.textContent = meltStops.length + ' stops, ' + n + ' colors';
 }
 function meltFinish() {
   if (meltStops.length < 2) return;
-  if (meltFlow) snapshot();                        // only pouring it back touches pixels
-  var cols = rampFromStops(meltStops, Math.max(2, Math.min(4096, meltSteps)));
+  snapshot();
+  var mark = undoStack[undoStack.length - 1];
+  var cols = meltColors(meltStops);
   var r = makeRamp(cols, 'Melt ' + (CUSTOM.length + 1), 'melted off the picture');
+  // The ramp and its colors go on the undo point, so Undo removes the ramp
+  // from the list and its colors from the palette, and Redo puts them back.
+  // Before, Undo restored the pixels alone.
+  mark.melt = { ramp: r, cols: PAL.slice(r.base, r.base + r.len) };
   ramp = r; setInk('ramp');
-  var turningCount = meltFlow ? meltPour(r, meltTook) : 0;
-  meltStops = []; meltTook = [];
+  var turningCount = meltFlow ? meltPour(r, meltTook, meltPath) : 0;
+  meltStops = []; meltTook = []; meltPath = [];
   paintRegs(); paintRamps(); paintPal(); sync(); draw();
   showStatus('melted a ' + r.len + '-color ramp' +
       (turningCount ? ', ' + turningCount + ' pixels are turning now' : ', it is the ink now'));
 }
+function meltUndo(m) {
+  var at = CUSTOM.indexOf(m.ramp);
+  if (at >= 0) CUSTOM.splice(at, 1);
+  if (PAL.length === m.ramp.base + m.ramp.len) PAL.length = m.ramp.base;
+  if (ramp === m.ramp) ramp = ramps()[0] || null;
+  relut(); invalidateMap(); paintRegs(); paintRamps(); paintPal();
+  if (!ramps().length) setInk('still');
+  sync();
+}
+function meltRedo(m) {
+  // The colors go back in the slots they had. If a later color is in those
+  // slots now, the pixels that name them would show the wrong colors, so the
+  // ramp is not put back.
+  if (PAL.length !== m.ramp.base) { showStatus('the melted ramp cannot come back, as newer colors fill its slots'); return; }
+  for (var k = 0; k < m.cols.length; k++) PAL.push(m.cols[k]);
+  if (CUSTOM.indexOf(m.ramp) < 0) CUSTOM.push(m.ramp);
+  ramp = m.ramp;
+  relut(); invalidateMap(); paintRegs(); paintRamps(); paintPal(); setInk('ramp');
+}
 /* Melting is only half done when the ramp exists: what you dragged across is
- * still standing there. Every *still* pixel near enough to the new gradient is
- * handed the step of it that matches, so the thing you melted starts moving
- * where it stands. Paint already inside a turning register is left alone --
- * it is somebody else's, and it is already going. A selection confines this
- * like it confines everything.
+ * still standing there. The still pixels of the colors the drag crossed, and
+ * joined to where it went, are each given the step of the new ramp nearest
+ * their color, so the thing you melted starts moving where it stands. Paint
+ * already inside a turning register is left alone; it is already turning. A
+ * selection confines this as it confines everything.
+ *
+ * Until October 2026 every pixel of those colors turned, wherever it was in
+ * the picture: a drag across one rock set every rock of the same colors
+ * turning. Now the change spreads out from the drag's path, pixel to
+ * neighboring pixel, through those colors only, and stops where they stop.
  */
-function meltPour(r, took) {
-  // Exactly the slots the cursor went over, and nothing else: each is handed
-  // whichever step of the new ramp it is nearest, so what you dragged across
-  // starts turning and the rest of the picture is left where it stands. It is
-  // an indexed palette, so a colour taken here turns everywhere it is used --
-  // which is how cycling has always worked.
+function meltPour(r, took, path) {
   var to = {}, assignedCount = 0, i, k;
   for (i = 0; i < took.length; i++) {
     var v = took[i];
@@ -1875,24 +1981,35 @@ function meltPour(r, took) {
     }
     to[v] = r.base + best;
   }
-  for (var q = 0; q < idx.length; q++) {
-    var w = to[idx[q]];
-    if (w === undefined) continue;
-    if (sel && !sel[q]) continue;
-    idx[q] = w; assignedCount++;
+  var seen = new Uint8Array(W * H), queue = [];
+  for (i = 0; i < path.length; i++) {
+    var p0 = path[i];
+    if (!seen[p0] && to[idx[p0]] !== undefined) { seen[p0] = 1; queue.push(p0); }
+  }
+  for (var h = 0; h < queue.length; h++) {
+    var q = queue[h], w = to[idx[q]];
+    if (!sel || sel[q]) { idx[q] = w; assignedCount++; }
+    var qx = q % W, qy = (q - qx) / W;
+    var near = [qx > 0 ? q - 1 : -1, qx < W - 1 ? q + 1 : -1, qy > 0 ? q - W : -1, qy < H - 1 ? q + W : -1];
+    for (k = 0; k < 4; k++) {
+      var nq = near[k];
+      if (nq < 0 || seen[nq] || to[idx[nq]] === undefined) continue;
+      seen[nq] = 1; queue.push(nq);
+    }
   }
   return assignedCount;
 }
+// The color a fraction t (0 to 1) of the way along a run of stops.
+function stopsAt(stops, t) {
+  var seg = Math.min(stops.length - 2, Math.floor(t * (stops.length - 1)));
+  var lt = t * (stops.length - 1) - seg, a = stops[seg], b = stops[seg + 1];
+  return [Math.round(a[0] + (b[0] - a[0]) * lt),
+          Math.round(a[1] + (b[1] - a[1]) * lt),
+          Math.round(a[2] + (b[2] - a[2]) * lt)];
+}
 function rampFromStops(stops, n) {
   var out = [];
-  for (var i = 0; i < n; i++) {
-    var t = n === 1 ? 0 : i / (n - 1);
-    var seg = Math.min(stops.length - 2, Math.floor(t * (stops.length - 1)));
-    var lt = t * (stops.length - 1) - seg, a = stops[seg], b = stops[seg + 1];
-    out.push([Math.round(a[0] + (b[0] - a[0]) * lt),
-              Math.round(a[1] + (b[1] - a[1]) * lt),
-              Math.round(a[2] + (b[2] - a[2]) * lt)]);
-  }
+  for (var i = 0; i < n; i++) out.push(stopsAt(stops, n === 1 ? 0 : i / (n - 1)));
   return out;
 }
 
@@ -2173,13 +2290,12 @@ function drawSel() {
 /* ================= strokes ============================================== */
 var stroking = false, lastX = 0, lastY = 0, arc = 0, startX = 0, startY = 0, baseCopy = null;
 function begin(x, y) {
-  // Pick and Melt are one tool: one colour off the picture when the ink is one
-  // colour, a run of them strung into a ramp when the ink is a ramp.
+  if (tool === 'melt') {
+    stroking = true; meltMoved = false; startX = x; startY = y; lastX = x; lastY = y;
+    meltStops = []; meltTook = []; meltPath = [];
+    meltSample(x, y); showMeltPreview(true); return;
+  }
   if (tool === 'pick') {
-    if (inkIsRamp()) {
-      stroking = true; meltMoved = false; startX = x; startY = y; lastX = x; lastY = y;
-      meltSample(x, y); return;
-    }
     var v = idx[y * W + x];
     if (v && rampOf(v)) {
       // That index belongs to a turning register, so flat paint has no place in it.
@@ -2226,7 +2342,7 @@ function extend(x, y) {
     else sel = selRect(selDrag.x0, selDrag.y0, x, y);
     drawSel(); draw(); return;
   }
-  if (tool === 'pick') {
+  if (tool === 'melt') {
     if (Math.hypot(x - startX, y - startY) > 1.5) meltMoved = true;
     var mdx = x - lastX, mdy = y - lastY, ml = Math.hypot(mdx, mdy);
     for (var s = 1; s <= Math.max(1, Math.round(ml)); s++)
@@ -2260,8 +2376,9 @@ function extend(x, y) {
   arc += len; lastX = x; lastY = y; setDir(ux, uy, false); draw();
 }
 function end() {
-  if (tool === 'pick' && inkIsRamp() && stroking) {
-    if (meltMoved || meltStops.length >= 2) meltFinish();
+  if (tool === 'melt' && stroking) {
+    showMeltPreview(false);
+    if (meltStops.length >= 2) meltFinish();
     else showStatus('melt: ' + meltStops.length + ' stop, drag across more color');
   }
   if (tool === 'select' && stroking) {
@@ -2323,7 +2440,7 @@ function pos(e) {
  * history lists. Until October 2026 the stroke was taken back with an undo.
  * That put the stroke on the redo list, so Redo appeared and pushed Undo
  * along. A Fill was already finished and not marked as stroking, so it
- * stayed. A melt (Pick with a ramp ink) saves no undo point, so the undo
+ * stayed. A melt saved no undo point until it finished, so the undo
  * took away the edit before it.
  */
 var TOUCH_WAIT_MS = 90, TOUCH_SLOP_PX = 6;
@@ -2352,7 +2469,7 @@ function cancelStroke() {
   if (!m) return;
   strokeMark = null;
   stroking = false; selDrag = null; lasso = null; baseCopy = null;
-  meltStops = []; meltTook = [];
+  meltStops = []; meltTook = []; meltPath = []; showMeltPreview(false);
   if (m.w !== W || m.h !== H) resize(m.w, m.h, false);
   idx = m.px; sel = m.sel;
   while (undoStack.length && undoStack[undoStack.length - 1] !== m.top) undoStack.pop();
@@ -2628,8 +2745,11 @@ var TOOLS = [
   { id: 'select', cat: 'modify',
     ramp:  { name: 'Select', icon: 'select', help: 'Everything works inside the selection and nowhere else. Drag inside it to move it.' },
     still: { name: 'Select', icon: 'select', help: 'Everything works inside the selection and nowhere else. Drag inside it to move it.' } },
-  { id: 'pick', cat: 'modify',
+  { id: 'melt', cat: 'modify',
     ramp:  { name: 'Melt', icon: 'melt', help: 'Drag across colors to string them into a ramp, which becomes the ink.' },
+    still: { name: 'Melt', icon: 'melt', help: 'Drag across colors to string them into a ramp, which becomes the ink.' } },
+  { id: 'pick', cat: 'modify',
+    ramp:  { name: 'Pick', icon: 'pick', help: 'Click a pixel to load its color as flat ink.' },
     still: { name: 'Pick', icon: 'pick', help: 'Click a pixel to load its color.' } }
 ];
 function toolDef(id) {
@@ -2637,18 +2757,21 @@ function toolDef(id) {
   return TOOLS[0];
 }
 function face(id) { var d = toolDef(id); return inkIsRamp() ? d.ramp : d.still; }
-/* Which settings each tool actually reads. */
+/* Which settings each tool actually reads. 'flags' is Reverse and Ragged
+   edge, which only a ramp ink reads; they had no entry here and showed for
+   every tool, Select, Melt and Pick among them. */
 var USES = {
-  flow:   { ramp: ['brush', 'opacity', 'lam', 'turb', 'spin', 'radial'], still: ['brush', 'opacity'] },
-  burst:  { ramp: ['opacity', 'lam', 'turb', 'spin', 'shape'], still: ['opacity', 'shape'] },
-  spray:  { ramp: ['brush', 'opacity', 'turb'], still: ['brush', 'opacity', 'turb'] },
-  divert: { ramp: ['brush', 'spin', 'divmode'], still: ['brush', 'spin', 'divmode'] },
-  pool:   { ramp: ['brush', 'opacity', 'fillstyle', 'lam', 'turb', 'spin', 'global'],
+  flow:   { ramp: ['brush', 'opacity', 'lam', 'turb', 'spin', 'radial', 'flags'], still: ['brush', 'opacity'] },
+  burst:  { ramp: ['opacity', 'lam', 'turb', 'spin', 'shape', 'flags'], still: ['opacity', 'shape'] },
+  spray:  { ramp: ['brush', 'opacity', 'turb', 'flags'], still: ['brush', 'opacity', 'turb'] },
+  divert: { ramp: ['brush', 'spin', 'divmode', 'flags'], still: ['brush', 'spin', 'divmode'] },
+  pool:   { ramp: ['brush', 'opacity', 'fillstyle', 'lam', 'turb', 'spin', 'global', 'flags'],
             still: ['brush', 'opacity', 'global'] },
   select: { ramp: ['selmode', 'brush', 'global'], still: ['selmode', 'brush', 'global'] },
-  pick:   { ramp: ['meltsteps', 'meltpour'], still: [] }
+  melt:   { ramp: ['meltsteps', 'meltbounce', 'meltpour'], still: ['meltsteps', 'meltbounce', 'meltpour'] },
+  pick:   { ramp: [], still: [] }
 };
-/* The toolbox: seven icons, and under them the two creatures. */
+/* The toolbox: eight icons, and under them the creatures. */
 (function () {
   var host = document.getElementById('tools');
   TOOLS.forEach(function (t) {
@@ -2699,9 +2822,9 @@ function setTool(t) {
   if (t !== tool) SPIN_BY[tool] = spin;
   tool = t;
   if (SPIN_BY[t] !== undefined) setSpin(SPIN_BY[t]);
-  if (t !== 'pick') { meltStops = []; meltTook = []; }
+  if (t !== 'melt') { meltStops = []; meltTook = []; meltPath = []; showMeltPreview(false); }
   refreshTool();
-  art.style.cursor = t === 'pick' && !inkIsRamp() ? 'copy'
+  art.style.cursor = t === 'pick' ? 'copy'
                    : t === 'select' ? 'cell' : 'crosshair';
 }
 /* The options panel is the tool's: its name and one line at the top, then
@@ -2837,7 +2960,8 @@ function bindRange(id, out, fn, fmt) {
 bindRange('size', 'vSize', function (v) { brush = v; },
   function (v) { return (tool === 'pool' || tool === 'select') ? String(Math.round((v - 1) * 9)) : String(v); });
 bindRange('opacity', 'vOpacity', function (v) { opacity = v; }, function (v) { return v + '%'; });
-bindRange('meltN', 'vMelt', function (v) { meltSteps = v; }, function (v) { return String(v); });
+bindRange('meltN', 'vMelt', function (v) { meltSteps = MELT_STEP_CHOICES[v] || 8; paintMeltPreview(); },
+  function (v) { return String(MELT_STEP_CHOICES[v] || 8); });
 bindRange('lam', 'vLam', function (v) { lam = v; }, function (v) { return v + ' px'; });
 bindRange('turb', 'vTurb', function (v) { turb = v / 10; },
   function (v) { return tool === 'spray' ? (v / 60).toFixed(2) : (v / 10).toFixed(1); });
@@ -2885,6 +3009,7 @@ document.getElementById('rev').addEventListener('change', function (e) { reverse
 document.getElementById('ragged').addEventListener('change', function (e) { ragged = e.target.checked; });
 document.getElementById('radial').addEventListener('change', function (e) { flowRadial = e.target.checked; });
 document.getElementById('meltPour').addEventListener('change', function (e) { meltFlow = e.target.checked; });
+document.getElementById('meltBounce').addEventListener('change', function (e) { meltBounce = e.target.checked; paintMeltPreview(); });
 document.getElementById('fillAll').addEventListener('change', function (e) { fillGlobal = e.target.checked; });
 
 /* ================= ink: a ramp, or one flat colour ====================== */
@@ -2926,6 +3051,8 @@ function paintRamps() {
     rampSel.appendChild(o);
   });
   if (rs.length && rs.indexOf(ramp) < 0) { ramp = rs[0]; rampSel.value = 0; }
+  var pickName = document.getElementById('rampPickName');
+  if (pickName) pickName.textContent = ramp ? ramp.name + ' · ' + ramp.len + ' steps' : '';
   // A ramp of yours (a melt's, or one built) can go from here, without the
   // Registers dialog.
   var del = document.getElementById('rampDel');
@@ -2949,7 +3076,31 @@ function drawRampSwatches() {
   var cv = document.getElementById('rampPrev');
   cv.width = Math.min(48, Math.max(8, ramp.len));
   rampStrip(cv, ramp, frame);
+  var pc = document.querySelector('#rampPick canvas');
+  if (pc && getComputedStyle(pc).display !== 'none') { pc.width = cv.width; rampStrip(pc, ramp, frame); }
 }
+function openRampList() {
+  var host = document.getElementById('rampList'); host.innerHTML = '';
+  ramps().forEach(function (r) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'rampBtn';
+    b.setAttribute('aria-pressed', String(r === ramp));
+    var cv = document.createElement('canvas');
+    cv.width = Math.min(48, Math.max(8, r.len)); cv.height = 1;
+    rampStrip(cv, r, frame);
+    var nm = document.createElement('span'); nm.className = 'rn'; nm.textContent = r.name;
+    var tg = document.createElement('span'); tg.className = 'tag';
+    tg.textContent = r.len + ' steps' + (r.eng ? '' : ' · yours');
+    b.appendChild(cv); b.appendChild(nm); b.appendChild(tg);
+    b.addEventListener('click', function () {
+      ramp = r; paintRamps(); sync();
+      document.getElementById('dRamp').close();
+    });
+    host.appendChild(b);
+  });
+  document.getElementById('dRamp').showModal();
+}
+document.getElementById('rampPick').addEventListener('click', openRampList);
 
 document.getElementById('rampDel').addEventListener('click', function () {
   if (!ramp || CUSTOM.indexOf(ramp) < 0) return;
@@ -3206,17 +3357,23 @@ document.getElementById('stepF').addEventListener('click', function () { playing
 
 /* Undo and redo. Redo only shows itself when there is something to redo, so
  * it is not a dead button sitting in the bar most of the time. */
+// An entry with `melt` is the state before a melt, and the melt's ramp goes
+// with it: off when undone to it, back on when redone past it.
 function undoOnce() {
   var s = undoStack.pop(); if (!s) return false;
-  redoStack.push({ w: W, h: H, px: idx.slice() });
+  redoStack.push({ w: W, h: H, px: idx.slice(), melt: s.melt });
   if (s.w !== W || s.h !== H) resize(s.w, s.h, false);
-  idx = s.px; refreshHistory(); draw(); return true;
+  idx = s.px;
+  if (s.melt) meltUndo(s.melt);
+  refreshHistory(); draw(); return true;
 }
 function redoOnce() {
   var s = redoStack.pop(); if (!s) return false;
-  undoStack.push({ w: W, h: H, px: idx.slice() });
+  undoStack.push({ w: W, h: H, px: idx.slice(), melt: s.melt });
   if (s.w !== W || s.h !== H) resize(s.w, s.h, false);
-  idx = s.px; refreshHistory(); draw(); return true;
+  idx = s.px;
+  if (s.melt) meltRedo(s.melt);
+  refreshHistory(); draw(); return true;
 }
 document.getElementById('undo').addEventListener('click', function () { if (!undoOnce()) showStatus('nothing to undo'); });
 document.getElementById('redo').addEventListener('click', function () { redoOnce(); });
