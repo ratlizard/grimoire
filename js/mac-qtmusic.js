@@ -119,12 +119,14 @@ const QT_ENV = { span: 1 / 65536, floor: 1 / 65536 };
    hands MusicPlayNote the same number (both 68K, in the same extension,
    read the same day), and the mixers multiply a sample by the gain and
    shift. So by its code QuickTime is in straight proportion from the
-   event to the output, and the recordings depart from that proportion: either they were not
-   made by QuickTime itself (a SoundFont synthesizer playing these same
-   samples squares velocity as a matter of course), or something outside
-   the three components does it. The square is used because it is what
-   the recordings sound like; a capture of the game playing in an
-   emulated Mac would settle it. opts.velExp overrides it. */
+   event to the output, and the game's sound departs from that proportion.
+   Captured playing all eleven tunes through QuickTime 3 on Mac OS 8.5 in
+   SheepShaver (the workbench's tools/qtma-fit/record.py and capture.py,
+   25 October 2026), it is nearer the square than the level itself on
+   every tune, best between 2 and 2.5, and the "(Classic)" recordings match
+   those captures (the same tempo, stereo image and balance), so QuickTime
+   made them. Where in QuickTime the square comes from is not found.
+   opts.velExp overrides it. */
 const QT_VELOCITY_POWER = 2;
 /* How many notes can sound at the same time. The synthesizer requests 14 by default
    ('SSkn': Requested Polyphony, 1 to 48) and then sets its features by the
