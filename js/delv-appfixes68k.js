@@ -62,6 +62,7 @@ const APP_FIXES_68K = {
     { fix: 'ai-import', seg: 1, at: 0x1E3BC, was: '4a9467141f3c00012f142f1261fffffff59642944fef000a30040280000000ffe788d9c042ac0004', now: '30040280000000ffe788d9c04a9467141f3c00012f142f1261fffffff58a42944fef000a42ac0004' },  // move.w d4, d0; andi.l #$ff, d0; lsl.l #$3, d0; adda.l d0, a4; tst.l (a4); beq.b $1e3e0; move.b #$1, -(a7); move.l (a4), -(a7); move.l (a2), -(a7); bsr.l $1d960; clr.l (a4); lea.l $a(a7), a7; clr.l $4(a4)
     { fix: 'ai-import', seg: 1, at: 0x1E416, was: '7000600270014a006706297234040004', now: '600e4e71297234040004600c4e714e71' },  // bra.b $1e426; nop; move.l $4(a2, d3.w), $4(a4); bra.b $1e42e; nop; nop
     { fix: 'open-during-play', seg: 1, at: 0x1E52E, was: '4a926718', now: '42aa0004' },  // clr.l $4(a2)
+    { fix: 'afternoon', seg: 3, at: 0x7DE0, was: '7006', now: '7012' },  // moveq #$12, d0
   ],
   caves: [
     { fixes: ['walk-to'], seg: 5, site: 0x663A, was: '4aaeff486700008e', bodies: {
@@ -556,8 +557,9 @@ const APP_FIXES_68K = {
     { fix: 'text-compatible', at: 0x98EE, was: '74686973', now: '77697468' },
     { fix: 'text-compatible', at: 0x9A11, was: '74686973', now: '77697468' },
   ],
-  played: ['containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'name-clear', 'option-p', 'option-x', 'roster-pose', 'sleeper-unit', 'spell-glow', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
+  played: ['afternoon', 'containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'name-clear', 'option-p', 'option-x', 'roster-pose', 'sleeper-unit', 'spell-glow', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
   built: {
+    'afternoon': 'a5c5a679bca703b9537ce76a8ffbb979f6def95dd955ecb76af74594888c2234',
     'ai-import': '0b6af25daf450d9a49038b07ee53254d29167f84921499a36828340d7f224743',
     'books-window': '207b3c02cdf3210a790655b10b292f6af82a2758492771c8b8e1a0d9abc58840',
     'containers-weight': '75a358199feb783bfbc9dc5bfc27a3a330321f6bd0bacb341f4e03f13790c5db',
@@ -600,6 +602,6 @@ const APP_FIXES_68K = {
     'walk-to': 'e9dc95c294c067c41f836ef643962132e0d58e15fa366234b273f7189b25db2c',
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
-    '': '7d2a9369525996e2b3c3140e686a9302d3687374c23e2c7e5a63009c3be4b378',   // every fix
+    '': 'c4ecbcb3388fedd633ff34a53e7e34e33d4c25596c5e03fae066b85298871855',   // every fix
   },
 };

@@ -334,6 +334,16 @@ const APP_FIXES = [
     bug: 'Opening another saved game during play leaves the archive table on freed memory',
     sites: [{ at: 0x7DC54, was: [0x41820028], asm: ['beq @0x7DC6C          ; no cached copy: clear the entry all the same'] }] },
 
+  // GetGlobStr, global string 1, the part of the day the scripts' greetings
+  // print after "Good ": "night" before 4 and from 22, "morning" before 12,
+  // and then "afternoon" below 6, which no hour of 12 to 21 is, so every
+  // greeting from noon to ten at night has "evening". The 6 becomes 18 (the
+  // workbench's bugs.md, Found reading the program's script callbacks).
+  { id: 'afternoon', kind: 'fix', title: 'People say "Good afternoon" from noon to six, instead of "Good evening" all afternoon',
+    bug: '"Good afternoon" is never printed',
+    played: 'fork, PowerPC and 68K, 24 October 2026, from the pinned save, with sixteen option-t presses to 13:00, a jump to the square south of Laodice in zone 13 and Talk. The stock program has "Good evening, citizen." and the fix alone and every fix "Good afternoon, citizen." At 19:00 the stock program and the fix alone both have "Good evening, citizen." Not played on Mac OS',
+    sites: [{ at: 0x93D70, was: [0x2C1F0006], asm: ['cmpwi 31, 18          ; was 6'] }] },
+
   // ---- New code ---------------------------------------------------------------
   { id: 'containers-weight', kind: 'fix', title: 'A thing put in a container someone carries counts against that carrier’s weight too',
     played: 'fork, 68K, 22 October 2026, alone: the hero’s Body set to 1 by an edit, a sack in the pack opened by a double-click and a flatbread dragged from the floor into it; with the fix "There isn’t room." and the bread stays on the floor, against the bread put in the sack unpatched; with the hero’s Body as it was, the fix lets the bread in. The PowerPC half was not played, nor Mac OS',
@@ -905,6 +915,6 @@ const APP_FIX_GROUP = {
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
   'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules',
-  'menu-scroll': 'talk', 'menu-items': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
+  'menu-scroll': 'talk', 'menu-items': 'talk', 'afternoon': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
 };
 function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }
