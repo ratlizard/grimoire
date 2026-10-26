@@ -128,6 +128,21 @@ const QT_ENV = { span: 1 / 65536, floor: 1 / 65536 };
    made them. Where in QuickTime the square comes from is not found.
    opts.velExp overrides it. */
 const QT_VELOCITY_POWER = 2;
+/* HOW LOUD A PART IS. The part's volume (controller 7) times its expression
+   is squared too. Each of the theme's seven parts was captured alone from
+   the game at QuickTime's full quality (the workbench's
+   tools/qtma-fit/solo.mjs, 25 October 2026) and its level set against
+   this render of it alone, at 80 to 2,560 Hz. In straight proportion the
+   parts spread over 4.7 dB, the loudest parts by volume coming out quietest
+   here (the nylon guitar, which sends no volume and so plays at the full
+   1, 3.3 dB under, Voice Oohs at 28416 2.3 dB under, the fretless bass at
+   17152 1.5 dB over). Squared, five of the seven are within 0.7 dB. The
+   Goblin pad, the one part with a slow attack, is 2.2 dB over, a separate
+   question. Over the eleven tunes' captures the square raises the loudness
+   contour's correlation on ten and leaves the eleventh as it was.
+   Expression is in no shipped tune, so its square is unmeasured.
+   opts.volExp overrides it. */
+const QT_VOLUME_POWER = 2;
 /* How many notes can sound at the same time. The synthesizer requests 14 by default
    ('SSkn': Requested Polyphony, 1 to 48) and then sets its features by the
    machine (SetSynthFeaturesByHardware), so what a given Mac had is not in
@@ -592,7 +607,7 @@ function qtmaRender(events, tones, lib, opts) {
        times the part's volume and its expression, the envelope, and one
        plus the volume LFO. */
     const vel = Math.max(0, ((e.vol + 1) / 128 - 0.5) * knob(QTMS_KNOB.velocitySensitivity, 100) / 100 + 0.5);
-    const gain = Math.pow(vel, opts.velExp || QT_VELOCITY_POWER) * Math.pow(st.volume * st.expression, opts.volExp || 1);
+    const gain = Math.pow(vel, opts.velExp || QT_VELOCITY_POWER) * Math.pow(st.volume * st.expression, opts.volExp || QT_VOLUME_POWER);
     /* Where (the same routine): the part's pan controller, 1 to 2 in 8.8,
        or the instrument's "Default Pan Position" when the controller is
        under 1, moved by the key's distance from middle C times "Key

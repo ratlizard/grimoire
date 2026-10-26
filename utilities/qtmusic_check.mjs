@@ -102,7 +102,7 @@ if (lib.ids.length !== 235) fail('instruments', `${lib.ids.length}, where QuickT
 if (ranges !== 1544) fail('key ranges', `${ranges}, where QuickTime 3 has 1544`);
 
 // The tunes.
-let tuneNote = 'no game, so no tune played';
+let tuneNote = 'No game, so no tune played';
 if (dataPath && existsSync(dataPath)) {
   ctx.DATA = new Uint8Array(readFileSync(dataPath));
   ev('ARC = openDelverArchive(DATA)');
@@ -115,9 +115,9 @@ if (dataPath && existsSync(dataPath)) {
   if (missing.length) fail('parts', 'no instrument for ' + missing.join(', '));
   ctx.LIB = lib;
   const wav = ev('(() => { const i = qtmaToMidi(getResourceBytes(ARC, 0x9000)); return qtmaWav(qtmaRender(i.events, i.tones, LIB)); })()');
-  tuneNote = `every part of 11 tunes has an instrument; the theme ${((wav.length - 44) / 4 / 44100).toFixed(1)} s, TUNE ${sha(wav).toString('hex').slice(0, 12)}`;
+  tuneNote = `Every part of 11 tunes has an instrument, the theme ${((wav.length - 44) / 4 / 44100).toFixed(1)} s, TUNE ${sha(wav).toString('hex').slice(0, 12)}`;
 }
 
 if (failures) process.exit(1);
-console.log(`QuickTime 3: ${entries.length} files unpacked${controls ? ', the controls refused' : ''}; ` +
-  `${lib.ids.length} instruments, ${ranges} key ranges, every sample found; ${tuneNote}`);
+console.log(`QuickTime 3: ${entries.length} files unpacked${controls ? ' and the controls caught' : ''}. ` +
+  `${lib.ids.length} instruments, ${ranges} key ranges, every sample found. ${tuneNote}`);
