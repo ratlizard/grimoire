@@ -2405,7 +2405,7 @@ const EGG_KIND_NAMES = [
   { what: 'a way to another place', arg: 'zoneport' },
   { what: 'signals the zone’s script when stood on', arg: 'signal' },
   { what: 'an ambient sound', arg: 'sound' },
-  { what: 'changes zone', arg: 'zone' },
+  { what: 'sets the area', arg: 'area script, 0x1400 plus it' },
   { what: 'plays music', arg: 'tune' },
   { what: 'signals the zone’s script from anywhere inside it', arg: 'signal' },
   { what: 'brings neighbors in when a condition is met' },
@@ -2509,6 +2509,19 @@ function exeEggReach() {
   } catch (e) { quiet(e); }
   return (DERIVED.EGG_REACH = out);
 }
+// The first title a zone or sub-zone Enter script sets, or null (read off the
+// script, as teleportMazes reads the zones').
+function subZoneTitle(resid) {
+  try {
+    const e = dvmScriptEntry(resid);
+    const sops = e ? dvmOpsOf(e) : [];
+    for (const g of dvmSeqAll(sops, [/^sys SetTitle$/, /^string(?:\(implicit\))? "/])) {
+      const t = dvmOpString(g[1]);
+      if (t) return t;
+    }
+  } catch (e) { quiet(e); }
+  return null;
+}
 function clockHourText(h) { return h === 0 ? 'midnight' : h === 12 ? 'noon' : (h % 12) + (h < 12 ? ' am' : ' pm'); }
 function eggDetail(g, allProps, linked) {
   const k = EGG_KIND_NAMES[g.aspect];
@@ -2604,9 +2617,20 @@ function eggDetail(g, allProps, linked) {
     return 'a room, ' + one('room ' + g.proptype, refExists(rid) ? 'jumpToResource(' + rid + ')' : null);
   }
   if (g.aspect === 4) {
-    const rid = 0x8000 + g.proptype;
-    return 'changes zone to ' + one(labelFor(rid) || propWordHex(rid),
-                                    refExists(rid) ? 'jumpToResource(' + rid + ')' : null);
+    /* A kind-4 egg hands its argument to TGameViewer::ChangeZone, which
+       stores it as the current zone, blacks the erase color and runs the
+       Enter of script 0x1400 plus it (DoInterp method 20); it loads no map
+       (read 25 October 2026). Every shipped one has an argument of 0x100 plus
+       n, so the script is 0x15nn, a sub-zone: the same four calls a zone's
+       Enter makes (landscape strip, title, lighting, music) with no map behind
+       it. This branch named the argument as 0x8000 plus it, a map, and so
+       called the Cave egg in zone 9 a way to Odemia (0x8102 is Odemia's prop
+       list). The title is read off the script. */
+    const rid = 0x1400 + g.proptype;
+    const title = subZoneTitle(rid);
+    const where = title ? one(title, refExists(rid) ? 'jumpToResource(' + rid + ')' : null)
+                        : one(labelFor(rid) || propWordHex(rid), refExists(rid) ? 'jumpToResource(' + rid + ')' : null);
+    return 'sets the area to ' + where + ', with its title, backdrop strip, lighting and music, when the party comes near';
   }
   return svEsc(k ? k.what : 'kind ' + g.aspect) + (k && k.arg ? ', ' + svEsc(k.arg + ' ' + g.proptype) : '');
 }

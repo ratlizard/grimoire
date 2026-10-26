@@ -896,6 +896,16 @@ try {
     fail('world tab', 'the inspector form of an egg does not link its reach to the instruction: ' + JSON.stringify(hatchLink));
   else if (!/when the party comes near it,/.test(hatchBare) || /\d+ squares/.test(hatchBare))
     fail('world tab', 'with no application open the hatching egg states a reach or does not say "near": ' + JSON.stringify(hatchBare));
+  /* A kind-4 egg runs a sub-zone's Enter and loads no map. The egg by the
+     Ur-Sylph entrance at 21,13 in 0x8009 has the argument 0x102 and is the
+     Cave, which this card once called Odemia (0x8102 is Odemia's prop list);
+     the one at 88,91 has 0x100 and is Underground City. */
+  const caveEgg = ctx.atlasEggAt({ resid: 0x8009 }, 21, 13);
+  const undergroundEgg = ctx.atlasEggAt({ resid: 0x8009 }, 88, 91);
+  if (!/sets the area to Cave\b/.test(caveEgg) || /Odemia/.test(caveEgg))
+    fail('world tab', 'the card for the egg at 21,13 in zone 9 reads ' + JSON.stringify(caveEgg));
+  else if (!/sets the area to Underground City\b/.test(undergroundEgg))
+    fail('world tab', 'the card for the egg at 88,91 in zone 9 reads ' + JSON.stringify(undergroundEgg));
   const unicorn = ctx.atlasEggAt({ resid: 0x8001 }, 138, 176);
   const seedpod = ctx.atlasEggAt({ resid: 0x8001 }, 148, 210);
   const nightGuard = ctx.atlasEggAt({ resid: 0x8002 }, 10, 14);
