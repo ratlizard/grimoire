@@ -906,6 +906,17 @@ try {
     fail('world tab', 'the card for the egg at 21,13 in zone 9 reads ' + JSON.stringify(caveEgg));
   else if (!/sets the area to Underground City\b/.test(undergroundEgg))
     fail('world tab', 'the card for the egg at 88,91 in zone 9 reads ' + JSON.stringify(undergroundEgg));
+  /* Kind 7: the argument counts the records after the egg and Data1 and
+     Data2 are the condition. The egg at 56,92 in zone 9 has 1, 2 and 65 (the
+     hole at 56,93 comes into view with quest flag 65); the one at 18,12 in
+     zone 27 has an argument of 0, which ends the handler before it walks
+     anything. */
+  const holeEgg = ctx.atlasEggAt({ resid: 0x8009 }, 56, 92);
+  const idleEgg = ctx.atlasEggAt({ resid: 0x801B }, 18, 12);
+  if (!/brings the one thing after it into view if quest flag 65 is set/.test(holeEgg))
+    fail('world tab', 'the card for the egg at 56,92 in zone 9 reads ' + JSON.stringify(holeEgg));
+  else if (!/does nothing/.test(idleEgg))
+    fail('world tab', 'the card for the egg at 18,12 in zone 27 reads ' + JSON.stringify(idleEgg));
   const unicorn = ctx.atlasEggAt({ resid: 0x8001 }, 138, 176);
   const seedpod = ctx.atlasEggAt({ resid: 0x8001 }, 148, 210);
   const nightGuard = ctx.atlasEggAt({ resid: 0x8002 }, 10, 14);

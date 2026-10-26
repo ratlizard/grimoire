@@ -2401,16 +2401,19 @@ function todoRules() {
    how many of each -- is counted off the archive here, so an archive that
    places eggs differently shows it. Flags 0x44 is ROOF and is not an egg. */
 const EGG_KIND_NAMES = [
-  { what: 'hatches a monster' },
+  // A kind-0 egg's argument is never read. HatchEgg reads the egg's index,
+  // Data1 and Data2, and the types of the records inside it (checked
+  // 26 October 2026); the shipped values match no contained type.
+  { what: 'hatches a monster', arg: 'none, not read' },
   { what: 'a way to another place', arg: 'zoneport' },
   { what: 'signals the zone’s script when stood on', arg: 'signal' },
   { what: 'an ambient sound', arg: 'sound' },
   { what: 'sets the area', arg: 'area script, 0x1400 plus it' },
   { what: 'plays music', arg: 'tune' },
   { what: 'signals the zone’s script from anywhere inside it', arg: 'signal' },
-  { what: 'brings neighbors in when a condition is met' },
+  { what: 'brings neighbors in while a condition is true', arg: 'records after it' },
   { what: 'a room', arg: 'room' },
-  { what: 'nothing' },
+  { what: 'nothing', arg: 'none' },
   // Kind 10 was "counts down", from DrawRoutine's handler alone, which subtracts
   // one from a nonzero Data1; every shipped one has a Data1 of 0, and what
   // the kind is for is TViewer::Render's (zoneBackdrop, js/page-data.js).
@@ -2615,6 +2618,20 @@ function eggDetail(g, allProps, linked) {
   if (g.aspect === 8) {
     const rid = 0x1B00 + g.proptype;
     return 'a room, ' + one('room ' + g.proptype, refExists(rid) ? 'jumpToResource(' + rid + ')' : null);
+  }
+  if (g.aspect === 7) {
+    /* Kind 7 (the handler DrawRoutine dispatches to for it, read
+       26 October 2026): the argument counts the records after the egg in the
+       list, and Data1 and Data2 go to EvalCondition. While the condition is
+       true each of those records has its 0x80 cleared and joins the
+       neighborhood; while it is false each has 0x80 set. An argument of 0 ends
+       the handler before the walk, so that egg does nothing. The condition is
+       read as a schedule's is (scheduleCondition). */
+    const n = g.proptype;
+    if (!n) return 'does nothing, because its argument is 0 records';
+    const c = scheduleCondition({ cond: g.d1, arg: g.d2 });
+    return 'brings the ' + (n === 1 ? 'one thing' : n + ' things') + ' after it into view ' +
+           svEsc(c ? c.text : 'while its condition is true') + ', and hides ' + (n === 1 ? 'it' : 'them') + ' otherwise';
   }
   if (g.aspect === 4) {
     /* A kind-4 egg hands its argument to TGameViewer::ChangeZone, which
