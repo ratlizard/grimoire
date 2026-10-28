@@ -93,19 +93,6 @@ const APP_FIXES = [
     bug: 'option-p also toggles regeneration',
     sites: [{ at: 0x4448C, was: [0x60000000], asm: ['b @0x446B4            ; the exit the other cases take'] }] },
 
-  // option-x toggles flag 31 on character 0, which is the debug switch Look reads (a readout
-  // of a square's location), not a slip (bugs.md, played on Mac OS 8.5, 28 October 2026). So
-  // this is a change, not a fix. It moves the toggle onto the player, where flag 31 is
-  // protection from swamp bites (script 0x301F), and the readout is then out of reach.
-  { id: 'option-x', kind: 'change', title: 'Option-x toggles swamp-poison protection on the player, in place of the Look coordinate readout',
-    played: 'fork, PowerPC, 30 September 2026, with the protection on the saved hero',
-    sites: [
-      { at: 0x44030,
-        was: [0x887D001A, 0x38000000, 0x54630630, 0x7C630050, 0x3003FFFF, 0x7C001910, 0x9801006F, 0x8801006F, 0x28000000, 0x41820018, 0x38600000],
-        asm: ['lha 3, 0(30)          ; the player', 'slwi 3, 3, 5', 'add 3, 29, 3', 'lbz 3, 26(3)', 'andi. 3, 3, 128       ; flag 31',
-              'beq @0x4406C          ; clear: AddAbility', 'nop', 'nop', 'nop', 'nop', 'lha 3, 0(30)          ; RemoveAbility, on the player'] },
-      { at: 0x4406C, was: [0x38600000], asm: ['lha 3, 0(30)          ; AddAbility, on the player'] }] },
-
   { id: 'drag-northwest', kind: 'fix', title: 'A one-square drag to the north-west slides the thing, as the other seven directions do',
     played: 'fork, PowerPC, 30 September 2026: the paper slides north-west',
     bug: 'A one-square drag to the north-west does nothing',
@@ -470,27 +457,40 @@ const APP_FIXES = [
   // the PDF), so past about 2,730 rows LSetCell fails and the new lines draw
   // as blank rows, 453's "lots of big empty spaces". Both of AppendEntry's
   // LAddRow calls go through a cave now that, with 2,688 rows or more, first
-  // deletes the list's top row, the oldest line, and moves the row about to
-  // be added, and the caller's copy of it at 92(1) (156 from the cave's
-  // frame), up by one. The journal file has every entry; only the window
+  // deletes the list's top entry, its header row and every text row under it
+  // (the rows whose cell has 255 in its second byte), and moves the row about
+  // to be added, and the caller's copy of it at 92(1) (172 from the cave's
+  // frame), up by as many. Until 28 October 2026 it deleted one row, which
+  // could leave text rows with no header above them, and a click on one made
+  // TJournal::MouseRoutine walk up past row 0 looking for its header. A
+  // cell's data is at its offset in cellArray (86 of the list, a halfword a
+  // cell, the top bit the selection) into the cells handle (80); the count
+  // stops at the last row. The cave's arguments go at 56 and up, above the
+  // parameter area, since a callee may store its arguments there. The
+  // journal file has every entry; only the window
   // shows the newest 2,688 lines. The call replaced was a glue call, after
   // which AppendEntry reloads its TOC from 20(1); for the first LAddRow
   // nothing has stored it there yet, so the cave does, as a glue stub would.
   // Packing a row into fewer bytes was the other design, and only moves the
   // limit.
-  { id: 'journal-rows', kind: 'fix', title: 'In a long journal the newest lines stay readable and the oldest leave the window, instead of the game drawing new ones blank',
+  { id: 'journal-rows', kind: 'fix', title: 'In a long journal the newest entries stay readable and the oldest leave the window, instead of the game drawing new ones blank',
     bug: 'The journal breaks when it gets too long',
     sites: [
       { at: 0x78684, was: [0x4804A4B5], asm: ['bl @cave              ; was bl LAddRow, the entry’s header'] },
       { at: 0x78784, was: [0x4804A3B5], asm: ['bl @cave              ; was bl LAddRow, a line of its text'] }],
-    cave: ['stw 2, 20(1)          ; where the caller reloads its TOC from', 'mflr 0', 'stw 0, 8(1)', 'stwu 1, -64(1)',
-           'stw 3, 40(1)', 'stw 4, 44(1)', 'stw 5, 48(1)',
-           'lwz 6, 0(5)', 'lha 6, 76(6)          ; the rows, dataBounds.bottom', 'cmpwi 6, 2688', 'blt @add',
-           'li 3, 1', 'li 4, 0', 'bl @0xC2B20            ; LDelRow(1, 0, list): the oldest line', 'lwz 2, 20(1)',
-           'lwz 4, 44(1)', 'addi 4, 4, -1', 'stw 4, 44(1)',
-           'lha 7, 156(1)         ; the caller’s row', 'addi 7, 7, -1', 'sth 7, 156(1)',
-           'add:', 'lwz 3, 40(1)', 'lwz 4, 44(1)', 'lwz 5, 48(1)', 'bl @0xC2B38            ; LAddRow', 'lwz 2, 20(1)',
-           'addi 1, 1, 64', 'lwz 0, 8(1)', 'mtlr 0', 'blr'] },
+    cave: ['stw 2, 20(1)          ; where the caller reloads its TOC from', 'mflr 0', 'stw 0, 8(1)', 'stwu 1, -80(1)',
+           'stw 3, 56(1)', 'stw 4, 60(1)', 'stw 5, 64(1)',
+           'lwz 6, 0(5)', 'lha 7, 76(6)          ; the rows, dataBounds.bottom', 'cmpwi 7, 2688', 'blt @add',
+           'li 8, 1               ; the header row',
+           'count:', 'cmpw 8, 7', 'bge @del              ; the last row',
+           'slwi 9, 8, 1', 'addi 9, 9, 86', 'lhzx 9, 6, 9          ; the cell’s offset, cellArray', 'andi. 9, 9, 32767',
+           'lwz 10, 80(6)', 'lwz 10, 0(10)', 'add 10, 10, 9', 'lbz 10, 1(10)', 'cmpwi 10, 255         ; a text row', 'bne @del',
+           'addi 8, 8, 1', 'b @count',
+           'del:', 'stw 8, 68(1)', 'mr 3, 8', 'li 4, 0', 'lwz 5, 64(1)', 'bl @0xC2B20            ; LDelRow(n, 0, list): the oldest entry', 'lwz 2, 20(1)',
+           'lwz 8, 68(1)', 'lwz 4, 60(1)', 'subf 4, 8, 4', 'stw 4, 60(1)',
+           'lha 7, 172(1)         ; the caller’s row', 'subf 7, 8, 7', 'sth 7, 172(1)',
+           'add:', 'lwz 3, 56(1)', 'lwz 4, 60(1)', 'lwz 5, 64(1)', 'bl @0xC2B38            ; LAddRow', 'lwz 2, 20(1)',
+           'addi 1, 1, 80', 'lwz 0, 8(1)', 'mtlr 0', 'blr'] },
 
   // Both TActiveMonster constructors store ObjToMonst's answer as the new
   // creature's unit (4 of the object) and nothing checks it; for a prop

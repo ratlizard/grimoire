@@ -29,7 +29,6 @@
 const APP_FIXES_68K = {
   inPlace: [
     { fix: 'option-p', seg: 5, at: 0xC398, was: '7210c08156c044001d40ff4d1d6eff4dffef4a2effef6716', now: '0c4300a86600018e0240001067204e714e714e714e714e71' },  // cmpi.w #$a8, d3; bne.w $c52c; andi.w #$10, d0; beq.b $c3c6; nop; nop; nop; nop; nop
-    { fix: 'option-x', seg: 5, at: 0xBEF2, was: '70001030081a02800000008056c044001d40ff7f1d6eff7ffff34a2efff367104878001f', now: '223c00033c743235180048c12001eb884841323c001f2f0108300007081a67144e714e71' },  // move.l #$33c74, d1; move.w (a5, d1.l), d1; ext.l d1; move.l d1, d0; lsl.l #$5, d0; swap d1; move.w #$1f, d1; move.l d1, -(a7); btst.b #$7, $1a(a0, d0.l); beq.b $bf26; nop; nop
     { fix: 'drag-northwest', seg: 5, at: 0x76D8, was: '673c', now: '6702' },  // beq.b $76dc
     { fix: 'theft-moved', seg: 4, at: 0x8C40, was: '4a1267080c12000866000088', now: '1012020000d76600008a4e71' },  // move.b (a2), d0; andi.b #$d7, d0; bne.w $8cd2; nop
     { fix: 'theft-moved', seg: 4, at: 0x994A, was: '7201', now: '7211' },  // moveq #$11, d1
@@ -150,7 +149,18 @@ const APP_FIXES_68K = {
         '206a00042050',                              // movea.l $4(a2), a0; movea.l (a0), a0
         '0c680a80004c',                              // cmpi.w #$a80, $4c(a0)
         'b6d add',
-        '3f3c000142672f2a00043f3c0024a9e7',          // move.w #$1, -(a7); clr.w -(a7); move.l $4(a2), -(a7); move.w #$24, -(a7); dc.w $a9e7
+        '7201',                                      // moveq #$1, d1
+        ':count',
+        'b268004c',                                  // cmp.w $4c(a0), d1
+        'b6c del',
+        '3001d0403030005602407fff',                  // move.w d1, d0; add.w d0, d0; move.w $56(a0, d0.w), d0; andi.w #$7fff, d0
+        '226800502251',                              // movea.l $50(a0), a1; movea.l (a1), a1
+        '0c3100ff0001',                              // cmpi.b #$ff, $1(a1, d0.w)
+        'b66 del',
+        '5241',                                      // addq.w #$1, d1
+        'b60 count',
+        ':del',
+        '3f0142672f2a00043f3c0024a9e7',              // move.w d1, -(a7); clr.w -(a7); move.l $4(a2), -(a7); move.w #$24, -(a7); dc.w $a9e7
         '206a00042050',                              // movea.l $4(a2), a0; movea.l (a0), a0
         ':add',
         '3d68004cffec',                              // move.w $4c(a0), -$14(a6)
@@ -162,7 +172,18 @@ const APP_FIXES_68K = {
         '206a00042050',                              // movea.l $4(a2), a0; movea.l (a0), a0
         '0c680a80004c',                              // cmpi.w #$a80, $4c(a0)
         'b6d add',
-        '3f3c000142672f2a00043f3c0024a9e7',          // move.w #$1, -(a7); clr.w -(a7); move.l $4(a2), -(a7); move.w #$24, -(a7); dc.w $a9e7
+        '7201',                                      // moveq #$1, d1
+        ':count',
+        'b268004c',                                  // cmp.w $4c(a0), d1
+        'b6c del',
+        '3001d0403030005602407fff',                  // move.w d1, d0; add.w d0, d0; move.w $56(a0, d0.w), d0; andi.w #$7fff, d0
+        '226800502251',                              // movea.l $50(a0), a1; movea.l (a1), a1
+        '0c3100ff0001',                              // cmpi.b #$ff, $1(a1, d0.w)
+        'b66 del',
+        '5241',                                      // addq.w #$1, d1
+        'b60 count',
+        ':del',
+        '3f0142672f2a00043f3c0024a9e7',              // move.w d1, -(a7); clr.w -(a7); move.l $4(a2), -(a7); move.w #$24, -(a7); dc.w $a9e7
         '206a00042050',                              // movea.l $4(a2), a0; movea.l (a0), a0
         ':add',
         '3d68004cffec',                              // move.w $4c(a0), -$14(a6)
@@ -577,7 +598,7 @@ const APP_FIXES_68K = {
     { fix: 'text-compatible', at: 0x98EE, was: '74686973', now: '77697468' },
     { fix: 'text-compatible', at: 0x9A11, was: '74686973', now: '77697468' },
   ],
-  played: ['afternoon', 'containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'name-clear', 'option-p', 'option-x', 'roster-pose', 'sleeper-unit', 'spell-glow', 'spot-tune', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
+  played: ['afternoon', 'containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'name-clear', 'option-p', 'roster-pose', 'sleeper-unit', 'spell-glow', 'spot-tune', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
   built: {
     'afternoon': 'a5c5a679bca703b9537ce76a8ffbb979f6def95dd955ecb76af74594888c2234',
     'ai-import': '0b6af25daf450d9a49038b07ee53254d29167f84921499a36828340d7f224743',
@@ -592,7 +613,7 @@ const APP_FIXES_68K = {
     'hook-corpse': '80f6aa5d699c7cc96c1df9b109b3f855143f25d04a55cdeee5bd045c6bbba87e',
     'hook-load': '92bd330546b438b44acdaca5238d0d1101aebd5fcc1bc7f1cd3a136cacf8d0c8',
     'hook-take': '9b327973c69ee28340851b599c55cfa3f783b169a8b1ceea6d7dd4b4df8f08c0',
-    'journal-rows': 'e89f900e0ff7a62472aad58d5d752648e0a933265bf62447927131392703db58',
+    'journal-rows': '20ea0ba541ef2f68e13681d54075c02d6fe3a9506c89eb05c62737191de5f102',
     'level-keep-made': 'a1f289733b4867ab97bd255cfe35388e3001f4c15c248dfeaff4fb4cb2551780',
     'level-keep-place': 'ce22ba42197752bcdc59b9f9846b71f6fa3416716a74b83f2d4c0ffb93da3ac8',
     'load-cost': '3acf3f77d0c6c10de93e8c14f2fdbbbde9ecd7f39fd1a8e8846d0bf9cc2c64aa',
@@ -604,7 +625,6 @@ const APP_FIXES_68K = {
     'name-fit': '4cb48e5fb56b289e879d5dcf7a6e1de0c7f246a7ee28174b02f8fa584b0ebc7f',
     'open-during-play': '03047304dc2e787313bd27b1a24fef3e08377f3d9eda0b6bddacca54274fd65f',
     'option-p': '6917f679a8d9fac518babc87c16ab4112df7965b8313222a302109dc376e6225',
-    'option-x': 'bed7d91fc213c424f96f8c4a8bdff56831792e71698f8099595ed428d7c65215',
     'right-click': '0ea255ae9bbd6a6245a40cadc2c088d99adb7a6bf4a9abdbe2e985296a2994a6',
     'roster-pose': '1fd70d8d33466cceba59699538e7db789064f06c903d55d1fefdf4c5b502fc0a',
     'sleep-hidden': 'b69b37f742be25cc87c88d5981117fee40767a995763fdd8e5c83eb27ff5b7d1',
@@ -623,6 +643,6 @@ const APP_FIXES_68K = {
     'walk-to': 'e9dc95c294c067c41f836ef643962132e0d58e15fa366234b273f7189b25db2c',
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
-    '': 'e4aa46a8f7df1c86a1f03e5483048cdea03f29261aa50d9ecf3388cc379469e6',   // every fix
+    '': '48876c7fef04f5f5890cd9c23355a3e4d8cdbc1551712ba23f8031d795f04849',   // every fix
   },
 };
