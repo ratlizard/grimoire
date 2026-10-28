@@ -316,7 +316,8 @@ const MECH_GROUPS = [
    edited this session, went: Your Patch has the edits, and its View
    Comparison shows them. */
 const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Patch Generator',
-  note: 'Cythera\u2019s official add-on system is the PowerPC application Magpie. It was released by Glenn Andreas alongside a sample patch \u201cPumpkin Patch\u201d, but specifications to create new patches were never released. The format has been reverse-engineered to make new patches possible, though Magpie is limited to editing the data fork of the Cythera Data file.',
+  note: 'Cythera\u2019s official add-on system is the PowerPC application Magpie. It was released by Glenn Andreas alongside a sample patch \u201cPumpkin Patch\u201d, but specifications to create new patches were not released. The format has been reverse-engineered to make new patches possible, though Magpie is limited to editing the data fork of the Cythera Data file.' +
+      'Select as many of the fixes below as you\u2019d like and download them either as replacement files (modified from the input files) or as a combined patch file for use with Magpie. Note that while stacking multiple Magpie patch files is a convenient way to toggle patches selectively, they can overwrite parts of each other if they modify similar resources.',
   /* Three parts by use (the maintainer, 16 October 2026): the game's
      fixes, the patches that add or change content, and the sections that
      read a patch or compare two files. Each is headed as a group is on the

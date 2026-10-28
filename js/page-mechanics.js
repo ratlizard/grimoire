@@ -4901,9 +4901,9 @@ function renderMechanicsSheet(value) {
   // ---- the scenario's fixes, as a patch ----
   {
     add('datafixes', 'Bugfix Patch Generator', null, '',
-      'Small fixes to a big indie game. Over time, the community has uncovered a number of apparent bugs and typos that were never addressed by official version updates, and AI analysis has uncovered several more. ' +
-      'Solutions for the below issues have been identified through tracing and testing in the game itself (though many solutions are still untested). ' +
-      'Select as many of the fixes below as you\u2019d like, and they go into your patch.',
+      'Over time, the community has uncovered a number of apparent bugs and typos that have not been addressed by official version updates, and AI analysis has uncovered several more. ' +
+      'Unofficial patch fixes for the below issues have been identified through tracing and testing in the game itself (though many fixes are still untested, and all have been designed for v1.0.4). ' +
+      'Select as many of the fixes below as you\u2019d like and download them either as replacement files (modified from the input files) or as a combined patch file for use with Cythera\u2019s official patching app, "Magpie".',
       [], '');
     /* One list (the maintainer, 16 October 2026): the fixes to Cythera
        Data, to the program and to the data file's resource fork, grouped
