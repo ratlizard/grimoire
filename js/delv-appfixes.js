@@ -93,15 +93,10 @@ const APP_FIXES = [
     bug: 'option-p also toggles regeneration',
     sites: [{ at: 0x4448C, was: [0x60000000], asm: ['b @0x446B4            ; the exit the other cases take'] }] },
 
-  { id: 'option-x', kind: 'fix', title: 'Option-x toggles swamp-poison protection on the player, not on character 0',
-    played: 'fork, PowerPC, 30 September 2026: the saved hero has the protection',
-    bug: 'option-x does nothing',
-    sites: [
-      { at: 0x44030,
-        was: [0x887D001A, 0x38000000, 0x54630630, 0x7C630050, 0x3003FFFF, 0x7C001910, 0x9801006F, 0x8801006F, 0x28000000, 0x41820018, 0x38600000],
-        asm: ['lha 3, 0(30)          ; the player', 'slwi 3, 3, 5', 'add 3, 29, 3', 'lbz 3, 26(3)', 'andi. 3, 3, 128       ; flag 31',
-              'beq @0x4406C          ; clear: AddAbility', 'nop', 'nop', 'nop', 'nop', 'lha 3, 0(30)          ; RemoveAbility, on the player'] },
-      { at: 0x4406C, was: [0x38600000], asm: ['lha 3, 0(30)          ; AddAbility, on the player'] }] },
+  // option-x is not here. It toggles flag 31 on character 0, which is the debug switch Look
+  // reads (a readout of a square's location), not a slip, so the fix of 30 September that moved
+  // the flag onto the player took the readout away (bugs.md, played on Mac OS 8.5, 28 October
+  // 2026).
 
   { id: 'drag-northwest', kind: 'fix', title: 'A one-square drag to the north-west slides the thing, as the other seven directions do',
     played: 'fork, PowerPC, 30 September 2026: the paper slides north-west',
@@ -922,7 +917,7 @@ const APP_FIXES = [
    that resolves to no list. */
 const APP_FIX_KIND_GROUP = { hook: 'hidden', text: 'text', menu: 'interface', change: 'design' };
 const APP_FIX_GROUP = {
-  'option-p': 'interface', 'option-x': 'interface', 'drag-northwest': 'interface', 'books-window': 'interface',
+  'option-p': 'interface', 'drag-northwest': 'interface', 'books-window': 'interface',
   'take-window': 'interface', 'roster-pose': 'interface', 'tab-pane': 'interface', 'gamepad-keys': 'interface',
   'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'widget-renumber': 'interface',
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',

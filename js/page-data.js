@@ -848,7 +848,7 @@ const CHEAT_KEY_WORDS = {
   0xFA: ['Nobody is anybody’s enemy', x => x.peace()],
   0xFE: ['See in the dark', x => 'Switches flag ' + x.flag() + ' on and off for you.'],
   0xA8: ['Regenerate', x => 'Switches flag ' + x.flag() + ' on and off for you: the healing every six minutes that Omen’s ring gives.'],
-  0xC5: ['Swamp protection (broken)', x => x.broken()],
+  0xC5: ['Look coordinates', x => x.look()],
   0xCA: ['Turn-based movement', x => 'Switches it on and off (' + x.flip() + ') and prints ' + x.q(1) + ' or ' + x.q(0) + '.'],
   0xC2: ['Speed limiter', x => 'Switches the ' + x.via('SLEnable', 'speed limit') + ' on and off (' + x.flip() + ').'],
   0x31: ['A party member’s window', x => 'Opens a party member’s window by number, 1 for the first, or ' + x.via('FindInventory', 'brings it to the front') + '.'],
@@ -1032,14 +1032,15 @@ function renderCheatsSheet() {
         const zero = callers.filter(k => { const n = exeFind(k.ops, k.i + 1, 3, d => d.mn === 'cmpwi' && d.ra === 3); return n >= 0 && k.ops[n].d.imm === 0; });
         return 'It makes ' + srcNum(enemy.peace, 'no pair enemies') + ', so monsters stop finding targets.';
       },
-      brokenShort: () => {
-        const k = callOf('AddAbility'), character = k && k.args[3], test = opFact(d => d.mn === 'lbz' && d.d > 0, d => d.d);
-        return 'It checks byte ' + (test ? srcNum(test) : '?') + ' of character ' + (character ? srcNum(character) : '?') + '’s record instead of the player’s, so it protects no one.';
-      },
-      broken: () => {
+      // option-x switches flag 31 on character 0, the record no one uses, and that bit is
+      // the debug switch Look reads: with it on, Look prints a square's location in hex
+      // and a thing's record. It was read as a swamp-poison cheat aimed at nobody until a
+      // run on Mac OS 8.5 showed "Location 1c,1b,27:" (bugs.md, 28 October 2026).
+      lookShort: () => 'It switches a readout on and off. Look then shows a square’s location and a thing’s record.',
+      look: () => {
         const k = callOf('AddAbility'), f = k && k.args[4], character = k && k.args[3];
-        const test = opFact(d => d.mn === 'lbz' && d.d > 0, d => d.d);
-        return 'Meant to switch flag ' + (f ? srcNum(f) + (dvmFlagName(f.v) ? ', ' + svEsc(dvmFlagName(f.v)) : '') : '?') + ' on and off, but it ' + (character ? srcNum(character, 'acts on an empty record') : 'acts on an empty record') + ' instead of yours, so it does nothing.';
+        return 'Turns on a readout for Look. Looking at a square then shows its location, in hexadecimal, and looking at a thing shows its record. ' +
+          'The switch is flag ' + (f ? srcNum(f) : '?') + ' on ' + (character ? srcNum(character, 'the empty record') : 'the empty record') + '.';
       },
       zstats: () => { const z = exeStringsOf('PrintZStats'); return z.length ? z.map(t => '“' + srcNum(t, t.v.replace(/\n+$/, '')) + '”').join(', ') : 'the build’s statistics'; }
     };
@@ -1227,7 +1228,7 @@ function renderCheatsSheet() {
     const find = k => kr.cases.find(c => c.keys.some(x => x.v === k));
     const cx = find(0xC5), cp = find(0xB9), cl = find(0xC2), c1 = kr.cases.find(c => c.keys.some(x => x.v === 0xC1));
     const items = [];
-    if (cx) items.push('<li><b>option-x is broken.</b> ' + facts(cx).brokenShort() + '</li>');
+    if (cx) items.push('<li><b>option-x is a Look readout.</b> ' + facts(cx).lookShort() + '</li>');
     if (cp && cp.fallsInto && caseAt(cp.fallsInto)) items.push('<li><b>option-p carries on</b> into ' + comboOf(caseAt(cp.fallsInto).keys[0].v) + '’s code (' + srcNum(exeVal({ at: cp.fallsInto }, null), 'here') + '). Because of a missing jump, “What prop is this?” also switches that setting.</li>');
     const fh = find(0xFA);
     if (fh) items.push('<li><b>option-h empties the enemy list.</b> ' + facts(fh).peaceShort() + '</li>');
