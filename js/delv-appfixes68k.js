@@ -233,6 +233,27 @@ const APP_FIXES_68K = {
         'bra.l 0xd6dc',
       ],
     } },
+    { fixes: ['conv-field'], seg: 5, site: 0x1105C, was: '302efffe48c0', bodies: {
+      'conv-field': [
+        ':check',
+        '302eff26d06eff20b06efffc',                  // move.w -$da(a6), d0; add.w -$e0(a6), d0; cmp.w -$4(a6), d0
+        'b6e drop',
+        '3004d06eff1e06400080b06efffe',              // move.w d4, d0; add.w -$e2(a6), d0; addi.w #$80, d0; cmp.w -$2(a6), d0
+        'b6f done',
+        '302eff26d06eff20d06eff20b06efffc',          // move.w -$da(a6), d0; add.w -$e0(a6), d0; add.w -$e0(a6), d0; cmp.w -$4(a6), d0
+        'b6f wrap',
+        ':drop',
+        '4a47',                                      // tst.w d7
+        'b6f done',
+        '5347300748c0e78841eeff50',                  // subq.w #$1, d7; move.w d7, d0; ext.l d0; lsl.l #$3, d0; lea.l -$b0(a6), a0
+        '3d700800ff2638300802',                      // move.w (a0, d0.l), -$da(a6); move.w $2(a0, d0.l), d4
+        'b60 check',
+        ':wrap',
+        '302eff20d16eff26382efffa',                  // move.w -$e0(a6), d0; add.w d0, -$da(a6); move.w -$6(a6), d4
+        ':done',
+        'bra.l 0x11084',
+      ],
+    } },
     { fixes: ['hook-load'], seg: 1, site: 0xEC52, was: '4fef00264cdf1cf8', bodies: {
       'hook-load': [
         '2f00598f223c00033c743235180002810000ffff0081404000002f013f3c00f3486f00064ead14d84fef000e201f4fef00264cdf1cf84e5e4e75', // move.l d0, -(a7); subq.l #$4, a7; move.l #$33c74, d1; move.w (a5, d1.l), d1; andi.l #$ffff, d1; ori.l #$40400000, d1; move.l d1, -(a7); move.w #$f3, -(a7); pea.l $6(a7); jsr $14d8(a5); lea.l $e(a7), a7; move.l (a7)+, d0; lea.l $26(a7), a7; movem.l (a7)+, d3-d7/a2-a4; unlk a6; rts
@@ -649,6 +670,7 @@ const APP_FIXES_68K = {
     'ai-weight': 'ccff1067f7fdac49d602e220d6ad0865e7b9d181f7e8205acb55db8c865126d2',
     'books-window': '207b3c02cdf3210a790655b10b292f6af82a2758492771c8b8e1a0d9abc58840',
     'containers-weight': '75a358199feb783bfbc9dc5bfc27a3a330321f6bd0bacb341f4e03f13790c5db',
+    'conv-field': '3daaf130078a4c59013acaafb2ccfc1794172fdda89a28803ba4b2dddd3dd252',
     'corner-body': '4e6ea0577d046781bffd182dcdfa86ceaa54b5fb1864f7e08eced6cd2b9ec632',
     'corpse-light': 'eabb1d64b7d89e012b003bcf6905312d674f8c067367ffc68a71382ef6be204a',
     'drag-northwest': '240a4b91522a1322be41d61876e36cedfd74373fc29e436b55cf066a2bccee0d',
@@ -690,6 +712,6 @@ const APP_FIXES_68K = {
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
     'window-leak': 'dafe456d790ddd4a39e181449b5724a0e0e3c2c8a8d1e33e032659968fcfa214',
-    '': 'c1a594da556aff6d1e86f546c91dbbe039faac2647c2bd4df467f03f8b9a7284',   // every fix
+    '': 'b989e0151daceffc1c80cea434c43aed9680bdbf25f6ab588665562e27cc0ce4',   // every fix
   },
 };

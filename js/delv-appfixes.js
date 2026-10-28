@@ -366,6 +366,31 @@ const APP_FIXES = [
     bug: 'A status message with a word wider than the pane stops the game',
     sites: [{ at: 0x39964, was: [0x38000000], asm: ['li 0, 1               ; textOffset: the first run on a row'] }] },
 
+  // TInteraction::GetResponse lays the conversation's topics out in rows and
+  // cuts the list at the first row that would pass the bottom of the area.
+  // The cut comes after the move to that row, so the typing field, which
+  // follows the last topic, was placed on the row that does not fit; a
+  // field too wide for the last row went to a new row with no test either.
+  // Twenty topics filled three rows and put the field on a fourth, under
+  // them and against the description below (Mac OS 8.5, 28 October 2026,
+  // with fifteen topics added to Alaric's description). Now a field whose
+  // row passes the bottom, or that would wrap to such a row, goes where the
+  // last topic was and that topic is left out, until the field fits. The
+  // routine already leaves out the topics of a row that does not fit.
+  // r28 and r24 are the field's left and top, r27 the count of topics, and
+  // 126(1) the area (top, left, bottom, right).
+  { id: 'conv-field', kind: 'fix', title: 'The conversation’s typing field stays inside the conversation, instead of going under a full list of topics',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with fifteen topics added to Alaric’s description the field showed on the third row in place of the last two topics, and “job” typed into it had his answer, where the stock program put the field on a fourth row under the area. Alaric’s shipped conversation showed as in the stock program',
+    bug: 'With a long list of topics, the typing field is drawn below the conversation area',
+    sites: [{ at: 0x3EF2C, was: [0x7EA30734], asm: ['b @cave               ; was extsh 3, 21'] }],
+    cave: ['check:', 'add 3, 24, 22         ; the field’s row', 'lha 4, 130(1)', 'cmpw 3, 4', 'bgt @drop',
+           'add 3, 28, 21', 'addi 3, 3, 128', 'lha 4, 132(1)', 'cmpw 3, 4', 'ble @done',
+           'add 3, 24, 22         ; a new row', 'add 3, 3, 22', 'lha 4, 130(1)', 'cmpw 3, 4', 'ble @wrap',
+           'drop:', 'cmpwi 27, 0', 'ble @done',
+           'addi 27, 27, -1       ; the last topic left out', 'slwi 3, 27, 3', 'addi 3, 3, 142',
+           'lhax 24, 1, 3', 'addi 3, 3, 2', 'lhax 28, 1, 3', 'b @check',
+           'wrap:', 'lha 28, 128(1)', 'add 24, 24, 22', 'done:', 'b @0x3EF54'] },
+
   // TCachedSegFiles::RemoveFile skipped an entry of the removed archive that
   // had no cached copy, so opening another saved game during play left it on
   // the freed archive. The branch goes to the clearing instead of past it.
@@ -1014,7 +1039,7 @@ const APP_FIX_GROUP = {
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
-  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules',
+  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'conv-field': 'interface',
   'menu-scroll': 'talk', 'menu-items': 'talk', 'afternoon': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
 };
 function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }
