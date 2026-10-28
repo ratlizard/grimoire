@@ -168,6 +168,9 @@ function labelForResource(subn, n, resid) {
     if (d) return d;
   }
   if (subn === 137) { const sk = skillNameForIcon(n); if (sk) return sk; }
+  // A sub-zone script is named by the title it sets, as a zone is by its
+  // entry script's: 0x1500 "Underground City", 0x1501 "Crypts", 0x1502 "Cave".
+  if (subn === 20) return firstScriptString(resid);
   return null;
 }
 
@@ -410,24 +413,30 @@ function zoneportInfo(idx) {
            name: (labelFor(z.map) || ('0x' + z.map.toString(16).toUpperCase())) };
 }
 
+// The first string a script pushes, which for a zone's entry script and a
+// sub-zone script is the title it gives SetTitle ("Crypts" for 0x1501).
+function firstScriptString(resid) {
+  let raw;
+  try { raw = getResourceBytes(ARCHIVE, resid); } catch (e) { raw = null; }
+  if (!raw) return null;
+  let data;
+  try { data = smartDecrypt(raw, resid).data; } catch (e) { return null; }
+  for (let i = 0; i < data.length - 2; i++) {
+    if (data[i] !== 0x44) continue;
+    let j = i + 1, str = '';
+    while (j < data.length && data[j] >= 0x20 && data[j] < 0x7F && str.length < 40) {
+      str += String.fromCharCode(data[j]); j++;
+    }
+    if (data[j] === 0x00 && str.length >= 2) return str;
+  }
+  return null;
+}
 function loadZoneNames() {
   if (DERIVED.ZONE_NAMES) return DERIVED.ZONE_NAMES;
   const names = {};
   for (let n = 0; n < 0x100; n++) {
-    const resid = 0x1400 | n;
-    let raw;
-    try { raw = getResourceBytes(ARCHIVE, resid); } catch (e) { raw = null; }
-    if (!raw) continue;
-    let data;
-    try { data = smartDecrypt(raw, resid).data; } catch (e) { continue; }
-    for (let i = 0; i < data.length - 2; i++) {
-      if (data[i] !== 0x44) continue;
-      let j = i + 1, str = '';
-      while (j < data.length && data[j] >= 0x20 && data[j] < 0x7F && str.length < 40) {
-        str += String.fromCharCode(data[j]); j++;
-      }
-      if (data[j] === 0x00 && str.length >= 2) { names[n] = str; break; }
-    }
+    const str = firstScriptString(0x1400 | n);
+    if (str) names[n] = str;
   }
   if (Object.keys(names).length) window.SCENARIO_ZONE_NAMES = names;
   return (DERIVED.ZONE_NAMES = names);
@@ -460,6 +469,7 @@ function labelSource(resid) {
   if (subn === 25 && selfNameFor(resid)) return 'data';
   if (zoneNameFor(resid)) return 'data';
   if (editorZoneName(resid)) return 'data';
+  if (subn === 20 && firstScriptString(resid)) return 'data';
   if (subn === 143) return tuneTrackName(resid) ? 'builtin' : (tunePlaces(resid) ? 'data' : null);
   return labelFor(resid) ? 'builtin' : null;
 }
