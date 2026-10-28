@@ -873,11 +873,6 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     syncInstallerTabs();
     buildTabShell();
     document.getElementById('searchWrap').style.display = 'none';
-    document.getElementById('searchPresets').innerHTML =
-      Object.keys(SEARCH_PRESETS).map(k =>
-        '<button class="sv-chip" onclick="searchPreset(\'' + k + '\')">' + k + '</button>').join('') +
-      '<span class="partsTitle" style="flex-basis:100%;margin-top:6px">Or ask</span>' +
-      QUESTION_EXAMPLES.map(q => '<button class="sv-chip" onclick="searchPreset(\'' + q.replace(/'/g, '\\\'') + '\')">' + svEsc(q) + '</button>').join('');
     document.getElementById('searchResults').innerHTML = '';
     document.getElementById('searchBox').value = '';
     const ss = document.getElementById('sourceStatus');

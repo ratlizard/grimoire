@@ -195,18 +195,35 @@ try {
     else if (!tried) console.log('  font swap: no test font on this machine, only the rejection checked');
     else console.log('  font swap: ' + tried + ' font(s) put in the fork and taken back out, each with a Mac Roman map');
   }
-  // Questions, answered from the tables rather than by searching the text.
+  /* The search box's query rules (js/page-search.js), each case a query, a
+     text and whether it matches; then the crawl's first forty steps, which
+     must leave the panel open. The stub has no text nodes and no gallery
+     cells to read, so what a page reads as and the detail pages found are
+     checked in Chrome (browser_check.mjs, the search). */
   {
-    const answerText = q => { let a = null; try { a = ctx.answerQuestion(q); } catch (e) { a = null; } return a ? String(a).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ') : null; };
-    const questions = [['who teaches axe', /Thersites/], ['what does fireball do', /burst of flame/],
-                  ['what cures poison', /clears Poisoned/], ['who says Yum', /Alaric/],
-                  ['what is a lich immune to', /non-magical/], ['who is Alaric', /Land King Hall/],
-                  ['how much is a sword', /45/], ['what does haggling do', /haggle better/]];
-    const bad = questions.filter(([q, re]) => { const a = answerText(q); return !a || !re.test(a); }).map(x => x[0]);
-    const through = ['fire', 'who teaches basketry', 'what does xyzzy do'].filter(q => answerText(q));
-    if (bad.length) fail('ask', 'these questions were not answered from the file: ' + bad.join('; '));
-    else if (through.length) fail('ask', 'these should have fallen through to the text search: ' + through.join('; '));
-    else console.log('  ask: ' + questions.length + ' question shapes answered off the tables, and a word search still falls through');
+    const m = (q, text) => ctx.searchMatches(ctx.parseSearchQuery(q), ctx.searchFold(text));
+    const cases = [['fire damage', 'Damage by fire.', true], ['fire damage', 'fire only', false],
+      ['fire OR ice', 'ice', true], ['fire -potion', 'fire potion', false], ['fire NOT potion', 'fire', true],
+      ['"take damage"', 'damage take', false], ['"take damage"', 'They take damage.', true],
+      ['(fire OR ice) bolt', 'ice bolt', true], ['(fire OR ice) bolt', 'ice', false],
+      ["don't", 'I don’t see', true], ['or', 'Fire or ice', true], ['-', 'anything', false]];
+    const wrong = cases.filter(([q, t, want]) => m(q, t) !== want).map(([q, t]) => q + ' on ' + t);
+    let jobs = [], open = null;
+    try {
+      const wrap = REGISTRY.get('searchWrap');
+      wrap.style.display = 'block';
+      const S = ctx.siteSearchState();
+      S.standing = ctx.siteStandingView();
+      for (let n = 0; n < 40 && S.next < S.jobs.length; n++) ctx.siteSearchStep(S, S.jobs[S.next++]);
+      jobs = S.jobs;
+      open = wrap.style.display;
+      ctx.siteSearchRestore(S);
+      wrap.style.display = 'none';
+    } catch (e) { fail('search', e); }
+    if (wrong.length) fail('search', 'these queries matched wrongly, ' + wrong.join('; '));
+    else if (jobs.length < 60) fail('search', 'only ' + jobs.length + ' pages were queued to read');
+    else if (open !== 'block') fail('search', 'reading a page closed the search panel');
+    else console.log('  search: ' + cases.length + ' queries match as the rules say, and 40 pages drawn with the panel kept open');
   }
   // A link can name what the file does not have, and a GIF needs a frame.
   {

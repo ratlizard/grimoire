@@ -252,6 +252,31 @@ const SELDANE_ROUND_TRIP = `(async () => { try {
   }
   return { strikes: out };
 } catch (e) { return { error: e.message }; } })()`;
+/* The search reads every page by drawing it (js/page-search.js), which only
+   a real browser can check: the node:vm stub has no text nodes and no
+   gallery cells. The panel is opened and left until the crawl is done, then
+   a sentence each from a static panel (Credits), a tab (Mechanics, Status)
+   and a detail page the Characters gallery opened is searched for, a
+   phrase with its words out of order must match nothing, and the view the
+   crawl drew over must be back with the tabs shown. */
+const SITE_SEARCH_RUN = `(async () => { try {
+  const before = document.getElementById('categorySelect').value;
+  const t0 = performance.now();
+  openSearch();
+  for (let i = 0; i < 1200 && !(DERIVED.SITE_SEARCH && DERIVED.SITE_SEARCH.done); i++) await new Promise(r => setTimeout(r, 100));
+  const S = DERIVED.SITE_SEARCH;
+  const ms = Math.round(performance.now() - t0);
+  const titles = q => S.pages.filter(p => searchMatches(parseSearchQuery(q), p.hay)).map(p => p.title + (p.trail ? ' | ' + p.trail : ''));
+  const charPage = S.pages.find(p => p.open.d && /^char:/.test(p.open.d) && p.lines.length > 4);
+  const word = charPage ? charPage.lines.find(l => l.length > 30) : '';
+  const res = { done: S.done, ms, pages: S.pages.length, details: S.pages.filter(p => p.open.d).length,
+    credits: titles('"Susan Kare"'), status: titles('"each food fills by a different amount"'),
+    character: word ? titles('"' + word.replace(/"/g, '') + '"').length : 0, backwards: titles('"amount different a by"').length,
+    back: document.getElementById('categorySelect').value === before, shown: !document.body.classList.contains('siteReading'),
+    open: document.getElementById('searchWrap').style.display };
+  closeSearch();
+  return res;
+} catch (e) { return { error: e.message }; } })()`;
 /* The Spanish table is not among the page's scripts: the Patches section
    adds it as a script element when it is first needed (spanishTable in
    js/page-mechanics.js), which only a browser does. So here it is loaded
@@ -321,7 +346,7 @@ let opened = 'no archive given', seldane = 'not run', spanish = 'not run', plaqu
 if (archive && existsSync(resolve(ROOT, archive))) {
   const r = await load(base + indexPage + '?cache=skip&loud=1&src=' + encodeURIComponent(archive),
     '/^(Title: |Archive error)/.test(document.getElementById("output").textContent) || document.getElementById("sourceStatus").classList.contains("failed")', 90000,
-    { then: async ({evaluate}) => Object.assign({}, await evaluate(SELDANE_ROUND_TRIP), { spanish: await evaluate(SPANISH_BUILD), plaques: await evaluate(START_BUTTONS_RUN) }) });
+    { then: async ({evaluate}) => Object.assign({}, await evaluate(SELDANE_ROUND_TRIP), { spanish: await evaluate(SPANISH_BUILD), plaques: await evaluate(START_BUTTONS_RUN), search: await evaluate(SITE_SEARCH_RUN) }) });
   const errs = errors(r.console), quiet = quietOnes(r.console);
   const title = text((/id="output"[^>]*>([\s\S]*?)<\/pre>/.exec(r.dom) || ['', ''])[1]).trim();
   const status = text((/id="sourceStatus"[^>]*>([\s\S]*?)<\/(?:pre|div|span)>/.exec(r.dom) || ['', ''])[1]).trim();
@@ -340,6 +365,15 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     if (!es || es.error) fail('spanish', 'the Spanish file was not written in the browser: ' + (es ? es.error : 'no result'));
     else if (es.missing) fail('spanish', es.missing + ' pieces of the shipped file have no Spanish');
     else { spanish = `the Spanish table loads on demand and writes ${es.done} pieces and ${es.keys} keyword lists`; console.log('  ' + spanish); }
+    const ss = r.more.search;
+    if (!ss || ss.error) fail('search', 'the pages were not read (' + (ss ? ss.error : 'no result') + ')');
+    else if (!ss.done) fail('search', 'reading the pages had not finished after ' + ss.ms + ' ms, at ' + ss.pages + ' pages');
+    else if (!ss.credits.some(t => /^Credits/.test(t))) fail('search', 'a name in the Credits panel finds ' + JSON.stringify(ss.credits));
+    else if (!ss.status.some(t => /Status/.test(t))) fail('search', 'a sentence of Mechanics, Status finds ' + JSON.stringify(ss.status));
+    else if (ss.details < 500 || !ss.character) fail('search', ss.details + ' detail pages read, and a line of a character’s page finds ' + ss.character + ' pages');
+    else if (ss.backwards) fail('search', 'a phrase with its words out of order matched ' + ss.backwards + ' pages');
+    else if (!ss.back || !ss.shown || ss.open !== 'block') fail('search', 'after reading the pages the view is ' + (ss.back ? '' : 'not ') + 'back, the tabs are ' + (ss.shown ? 'shown' : 'hidden') + ' and the panel is ' + ss.open);
+    else console.log('  search: ' + ss.pages + ' pages read in ' + ss.ms + ' ms, ' + ss.details + ' of them detail pages, the Credits, a Mechanics sentence and a character’s line found, the view put back');
     const sb = r.more.plaques;
     if (!sb || sb.error) fail('start buttons', 'they were not carved in the browser: ' + (sb ? sb.error : 'no result'));
     else {

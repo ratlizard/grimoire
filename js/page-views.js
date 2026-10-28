@@ -1930,19 +1930,6 @@ const MONSTER_TOP_FLAG_NAMES = [
   [0x0004, 'takes no edged damage'],               // 0x3040: type 0x01 returns 0
   [0x0008, 'poisons with its blows'],              // 0xE87 adds 0x100 to the type; 0x3041 sets flag 9 for it
 ];
-function monsterFlagsText(f) {
-  const bits = [];
-  let rest = f >>> 0;
-  for (const [bit, name] of MONSTER_FLAG_NAMES)
-    if (f & bit) { bits.push(name); rest = (rest & ~bit) >>> 0; }
-  const tops = monsterTopFlagSites();
-  for (const [bit, name] of MONSTER_TOP_FLAG_NAMES) {
-    const w = (bit << 16) >>> 0;
-    if (tops.has(bit) && (f & w)) { bits.push(name); rest = (rest & ~w) >>> 0; }
-  }
-  if (rest) bits.push('+0x' + rest.toString(16).toUpperCase() + ' (' + monsterRestWord() + ')');
-  return bits.length ? bits.join(' · ') : 'none set';
-}
 /* What the bits left over are called. With the program open every bit
    anything tests has its name, so what is left is read by nothing: the
    workbench's tools/unitflags_scan.mjs followed the word bit by bit from

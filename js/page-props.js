@@ -76,13 +76,6 @@ function propTypeName(pt) {
 function propTypeNameShown(pt) {
   return window.SHOW_BUILTIN_LABELS ? PROP_TYPE_NAMES[pt] || null : null;
 }
-// Every prop type's shown name, for the search: the tile's name from
-// 0xF004 first, the built-in list only behind the switch.
-function propNameTable() {
-  const t = getPropTileList(), out = {};
-  for (let pt = 1; pt < t.length && pt < 1024; pt++) { const n = propDisplayName(pt); if (n) out[pt] = n; }
-  return out;
-}
 // The best name for a prop type: the archive's name for its base tile
 // (0xF004) first, the wiki's list second and only when it is switched on.
 function propDisplayName(pt, base) {

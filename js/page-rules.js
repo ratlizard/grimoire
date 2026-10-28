@@ -828,7 +828,7 @@ function renderSpellsSheet() {
   // which lists exactly the same scripts (the maintainer, 2 October 2026: a
   // count is linked to data; CastSpell's page listed one script, not the
   // forty-nine).
-  intro.innerHTML = svLink(spells.length + ' spells', "searchFor('call_resource CastSpell')") + ' by level, after ' + cardLink('spells', 'the rules for casting') + '.';
+  intro.innerHTML = svLink(spells.length + ' spells', "searchFor('&quot;call_resource CastSpell&quot;')") + ' by level, after ' + cardLink('spells', 'the rules for casting') + '.';
   box.appendChild(intro);
   // How a cast works, above the spells it works on. This was a section of the
   // Mechanics sheet until 13 September 2026.
