@@ -552,7 +552,59 @@ function sharedPortraitFrames(arc){
       }
       let hole = -1; regions.forEach((r, i) => { if (hole < 0 || r.length > regions[hole].length) hole = i; });
       regions.forEach((r, i) => { if (i !== hole) for (const k of r) out[k] = 1; });
+      trimDarkArt(out, img);
       return { image: img, frame: out };
+    };
+    /* Dark art inside the border. In the guards' frame and two others
+       every member has the same dark patch inside the border (a shadow
+       behind the head, a dark backdrop). It touches the border, so the
+       rule above counts it as frame. Painted over a new picture it is a
+       black blot (the maintainer, 28 October 2026). The border's band on
+       each side is the median depth of the frame from that edge, over the
+       rows or columns. A piece of the frame inside the band whose pixels
+       are four in five near-black is backdrop, and goes back to the hole.
+       Art in color inside the band (the grapes, the vines, an arch's
+       curve) stays frame. */
+    const trimDarkArt = (frame, img) => {
+      const depth = at => { const d = []; for (let i = 0; i < W; i++) { let k = 0; while (k < W && frame[at(i, k)]) k++; d.push(k); } d.sort((a, b) => a - b); return d[W >> 1]; };
+      const L = depth((i, k) => i * W + k), Rt = depth((i, k) => i * W + W - 1 - k), T = depth((i, k) => k * W + i), B = depth((i, k) => (W - 1 - k) * W + i);
+      const inside = k => { const x = k % W, y = (k - x) / W; return x >= L && x <= W - 1 - Rt && y >= T && y <= W - 1 - B; };
+      const dark = v => { const h = PALETTE[v] || '000000'; return parseInt(h.slice(0, 2), 16) + parseInt(h.slice(2, 4), 16) + parseInt(h.slice(4, 6), 16) < 120; };
+      const seen = new Uint8Array(N);
+      for (let k0 = 0; k0 < N; k0++) {
+        if (!frame[k0] || seen[k0] || !inside(k0)) continue;
+        const list = [k0]; seen[k0] = 1;
+        for (let q = 0; q < list.length; q++) {
+          const k = list[q], x = k % W;
+          for (const j of [k - 1, k + 1, k - W, k + W]) {
+            if (j < 0 || j >= N || seen[j] || !frame[j] || !inside(j)) continue;
+            if ((j === k - 1 && x === 0) || (j === k + 1 && x === W - 1)) continue;
+            seen[j] = 1; list.push(j);
+          }
+        }
+        let n = 0; for (const k of list) n += dark(img[k]) ? 1 : 0;
+        if (n * 5 >= list.length * 4) for (const k of list) frame[k] = 0;
+      }
+      // What is left of a patch joins the border's pixels, so the piece
+      // is not four in five dark. A near-black pixel within two of the
+      // band with no lighter frame pixel among its eight neighbors is
+      // backdrop too. That leaves at most a line one pixel wide along the
+      // border, the width of an outline.
+      const near = k => { const x = k % W, y = (k - x) / W; return x >= L - 2 && x <= W + 1 - Rt && y >= T - 2 && y <= W + 1 - B; };
+      const before = new Uint8Array(frame), drop = [];
+      for (let k = 0; k < N; k++) {
+        if (!before[k] || !dark(img[k]) || !near(k)) continue;
+        const x = k % W, y = (k - x) / W;
+        let lit = false;
+        for (let dy = -1; dy <= 1 && !lit; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= W || yy >= W) continue;
+          const j = yy * W + xx;
+          if (before[j] && !dark(img[j])) { lit = true; break; }
+        }
+        if (!lit) drop.push(k);
+      }
+      for (const k of drop) frame[k] = 0;
     };
     return groups.filter(g => g.length > 1)
       .map(g => { g.sort((x, y) => ps[x].resid - ps[y].resid); const o = offered(g); return { members: g.map(m => ps[m].resid), image: o.image, frame: o.frame }; })

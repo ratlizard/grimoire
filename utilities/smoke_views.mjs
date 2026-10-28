@@ -957,10 +957,24 @@ try {
   ctx.toggleBarks(false);
   const off = ['chkBarks'].every(id => REGISTRY.get(id) && !REGISTRY.get(id).checked) && !peek('window.SHOW_BARKS');
   ctx.toggleBarks(true);
+  /* Barks are part of Walk the Day (28 October 2026). The switch is off
+     to the hand while the day stands still, and a speaker's line shows
+     where the schedule fits it. Thersites calls at six while eating
+     (147), so not at noon sitting nor at six walking. Alaric's "Yum"
+     needs him eating, which his schedule never has. */
+  ctx.toggleMapWalk(false);
+  const stillOff = REGISTRY.get('chkBarks') && REGISTRY.get('chkBarks').disabled;
+  ctx.toggleMapWalk(true);
+  const walkingOn = REGISTRY.get('chkBarks') && !REGISTRY.get('chkBarks').disabled;
+  ctx.toggleMapWalk(false);
+  const fits = [ctx.barkFits({ index: 101, mode: 147 }, 18), ctx.barkFits({ index: 101, mode: 146 }, 12),
+                ctx.barkFits({ index: 101, mode: 147, walking: true }, 18), ctx.barkFits({ index: 2, mode: 150 }, 12)];
   if (by.size < 10) fail('barks', 'only ' + by.size + ' characters have lines of their own');
   else if (one.join(' ') !== vendor[1][0]) fail('barks', ctx.characterName(vendor[0]) + ' said ' + JSON.stringify(one) + ', not ' + vendor[1][0]);
   else if (none.length) fail('barks', 'character ' + silent + ', who has no lines, said ' + JSON.stringify(none));
   else if (!off) fail('barks', 'the Zones switch did not turn the barks off');
+  else if (!stillOff || !walkingOn) fail('barks', 'the Barks switch is not disabled with the day standing still and enabled with it walking');
+  else if (fits.join() !== 'true,false,false,false') fail('barks', 'the lines do not follow the schedule (Thersites at six eating, at noon sitting and walking, and Alaric on his throne) ' + fits.join());
   else console.log('  barks: ' + by.size + ' characters speak their own lines; ' + ctx.characterName(vendor[0]) + ' says "' + one[0] + '", character ' + silent + ' nothing');
 } catch (e) { fail('barks', e); }
 
@@ -1023,11 +1037,31 @@ try {
   if (!/When asked about DEMODOCUS \(demo\):/.test(h) || !/partyjoin (?:97|Aethon \(97\))/i.test(h)) fail('read view', 'Aethon\'s conversation is not read in full: ' + h.replace(/<[^>]+>/g, ' ').slice(0, 300));
   // Helpers read through (0xF02, SetCharacterFlag), a character by its
   // number named from the table, and a state's setters beside its test.
-  else if (!/Halos \(62\)\u2019s bit flags has bit 3: \([^)]*0xF02\)/.test(h) || !/Set bit 7 of its bit flags \(SetCharacterFlag\)/.test(h) ||
+  // The resource ids in the Read view's words are links (readLinkHex), so
+  // the words are matched with the links taken out, and the helper's id
+  // must be one.
+  else if (!/Halos \(62\)\u2019s bit flags has bit 3: \([^)]*0xF02\)/.test(h.replace(/<[^>]+>/g, '')) || !/Set bit 7 of its bit flags \(SetCharacterFlag\)/.test(h) ||
            !/Berossus\u2019 conversation[^;]* sets? (?:it|state 3) to 2/.test(h) || !/Halos\u2019 conversation, asked about [A-Z][^;]*? sets bit 3 of Halos\u2019 bit flags/.test(h))
     fail('read view', 'Aethon\'s helpers, Halos or state 3 are not read through: ' + h.replace(/<[^>]+>/g, ' ').slice(0, 400));
+  else if (!/onclick="jumpToResource\(3842\)">0xF02<\/a>/.test(h)) fail('read view', 'the helper 0xF02 in the Read view is not a link to it');
   else if (!/UseOn\(it, the target\)/.test(f) || !/the target as character/.test(f)) fail('read view', 'a UseOn\'s second argument is not the target');
   else console.log('  read view: Aethon\'s conversation read in full under its prompts, and a UseOn\'s second argument is the target');
+  {
+    /* Naxos's conversation (0x180B, the maintainer's list of 28 October
+       2026). "glau" is Glaucus, whom no response marks with an @, so the
+       name comes from the character table. The greeting's "ine", which a
+       hero's branch jumps over, reads "hero(ine)" on one line. "if Var00"
+       gives the value the script stores in Var00. Each fails on the page
+       before that day, which showed GLAU, "ine." on a line alone and a
+       bare Var00. */
+    const naxos = ctx.conversationFor(0x180B);
+    const greet = naxos ? ctx.convTextHtml(0x180B, naxos.preamble).replace(/<[^>]+>/g, '') : '';
+    const lie = ctx.convCondHtml(0x180B, 'Var00').replace(/<[^>]+>/g, '');
+    if ((ctx.convIntendedFor('glau') || [])[0] !== 'Glaucus') fail('read view', 'Naxos’s "glau" reads ' + JSON.stringify(ctx.convIntendedFor('glau')) + ', not Glaucus');
+    else if (!/Welcome again, hero\(ine\)\.  To what/.test(greet)) fail('read view', 'Naxos’s greeting does not read "hero(ine)": ' + greet.slice(0, 200));
+    else if (!/Var00 \(set to (?:test flag|has ability) player character, 29\)/.test(lie)) fail('read view', 'Naxos’s Var00 has no value beside it (' + lie + ')');
+    else console.log('  read view: Naxos’s GLAUCUS, "hero(ine)" and Var00 with its value');
+  }
 } catch (e) { fail('read view', e); }
 
 /* Walking, as the engine does it, 23 September 2026 (buildPropBlockers,

@@ -238,7 +238,10 @@ function dvmFoldValue(n, ctx) {
     case 'string': case 'string(implicit)': return bare;
     case 'global': return dvmPlainName(bare);
     case 'load_near_word': return 'word@' + bare;
-    case 'load_far_word': return 'word@' + bare;
+    case 'load_far_word':
+      if (!ctx || !ctx.asProse) return 'word@' + bare;
+      if (ctx.arc) dvmProseFarWordNote(ctx, bare);
+      return dvmFarWordName(bare);
     case 'subroutine': return 'sub@' + bare;
     case 'data': return '<data ' + bare + '>';
     case 'index': return 'index';
@@ -2042,6 +2045,55 @@ function dvmProseStateNote(ctx, name, k) {
   dvmFoldNote(ctx, [...byV].sort((a, b) => a[0] - b[0]).map(([v, character], i) => character.slice(0, 3).join(', ') + (character.length > 3 ? ' and ' + (character.length - 3) + ' more' : '') +
     (character.length === 1 ? ' sets ' : ' set ') + (i ? 'it' : what) + ' to ' + v).join('; '));
 }
+/* A far word, `word@0x05000010`, is word 0x10 of resource 0x0500: the
+   interpreter reads it out of that resource and a write_far_word stores it
+   back there (doc/executable-fixes.md in the workbench, *The last save's
+   gender*). The Read view gives it in those terms, so the resource is a
+   link (renderLinked) and the offset a number, and beside a read it notes
+   every script that writes the word, which is where its meaning is. The
+   hero's gender is the one most read: the hero's creation (0x1801) writes
+   it and 30 reads in 25 scripts choose "hero" or "heroine" by it. */
+function dvmFarWordName(bare) {
+  const v = parseInt(bare, 16);
+  if (!/^0x[0-9A-Fa-f]{5,8}$/.test(bare) || !(v > 0xFFFF)) return 'word@' + bare;
+  const rid = v >>> 16, off = v & 0xFFFF;
+  return 'word 0x' + off.toString(16).toUpperCase() + ' of 0x' + rid.toString(16).toUpperCase().padStart(4, '0');
+}
+function dvmProseFarWordNote(ctx, bare) {
+  const table = derivedTable(ctx.arc, 'farWordSetters', () => {
+    const m = new Map();
+    for (let subn = 0; subn < 256; subn++) {
+      if (!ctx.arc.index[subn] || !ctx.arc.index[subn][0] || (typeof SCRIPT_SUBN !== 'undefined' && !SCRIPT_SUBN.has(subn))) continue;
+      const count = subindexCount(ctx.arc, subn);
+      for (let i = 0; i < count; i++) {
+        const resid = ((subn + 1) << 8) | i;
+        let b;
+        try { const raw = getResourceBytes(ctx.arc, resid); if (!raw || !raw.length) continue; b = smartDecrypt(raw, resid).data; } catch (e) { continue; }
+        let objs;
+        try { objs = dvmExtents(b, resid); } catch (e) { continue; }
+        for (const [st, en, kind] of objs) {
+          if (kind !== 'function') continue;
+          let r;
+          try { r = dvmDisassemble(b.subarray(st, en), 3); } catch (e) { continue; }
+          for (const o of r.ops) if (o[2] === 'write_far_word') {
+            const k = dvmBareOperand(o[3]).toLowerCase();
+            if (!m.has(k)) m.set(k, []);
+            if (m.get(k).indexOf(resid) < 0) m.get(k).push(resid);
+          }
+        }
+      }
+    }
+    return m;
+  });
+  const row = table.get(bare.toLowerCase());
+  const who = rid => {
+    const nm = (rid >> 8) === 0x18 ? dvmFoldPage(ctx, () => characterName(rid - 0x1800)) : null;
+    return nm ? dvmProsePossessive(nm) + ' conversation' : dvmFoldResourceName(rid);
+  };
+  dvmFoldNote(ctx, row && row.length
+    ? row.slice(0, 3).map(who).join(', ') + (row.length > 3 ? ' and ' + (row.length - 3) + ' more' : '') + (row.length === 1 ? ' sets it' : ' set it')
+    : 'no script sets it');
+}
 /* A behaviour number written with the word the game's text gives it. The
    game names some behaviours where it describes a person: a script that
    tests `X.behavior == N` and at once prints a word (the Look helper,
@@ -2176,7 +2228,8 @@ function dvmProseStatement(n, ctx) {
       return 'set ' + lhs + ' to ' + dvmProseBehavior(bare, v, ctx);
     }
     case 'set_index': return 'set ' + (g[0] || '') + '[' + (g[1] || '') + '] to ' + (g[2] || '');
-    case 'write_near_word': case 'write_far_word': return 'set word@' + bare + ' to ' + (g[0] || '');
+    case 'write_near_word': return 'set word@' + bare + ' to ' + (g[0] || '');
+    case 'write_far_word': return 'set ' + dvmFarWordName(bare) + ' to ' + (g[0] || '');
     case 'exit': return 'stop';
     case 'conversation_prompt': return 'ask ' + dvmBareOperand(n.arg);
     case 'conversation_response': return 'answer ' + dvmBareOperand(n.arg);

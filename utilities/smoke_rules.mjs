@@ -120,6 +120,19 @@ if (take()) try {
     else if (has(0x88BC) || has(0x88A2) || has(0x88F2)) fail('frames', 'a white field or a frame with a separate rule is offered as a shared frame');
     else if (!has(0x887E)) fail('frames', 'Ur-Sylph\u2019s family frame is not offered');
     else if (!(fm.box && fm.hole[32 * 64 + 32] && fm.box.x1 - fm.box.x0 > 30 && fm.box.y1 - fm.box.y0 > 30 && frameN >= 1500 && kept === frameN)) fail('frames', 'the grape frame\u2019s hole or frame is wrong: ' + JSON.stringify(fm.box) + ', ' + kept + ' of ' + frameN);
+    // The dark backdrop the guards share inside their border is hole, not
+    // frame (trimDarkArt; the maintainer, 28 October 2026, black blots).
+    // Without the trim 0x8806's frame has a dark patch reaching the middle
+    // square, from 12 to 51 each way; with it, none.
+    else if ((() => {
+      const g = ctx.sharedPortraitFrames(ctx.__peek('ARCHIVE')).find(f => f.members.includes(0x8806)), P = ctx.__peek('PALETTE');
+      let n = 0;
+      for (let k = 0; k < 4096; k++) {
+        const x = k % 64, y = k >> 6, h = P[g.image[k]];
+        if (x >= 12 && x < 52 && y >= 12 && y < 52 && g.frame[k] && parseInt(h.slice(0, 2), 16) + parseInt(h.slice(2, 4), 16) + parseInt(h.slice(4, 6), 16) < 120) n++;
+      }
+      return n;
+    })()) fail('frames', 'the guards\u2019 frame carries dark backdrop into the middle of the picture');
     else console.log('  frames: ' + offered.length + ' shared frames offered, the grapes\u2019 of three portraits and the guards\u2019 of nine, the white field left out; the grape frame has ' + frameN + ' pixels round a ' + (fm.box.x1 - fm.box.x0 + 1) + 'x' + (fm.box.y1 - fm.box.y0 + 1) + ' hole');
   }
   // A frame of items (itemFramePixels). The axe at the corners lands where

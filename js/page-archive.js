@@ -634,6 +634,10 @@ function syncDeepLink() {
   if (d && DETAIL_OPENERS[d.kind]) h += '&d=' + d.kind + ':' + d.id;
   const r = currentMode === 'single' ? currentSelectedResid() : null;
   if (r != null) h += '&r=' + r.toString(16).toUpperCase();
+  // The program's routine open on its Data Fork sheet. Without it every
+  // routine was one address, so back skipped the routines followed and a
+  // return to the sheet showed whichever routine was open last.
+  if (cat.value === 'APPPEF' && window.PEF_VIEW) h += '&x=' + window.PEF_VIEW.at.toString(16).toUpperCase();
   if (h === location.hash) return;
   // The view being left is the one to come back to -- every view, a gallery
   // included. Galleries were once left out ("the gallery button already
@@ -777,6 +781,12 @@ function applyDeepLink(q) {
     if (open && showCategory(q.c)) { open(STRING_DETAIL_IDS.has(kind) ? id : parseInt(id, 10)); return true; }
   }
   if (q.c === 'WORLD' && showCategory('WORLD')) return true;
+  if (q.c === 'APPPEF') {
+    const at = q.x ? parseInt(q.x, 16) : NaN;
+    window.PEF_VIEW = Number.isFinite(at) ? { at, why: '' } : null;
+    if (window.CUR_SUBN === 'APPPEF') { renderAppPefSheet(); return true; }
+    return showCategory('APPPEF');
+  }
   if (q.r) {
     const resid = parseInt(q.r, 16);
     if (Number.isFinite(resid) && jumpToResource(resid)) return true;

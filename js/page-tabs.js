@@ -493,6 +493,21 @@ function paintDecodedPane() {
   pane.innerHTML = at === null ? body : listingRing(body, d.text, at);
 }
 
+/* A resource id in the Read view's words is a link to the resource. The
+   Read view prints a resource as its id where it has no name: a helper
+   called ("go to L00A7 (0xF02)"), the scripts that set a state or a word
+   ("0x1401 sets state 3 to 1"), the resource a far word is in ("word 0x10
+   of 0x0500"). Anything else in hex there is short (an offset, "word 0x10")
+   or follows "tile"; a number of three or four digits naming no resource
+   stays plain. Quoted game text is left alone. */
+function readLinkHex(html) {
+  return html.split(/(&quot;.*?&quot;|"[^"]*")/).map((part, i) => i % 2 ? part : part.replace(/(^|[^\w.])0x([0-9A-Fa-f]{3,4})\b(?!\w)/g, (m, pre, hx, at, all) => {
+    if (/\btile $/.test(all.slice(Math.max(0, at - 5), at + pre.length))) return m;
+    const rid = parseInt(hx, 16);
+    return refExists(rid) ? pre + '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>' : m;
+  })).join('');
+}
+
 /* The Read view's HTML: each function's name and arguments, then its
    sentences as nested lists, each with the offset its statement has in the
    listings' gutter, so a "go to L0042" can be found and any line checked
@@ -506,7 +521,7 @@ function readViewHtml(fns) {
     return (w[0] || k).toUpperCase() + ' (' + k + ')';
   }).join(', ') + ':';
   const list = cl => '<ul class="readList">' + cl.map(c => '<li>' + (c.at !== null && c.at !== undefined ? '<span class="readAt">' + hex4(c.at) + '</span>' : '') +
-    svEsc(c.prompt !== undefined ? prompt(c.prompt) : c.text.charAt(0).toUpperCase() + c.text.slice(1)) + (c.kids ? list(c.kids) : '') + '</li>').join('') + '</ul>';
+    readLinkHex(svEsc(c.prompt !== undefined ? prompt(c.prompt) : c.text.charAt(0).toUpperCase() + c.text.slice(1))) + (c.kids ? list(c.kids) : '') + '</li>').join('') + '</ul>';
   return fns.map(f => {
     if (f.prose !== undefined) return '<div class="readFn"><div class="readHead">' + svEsc(f.name) + '</div><div class="readProse">' + svEsc(f.prose) + '</div></div>';
     const head = '<div class="readHead">' + svEsc(f.name) + '(' + (f.args || []).join(', ') + ')</div>';

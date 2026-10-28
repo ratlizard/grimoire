@@ -402,6 +402,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
   padding-left:10px; }
 .convLink { color:#f9f86f; cursor:pointer; font-weight:700; }
 .convLink:hover { text-decoration:underline; }
+.convOpt { text-decoration:underline dotted; cursor:help; }
 /* A prompt as the player types it (the word the text names), and beside it
    what the game stores and matches; a character's portrait and opening line
    at the head; a heading where the topics of a group they answer as begin. */
@@ -1192,15 +1193,29 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
 
    Below 900px it stays one column, which is the phone's layout untouched:
    62vh of map with a pane beside it would leave neither readable. */
+/* Since 28 October 2026 the square's details are the World tab's popup (the
+   maintainer: "use the selection popup from world map in zone view too"):
+   hidden until a square is picked (the class inspOpen, which
+   inspectMapSquare and clearMapInspector set), and then over the map, not
+   beside or under it. On a wide screen it shares the map's grid area and
+   sits at its top right; on a phone it is a sheet over the lower part of
+   the screen, as the World's hangs over the lower part of its map. */
+#mapInspect:not(.inspOpen) { display:none !important; }
+#mapInspect { box-shadow:0 4px 18px rgba(0,0,0,.5); background:rgba(20,18,14,.97) !important; }
+@media (max-width:899px) {
+  #mapInspect { position:fixed; left:8px; right:8px; bottom:8px; z-index:40; margin:0; max-width:none;
+    max-height:40vh; overflow-y:auto; box-sizing:border-box; }
+}
 @media (min-width:900px) {
-  #mapPreview.hasInspect { display:grid; grid-template-columns:minmax(0,1fr) 320px;
-    grid-template-areas: 'label label' 'strip strip' 'stage inspect' 'zoom inspect'
-                         'chars inspect' 'legend inspect' 'parts inspect' 'save inspect';
+  /* !important: renderMapResource writes display:block on the panel, which
+     outranks any rule without it, and kept this grid from applying. */
+  #mapPreview.hasInspect { display:grid !important; grid-template-columns:minmax(0,1fr);
+    grid-template-areas: 'label' 'strip' 'stage' 'zoom' 'chars' 'legend' 'parts' 'save';
     gap:0 16px; align-items:start; }
   #mapPreview.hasInspect > #mapLabel { grid-area:label; }
   #mapPreview.hasInspect > #mapParts { grid-area:parts; }
   #mapPreview.hasInspect > #mapStrip { grid-area:strip; }
-  #mapPreview.hasInspect > #mapStage { grid-area:stage; max-width:none; }
+  #mapPreview.hasInspect > #mapStage { grid-area:stage; max-width:none !important; }
   /* The same inline 720px cap and auto margins are on the zoom row as on
      the stage. Freeing the stage without freeing this left the map wide and
      its slider pinned narrow and centred beneath it. */
@@ -1210,8 +1225,9 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
   #mapPreview.hasInspect > #charControls { grid-area:chars; }
   /* The pane itself: a separate scroll, so a square with a dozen records does
      not stretch the row and push the map's controls down the page. */
-  #mapPreview.hasInspect > #mapInspect { grid-area:inspect; margin:0; max-width:none;
-    position:sticky; top:8px; max-height:calc(62vh + 44px); overflow-y:auto; }
+  #mapPreview.hasInspect > #mapInspect { grid-area:stage; justify-self:end; align-self:start; z-index:8;
+    margin:52px 30px 0 0; width:min(360px, calc(100% - 60px)); max-width:none; box-sizing:border-box;
+    max-height:calc(62vh - 40px); overflow-y:auto; }
 }
 #mapInspect .inspHead { color:#fff; font-weight:600; margin-bottom:8px;
   display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
@@ -1512,7 +1528,7 @@ details:not([open]) > summary .mechFrom { display:none; }
    to fit exactly as intended, with vector-effect="non-scaling-stroke" so the
    stroke does not stretch with it -- and puts the axis labels, the dots and
    the annotations around it as HTML. */
-.mechFig { margin:10px 0 4px; }
+.mechFig { margin:10px 0 4px; max-width:640px; }
 .mechFig figcaption { color:#dcd8cc; font-size:0.7188rem; line-height:1.45; margin-top:6px; }
 .mechFig figcaption b { color:#f0ede4; font-weight:600; }
 .mechFigTitle { color:#f0ede4; font-size:0.6562rem; letter-spacing:0; margin:0 0 5px; }
@@ -2414,13 +2430,12 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
       <label><input type="checkbox" id="chkWalls" checked onchange="toggleWalls(this.checked)"> Walls</label>
       <label><input type="checkbox" id="chkRoofs" onchange="toggleRoofs(this.checked)"> Roofs</label>
       <label><input type="checkbox" id="chkChars" checked onchange="toggleCharacters(this.checked)"> Inhabitants</label>
-      <label><input type="checkbox" id="chkCharNames" checked onchange="toggleCharNames(this.checked)"> Names</label>
-      <label><input type="checkbox" id="chkBarks" checked onchange="toggleBarks(this.checked)"> Barks</label>
       <label><input type="checkbox" id="chkLighting" onchange="toggleLighting(this.checked)"> Lighting</label>
 
     </div>
     <div class="mapToggleGroup">
       <span class="mtgLabel">Mark</span>
+      <label><input type="checkbox" id="chkCharNames" checked onchange="toggleCharNames(this.checked)"> Names</label>
       <label><input type="checkbox" id="chkMarkDoors" onchange="toggleMapMarks('doors',this.checked)"> Doors</label>
       <label><input type="checkbox" id="chkMarkSecret" onchange="toggleMapMarks('secret',this.checked)"> Hidden ways</label>
       <label><input type="checkbox" id="chkMarkChest" onchange="toggleMapMarks('chest',this.checked)"> Containers</label>
@@ -2435,6 +2450,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
     <div class="mapToggleGroup">
       <span class="mtgLabel">Time</span>
       <label><input type="checkbox" id="chkWalk" onchange="toggleMapWalk(this.checked)"> Walk the day</label>
+      <label title="Lines people say as they go about their day, while the day walks"><input type="checkbox" id="chkBarks" checked disabled onchange="toggleBarks(this.checked)"> Barks</label>
       <label style="gap:6px">Speed
         <select id="walkSpeed" onchange="setMapWalkSpeed(this.value)">
           <option value="0.25">0.25&times;</option>
@@ -2703,7 +2719,7 @@ wiki, not from the file. Turn these names on or off in Settings.</div>
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.349.1';
+const GRIMOIRE_VERSION = '1.350.0';
 /* The name at the top, and the tab's icon. The grimoire's tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

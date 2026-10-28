@@ -1162,9 +1162,10 @@ function dvmConversation(b, resid) {
     if (!r.ops.some(o => o[2] === 'conversation_response')) continue;
     sawConv = true;
     const stack = [];   // open entries: { end (seg-relative), entry }
-    let pendingSys = null;
+    let pendingSys = null, lastThen = null, lastOp = null;
     for (const op of r.ops) {
       const at = op[0], mn = op[2], arg = op[3];
+      if (mn !== 'then' && mn !== 'end') lastOp = mn + (arg ? ' ' + String(arg).split('  //')[0].trim() : '');
       while (stack.length && stack[stack.length - 1].end <= at) stack.pop();
       const into = stack.length ? stack[stack.length - 1].entry : null;
       if (mn === 'conversation_response') {
@@ -1178,8 +1179,24 @@ function dvmConversation(b, resid) {
         continue;
       }
       const e = into || preamble;
+      if (mn === 'then') {
+        // A test whose branch lands inside the string after it prints the
+        // string's start only when the test passes: Naxos's greeting is
+        // "hero" and then "ine.  To what...", the branch going to the "."
+        // for a hero, so a heroine reads "heroine". Such a string has `opt`,
+        // how many characters in the branch lands, and `optTest`, the
+        // test's last operand as the listing prints it.
+        const m = /0x([0-9A-Fa-f]+)/.exec(arg || '');
+        lastThen = m ? { target: parseInt(m[1], 16), test: lastOp } : null;
+        continue;
+      }
       if (mn === 'string(implicit)') {
-        try { e.text.push({ off: st + at, str: JSON.parse(arg) }); } catch (err) { quiet(err); }
+        try {
+          const t = { off: st + at, str: JSON.parse(arg) };
+          if (lastThen && lastThen.target > t.off && lastThen.target < t.off + t.str.length) { t.opt = lastThen.target - t.off; t.optTest = lastThen.test; }
+          e.text.push(t);
+        } catch (err) { quiet(err); }
+        lastThen = null;
         pendingSys = null;
       } else if (mn === 'string') {
         try { e.text.push({ off: st + at + 1, str: JSON.parse(arg) }); } catch (err) { quiet(err); }

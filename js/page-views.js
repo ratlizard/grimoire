@@ -214,7 +214,7 @@ function jumpToExeAt(at, why) {
   if (window.CUR_SUBN === 'MECHANICS' || MECH_GROUP_BY_VALUE[window.CUR_SUBN]) mechKeepPlace();
   window.PEF_VIEW = { at, why: why || window.SRC_CLICKED || '' };
   window.SRC_CLICKED = '';
-  if (window.CUR_SUBN === 'APPPEF') renderAppPefSheet();
+  if (window.CUR_SUBN === 'APPPEF') { renderAppPefSheet(); syncDeepLink(); }
   else openVia('APPPEF', () => {});
   setTimeout(() => {
     const hit = document.getElementById('listingHit');
@@ -222,7 +222,7 @@ function jumpToExeAt(at, why) {
   }, 40);
   return true;
 }
-function pefBackToList() { window.PEF_VIEW = null; renderAppPefSheet(); }
+function pefBackToList() { window.PEF_VIEW = null; renderAppPefSheet(); syncDeepLink(); }
 // One routine, instruction by instruction: calls and branches named and
 // followable, TOC slots shown as their contents.
 /* A routine in plain words, a sentence an instruction (6 October 2026).
@@ -3001,18 +3001,32 @@ function convTextHtml(resid, e) {
   // only at the start.
   const lines = e.kw && e.kw !== '*' ? (convReadConds(resid).lines.get(e.at) || []) : [];
   let prev = '';
+  const words = s => escHtml(s).replace(/@([A-Za-z][A-Za-z'-]*)/g,
+    '<span class="convLink" onclick="convJumpWord(' + resid + ',\'$1\')">$1</span>');
+  const edit = t => window.DLG_EDIT ? ' <button class="linkbtn dlgEdit" onclick="editStringAt(' + resid + ',' + t.off + ')">edit</button>' : '';
+  const paras = [];
   for (const t of e.text) {
+    // A string whose start only some players see (dvmConversation's `opt`)
+    // continues the line before it when that line stops mid-word, as
+    // Naxos's "hero" and "ine" do. The card shows "hero(ine)", and the
+    // part in brackets has the test as its hover text.
+    if (t.opt) {
+      const test = /^load_far_word (0x[0-9A-Fa-f]+)$/.exec(t.optTest || '');
+      const hover = 'The game prints this part when ' + (test ? dvmFarWordName(test[1]) + ' is not zero' : 'the test before it passes');
+      const part = '<span class="convOpt" title="' + svEsc(hover) + '">(' + words(t.str.slice(0, t.opt)) + ')</span>' + words(t.str.slice(t.opt)) + edit(t);
+      const last = paras[paras.length - 1];
+      if (last && /[A-Za-z]$/.test(last.str)) { last.html += part; last.str = t.str; continue; }
+      paras.push({ str: t.str, html: part });
+      continue;
+    }
     let chain = [];
     for (const l of lines) { if (l.at > t.off) break; chain = l.chain; }
     const shownText = chain.join(' and ');
     const lead = shownText && shownText !== prev ? '<span class="inspDim">' + chain.map(c => convCondHtml(resid, c)).join(' and ').replace(/ and if /g, ' and ') + ':</span> ' : '';
     prev = shownText;
-    const body = escHtml(t.str)
-      .replace(/@([A-Za-z][A-Za-z'-]*)/g,
-        '<span class="convLink" onclick="convJumpWord(' + resid + ',\'$1\')">$1</span>');
-    html += '<p class="dlgLine">' + lead + body +
-      (window.DLG_EDIT ? ' <button class="linkbtn dlgEdit" onclick="editStringAt(' + resid + ',' + t.off + ')">edit</button>' : '') + '</p>';
+    paras.push({ str: t.str, html: lead + words(t.str) + edit(t) });
   }
+  for (const p of paras) html += '<p class="dlgLine">' + p.html + '</p>';
   return html;
 }
 
@@ -3048,9 +3062,43 @@ function convIntendedFor(stub) {
   // ("job", "bye", the "y" and "n" of a question) is the whole word, and a
   // longer one ("very easy") is spelt out already.
   if (!/^[a-z]{4}$/i.test(stub)) return [];
-  const out = [];
-  for (const [k, o] of convIntendedWords()) if (convKwMatches(stub, k)) out.push(o);
-  return out.sort((a, b) => b.n - a.n || a.text.localeCompare(b.text)).map(o => o.text);
+  const pick = words => {
+    const out = [];
+    for (const [k, o] of words) if (convKwMatches(stub, k)) out.push(o);
+    return out.sort((a, b) => b.n - a.n || a.text.localeCompare(b.text)).map(o => o.text);
+  };
+  const marked = pick(convIntendedWords());
+  if (marked.length) return marked;
+  // No response marks the word: Naxos's "glau" is Glaucus, a name the
+  // game prints plain. The character names come next, then any word the
+  // responses print plain, most used first.
+  const names = new Map(), t = nameTable() || [];
+  for (const nm of t) {
+    const w = String(nm || '').trim();
+    if (/^[A-Za-z][A-Za-z'-]*$/.test(w) && w !== 'x') names.set(w.toLowerCase(), { text: w, n: 1 });
+  }
+  const named = pick(names);
+  return named.length ? named : pick(convPlainWords());
+}
+// Every word the conversations print, @-marked or not, by how often.
+function convPlainWords() {
+  if (DERIVED.CONV_PLAIN) return DERIVED.CONV_PLAIN;
+  const words = new Map();
+  const walk = es => { for (const e of es || []) {
+    for (const t of e.text || []) for (const m of String(t.str).matchAll(/[A-Za-z][A-Za-z'-]{3,}/g)) {
+      const k = m[0].toLowerCase(), o = words.get(k) || { text: m[0], n: 0 };
+      o.n++; words.set(k, o);
+    }
+    walk(e.sub);
+  } };
+  for (const [subn, base] of [[23, 0x1800], [7, 0x800]]) {
+    const count = subindexCount(ARCHIVE, subn);
+    for (let i = 0; i < count; i++) {
+      const c = conversationFor(base + i);
+      if (c) { walk(c.entries); if (c.preamble) walk([c.preamble]); }
+    }
+  }
+  return (DERIVED.CONV_PLAIN = words);
 }
 // A prompt as the player types it, and as the code stores it.
 function convPromptHtml(e) {
@@ -3121,9 +3169,29 @@ function convReadConds(resid) {
       }
     };
     for (const f of fns) walk(f.clauses);
+    // Each local's values, from every "set VarNN to ..." in the script.
+    out.locals = new Map();
+    const sets = cl => { for (const c of cl || []) {
+      const m = /^set (Var[0-9A-F]{2}) to (.+)$/.exec(c.text);
+      if (m) { if (!out.locals.has(m[1])) out.locals.set(m[1], []); if (out.locals.get(m[1]).indexOf(m[2]) < 0) out.locals.get(m[1]).push(m[2]); }
+      sets(c.kids);
+    } };
+    for (const f of fns) sets(f.clauses);
   } catch (err) { quiet(err, 'reading a conversation\u2019s conditions'); }
   DERIVED.CONV_READ_CONDS.set(resid, out);
   return out;
+}
+/* A local in a condition, "if Var00", has no meaning of its own: the
+   script sets it, and what it is set to is the meaning. Naxos's Var00 is
+   "test flag player character, 29". The card writes each local with the
+   values the script gives it in brackets, as the Read view words them. */
+function convLocalShown(resid, c) {
+  const locals = convReadConds(resid).locals;
+  if (!locals || !locals.size) return c;
+  return c.replace(/\bVar[0-9A-F]{2}\b/g, v => {
+    const vals = locals.get(v);
+    return vals && vals.length ? v + ' (set to ' + vals.slice(0, 3).join(' or ') + (vals.length > 3 ? ' and more' : '') + ')' : v;
+  });
 }
 /* A condition as the card words it. A test of a flag of the character's
    that the Read view found set by one of that character's topics reads as
@@ -3146,7 +3214,7 @@ function convCondHtml(resid, c) {
   // A note that is only the helper's number, "(0xF13)", adds nothing the
   // test has not shown.
   const shownText = /^\(0x[0-9A-F]+\)$/.test(note) ? '' : note;
-  return 'if ' + svEsc(c) + (shownText ? ' <span class="inspDim">' + svEsc(shownText) + '</span>' : '');
+  return 'if ' + readLinkHex(svEsc(convLocalShown(resid, c))) + (shownText ? ' <span class="inspDim">' + readLinkHex(svEsc(shownText)) + '</span>' : '');
 }
 function convCardHtml(resid, e, depth) {
   const kws = convPromptHtml(e);

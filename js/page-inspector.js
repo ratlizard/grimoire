@@ -358,6 +358,8 @@ function clearMapInspector() {
   // map answers questions when you click it.
   el.innerHTML = '<span class="inspDim">Click any square to see the props and people on it.</span>';
   el.style.display = 'block';
+  // Hidden until a square is picked, as the World tab's popup is.
+  el.classList.remove('inspOpen');
 }
 
 /* ---------------------------------------------------------------------------
@@ -881,6 +883,8 @@ function inspectMapSquare(tx, ty) {
 
   host.innerHTML = parts.join('');
   host.style.display = 'block';
+  host.classList.add('inspOpen');
+  host.scrollTop = 0;
   // The zoomrect is a canvas, so it is built and hung in place afterwards
   // rather than serialised into the string above.
   for (const [slot, rec, contents] of boxes) {

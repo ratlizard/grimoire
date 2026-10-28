@@ -709,7 +709,13 @@ function drawCharacterLayer(lensCtx, lensTS) {
       ctx.fillText(c.name, px, py);
     }
   }
-  if (window.SHOW_BARKS) drawBarks(ctx, people, TS, 0, 0);
+  // Barks are part of Walk the Day. A balloon shows only while the day
+  // walks, and over a speaker only where its schedule fits the line
+  // (barkFits).
+  if (window.SHOW_BARKS && window.MAP_WALK) {
+    const hour = Math.floor(window.MAP_TIME) % 24;
+    drawBarks(ctx, people.filter(c => barkFits(c, hour)), TS, 0, 0);
+  }
   if (lbl) {
     lbl.textContent = people.length + (people.length === 1 ? ' inhabitant' : ' inhabitants');
   }
@@ -900,6 +906,7 @@ const MAP_TIME_IDS = { walk: ['chkWalk'], speed: ['walkSpeed'],
 function syncMapTimeControls() {
   const set = (ids, f) => { for (const id of ids) { const el = document.getElementById(id); if (el) f(el); } };
   set(MAP_TIME_IDS.walk, el => { el.checked = !!window.MAP_WALK; });
+  set(['chkBarks'], el => { el.disabled = !window.MAP_WALK; });
   set(MAP_TIME_IDS.speed, el => { el.value = String(window.MAP_WALK_SPEED || 1); });
   const t = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
   set(MAP_TIME_IDS.slider, el => { el.value = Math.floor(t); });
@@ -2577,6 +2584,45 @@ function barkRulesRead() {
 // Which of a speaker's lines is up now: a new one every balloon's life.
 function barkMillis() { const r = barkRulesRead(); return r && r.ticks ? r.ticks.v / 60 * 1000 : 0; }
 function barkBucket() { const ms = barkMillis(); return ms ? Math.floor(Date.now() / ms) : 0; }
+/* Which lines a speaker has up at a place and an hour. The speaker's
+   EveryTurn sets a line under tests of its behavior (147 eating, 146
+   sitting) and sometimes of the hour ("current hour is 12 or current hour
+   is 18"), with a roll and a flag or two besides. The schedule gives the
+   first two for every hour, so a line shows only where the schedule puts
+   its speaker doing what the line needs (the maintainer, 28 October 2026:
+   barks part of Walk the Day, shown where the scheduled place fits). Each
+   line's tests are the Read view's, the chain of ifs above the clause that
+   sets the balloon or runs a balloon helper (0xC84, 0xC85). A speaker
+   whose tests name neither shows its lines at any hour. */
+function barkConditions() {
+  if (DERIVED.BARK_CONDS) return DERIVED.BARK_CONDS;
+  const out = new Map();
+  for (const i of barksByCharacter().keys()) {
+    const resid = 0x1800 + i, list = [];
+    try {
+      const raw = getResourceBytes(ARCHIVE, resid);
+      const fns = raw ? dvmReadRender(ARCHIVE, smartDecrypt(raw, resid).data, resid) : [];
+      const walk = (cl, chain) => { for (const c of cl || []) {
+        if (/talk balloon to|\brun 0xC8[45]\b/.test(c.text)) {
+          const all = chain.join(' and ');
+          const behaviors = [...all.matchAll(/its behavior is (\d+)/g)].map(m => +m[1]);
+          const hours = [...all.matchAll(/current hour is (\d+)/g)].map(m => +m[1]);
+          list.push({ behaviors: behaviors.length ? new Set(behaviors.slice(-1)) : null, hours: hours.length ? new Set(hours) : null });
+        }
+        walk(c.kids, /^if /.test(c.text) ? chain.concat([c.text]) : chain);
+      } };
+      for (const f of fns) if (/EveryTurn/.test(f.name || '')) walk(f.clauses, []);
+    } catch (e) { quiet(e, 'the barks’ conditions'); }
+    out.set(i, list);
+  }
+  return (DERIVED.BARK_CONDS = out);
+}
+function barkFits(c, hour) {
+  const list = barkConditions().get(c.index);
+  if (!list || !list.length) return true;
+  if (c.walking) return false;
+  return list.some(k => (!k.behaviors || k.behaviors.has(c.mode)) && (!k.hours || k.hours.has(hour)));
+}
 function toggleBarks(on) {
   window.SHOW_BARKS = !!on;
   for (const id of ['chkBarks']) { const el = document.getElementById(id); if (el) el.checked = !!on; }
