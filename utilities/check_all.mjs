@@ -631,8 +631,9 @@ const CHECKS = [
   {page: 'viewer', name: 'quicktime instruments', requiredInputs: [QT_EXE, DATA],
    cmd: ['utilities/qtmusic_check.mjs', 'index.html', QT_EXE, DATA],
    grep: /QuickTime 3: [^\n]*/,
-   // TUNE was f04b2a97a124 until 25 October 2026, when a part's volume became squared (QT_VOLUME_POWER).
-   expect: 'QuickTime 3: 21 files unpacked and the controls caught. 235 instruments, 1544 key ranges, every sample found. Every part of 11 tunes has an instrument, the theme 98.1 s, TUNE 2559b8843847'},
+   // TUNE was f04b2a97a124 until 25 October 2026, when a part's volume became squared (QT_VOLUME_POWER),
+   // and 2559b8843847 until 28 October 2026, when every envelope stage became 1.451 times as long (QT_ENV_STRETCH).
+   expect: 'QuickTime 3: 21 files unpacked and the controls caught. 235 instruments, 1544 key ranges, every sample found. Every part of 11 tunes has an instrument, the theme 98.1 s, TUNE f94e4e0de430'},
   /* A tune written and a MIDI file made into one (qtmaWrite, midiToQtma),
      held to the shipped tunes: their headers rebuilt byte for byte, and
      each back from its MIDI file. The harness's header has the rest. */

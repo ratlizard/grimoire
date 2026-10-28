@@ -105,6 +105,29 @@ const QTMS_KNOB = { attack: 1, decay: 2, sustain: 3, keyToDecay: 5, release: 6, 
    scalings unused, and a kit's note played to its sample's end whatever
    its length. The kit needs no separate rule: its release is 40 s. */
 const QT_ENV = { span: 1 / 65536, floor: 1 / 65536 };
+/* HOW LONG A STAGE LASTS. Every stage of every envelope runs 1.451 times
+   the time its knob gives. QuickTime 3.0.2's synthesizer (the PowerPlug's
+   'musk', read 28 October 2026) mixes in blocks of 128 frames
+   (SetSynthFeaturesByHardware stores 128, or 256 under a flag not
+   identified) and advances each envelope once a block.
+   SetSynthTimingConstants works the block's length out in milliseconds as
+   a 16.16 number, 2.902 at 44,100 Hz, and StartNoteKeyrange hands only its
+   whole part, 2, to SetADSRStuff as the step. So each stage's rate is
+   computed for 2 ms a step and applied every 2.902 ms, and a stage of
+   1,000 ms lasts 1,451.
+
+   Measured against the game's music captured from Mac OS 8.5 at 44,100
+   Hz, each of the theme's parts alone: the release falls 0.65 times as
+   fast in dB as with the knob's time (the choir 23 dB in 200 ms against
+   34, the Goblin pad 14 dB in a second against 22), and with this factor
+   it falls alike to 300 ms, after which the quiet capture's 16-bit samples
+   round to zero. The parts' levels at 80 to 2,560 Hz, which spread over
+   2.3 dB from the median without it, come within 0.8 dB with it (the
+   Goblin pad, with its 1.5 s attack, from 1.7 dB over to 0.1). The 256
+   frames' 1.161 leaves a spread of 1.5 dB. A Mac whose Sound Manager ran
+   at 22,254 Hz would have a factor of 1.150; the factor is the block's
+   length over its whole milliseconds, and opts.envStretch overrides it. */
+const QT_ENV_STRETCH = (128000 / 44100) / Math.floor(128000 / 44100);
 /* HOW LOUD A NOTE IS, where the reading and the recordings differ. The
    synthesizer computes a note's level as (velocity + 1) / 128 times its
    velocity sensitivity (StartNoteKeyrange; 100 per cent in every
@@ -515,9 +538,11 @@ function qtmaRender(events, tones, lib, opts) {
   const liveSteps = (p, t0, t1) => (ctlTimeline[p] || []).filter(e => (e.ctl === 32 || e.ctl === 1) && e.t > t0 && e.t < t1);
 
   /* An envelope, stepped a frame at a time (QT_ENV has the reading): times
-     in frames, `logs` the stage's bit of Log Curves shifted down to 1
-     attack, 2 decay, 4 sustain, 8 release. */
+     in frames, each stretched by QT_ENV_STRETCH, `logs` the stage's bit of
+     Log Curves shifted down to 1 attack, 2 decay, 4 sustain, 8 release. */
+  const stretch = opts.envStretch || QT_ENV_STRETCH;
   const makeEnv = (attack, decay, susLevel, susTime, forever, release, logs) => {
+    attack *= stretch; decay *= stretch; susTime *= stretch; release *= stretch;
     const fall = n => Math.pow(QT_ENV.span, 1 / Math.max(1, n));
     const decayMul = fall(decay), susMul = fall(susTime), relMul = fall(release);
     const decayAdd = (susLevel - 1) / Math.max(1, decay), susAdd = -susLevel / Math.max(1, susTime);
