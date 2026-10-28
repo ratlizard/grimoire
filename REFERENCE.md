@@ -279,7 +279,7 @@ inline script holding `GRIMOIRE_VERSION` and the brand line (the version
 check reads the constant from the page; the brand line runs at load and
 needs the files before it).
 
-**The page's own script**, in fourteen files loaded in this order after
+**The page's script**, in fifteen files loaded in this order after
 `js/delv-mapview.js`. Same scope, same rules: classic scripts, one global
 scope, so a name declared in any of them is reachable from all, and the order
 only decides what has run when a statement runs at load time. Where a
@@ -294,13 +294,14 @@ function lives is where it was in the one file; move one only with a reason.
 | `js/page-map.js` | the map renderer: terrain, faux props, roofs, `drawLighting`, exits, sitting, the square you clicked |
 | `js/page-inspector.js` | the map viewport, clicking the map, containers, the world map's towns and country |
 | `js/page-atlas.js` | the atlas |
-| `js/page-tabs.js` | cross-references, the script view, concept search, the linked view, the tab tree |
+| `js/page-tabs.js` | cross-references, the script view, the scripts' text index, the linked view, the tab tree |
 | `js/page-data.js` | the Data sheets: zone backdrops, the executable's keys and preferences record, cheats, saved game, installer, combat AI, changes |
 | `js/page-rules.js` | the rule readers (`diceGame`, `combatRules`, `exeClockRules` and the rest) that the Mechanics, Skills, Spells and Barks sheets state |
 | `js/page-mechanics.js` | the Mechanics figures, the patches and compare tools, `renderMechanicsSheet` |
 | `js/page-views.js` | the executable's sheet, Tools, parts and uses, monsters, the text and conversation views, editing |
 | `js/page-export.js` | the preferences file, the disk image, the zip, MIDI, GIF and PNG |
 | `js/page-galleries.js` | bulk export, gallery arrangement, the sprite zoom, text editing, the ditherizer, locks, lazy tiles, the keyboard, the boot |
+| `js/page-search.js` | the search box, its query (words, OR, NOT, quotes), the index of names, scripts and every page (read by drawing each page), and the results panel |
 
 The harnesses did not change for this: `utilities/page_scripts.mjs` collects
 every `<script>` in document order, which is also why they cannot see a

@@ -119,7 +119,7 @@ nothing of Cythera, the PowerPC decoder and assembler among them;
 `~/e-z-g-cythera/mac-files`, which is changed first and copied here), **Cythera's own formats** (`delv-*.js`: the archive,
 graphics, the Delver VM, the assembler, the rule models, the game's fixes and
 the program's, each with the code that writes them in), and **the page's own furniture** (`delv-sheets.js`,
-`delv-mapview.js`, then the fourteen `page-*.js` files in their load order).
+`delv-mapview.js`, then the fifteen `page-*.js` files in their load order).
 `REFERENCE.md`, *The classic scripts and the js/ files, tier by tier*, has a
 line for every file. Two rules from it that every change meets:
 
