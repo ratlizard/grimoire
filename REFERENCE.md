@@ -658,6 +658,26 @@ of case alone that a case-insensitive filesystem kept from git. Until
 18 September 2026 there were 144 empty catches and a visitor got a quieter
 page and no reason.
 
+**Where `quiet` sends a failure** (moved here from `CLAUDE.md`, *Gotchas*,
+on 28 October 2026). Every optional decode that fails reports to `quiet(e)`
+in `js/mac-bytes.js`, which records each distinct failure with a count and
+its source line. The Tools sheet has them under *Fell back quietly*.
+Uncaught errors and unhandled rejections reach that list too, through the
+listeners installed at boot, and reach the status line. `?loud=1` prints
+each to the console for the browser check.
+
+**A fake clock must not start at zero** (moved here from `CLAUDE.md`,
+*Traps inside the `node:vm` harnesses*, on 28 October 2026), and this cost
+two debugging sessions in one afternoon. `mobile_input_check.mjs` drives
+`pumpButtons`, which compares `Date.now()` against `lastButtonAt`, set to
+`0` at the start. From a clock at 0 every transition looks like it arrived
+before the gap expired, so the outbox deferred for ever and the check hung
+with no output. Starting the clock at a real timestamp fixed that and
+immediately broke the other half. `asTheMacSeesIt` counted sync windows
+from zero, so a 2026 timestamp meant billions of empty windows. Anchor
+derived time to the first message's timestamp, and start the clock where a
+browser's would be.
+
 ### delvmod is the correctness oracle, in full
 
 

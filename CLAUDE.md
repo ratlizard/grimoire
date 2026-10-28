@@ -214,15 +214,9 @@ Already paid for; do not rediscover them.
   decoded nothing.
 - `history.replaceState` must rewrite `location.hash`, as it does in a browser.
   Stubbing it as a no-op hid a real deep-link bug.
-- **A fake clock must not start at zero**, and this cost two debugging sessions
-  in one afternoon. `mobile_input_check.mjs` drives `pumpButtons`, which
-  compares `Date.now()` against `lastButtonAt`, initialised to `0`; from a
-  clock at 0 every transition looks like it arrived before the gap expired, so
-  the outbox deferred for ever and the check hung with no output. Starting the
-  clock at a real timestamp fixed that and immediately broke the other half:
-  `asTheMacSeesIt` counted sync windows from zero, so a 2026 timestamp meant
-  billions of empty windows. Anchor derived time to the first message's own
-  timestamp, and start the clock where a browser's would be.
+- **A fake clock must not start at zero.** Start it where a browser's would
+  be, and anchor derived time to the first message's timestamp.
+  `REFERENCE.md`, *The checks*, has the account.
 
 ## delvmod is the correctness oracle
 
@@ -449,14 +443,10 @@ them*, says which, and what `utilities/addons_check.mjs` proves with them.
   17 September 2026 and no check noticed. Put the colour on an inner span,
   use `outline` for a ring, and take padding back with a selector that
   outranks `#sheetGrid button`.
-- **There are no empty `catch` blocks.** Every optional decode that fails
-  reports to `quiet(e)` in `js/mac-bytes.js`, which keeps each distinct
-  failure with a count and the line it came from; the Tools sheet lists them
-  under *Fell back quietly*, uncaught errors and unhandled rejections arrive
-  there too from the listeners installed at boot and reach the status line,
-  and `?loud=1` prints each to the console for the browser check. Write
-  `catch (e) { quiet(e); }` for a fallback, with a second argument naming
-  what was being tried when the message alone would not say.
+- **There are no empty `catch` blocks.** Write `catch (e) { quiet(e); }`
+  for a fallback (`js/mac-bytes.js`), with a second argument naming what
+  was being tried when the message alone would not say. `REFERENCE.md`,
+  *The checks*, has where the failures go.
 
 ## `REFERENCE.md`, by section
 
