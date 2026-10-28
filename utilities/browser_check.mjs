@@ -262,6 +262,13 @@ const SELDANE_ROUND_TRIP = `(async () => { try {
 const SITE_SEARCH_RUN = `(async () => { try {
   const before = document.getElementById('categorySelect').value;
   const t0 = performance.now();
+  // Closed before the reading is done, the page must come back at once
+  // (it stayed hidden under its still copy until 28 October 2026).
+  openSearch();
+  await new Promise(r => setTimeout(r, 400));
+  closeSearch();
+  const early = { back: document.getElementById('categorySelect').value === before,
+    shown: !document.getElementById('tabShell').classList.contains('siteHidden') && !document.querySelector('[data-site-cover]') };
   openSearch();
   for (let i = 0; i < 1200 && !(DERIVED.SITE_SEARCH && DERIVED.SITE_SEARCH.done); i++) await new Promise(r => setTimeout(r, 100));
   const S = DERIVED.SITE_SEARCH;
@@ -272,9 +279,10 @@ const SITE_SEARCH_RUN = `(async () => { try {
   const res = { done: S.done, ms, pages: S.pages.length, details: S.pages.filter(p => p.open.d).length,
     credits: titles('"Susan Kare"'), status: titles('"each food fills by a different amount"'),
     character: word ? titles('"' + word.replace(/"/g, '') + '"').length : 0, backwards: titles('"amount different a by"').length,
-    back: document.getElementById('categorySelect').value === before, shown: !document.getElementById('tabShell').classList.contains('siteHidden') && !document.querySelector('[data-site-cover]'),
-    open: document.getElementById('searchWrap').style.display };
+    open: document.getElementById('searchWrap').style.display, early };
   closeSearch();
+  res.back = document.getElementById('categorySelect').value === before;
+  res.shown = !document.getElementById('tabShell').classList.contains('siteHidden') && !document.querySelector('[data-site-cover]');
   return res;
 } catch (e) { return { error: e.message }; } })()`;
 /* The Spanish table is not among the page's scripts: the Patches section
@@ -372,6 +380,7 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     else if (!ss.status.some(t => /Status/.test(t))) fail('search', 'a sentence of Mechanics, Status finds ' + JSON.stringify(ss.status));
     else if (ss.details < 500 || !ss.character) fail('search', ss.details + ' detail pages read, and a line of a character’s page finds ' + ss.character + ' pages');
     else if (ss.backwards) fail('search', 'a phrase with its words out of order matched ' + ss.backwards + ' pages');
+    else if (!ss.early.back || !ss.early.shown) fail('search', 'closed before the pages were all read, the page is ' + (ss.early.shown ? 'shown' : 'still hidden under its copy') + (ss.early.back ? '' : ', on another view'));
     else if (!ss.back || !ss.shown || ss.open !== 'block') fail('search', 'after reading the pages the view is ' + (ss.back ? '' : 'not ') + 'back, the tabs are ' + (ss.shown ? 'shown' : 'hidden') + ' and the panel is ' + ss.open);
     else console.log('  search: ' + ss.pages + ' pages read in ' + ss.ms + ' ms, ' + ss.details + ' of them detail pages, the Credits, a Mechanics sentence and a character’s line found, the view put back');
     const sb = r.more.plaques;

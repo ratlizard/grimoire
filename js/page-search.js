@@ -166,7 +166,9 @@ function searchSnippet(line, terms) {
 // the leaf's other sections, the same chips on every page of the leaf.
 const SITE_VIEW_ROOTS = ['navSubNote', 'resourceNav', 'singlePreview', 'artUsage', 'mapPreview', 'mapViewport',
   'textPreview', 'soundPreview', 'labelLegend', 'sheetGrid', 'output'];
-const SITE_BLOCK_TAG = /^(DIV|P|LI|TR|H[1-6]|SECTION|PRE|BR|TABLE|DETAILS|SUMMARY|UL|OL|DT|DD|FIGCAPTION|HEADER|FOOTER|BLOCKQUOTE|BUTTON|LABEL)$/;
+// A button is not a block: a link in a sentence is a button here, and
+// ending the line at it cut "Home Land King Hall at (12, 30)" into pieces.
+const SITE_BLOCK_TAG = /^(DIV|P|LI|TR|H[1-6]|SECTION|PRE|BR|TABLE|DETAILS|SUMMARY|UL|OL|DT|DD|FIGCAPTION|HEADER|FOOTER|BLOCKQUOTE)$/;
 const SITE_SKIP_TAG = /^(SCRIPT|STYLE|CANVAS|AUDIO|VIDEO|SELECT|TEXTAREA|SVG|IMG|INPUT)$/i;
 /* The text of some elements, a line per block, folds included. Not
    innerText, which leaves out the body of a closed <details>, and every
@@ -325,7 +327,21 @@ function siteSearchRestore(S) {
   window.NAV_SUPPRESS = false;
   window.VIEW_TRAIL = st.trail;
   if (open && wrap) wrap.style.display = 'block';
-  try { window.scrollTo(0, st.y); } catch (e) { quiet(e); }
+  siteSearchKeepScroll(st.y);
+}
+/* Where the visitor had scrolled to, put back. Drawing a tab scrolls the
+   window to the top, which under the still copy showed as the page jumping
+   on a phone; the view drawn again may also grow after this task, so the
+   scroll is tried again for a moment until the window is there. */
+function siteSearchKeepScroll(y) {
+  // Stops when a result is opened meanwhile, which scrolls to its line.
+  const gen = _siteScrollGen;
+  const go = tries => {
+    if (gen !== _siteScrollGen) return;
+    try { window.scrollTo(0, y); } catch (e) { quiet(e); return; }
+    if (tries > 0 && Math.abs((window.scrollY || 0) - y) > 2) setTimeout(() => go(tries - 1), 60);
+  };
+  go(10);
 }
 
 /* The still copy shown while the pages are read: the tabs and the sheet
@@ -394,14 +410,20 @@ function siteSearchRun() {
   if (!S.standing) { S.standing = siteStandingView(); siteSearchCover(true); }
   const until = performance.now() + 30;
   while (S.next < S.jobs.length && performance.now() < until) siteSearchStep(S, S.jobs[S.next++]);
-  if (S.next >= S.jobs.length) { S.done = true; siteSearchRestore(S); }
+  if (S.standing) try { window.scrollTo(0, S.standing.y); } catch (e) { quiet(e); }
+  // Done, the still copy stays until the panel closes (siteSearchPause):
+  // drawing the real page again under the open panel made it jump.
+  if (S.next >= S.jobs.length) S.done = true;
   const now = performance.now();
   if (S.done || now - _siteSearchDrawn > 500) { _siteSearchDrawn = now; drawSearchResults(); }
   if (!S.done) _siteSearchTimer = setTimeout(siteSearchRun, 0);
 }
 function siteSearchPause() {
   if (_siteSearchTimer) { clearTimeout(_siteSearchTimer); _siteSearchTimer = null; }
-  const S = window.ARCHIVE && DERIVED.SITE_SEARCH;
+  // ARCHIVE, not window.ARCHIVE: it is a top-level `let`, which is no
+  // property of window, and reading it that way left the page hidden under
+  // its still copy whenever the search closed before the reading was done.
+  const S = ARCHIVE && DERIVED.SITE_SEARCH;
   if (S && S.standing) siteSearchRestore(S);
 }
 
@@ -494,11 +516,16 @@ function drawSearchResults() {
   h += '<div class="partsTitle sr-head">Pages: ' + pages.length + reading + '</div>';
   for (const p of pages.slice(0, cap)) {
     const i = S.pages.indexOf(p);
-    const lines = searchCoveringLines(p.lines, terms, 2);
-    h += '<div class="sr-item">' + (p.open.panel === null ? '<span class="sr-title">' + svEsc(p.title) + '</span>'
-        : svLink(p.title, 'openSearchPage(' + i + ')')) +
+    // Each line shown is a link to that line on the page, as a script's
+    // lines are; the title opens the page at the first of them.
+    const ks = searchCoveringLines(p.lines, terms, 2);
+    const live = p.open.panel !== null;
+    h += '<div class="sr-item">' + (live ? svLink(p.title, 'openSearchPage(' + i + ',' + (ks.length ? ks[0] : -1) + ')')
+        : '<span class="sr-title">' + svEsc(p.title) + '</span>') +
       (p.trail ? ' <span class="sr-where">' + svEsc(p.trail) + '</span>' : '') +
-      (lines.length ? '<div class="sr-text">' + lines.map(l => '<div>' + searchSnippet(l, terms) + '</div>').join('') + '</div>' : '') + '</div>';
+      (ks.length ? '<div class="sr-text">' + ks.map(k => live
+        ? '<div><a class="srLine" onclick="openSearchPage(' + i + ',' + k + ')">' + searchSnippet(p.lines[k], terms) + '</a></div>'
+        : '<div>' + searchSnippet(p.lines[k], terms) + '</div>').join('') + '</div>' : '') + '</div>';
   }
   if (pages.length > cap) h += '<div class="sv-note">' + (pages.length - cap) + ' more pages. ' + svLink('Show all', 'searchShowAll()') + '</div>';
   // Scripts, each with up to three of its lines, each line a link to it.
@@ -521,7 +548,7 @@ function drawSearchResults() {
 }
 function searchShowAll() { window.SEARCH_ALL = true; drawSearchResults(); }
 
-/* The lines of a page to show under its title: each one chosen for the
+/* The lines of a page to show under its title, as indexes: each one chosen for the
    searched words it adds to those already shown, first in the page on a
    tie. Every section of a unit's page has "damage", and for "lava damage"
    the second line shown must be "can move onto lava", not another damage. */
@@ -538,7 +565,7 @@ function searchCoveringLines(lines, terms, n) {
     if (best < 0) break;
     used.add(best);
     found[best].forEach(t => seen.add(t));
-    out.push(lines[best]);
+    out.push(best);
   }
   return out;
 }
@@ -566,14 +593,19 @@ function scriptSearchLines(entry, terms) {
 
 /* A page from the results: the search closes (which puts back the view
    the crawl drew over, so the back trail is the visitor's), the page is
-   drawn, and the first place a searched word appears in it is opened,
-   scrolled to and outlined. */
-function openSearchPage(i) {
+   drawn, and the line the result showed (line k of the page as read) is
+   found in it, its fold opened, scrolled to and outlined; a searched word
+   is looked for instead when the line is not there. Looked for again
+   twice, since a page can still be growing after it is drawn, as a gallery
+   lays out its cells. */
+function openSearchPage(i, k) {
   const S = DERIVED.SITE_SEARCH;
   const p = S && S.pages[i];
   if (!p) return;
   const terms = searchPositives(parseSearchQuery(document.getElementById('searchBox').value));
+  const line = k >= 0 ? p.lines[k] : '';
   closeTopPanels();
+  _siteScrollGen++;
   let roots = null;
   if (p.open.panel) { window[p.open.panel](); roots = [document.getElementById(p.open.panel === 'toggleCredits' ? 'creditsMenu' : 'archiveMenu')]; }
   else if (p.open.exe != null) jumpToExeAt(p.open.exe);
@@ -582,24 +614,69 @@ function openSearchPage(i) {
     const id = rest.join(':');
     if (showCategory(p.open.c)) DETAIL_OPENERS[kind](STRING_DETAIL_IDS.has(kind) ? id : parseInt(id, 10));
   } else showCategory(p.open.c);
-  setTimeout(() => searchRevealText(terms, roots || siteViewElements()), 80);
+  const gen = _siteScrollGen;
+  let found = null;
+  const show = () => {
+    if (gen !== _siteScrollGen) return;
+    // Found once and still on the page, it is only kept in view.
+    const el = found && document.contains(found) ? found : (found = searchFindLine(line, terms, roots || siteViewElements()));
+    if (!el) return;
+    for (let a = el; a; a = a.parentElement) if (a.tagName === 'DETAILS') a.open = true;
+    const r = el.getBoundingClientRect();
+    if (r.top < 60 || r.bottom > (window.innerHeight || 800) - 20) try { el.scrollIntoView({ block: 'center' }); } catch (e) { quiet(e); }
+    if (!el.classList.contains('searchFound')) {
+      el.classList.add('searchFound');
+      setTimeout(() => el.classList.remove('searchFound'), 4000);
+    }
+  };
+  for (const ms of [80, 400, 1000]) setTimeout(show, ms);
 }
-function searchRevealText(terms, roots) {
-  if (!terms.length || !document.createTreeWalker) return;
-  for (const t of terms) for (const root of roots) {
+let _siteScrollGen = 0;
+/* The smallest element whose text has the line (its first 80 characters),
+   else the first text with a searched word. Spaces are left out of both
+   sides, since siteTextOf puts one between a table's cells and textContent
+   none. */
+function searchFindLine(line, terms, roots) {
+  const flat = s => searchFold(s).replace(/\s+/g, '');
+  const smallest = (within, want) => {
+    let best = null, size = Infinity;
+    for (const root of within) {
+      if (!root || !root.querySelectorAll) continue;
+      for (const el of [root, ...root.querySelectorAll('*')]) {
+        const t = el.textContent || '';
+        if (t.length >= size || t.length < want.length) continue;
+        if (flat(t).includes(want)) { best = el; size = t.length; }
+      }
+    }
+    return best;
+  };
+  const want = flat(line).slice(0, 80);
+  const block = want ? smallest(roots, want) : null;
+  // A line read from a label and a value set apart ("Home" and "Land King
+  // Hall at (19, 21)" on a dossier) is only whole in the block that has
+  // both, so inside a block half as long again as the line the smallest
+  // element with a searched word is outlined instead.
+  if (block && flat(block.textContent || '').length <= want.length * 1.5 + 8) return block;
+  // A dossier's facts are lines of one block between <br>s, so the word
+  // itself is wrapped in a span to be outlined when no smaller element
+  // has it.
+  const within = block ? [block] : roots;
+  if (document.createTreeWalker) for (const t of terms) for (const root of within) {
     if (!root) continue;
     const w = document.createTreeWalker(root, 4);
     for (let n = w.nextNode(); n; n = w.nextNode()) {
-      if (!searchFold(n.nodeValue).includes(t)) continue;
-      const el = n.parentElement;
-      if (!el) continue;
-      for (let a = el; a; a = a.parentElement) if (a.tagName === 'DETAILS') a.open = true;
-      try { el.scrollIntoView({ block: 'center' }); } catch (e) { quiet(e); }
-      el.classList.add('searchFound');
-      setTimeout(() => el.classList.remove('searchFound'), 2600);
-      return;
+      const at = searchFold(n.nodeValue).indexOf(t);
+      if (at < 0 || !n.parentNode) continue;
+      const word = n.splitText(at);
+      word.splitText(t.length);
+      const span = document.createElement('span');
+      word.parentNode.insertBefore(span, word);
+      span.appendChild(word);
+      return span;
     }
   }
+  for (const t of terms) { const el = smallest(within, flat(t)); if (el) return el; }
+  return block;
 }
 
 // Everything with a name, matched against the search: prop types (the
