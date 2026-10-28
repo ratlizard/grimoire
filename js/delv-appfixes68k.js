@@ -190,6 +190,20 @@ const APP_FIXES_68K = {
         'bra.l 0x19bc0',
       ],
     } },
+    { fixes: ['window-leak'], seg: 5, site: 0x96E0, was: '4a6e000c6f0a', bodies: {
+      'window-leak': [
+        '202b0014',                                  // move.l $14(a3), d0
+        'b67 skip',
+        '2f00203c00040004ab1d',                      // move.l d0, -(a7); move.l #$40004, d0; dc.w $ab1d
+        '42ab0014',                                  // clr.l $14(a3)
+        ':skip',
+        '4a6e000c',                                  // tst.w $c(a6)
+        'b6e del',
+        'bra.l 0x96f0',
+        ':del',
+        'bra.l 0x96e6',
+      ],
+    } },
     { fixes: ['hook-load'], seg: 1, site: 0xEC52, was: '4fef00264cdf1cf8', bodies: {
       'hook-load': [
         '2f00598f223c00033c743235180002810000ffff0081404000002f013f3c00f3486f00064ead14d84fef000e201f4fef00264cdf1cf84e5e4e75', // move.l d0, -(a7); subq.l #$4, a7; move.l #$33c74, d1; move.w (a5, d1.l), d1; andi.l #$ffff, d1; ori.l #$40400000, d1; move.l d1, -(a7); move.w #$f3, -(a7); pea.l $6(a7); jsr $14d8(a5); lea.l $e(a7), a7; move.l (a7)+, d0; lea.l $26(a7), a7; movem.l (a7)+, d3-d7/a2-a4; unlk a6; rts
@@ -643,6 +657,7 @@ const APP_FIXES_68K = {
     'walk-to': 'e9dc95c294c067c41f836ef643962132e0d58e15fa366234b273f7189b25db2c',
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
-    '': '48876c7fef04f5f5890cd9c23355a3e4d8cdbc1551712ba23f8031d795f04849',   // every fix
+    'window-leak': 'dafe456d790ddd4a39e181449b5724a0e0e3c2c8a8d1e33e032659968fcfa214',
+    '': '6fef45c65b010d015efbc6d2586fe7f653be747204e24700d87c6afe9ad58b35',   // every fix
   },
 };

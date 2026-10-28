@@ -492,6 +492,27 @@ const APP_FIXES = [
            'add:', 'lwz 3, 56(1)', 'lwz 4, 60(1)', 'lwz 5, 64(1)', 'bl @0xC2B38            ; LAddRow', 'lwz 2, 20(1)',
            'addi 1, 1, 80', 'lwz 0, 8(1)', 'mtlr 0', 'blr'] },
 
+  // TInventoryWindow::CanUseBackingStore makes an 8-bit GWorld the size of
+  // the window at +20 the first time a bag or character window draws, and
+  // nothing frees it: ~TInventoryWindow and TWindow::~TWindow never call
+  // DisposeGWorld, and closing a window deletes the object, so every opening
+  // leaks one. On Mac OS 8.5 with the game's 13 MB partition the hero's
+  // window opened and closed about 95 times brought "Sorry - out of memory"
+  // (bugs.md, 28 October 2026). The destructor's test of this at 0x310E0
+  // can never be true there, since the routine has already used this, so
+  // its two words call a cave that disposes of the GWorld at +20, when there
+  // is one, and clears the field. The cave runs before the TWindow
+  // destructor, which reads r0 and r3 again; DisposeGWorld is called at its
+  // glue, and the TOC is reloaded from the cave's frame after it.
+  { id: 'window-leak', kind: 'fix', title: 'A closed bag or character window frees its drawing buffer, instead of a hundred openings running the game out of memory',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, the hero’s window opened and closed 150 times with no alert, where the stock program ran out of memory near the 95th',
+    bug: 'Opening and closing bag or character windows about a hundred times runs the game out of memory',
+    sites: [{ at: 0x310E0, was: [0x281E0000, 0x4182001C], asm: ['bl @cave              ; was cmplwi 30, 0, which is never 0 here', 'nop                   ; was bt 2, 0x31100'] }],
+    cave: ['mflr 0', 'stw 0, 8(1)', 'stwu 1, -64(1)',
+           'lwz 3, 20(30)         ; the backing-store GWorld', 'cmplwi 3, 0', 'beq @none',
+           'bl @0xC2F70            ; DisposeGWorld', 'lwz 2, 20(1)', 'li 0, 0', 'stw 0, 20(30)',
+           'none:', 'addi 1, 1, 64', 'lwz 0, 8(1)', 'mtlr 0', 'blr'] },
+
   // Both TActiveMonster constructors store ObjToMonst's answer as the new
   // creature's unit (4 of the object) and nothing checks it; for a prop
   // type with no entry in 0xF008 the answer is null, and the creature's
@@ -940,7 +961,7 @@ const APP_FIX_KIND_GROUP = { hook: 'hidden', text: 'text', menu: 'interface', ch
 const APP_FIX_GROUP = {
   'option-p': 'interface', 'drag-northwest': 'interface', 'books-window': 'interface',
   'take-window': 'interface', 'roster-pose': 'interface', 'tab-pane': 'interface', 'gamepad-keys': 'interface',
-  'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'widget-renumber': 'interface',
+  'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'window-leak': 'interface', 'widget-renumber': 'interface',
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
