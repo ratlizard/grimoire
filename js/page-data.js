@@ -850,9 +850,9 @@ const CHEAT_KEY_WORDS = {
   0xA8: ['Regenerate', x => 'Switches flag ' + x.flag() + ' on and off for you: the healing every six minutes that Omen’s ring gives.'],
   0xC5: ['Look coordinates', x => x.look()],
   0xCA: ['Turn-based movement', x => 'Switches it on and off (' + x.flip() + ') and prints ' + x.q(1) + ' or ' + x.q(0) + '.'],
-  0xC2: ['Speed limiter', x => 'Switches the ' + x.via('SLEnable', 'speed limit') + ' on and off (' + x.flip() + ').'],
+  0xC2: ['Speed limiter', x => 'Flips a switch (' + x.flip() + ') and calls the ' + x.via('SLEnable', 'speed limit') + ', which is empty in this release, so the key has no effect.'],
   0x31: ['A party member’s window', x => 'Opens a party member’s window by number, 1 for the first, or ' + x.via('FindInventory', 'brings it to the front') + '.'],
-  0x5A: ['Z stats', x => 'Prints ' + x.zstats() + '.'],
+  0x5A: ['Z stats', x => 'Prints ' + x.zstats() + '. The time spent is the open game’s total time in play, kept in the save, not the time since launch.'],
   0x100: ['Macros', x => 'Keys that type no character run a ' + x.via('PerformMacro', 'macro') + '.']
 };
 
@@ -1511,7 +1511,7 @@ function byteMapStream(p) {
         rec.f(5, 2, 'the way it faces, set from the direction of each step (HandleMove, DxDyToFace)', { value: String(u16be(b, q + 5)) });
         let o = 7;
         if (id >= 256) {
-          rec.f(o, 2, 'its index in the level’s list', { value: String(u16be(b, q + o)) }); o += 2;
+          rec.f(o, 2, 'the record it hatched from, by its index in the level’s list (HatchEgg)', { value: String(u16be(b, q + o)) }); o += 2;
           const cr = byteMapRecord({ fields: rec.kids, bytes: b }, q + o, 32, 'a separate character-shaped record, since it has no 0xF009 row');
           for (const l of charRecordLayout()) cr.f(l.off, l.w, l.name, { value: byteMapHex(b, q + o + l.off, l.w) });
           o += 32;

@@ -29,6 +29,7 @@
 const APP_FIXES_68K = {
   inPlace: [
     { fix: 'option-p', seg: 5, at: 0xC398, was: '7210c08156c044001d40ff4d1d6eff4dffef4a2effef6716', now: '0c4300a86600018e0240001067204e714e714e714e714e71' },  // cmpi.w #$a8, d3; bne.w $c52c; andi.w #$10, d0; beq.b $c3c6; nop; nop; nop; nop; nop
+    { fix: 'option-x', seg: 5, at: 0xBEF2, was: '70001030081a02800000008056c044001d40ff7f1d6eff7ffff34a2efff367104878001f', now: '223c00033c743235180048c12001eb884841323c001f2f0108300007081a67144e714e71' },  // move.l #$33c74, d1; move.w (a5, d1.l), d1; ext.l d1; move.l d1, d0; lsl.l #$5, d0; swap d1; move.w #$1f, d1; move.l d1, -(a7); btst.b #$7, $1a(a0, d0.l); beq.b $bf26; nop; nop
     { fix: 'drag-northwest', seg: 5, at: 0x76D8, was: '673c', now: '6702' },  // beq.b $76dc
     { fix: 'theft-moved', seg: 4, at: 0x8C40, was: '4a1267080c12000866000088', now: '1012020000d76600008a4e71' },  // move.b (a2), d0; andi.b #$d7, d0; bne.w $8cd2; nop
     { fix: 'theft-moved', seg: 4, at: 0x994A, was: '7201', now: '7211' },  // moveq #$11, d1
@@ -247,6 +248,25 @@ const APP_FIXES_68K = {
         '206efff03084',                              // movea.l -$10(a6), a0; move.w d4, (a0)
         ':back',
         'bra.l 0xb456',
+      ],
+    } },
+    { fixes: ['hero-square'], seg: 6, site: 0x73AE, was: '378432005243', bodies: {
+      'hero-square': [
+        '48e7c00030333200223c00033c74b07518004cdf0003', // movem.l d0-d1, -(a7); move.w (a3, d3.w * 2), d0; move.l #$33c74, d1; cmp.w (a5, d1.l), d0; movem.l (a7)+, d0-d1
+        'b67 kept',
+        '37843200',                                  // move.w d4, (a3, d3.w * 2)
+        ':kept',
+        '5243',                                      // addq.w #$1, d3
+        'bra.l 0x73b4',
+      ],
+    } },
+    { fixes: ['hero-square'], seg: 6, site: 0x74D0, was: '206eff823084', bodies: {
+      'hero-square': [
+        '206eff8248e74000223c00033c7432351800b2504cdf0002', // movea.l -$7e(a6), a0; movem.l d1, -(a7); move.l #$33c74, d1; move.w (a5, d1.l), d1; cmp.w (a0), d1; movem.l (a7)+, d1
+        'b67 kept',
+        '3084',                                      // move.w d4, (a0)
+        ':kept',
+        'bra.l 0x74d6',
       ],
     } },
     { fixes: ['containers-weight'], seg: 4, site: 0x8C20, was: 'b2aeff64504f6f18', bodies: {
@@ -557,7 +577,7 @@ const APP_FIXES_68K = {
     { fix: 'text-compatible', at: 0x98EE, was: '74686973', now: '77697468' },
     { fix: 'text-compatible', at: 0x9A11, was: '74686973', now: '77697468' },
   ],
-  played: ['afternoon', 'containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'name-clear', 'option-p', 'roster-pose', 'sleeper-unit', 'spell-glow', 'spot-tune', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
+  played: ['afternoon', 'containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'name-clear', 'option-p', 'option-x', 'roster-pose', 'sleeper-unit', 'spell-glow', 'spot-tune', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
   built: {
     'afternoon': 'a5c5a679bca703b9537ce76a8ffbb979f6def95dd955ecb76af74594888c2234',
     'ai-import': '0b6af25daf450d9a49038b07ee53254d29167f84921499a36828340d7f224743',
@@ -567,7 +587,7 @@ const APP_FIXES_68K = {
     'corpse-light': 'eabb1d64b7d89e012b003bcf6905312d674f8c067367ffc68a71382ef6be204a',
     'drag-northwest': '240a4b91522a1322be41d61876e36cedfd74373fc29e436b55cf066a2bccee0d',
     'empty-zone-save': '5bb5c4a4b682cff534b3b09d333a20b3ae05b3ec32349dadd83de576bc5b65de',
-    'hero-square': 'f33d96b0e59630eccc9ff67dc97a867fec8e861902fb42537174da8f0a22c827',
+    'hero-square': 'ec318fa99f4d7d642ea536c9431064ee74e54dc408dbe9b732b90f7d712f72bf',
     'hood-size': '66f222eaf2f68f53d964f4f1a5ab5d18cb03d0f3abaf3704b28e957c81deb716',
     'hook-corpse': '80f6aa5d699c7cc96c1df9b109b3f855143f25d04a55cdeee5bd045c6bbba87e',
     'hook-load': '92bd330546b438b44acdaca5238d0d1101aebd5fcc1bc7f1cd3a136cacf8d0c8',
@@ -584,6 +604,7 @@ const APP_FIXES_68K = {
     'name-fit': '4cb48e5fb56b289e879d5dcf7a6e1de0c7f246a7ee28174b02f8fa584b0ebc7f',
     'open-during-play': '03047304dc2e787313bd27b1a24fef3e08377f3d9eda0b6bddacca54274fd65f',
     'option-p': '6917f679a8d9fac518babc87c16ab4112df7965b8313222a302109dc376e6225',
+    'option-x': 'bed7d91fc213c424f96f8c4a8bdff56831792e71698f8099595ed428d7c65215',
     'right-click': '0ea255ae9bbd6a6245a40cadc2c088d99adb7a6bf4a9abdbe2e985296a2994a6',
     'roster-pose': '1fd70d8d33466cceba59699538e7db789064f06c903d55d1fefdf4c5b502fc0a',
     'sleep-hidden': 'b69b37f742be25cc87c88d5981117fee40767a995763fdd8e5c83eb27ff5b7d1',
@@ -602,6 +623,6 @@ const APP_FIXES_68K = {
     'walk-to': 'e9dc95c294c067c41f836ef643962132e0d58e15fa366234b273f7189b25db2c',
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
-    '': '2a0f0ef3a491ec33f18004743bfa944849415bf9a7401112022d14b99cfdb109',   // every fix
+    '': 'e4aa46a8f7df1c86a1f03e5483048cdea03f29261aa50d9ecf3388cc379469e6',   // every fix
   },
 };

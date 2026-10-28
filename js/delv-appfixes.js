@@ -93,10 +93,18 @@ const APP_FIXES = [
     bug: 'option-p also toggles regeneration',
     sites: [{ at: 0x4448C, was: [0x60000000], asm: ['b @0x446B4            ; the exit the other cases take'] }] },
 
-  // option-x is not here. It toggles flag 31 on character 0, which is the debug switch Look
-  // reads (a readout of a square's location), not a slip, so the fix of 30 September that moved
-  // the flag onto the player took the readout away (bugs.md, played on Mac OS 8.5, 28 October
-  // 2026).
+  // option-x toggles flag 31 on character 0, which is the debug switch Look reads (a readout
+  // of a square's location), not a slip (bugs.md, played on Mac OS 8.5, 28 October 2026). So
+  // this is a change, not a fix. It moves the toggle onto the player, where flag 31 is
+  // protection from swamp bites (script 0x301F), and the readout is then out of reach.
+  { id: 'option-x', kind: 'change', title: 'Option-x toggles swamp-poison protection on the player, in place of the Look coordinate readout',
+    played: 'fork, PowerPC, 30 September 2026, with the protection on the saved hero',
+    sites: [
+      { at: 0x44030,
+        was: [0x887D001A, 0x38000000, 0x54630630, 0x7C630050, 0x3003FFFF, 0x7C001910, 0x9801006F, 0x8801006F, 0x28000000, 0x41820018, 0x38600000],
+        asm: ['lha 3, 0(30)          ; the player', 'slwi 3, 3, 5', 'add 3, 29, 3', 'lbz 3, 26(3)', 'andi. 3, 3, 128       ; flag 31',
+              'beq @0x4406C          ; clear: AddAbility', 'nop', 'nop', 'nop', 'nop', 'lha 3, 0(30)          ; RemoveAbility, on the player'] },
+      { at: 0x4406C, was: [0x38600000], asm: ['lha 3, 0(30)          ; AddAbility, on the player'] }] },
 
   { id: 'drag-northwest', kind: 'fix', title: 'A one-square drag to the north-west slides the thing, as the other seven directions do',
     played: 'fork, PowerPC, 30 September 2026: the paper slides north-west',
@@ -670,15 +678,28 @@ const APP_FIXES = [
            'bl @0x7CAA0            ; TCache::Lock', 'mr 3, 31', 'bl @0x1AB58            ; GMSPlayAmbient',
            'lwz 3, -30396(2)', 'lwz 3, 0(3)', 'lwz 3, 0(3)', 'mr 4, 31', 'bl @0x7CB28            ; TCache::Unlock', 'b @0x1BBE8'] },
 
-  { id: 'hero-square', kind: 'fix', title: 'The hero stays on its square in the creature grid, so a follower on it no longer hides the hero from a drag',
+  // TViewer::SetStage empties the creature grid and fills it again from the
+  // neighborhood on every turn and redraw. Its two stores (0x65A18, four cells
+  // of the finer grid, and 0x65B40, the square) write over the cell's old
+  // value, so the creature later in the list ends up in the square. The first
+  // form of this fix changed only SetMonstStage, the store of a single step,
+  // which the next SetStage undid; on 68K it was played three times and never
+  // showed (cross-check of 28 October 2026). The two SetStage stores now pass
+  // over a cell with the player's creature in it.
+  { id: 'hero-square', kind: 'fix', title: 'The hero stays in its square of the creature grid when a follower stands on it, so a press there picks up the hero (untested)',
     bug: 'You cannot drag the player onto a follower\'s square',
     sites: [
       { at: 0x6B14C, was: [0x40820008], asm: ['b @one                ; was bne 0x6B154'] },
-      { at: 0x6B020, was: [0x40820010], asm: ['b @four               ; was bne 0x6B030'] }],
+      { at: 0x6B020, was: [0x40820010], asm: ['b @four               ; was bne 0x6B030'] },
+      { at: 0x65A18, was: [0x7FBC1B2E], asm: ['b @stage4             ; was sthx 29, 28, 3'] },
+      { at: 0x65B40, was: [0xB3A40000], asm: ['b @stage1             ; was sth 29, 0(4)'] }],
     cave: ['one:', 'beq @take1             ; empty: as before', 'lwz 5, -30356(2)      ; the player', 'lha 5, 0(5)', 'cmpw 4, 5', 'bne @done1',
            'take1:', 'sth 4, 0(23)', 'done1:', 'b @0x6B154',
            'four:', 'beq @take4', 'lwz 5, -30356(2)', 'lha 5, 0(5)', 'cmpw 4, 5', 'bne @done4',
-           'take4:', 'extsh 0, 31', 'slwi 0, 0, 1', 'sthx 4, 30, 0', 'done4:', 'b @0x6B030'] },
+           'take4:', 'extsh 0, 31', 'slwi 0, 0, 1', 'sthx 4, 30, 0', 'done4:', 'b @0x6B030',
+           'stage4:', 'add 4, 28, 3          ; the cell', 'lha 0, 0(4)', 'lwz 3, -30356(2)      ; the player', 'lha 3, 0(3)', 'cmpw 0, 3',
+           'beq @kept4            ; the player\'s: left as it is', 'sth 29, 0(4)', 'kept4:', 'b @0x65A1C',
+           'stage1:', 'lha 0, 0(4)', 'lwz 3, -30356(2)', 'lha 3, 0(3)', 'cmpw 0, 3', 'beq @kept1', 'sth 29, 0(4)', 'kept1:', 'b @0x65B44'] },
 
   { id: 'spell-glow', kind: 'fix', title: 'The game draws a creature’s spell glow on the creature, not on an unrelated thing that shares its number',
     bug: 'A lich\'s spell glow and lightning come out of a chair',
