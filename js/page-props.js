@@ -430,22 +430,29 @@ function unitSteps(pt) {
   /* A creature whose sixteen frames are a joining set, one for each
      combination of its four edges the art runs off: the ooze. Shown one to
      a cell it was sixteen blobs in turn, each cut off where it joins a
-     neighbour that was not there. It grows instead over the hydra's nine
-     squares, in the maintainer's order (6 October 2026): alone in the
-     middle, then up, left, down and right, every square wearing the frame
-     that joins the neighbours it has. Which frame joins which edges is
-     read off the art (a frame is open on an edge its pixels reach), so
-     nothing here identifies the ooze by name or number. His five stages use
-     twelve of the sixteen, and he asked for all of them the same day, so
-     two more follow the full nine: the middle row, which is the east
-     end, the east-west piece and the west end, and the middle column,
-     which has the north-south piece. */
+     square that was not there. It grows and shrinks over four squares
+     instead (the maintainer, 28 October 2026): one square, then a square
+     more at a time round the four, clockwise, until all four are there,
+     then a square less at a time in the same order until one is left. The
+     next round grows from the square left, so the lone square goes round
+     the four corners. Every square wears the frame that joins the squares
+     next to it. Which frame joins which edges is read off the art (a frame
+     is open on an edge its pixels reach), so nothing here identifies the
+     ooze by name or number. */
   {
     const joins = info.present.length === 16 ? info.present.map(f => tileEdgeMask(base + f)) : null;
     if (joins && new Set(joins).size === 16) {
       const frameFor = m => info.present[joins.indexOf(m)];
-      const cell = n => [(n - 1) % 3 - 1, Math.floor((n - 1) / 3) - 1];
-      const steps = [[5], [2, 5], [1, 2, 4, 5], [1, 2, 4, 5, 7, 8], [1, 2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6], [2, 5, 8]].map(cells => {
+      // The four squares clockwise from the top left.
+      const QUAD = [[0, 0], [1, 0], [1, 1], [0, 1]];
+      const cell = n => QUAD[n];
+      const rounds = [];
+      for (let r = 0, q = 0; r < 4; r++) {
+        const at = k => (q + k) % 4;
+        rounds.push([at(0)], [at(0), at(1)], [at(0), at(1), at(2)], [0, 1, 2, 3], [at(1), at(2), at(3)], [at(2), at(3)]);
+        q = at(3);
+      }
+      const steps = rounds.map(cells => {
         const has = (x, y) => cells.some(n => cell(n)[0] === x && cell(n)[1] === y);
         return cells.map(n => {
           const [x, y] = cell(n);

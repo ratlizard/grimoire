@@ -3428,6 +3428,19 @@ function renderDataForkSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
+  // The scenario's name, the archive's first string. The page printed it
+  // only in the line under the tabs as the file opened, which the first tab
+  // replaces (the maintainer, 28 October 2026: "where is Scenario name
+  // shown").
+  {
+    const name = pstring(ARCHIVE.bytes, 0);
+    if (name) {
+      const head = document.createElement('div');
+      head.className = 'sv-note';
+      head.innerHTML = 'Scenario name: <b>' + svEsc(name) + '</b>';
+      grid.appendChild(head);
+    }
+  }
   const at = window.FORK_AT;
   const fe = at !== null && at !== undefined ? forkEntryOf(at) : null;
   if (fe) {

@@ -1084,7 +1084,7 @@ td .relChip, td .relText, td .relMain, td .relSub, td .relNote { white-space:now
 .partsNote { color:#fff; font-size:0.75rem; flex-basis:100%; line-height:1.4; }
 #mapParts { max-width:720px; margin:8px auto 0; text-align:left; }
 #mapStrip:empty { display:none; }
-#mapStrip canvas { display:block; width:576px; max-width:100%; margin:0 auto 8px; image-rendering:pixelated; cursor:pointer; }
+#mapStrip canvas { display:block; width:576px; max-width:100%; margin:12px auto 0; image-rendering:pixelated; cursor:pointer; }
 /* Save and Show on the World side by side: they were two full-width rows. */
 #mapSaveRow .mapSaveBtns { display:flex; gap:8px 18px; justify-content:center; flex-wrap:wrap; }
 #mapSaveRow .mapSaveBtns button { flex:none; width:auto !important; margin:0 !important; }
@@ -1210,7 +1210,7 @@ button.linkbtn:focus-visible { outline:2px solid var(--gold); outline-offset:2px
   /* !important: renderMapResource writes display:block on the panel, which
      outranks any rule without it, and kept this grid from applying. */
   #mapPreview.hasInspect { display:grid !important; grid-template-columns:minmax(0,1fr);
-    grid-template-areas: 'label' 'strip' 'stage' 'zoom' 'chars' 'legend' 'parts' 'save';
+    grid-template-areas: 'label' 'stage' 'zoom' 'chars' 'legend' 'parts' 'save' 'strip';
     gap:0 16px; align-items:start; }
   #mapPreview.hasInspect > #mapLabel { grid-area:label; }
   #mapPreview.hasInspect > #mapParts { grid-area:parts; }
@@ -2053,7 +2053,16 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
      toggles pushed off the screen. Square on a phone, as most maps are.
      The inline height is the desktop's and is what the atlas check watches,
      hence the !important. */
-  #mapViewport { height:auto !important; aspect-ratio:1 / 1; max-height:62vh; }
+  /* More of the screen for the map (the maintainer, 28 October 2026: "need
+     more space for zone navigation on mobile", the map itself). The box
+     was 242 px square on a 412 px screen, the stage's gutters for the pan
+     arrows and the panel's padding taking the rest. The arrows sit on the
+     map's edge here, the panel's padding is a few pixels, and the box is a
+     third taller than it is wide. */
+  #mapViewport { height:auto !important; aspect-ratio:3 / 4; max-height:72vh; }
+  #mapStage { padding:0 !important; }
+  #mapPreview { padding:8px 4px 10px !important; }
+  #mapStage .mapArrowBtn { z-index:3; }
   #atlasPanel:fullscreen #atlasViewport, #atlasPanel:-webkit-full-screen #atlasViewport,
   body.atlasFull #atlasPanel #atlasViewport { height:100% !important; aspect-ratio:auto; }
 }
@@ -2396,10 +2405,6 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
 <!-- Map Visual Preview (top-down rendered map + props) -->
 <div id="mapPreview" style="display:none; margin-top:4px; padding:10px 14px 14px; background:var(--panel); border:1px solid var(--edge); border-radius:8px; text-align:center;">
   <div id="mapLabel" style="margin-bottom:8px; font-weight:600;"></div>
-  <!-- The zone's landscape strip, as the status window shows it over the
-       map (paintZoneStrip). The zone's links, which sat here above the map,
-       are above the save row now (the maintainer, 6 October 2026). -->
-  <div id="mapStrip"></div>
   <div id="mapStage" style="position:relative; width:100%; max-width:720px; margin:0 auto 6px; padding:22px;">
 <div id="mapViewport" style="position:relative; width:100%; height:62vh; margin:0; overflow:hidden; border:1px solid var(--edge); background:#222; touch-action:none; cursor:grab; border-radius:6px;">
     <div id="mapCanvasWrap" style="position:absolute; top:0; left:0; transform-origin:0 0; z-index:1;"></div>
@@ -2480,6 +2485,9 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
       <button class="secondary" onclick="showZoneOnWorld()">Show on the World</button>
     </div>
   </div>
+  <!-- The zone's landscape strip (paintZoneStrip), at the foot of the page
+       (the maintainer, 28 October 2026), where it moves nothing above it. -->
+  <div id="mapStrip"></div>
 
 </div>
 
@@ -2719,7 +2727,7 @@ wiki, not from the file. Turn these names on or off in Settings.</div>
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.350.0';
+const GRIMOIRE_VERSION = '1.351.0';
 /* The name at the top, and the tab's icon. The grimoire's tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

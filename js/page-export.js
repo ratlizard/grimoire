@@ -1217,7 +1217,7 @@ function paintStripSky(cv, resid, sky, rules, day, quarter) {
   for (let i = 0; i < W * H; i++) { const c = PAL_RGB[idx[i]] || [0, 0, 0]; im.data[i * 4] = c[0]; im.data[i * 4 + 1] = c[1]; im.data[i * 4 + 2] = c[2]; im.data[i * 4 + 3] = 255; }
   g.putImageData(im, 0, 0);
 }
-/* The open zone's strip above its map, at the map's hour (the maintainer,
+/* The open zone's strip at the foot of its page, at the map's hour (the maintainer,
    6 October 2026: landscapes "not shown in Zones tab"). The strip and its
    sky are the entry script's SetLandscapeImage, as zoneLandscapeArg reads
    it; a click opens the strip's page. Nothing on the World tab, whose
@@ -1384,6 +1384,7 @@ function renderImage() {
          screen tall, with the slider below the fold (the maintainer,
          6 October 2026: "enable zoom on landscapes in their tab"). */
       const vp = document.getElementById('canvasViewport');
+      if (vp) vp._stripH = 0;          // applyZoom fixes the box's height at this zoom
       zs.max = 8;
       z = Math.max(1, Math.min(8, vp && vp.clientWidth > 40 ? Math.floor(vp.clientWidth / W) : 2));
     } else { zs.max = 16; z = autoZoom(W, H); }

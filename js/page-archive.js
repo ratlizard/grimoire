@@ -1241,12 +1241,16 @@ function applyZoom() {
   const w = canvas.width * z, h = canvas.height * z;
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
-  // A landscape's box is as tall as the strip, not half the screen, and the
-  // strip over the sky below it is given the same zoom.
+  // A landscape's box is as tall as the strip at its opening zoom, not half
+  // the screen, and stays that tall. A zoom in scrolls inside it, and a
+  // zoom out leaves room round the strip. The box once took each zoom's
+  // height and the strip over the sky below it took the zoom too, so
+  // everything under the picture moved with the slider (the maintainer,
+  // 28 October 2026). The strip over the sky stays at its opening width.
   const strip = window.CUR_SUBN === 131;
-  vp.style.height = strip ? Math.min(h + 4, Math.round((window.innerHeight || 800) * 0.52)) + 'px' : '';
-  const sky = strip ? document.querySelector('#stripSky canvas') : null;
-  if (sky) sky.style.width = (sky.width * z) + 'px';
+  if (strip && !vp._stripH) vp._stripH = Math.min(h + 4, Math.round((window.innerHeight || 800) * 0.52));
+  if (!strip) vp._stripH = 0;
+  vp.style.height = strip ? vp._stripH + 'px' : '';
   vp.scrollLeft = Math.max(0, cx * w - vp.clientWidth / 2);
   vp.scrollTop  = Math.max(0, cy * h - vp.clientHeight / 2);
   // A gold frame shows the picture runs past the edges.
