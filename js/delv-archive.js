@@ -1785,6 +1785,78 @@ function describeDelverPatch(baseSpec, patchSpec) {
   };
 }
 
+/* ---- several patches against each other ------------------------------------
+   A Magpie patch contains whole resources. When two patches both contain
+   one, installing them one after the other leaves the later patch's copy in
+   the file and the earlier one's gone. On Mac OS 8.5, on 10 and 11 October
+   2026, the design changes installed over "All Fixes" put Fetch back to a
+   copy without its fix (GRIMOIRE-NOTES.md, under
+   grimoire/fixable-bugs-1adxav). Magpie does no check of this kind.
+
+   The result has an entry for every resource that two or more of `patches`
+   contain, with what becomes of it. `patches` is [{ label, spec }] in
+   install order, and `baseSpec` is the file they are installed in. Per
+   resource:
+
+   - `carriers`, every patch that has it, and `changers`, those whose copy
+     differs from the base's. A patch can have a resource unchanged (a fix
+     built on a whole script has the whole script), and that copy, installed
+     later, still undoes an earlier patch's change. The page reported no
+     such case until this function.
+   - `lost`, the changers whose change is gone once the last carrier is in.
+   - `merged`, the bytes that keep every change, or null when there are
+     none: with one changer, that changer's copy; with more, a byte-for-byte
+     merge against the base when every copy has the base's length and no
+     byte differs two ways. A fix that inserts code changes a script's
+     length, so such scripts are reported and never merged, since merging
+     code that has moved could produce a script neither patch has.
+
+   A resource no patch changes is left out, since every order gives the
+   same file. Magpie's records (the descriptor and the installed list) are
+   left out too; Magpie writes those itself. */
+function delverPatchOverlaps(baseSpec, patches) {
+  const byId = new Map(baseSpec.resources.map(r => [r.resid, r]));
+  const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+  const copiesOf = new Map();
+  for (const p of patches)
+    for (const r of p.spec.resources) {
+      if (r.resid === DELV_PATCH_DESCRIPTOR || r.resid === DELV_PATCH_INSTALLED) continue;
+      if (!copiesOf.has(r.resid)) copiesOf.set(r.resid, []);
+      copiesOf.get(r.resid).push({ label: p.label, data: r.data });
+    }
+  const out = [];
+  for (const [resid, copies] of [...copiesOf].sort((a, b) => a[0] - b[0])) {
+    if (copies.length < 2) continue;
+    const base = byId.get(resid);
+    const changes = copies.filter(c => !base || !same(c.data, base.data));
+    if (!changes.length) continue;
+    const last = copies[copies.length - 1];
+    let merged = null;
+    if (changes.length === 1) merged = changes[0].data;
+    else if (base && changes.every(c => c.data.length === base.data.length)) {
+      merged = new Uint8Array(base.data);
+      for (let i = 0; merged && i < merged.length; i++) {
+        let v = null;
+        for (const c of changes) {
+          if (c.data[i] === base.data[i]) continue;
+          if (v !== null && v !== c.data[i]) { merged = null; break; }
+          v = c.data[i];
+        }
+        if (merged && v !== null) merged[i] = v;
+      }
+    }
+    out.push({
+      resid,
+      carriers: copies.map(c => c.label),
+      changers: changes.map(c => c.label),
+      kept: last.label,
+      lost: changes.filter(c => c !== last && !same(c.data, last.data)).map(c => c.label),
+      merged
+    });
+  }
+  return out;
+}
+
 /* ---- two archives against each other --------------------------------------
    `describeDelverPatch` above answers "what would this patch do to my file",
    which is one archive against a SUBSET of another. This is the general case:

@@ -781,6 +781,40 @@ function basketAddFile(bytes, name) {
   if (typeof mechGo === 'function') mechGo('patches');
   return true;
 }
+/* Where the parts of Your Patch overlap (basketOverlaps), as a table: the
+   resource, then what happens to it. The order is Your Patch's, the fixes
+   first, which is also the order Your Patch merges them in. For separate
+   files in Magpie each sentence is true in either order, since the order
+   Magpie installs a folder's patches in is not read. */
+function renderPatchOverlaps() {
+  const host = document.getElementById('patchOverlap');
+  if (!host) return;
+  host.innerHTML = '';
+  const say = (html, bad) => { const p = document.createElement('p'); p.className = bad ? 'mechSub patchBad' : 'mechSub'; p.innerHTML = html; host.appendChild(p); };
+  if (!ARCHIVE || !ARCHIVE.bytes) { say('No game file is open.', true); return; }
+  const layers = basketLayers();
+  if (!layers) { const n = document.getElementById('patchBarNote'); say(svEsc(n && n.textContent || 'The page could not build Your Patch.'), true); return; }
+  if (layers.length < 2) { say('Your Patch has ' + (layers.length ? 'one part' : 'nothing in it') + '. Add two or more, such as fixes and a patch file, to compare them.'); return; }
+  let overlaps;
+  try { overlaps = basketOverlaps(layers, basketBase()); }
+  catch (e) { quiet(e, 'the overlaps of Your Patch'); say('The page could not compare the parts. ' + svEsc(e.message), true); return; }
+  if (!overlaps.length) { say('No two parts of Your Patch change the same thing. Installed as separate files, they work in any order.'); return; }
+  const list = names => names.map(n => '<b>' + svEsc(n) + '</b>').join(names.length > 2 ? ', ' : ' and ').replace(/, (<b>[^<]*<\/b>)$/, ', and $1');
+  const clashes = overlaps.filter(o => o.changers.length > 1 && !o.merged).length;
+  say(overlaps.length + ' resource' + (overlaps.length === 1 ? ' is' : 's are') + ' in more than one part' +
+    (clashes ? '. In ' + clashes + ' of them two changes overlap, and only one can stay' : '') + '.', !!clashes);
+  const rows = overlaps.map(o => {
+    const others = o.carriers.filter(c => o.changers.indexOf(c) < 0);
+    const what = o.changers.length === 1
+      ? list(o.changers) + ' changes it. ' + list(others) + (others.length === 1 ? ' has' : ' have') +
+        ' the original, which undoes the change when installed after it. Your Patch has the change.'
+      : list(o.changers) + ' all change it, and the one installed last replaces the others. ' +
+        (o.merged ? 'The changes are to different bytes, and Your Patch combines them.'
+                  : 'Your Patch has ' + svEsc(o.kept) + '’s.');
+    return '<tr><td>' + svChip(o.resid, labelFor(o.resid) || '') + '</td><td>' + what + '</td></tr>';
+  });
+  host.appendChild(Object.assign(document.createElement('div'), { innerHTML: mechTable(['resource', ''], rows) }));
+}
 function patchesForget() {
   window.PATCH_REPORT = null;
   window.PATCH_BYTES = null;
@@ -2955,9 +2989,9 @@ function basketBase() {
 function basketApplied(resids) {
   window.BASKET_APPLIED = new Set([...(window.BASKET_APPLIED || []), ...resids]);
 }
-// The open file with every part merged in, or null with the reason given.
-function basketMerged() {
-  if (!ARCHIVE || !ARCHIVE.bytes) { basketStatus('No game file is open.', true); return null; }
+// The parts of Your Patch as patches, the fixes first, or null with the
+// reason given.
+function basketLayers() {
   const layers = [];
   if (dataFixChosen().length) {
     let w;
@@ -2965,10 +2999,36 @@ function basketMerged() {
     if (w) layers.push({ label: 'the fixes', w });
   }
   for (const p of window.PATCH_BASKET.parts) layers.push(p);
-  let data = basketBase();
+  return layers;
+}
+/* Where the parts of Your Patch change the same resource
+   (delverPatchOverlaps), against the file the patch is built on. */
+function basketOverlaps(layers, baseBytes) {
+  const base = delverArchiveSpec(baseBytes);
+  if (!base || layers.length < 2) return [];
+  const patches = [];
+  for (const l of layers) {
+    const spec = delverArchiveSpec(l.w.bytes);
+    if (spec) patches.push({ label: l.label, spec });
+  }
+  return delverPatchOverlaps(base, patches);
+}
+/* The open file with every part merged in, or null with the reason given.
+   Each part is merged in turn, so a resource two parts have would end as the
+   later part's copy. Where the two changes can be combined
+   (delverPatchOverlaps's `merged`), the combined copy goes in instead; this
+   includes a part with the original copy of a resource another part
+   changed. What cannot be combined is reported in `clash`, the later part
+   kept. */
+function basketMerged() {
+  if (!ARCHIVE || !ARCHIVE.bytes) { basketStatus('No game file is open.', true); return null; }
+  const layers = basketLayers();
+  if (!layers) return null;
+  const baseBytes = basketBase();
+  let data = baseBytes;
   const by = new Map(), clash = [];
   // The edits are in the file built on, so they are counted first, and a
-  // part that changes the same resource is reported like any other clash.
+  // part that changes the same resource is reported as a clash.
   const edits = basketEdits();
   for (const id of edits.resids) by.set(id, 'your edits');
   for (const l of layers) {
@@ -2976,12 +3036,21 @@ function basketMerged() {
     try { m = mergeDelverPatch(data, l.w.bytes); }
     catch (e) { basketStatus('The page could not add ' + l.label + ': ' + e.message, true); return null; }
     for (const id of m.replaced.concat(m.added)) {
-      if (by.has(id) && by.get(id) !== l.label) clash.push(by.get(id) + ' and ' + l.label);
-      by.set(id, l.label);
+      if (by.get(id) === 'your edits') clash.push('your edits and ' + l.label);
+      if (!by.has(id) || by.get(id) === 'your edits') by.set(id, l.label);
     }
     data = m.bytes;
   }
-  return { data, resids: [...by.keys()], layers, edits, clash: [...new Set(clash)] };
+  const overlaps = basketOverlaps(layers, baseBytes);
+  const combine = overlaps.filter(o => o.lost.length && o.merged);
+  if (combine.length) {
+    const spec = delverArchiveSpec(data);
+    const at = new Map(spec.resources.map(r => [r.resid, r]));
+    for (const o of combine) if (at.has(o.resid)) at.get(o.resid).data = o.merged;
+    data = writeDelverArchive(spec);
+  }
+  for (const o of overlaps) if (o.lost.length && !o.merged) clash.push(o.lost.concat([o.kept]).join(' and '));
+  return { data, resids: [...by.keys()], layers, edits, overlaps, clash: [...new Set(clash)] };
 }
 // The site's resource fork with the chosen fixes it does not have yet, so
 // that the visitor's own changes to it (a font swapped in) are kept; null
@@ -4893,6 +4962,23 @@ function renderMechanicsSheet(value) {
     const note = document.createElement('div');
     note.className = 'mechSub'; note.id = 'patchNote';
     sec.appendChild(note);
+    /* Overlaps between the parts of Your Patch, on a button: building the
+       fixes as a patch costs a moment, and Your Patch changes often. */
+    const ov = document.createElement('div');
+    ov.className = 'mechStats';
+    const ovBtn = document.createElement('button');
+    ovBtn.className = 'secondary'; ovBtn.textContent = 'Check for Overlaps';
+    ovBtn.style.cssText = 'width:auto;margin:4px 0;padding:6px 12px';
+    ovBtn.onclick = renderPatchOverlaps;
+    ov.appendChild(ovBtn);
+    const ovHint = document.createElement('span');
+    ovHint.className = 'mechSub';
+    ovHint.textContent = ' Find where parts of Your Patch change the same thing, and which changes you would lose installing each with Magpie as a separate file.';
+    ov.appendChild(ovHint);
+    sec.appendChild(ov);
+    const ovHost = document.createElement('div');
+    ovHost.id = 'patchOverlap';
+    sec.appendChild(ovHost);
     const report = document.createElement('div');
     report.id = 'patchReport';
     sec.appendChild(report);

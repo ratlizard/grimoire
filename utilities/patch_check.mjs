@@ -571,6 +571,63 @@ check('and stored once, by the record copy', field.stores, 1);
    found, and the scan is complete rather than suggestive. */
 check('and never escapes to another offset', field.atOtherOffset, 0);
 
+/* ---- two patches that change the same resources ----
+   delverPatchOverlaps, which Patch Comparison's Check for Overlaps and Your
+   Patch's merge read. Two patches built here from the shipped file, so
+   each case has an answer set by its construction:
+     0x021A  A and B change different bytes: both changes are kept in
+             `merged`, and B's copy alone would lose A's
+     0x8E04  A and B change the same byte two ways: no `merged`
+     0x1801  A changes it and B has the original: `merged` is A's copy,
+             and B installed last would undo A
+     0x1A28  both have the original: not listed
+     0x0F01  in A alone: not listed
+   The negative control is the 0x1A28 case: a resource both patches have
+   unchanged must not be reported, or every patch built on whole scripts
+   would show a page of overlaps that lose nothing. */
+const ov = ev(`(() => {
+  const base = delverArchiveSpec(__base);
+  const copy = () => delverArchiveSpec(__base);
+  const a = copy(), b = copy();
+  const bump = (spec, id, i, v) => { const r = spec.resources.find(x => x.resid === id); r.data = r.data.slice(); r.data[i < 0 ? r.data.length + i : i] = v; };
+  const orig = id => base.resources.find(x => x.resid === id).data;
+  bump(a, 0x021A, 0, orig(0x021A)[0] ^ 0xFF);
+  bump(b, 0x021A, -1, orig(0x021A)[orig(0x021A).length - 1] ^ 0x0F);
+  bump(a, 0x8E04, 0, orig(0x8E04)[0] ^ 0x01);
+  bump(b, 0x8E04, 0, orig(0x8E04)[0] ^ 0x02);
+  bump(a, 0x1801, 0, orig(0x1801)[0] ^ 0xFF);
+  const pick = (spec, ids) => delverArchiveSpec(writeDelverPatch(spec, ids, {description: 'overlap', typeCode: 4}).bytes);
+  const pa = pick(a, [0x021A, 0x8E04, 0x1801, 0x1A28, 0x0F01]);
+  const pb = pick(b, [0x021A, 0x8E04, 0x1801, 0x1A28]);
+  const out = delverPatchOverlaps(base, [{label: 'A', spec: pa}, {label: 'B', spec: pb}]);
+  const at = id => out.find(o => o.resid === id) || null;
+  const same = (x, y) => !!x && x.length === y.length && x.every((v, i) => v === y[i]);
+  const ra = id => pa.resources.find(x => x.resid === id).data;
+  const rb = id => pb.resources.find(x => x.resid === id).data;
+  const m = at(0x021A);
+  return {
+    ids: out.map(o => o.resid.toString(16)).join(','),
+    mergeKeepsBoth: !!(m && m.merged && m.merged[0] === ra(0x021A)[0] &&
+      m.merged[m.merged.length - 1] === rb(0x021A)[rb(0x021A).length - 1]),
+    mergeLost: m ? m.lost.join(',') : null,
+    clashMerged: at(0x8E04) ? at(0x8E04).merged : 'missing',
+    clashKept: at(0x8E04) && at(0x8E04).kept,
+    clashLost: at(0x8E04) && at(0x8E04).lost.join(','),
+    origChangers: at(0x1801) && at(0x1801).changers.join(','),
+    origLost: at(0x1801) && at(0x1801).lost.join(','),
+    origMerged: !!(at(0x1801) && same(at(0x1801).merged, ra(0x1801)))
+  };
+})()`);
+check('overlaps found: only the three that change', ov.ids, '21a,1801,8e04');
+check('two changes to different bytes are merged', ov.mergeKeepsBoth, true);
+check('and installing both loses the first', ov.mergeLost, 'A');
+check('two changes to the same byte cannot be merged', ov.clashMerged, null);
+check('so the later patch is kept', ov.clashKept, 'B');
+check('and the earlier lost', ov.clashLost, 'A');
+check('an original copy is no change', ov.origChangers, 'A');
+check('but undoes one installed after it', ov.origLost, 'A');
+check('and the merged copy is the change', ov.origMerged, true);
+
 console.log(failures ? `\n${failures} failure(s)`
   : `\n  patch: 12 of 1,558 resources replaced, ${r.len.toLocaleString()} bytes out; ` +
     `${desc.tiles} tiles of ${desc.sheets * 16} redrawn across ${desc.sheets} sheets; ` +
