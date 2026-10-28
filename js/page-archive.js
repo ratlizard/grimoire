@@ -946,6 +946,9 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     const landOn = hasWorld ? 'WORLD' : (savedAs && getResourceBytes(ARCHIVE, 0xF009) ? 'SAVEGAME' : 'DATAFORK');
     if (!restoring && !showCategory(landOn)) onCategoryChange();
     out.textContent = 'Title: ' + title + (savedAs ? ', saved game “' + savedAs + '”' : '') + ', ' + sourceName;
+    // Kept for the search: the next tab replaces this line, and it is the
+    // one place the page shows the scenario's name.
+    DERIVED.OPENED_LINE = out.textContent;
     // A link to the world -- or the World tab carried across a swap, which
     // is the same hash -- names nothing in a file that has no world.
     let landed = false;

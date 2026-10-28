@@ -288,6 +288,9 @@ function siteSearchState() {
     const el = document.getElementById(id);
     if (el) add(title, '', siteTextOf([el]), { panel: open });
   }
+  // The line under the tabs as the file opened ("Title: Cythera: Fate of
+  // Alaric, ..."), which the first tab drawn replaces, so no crawl sees it.
+  if (DERIVED.OPENED_LINE) add('Open File', '', [DERIVED.OPENED_LINE], { panel: null });
   // What each routine of the program does, from ROUTINE_NOTES.
   try {
     if (typeof ROUTINE_NOTES !== 'undefined' && appPef())

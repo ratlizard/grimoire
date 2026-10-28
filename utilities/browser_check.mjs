@@ -277,7 +277,7 @@ const SITE_SEARCH_RUN = `(async () => { try {
   const charPage = S.pages.find(p => p.open.d && /^char:/.test(p.open.d) && p.lines.length > 4);
   const word = charPage ? charPage.lines.find(l => l.length > 30) : '';
   const res = { done: S.done, ms, pages: S.pages.length, details: S.pages.filter(p => p.open.d).length,
-    credits: titles('"Susan Kare"'), status: titles('"each food fills by a different amount"'),
+    credits: titles('"Susan Kare"'), opened: titles('"Fate of Alaric"'), status: titles('"each food fills by a different amount"'),
     character: word ? titles('"' + word.replace(/"/g, '') + '"').length : 0, backwards: titles('"amount different a by"').length,
     open: document.getElementById('searchWrap').style.display, early };
   closeSearch();
@@ -377,6 +377,7 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     if (!ss || ss.error) fail('search', 'the pages were not read (' + (ss ? ss.error : 'no result') + ')');
     else if (!ss.done) fail('search', 'reading the pages had not finished after ' + ss.ms + ' ms, at ' + ss.pages + ' pages');
     else if (!ss.credits.some(t => /^Credits/.test(t))) fail('search', 'a name in the Credits panel finds ' + JSON.stringify(ss.credits));
+    else if (!ss.opened.includes('Open File')) fail('search', 'the scenario’s name, in the line shown as the file opened, finds ' + JSON.stringify(ss.opened));
     else if (!ss.status.some(t => /Status/.test(t))) fail('search', 'a sentence of Mechanics, Status finds ' + JSON.stringify(ss.status));
     else if (ss.details < 500 || !ss.character) fail('search', ss.details + ' detail pages read, and a line of a character’s page finds ' + ss.character + ' pages');
     else if (ss.backwards) fail('search', 'a phrase with its words out of order matched ' + ss.backwards + ' pages');
