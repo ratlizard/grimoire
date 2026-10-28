@@ -3435,11 +3435,36 @@ function compareApplications(bytes, name, opts) {
    later release changed. Returns what compareOpenBytes does. */
 function compareReleases() {
   const inst = window.INSTALLER;
-  if (!inst || !inst.raw || !inst.installers || inst.installers.length < 2) return [];
-  return inst.installers.filter(it => it.name !== inst.picked);
+  if (inst && inst.raw && inst.installers && inst.installers.length >= 2) return inst.installers.filter(it => it.name !== inst.picked);
+  // The releases fetched for the comparison alone (compareFetchReleases).
+  const got = window.COMPARE_RELEASES;
+  return got && got.installers ? got.installers : [];
+}
+/* The releases without a file of them open (the maintainer, 28 October
+   2026, again: "add version diff without having to upload new file"). The
+   buttons above stood only when the open file was the installer file with
+   all four releases in it; a remembered copy of one release, a data file
+   or a file of the visitor's had none. Then the section offers to fetch
+   that file, archive.org's "Cythera installers" (the first of
+   REMOTE_ARCHIVE_URLS, 28 MB), once for the visit, and each release in it
+   is then a button. The open file stays open. */
+async function compareFetchReleases() {
+  const note = document.getElementById('compareNote');
+  try {
+    const raw = await fetchWithProgress(DEFAULT_ARCHIVE_URL, 'Downloading the releases');
+    const inst = sniffViseInstaller(raw);
+    if (!inst || !inst.installers || !inst.installers.length) throw new Error('there is no installer in the file');
+    window.COMPARE_RELEASES = { raw, installers: inst.installers };
+    setStatus('');
+    renderMechanicsSheet(window.CUR_SUBN);
+  } catch (e) {
+    if (note) { note.textContent = 'The page could not download the releases (' + e.message + ').'; note.className = 'mechSub patchBad'; }
+  }
 }
 function compareWithRelease(name) {
-  const inst = window.INSTALLER;
+  const got = window.COMPARE_RELEASES;
+  const inst = window.INSTALLER && window.INSTALLER.raw && window.INSTALLER.installers && window.INSTALLER.installers.length >= 2
+    ? window.INSTALLER : got && { raw: got.raw, picked: window.INSTALLER ? window.INSTALLER.picked : '' };
   if (!inst || !inst.raw) return false;
   const short = n => String(n).replace(/ Installer$/, '');
   return compareOpenBytes(inst.raw, short(name), { pick: name, openFileName: short(inst.picked),
@@ -5148,6 +5173,16 @@ function renderMechanicsSheet(value) {
         b.onclick = () => compareWithRelease(it.name);
         rel.appendChild(b);
       }
+      sec2.appendChild(rel);
+    } else {
+      const rel = document.createElement('div');
+      rel.className = 'mechStats'; rel.id = 'compareReleases';
+      const b = document.createElement('button');
+      b.className = 'secondary';
+      b.style.cssText = 'width:auto;margin:0;padding:6px 12px';
+      b.textContent = 'Download the releases to compare with (28 MB)';
+      b.onclick = compareFetchReleases;
+      rel.appendChild(b);
       sec2.appendChild(rel);
     }
     const n2 = document.createElement('div');
