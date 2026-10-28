@@ -806,6 +806,10 @@ try {
   ctx.ringListingAt(0x35);
   if (!/^    0035  /.test(hitLine())) fail('script page', 'following L0035 rings "' + hitLine().slice(0, 50) + '"');
   // Searched by delvmod's name, found and ringed by the program's.
+  // The search shows results only once every page is read, which the stub
+  // cannot do (no text nodes), so the reading is marked done; the scripts
+  // are searched all the same.
+  ctx.siteSearchState().done = true;
   REGISTRY.get('searchBox').value = 'EquipmentIterator';
   ctx.runSearch();
   await new Promise(r => setTimeout(r, 300));     // runSearch draws on a timer

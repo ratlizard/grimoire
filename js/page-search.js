@@ -270,9 +270,10 @@ function siteDetailTitle(kind, id) {
 }
 
 /* The index of pages, on DERIVED so a different file (or an edit's rebuild)
-   starts it again. `jobs` is the crawl's queue: each tab, and each detail
-   page put in right after the tab whose gallery led to it, so the tab is
-   still the open one when the detail is drawn. */
+   starts it again. `jobs` is the crawl's queue: every tab first, then the
+   detail pages their galleries led to, so the count the panel shows stops
+   growing after the tabs (a few seconds) rather than at the last gallery.
+   A detail's tab is opened again before it when another tab is open. */
 function siteSearchState() {
   if (DERIVED.SITE_SEARCH) return DERIVED.SITE_SEARCH;
   const S = { pages: [], jobs: [], next: 0, keys: new Set(), texts: new Set(), standing: null, done: false };
@@ -386,19 +387,84 @@ function siteSearchStep(S, job) {
     if (job.d) {
       const [kind, ...rest] = job.d.split(':');
       const id = rest.join(':');
+      const sel = document.getElementById('categorySelect');
+      if (sel && sel.value !== job.c) showCategory(job.c);
       DETAIL_OPENERS[kind](STRING_DETAIL_IDS.has(kind) ? id : parseInt(id, 10));
       S.add(siteDetailTitle(kind, id), siteCategoryTitle(job.c), siteTextOf(siteViewElements()), { c: job.c, d: job.d });
     } else {
       showCategory(job.c);
       S.add(siteCategoryTitle(job.c), '', siteTextOf(siteViewElements()), { c: job.c });
       const more = siteDetailsOnView().filter(d => !S.keys.has('d:' + d)).map(d => { S.keys.add('d:' + d); return { c: job.c, d }; });
-      S.jobs.splice(S.next, 0, ...more);
+      S.jobs.push(...more);
     }
   } catch (e) { quiet(e, 'reading a page for the search'); }
   window.loadApplicationFork = loader;
   window.NAV_SUPPRESS = false;
   // showCategory closes the panel; the crawl is not a navigation.
   if (wasOpen && wrap) wrap.style.display = 'block';
+}
+
+/* The pages read, kept in the browser (IndexedDB) so the reading happens
+   once per file: on a phone it is some 40 seconds, which the maintainer
+   paid on every visit until 28 October 2026. One record, replaced
+   whenever a different key is written. The key is everything a page's
+   text depends on: the site's version, the data file's bytes (an edit
+   rebuilds them, so an edited file is read again), the program's forks
+   when the program is open, whether an installer is open, and the switch
+   for names from outside the game's text. A 32-bit FNV-1a over the bytes
+   distinguishes two files well enough here and works from file://, where
+   crypto.subtle is missing. */
+const SEARCH_DB = 'grimoire-search', SEARCH_STORE = 'pages', SEARCH_KEY = 'current';
+function siteSearchHash(bytes, h) {
+  h = h === undefined ? 0x811c9dc5 : h;
+  if (!bytes) return h;
+  for (let i = 0; i < bytes.length; i++) h = Math.imul(h ^ bytes[i], 0x01000193);
+  return h >>> 0;
+}
+function siteSearchKey() {
+  let h = siteSearchHash(ARCHIVE.bytes);
+  h = siteSearchHash(window.APP_RSRC_RAW, h);
+  h = siteSearchHash(window.APP_DATA, h);
+  return [GRIMOIRE_VERSION, h.toString(16), ARCHIVE.bytes.length, window.APP_RSRC_RAW ? 'app' : '',
+    window.INSTALLER ? 'installer' : '', window.SHOW_BUILTIN_LABELS ? 'labels' : ''].join('|');
+}
+function siteSearchDb(mode, fn) {
+  return new Promise((resolve, reject) => {
+    let req;
+    try { req = indexedDB.open(SEARCH_DB, 1); } catch (e) { reject(e); return; }
+    req.onupgradeneeded = () => req.result.createObjectStore(SEARCH_STORE);
+    req.onerror = () => reject(req.error || new Error('IndexedDB unavailable'));
+    req.onblocked = () => reject(new Error('IndexedDB blocked'));
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction(SEARCH_STORE, mode);
+      const r = fn(tx.objectStore(SEARCH_STORE));
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+      tx.oncomplete = () => db.close();
+    };
+  });
+}
+// Starts the reading from the copy kept in the browser when it matches,
+// else from the first page; until it is known which, nothing is drawn.
+function siteSearchFromCache(S) {
+  S.cache = 'checking';
+  try { S.key = siteSearchKey(); } catch (e) { quiet(e, 'the key of the search’s kept pages'); S.key = null; }
+  const go = () => { if (!_siteSearchTimer) _siteSearchTimer = setTimeout(siteSearchRun, 0); };
+  if (!S.key || typeof indexedDB === 'undefined') { S.cache = 'miss'; go(); return; }
+  siteSearchDb('readonly', s => s.get(SEARCH_KEY)).then(rec => {
+    if (DERIVED.SITE_SEARCH !== S) return;
+    if (rec && rec.key === S.key && Array.isArray(rec.pages)) {
+      S.pages = rec.pages.map(p => Object.assign({}, p, { hay: searchFold(p.title + '\n' + p.lines.join('\n')) }));
+      S.done = true; S.cache = 'hit';
+      drawSearchResults();
+    } else { S.cache = 'miss'; go(); }
+  }).catch(e => { quiet(e, 'reading the search’s kept pages'); S.cache = 'miss'; go(); });
+}
+function siteSearchToCache(S) {
+  if (!S.key || typeof indexedDB === 'undefined') return;
+  const pages = S.pages.map(p => ({ title: p.title, trail: p.trail, lines: p.lines, open: p.open }));
+  siteSearchDb('readwrite', s => s.put({ key: S.key, pages }, SEARCH_KEY)).catch(e => quiet(e, 'keeping the search’s pages'));
 }
 
 /* Read the pages for a few milliseconds, then yield to the browser. Runs
@@ -410,15 +476,17 @@ function siteSearchRun() {
   const S = siteSearchState();
   const wrap = document.getElementById('searchWrap');
   if (S.done || !wrap || wrap.style.display === 'none') return;
+  if (!S.cache) { siteSearchFromCache(S); drawSearchResults(); return; }
+  if (S.cache === 'checking') return;
   if (!S.standing) { S.standing = siteStandingView(); siteSearchCover(true); }
   const until = performance.now() + 30;
   while (S.next < S.jobs.length && performance.now() < until) siteSearchStep(S, S.jobs[S.next++]);
   if (S.standing) try { window.scrollTo(0, S.standing.y); } catch (e) { quiet(e); }
   // Done, the still copy stays until the panel closes (siteSearchPause):
   // drawing the real page again under the open panel made it jump.
-  if (S.next >= S.jobs.length) S.done = true;
+  if (S.next >= S.jobs.length) { S.done = true; siteSearchToCache(S); }
   const now = performance.now();
-  if (S.done || now - _siteSearchDrawn > 500) { _siteSearchDrawn = now; drawSearchResults(); }
+  if (S.done || now - _siteSearchDrawn > 250) { _siteSearchDrawn = now; drawSearchResults(); }
   if (!S.done) _siteSearchTimer = setTimeout(siteSearchRun, 0);
 }
 function siteSearchPause() {
@@ -481,7 +549,7 @@ function runSearch() {
   const q = document.getElementById('searchBox').value.trim();
   const host = document.getElementById('searchResults');
   if (!host) return;
-  if (!q) { host.innerHTML = ''; return; }
+  if (!q) { host.innerHTML = ''; drawSearchResults(); return; }
   // A 0x-prefixed id opens that resource. The prefix is required: "add",
   // "dead" and "face" are hex and words a visitor might search.
   const hx = q.match(/^0x([0-9a-f]{1,4})$/i);
@@ -502,12 +570,22 @@ function drawSearchResults() {
   const box = document.getElementById('searchBox'), host = document.getElementById('searchResults');
   if (!box || !host || !ARCHIVE) return;
   const q = box.value.trim();
-  if (!q || /^0x[0-9a-f]{1,4}$/i.test(q)) return;
+  if (/^0x[0-9a-f]{1,4}$/i.test(q)) return;
+  // Until every page is read the panel shows how far the reading has got
+  // and no results, since a list of some of the matches reads as the whole
+  // of them.
+  const S = siteSearchState();
+  if (!S.done) {
+    host.innerHTML = '<div class="sv-note">' + (S.cache === 'miss' && S.next
+      ? 'Reading the site’s pages, ' + S.next + ' of ' + S.jobs.length + '. Results appear when the reading finishes. This happens once for each file you open.'
+      : 'Loading the search…') + '</div>';
+    return;
+  }
+  if (!q) return;
   const tree = parseSearchQuery(q);
   if (!tree) { host.innerHTML = ''; return; }
   const terms = searchPositives(tree);
   const cap = window.SEARCH_ALL ? Infinity : 40;
-  const S = siteSearchState();
   let h = '';
   let things = '';
   try { things = namedThingsMatching(name => searchMatches(tree, searchFold(name))); } catch (e) { quiet(e); }
@@ -515,8 +593,7 @@ function drawSearchResults() {
   // Pages, a page whose title matches first.
   const titled = p => terms.some(t => searchFold(p.title).includes(t)) ? 1 : 0;
   const pages = S.pages.filter(p => searchMatches(tree, p.hay)).sort((a, b) => titled(b) - titled(a));
-  const reading = S.done ? '' : ' <span class="sr-where">Reading the pages, ' + S.next + ' of ' + S.jobs.length + '.</span>';
-  h += '<div class="partsTitle sr-head">Pages: ' + pages.length + reading + '</div>';
+  h += '<div class="partsTitle sr-head">Pages: ' + pages.length + '</div>';
   for (const p of pages.slice(0, cap)) {
     const i = S.pages.indexOf(p);
     // Each line shown is a link to that line on the page, as a script's
@@ -546,7 +623,7 @@ function drawSearchResults() {
       }).join('') + '</div></div>';
   }
   if (hits.length > cap) h += '<div class="sv-note">' + (hits.length - cap) + ' more scripts. ' + svLink('Show all', 'searchShowAll()') + '</div>';
-  if (!things && !pages.length && !hits.length) h = '<div class="sv-note">Nothing matches.' + reading + '</div>';
+  if (!things && !pages.length && !hits.length) h = '<div class="sv-note">Nothing matches.</div>';
   host.innerHTML = h;
 }
 function searchShowAll() { window.SEARCH_ALL = true; drawSearchResults(); }

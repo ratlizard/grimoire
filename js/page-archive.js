@@ -167,6 +167,8 @@ function idbTx(mode, fn, store) {
 function archiveCacheGet() { return idbTx('readonly', s => s.get(ARCHIVE_KEY)); }
 function archiveCachePut(rec) { return idbTx('readwrite', s => s.put(rec, ARCHIVE_KEY)); }
 function archiveCacheClear() {
+  // The search's pages read from that copy go with it (js/page-search.js).
+  try { indexedDB.deleteDatabase(SEARCH_DB); } catch (e) { quiet(e); }
   return idbTx('readwrite', s => s.delete(ARCHIVE_KEY))
     .then(() => { setStatus('Remembered copy cleared. Reloading…'); location.reload(); })
     .catch(() => setStatus('There was nothing remembered to clear.'));

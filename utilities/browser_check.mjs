@@ -283,6 +283,16 @@ const SITE_SEARCH_RUN = `(async () => { try {
   closeSearch();
   res.back = document.getElementById('categorySelect').value === before;
   res.shown = !document.getElementById('tabShell').classList.contains('siteHidden') && !document.querySelector('[data-site-cover]');
+  // Opened again on the same file, the pages come from the copy kept in
+  // IndexedDB rather than being read again.
+  const n = S.pages.length;
+  await new Promise(r => setTimeout(r, 1500));
+  DERIVED.SITE_SEARCH = null;
+  const t1 = performance.now();
+  openSearch();
+  for (let i = 0; i < 600 && !(DERIVED.SITE_SEARCH && DERIVED.SITE_SEARCH.done); i++) await new Promise(r => setTimeout(r, 50));
+  res.again = { cache: DERIVED.SITE_SEARCH && DERIVED.SITE_SEARCH.cache, pages: DERIVED.SITE_SEARCH ? DERIVED.SITE_SEARCH.pages.length : 0, of: n, ms: Math.round(performance.now() - t1) };
+  closeSearch();
   return res;
 } catch (e) { return { error: e.message }; } })()`;
 /* The Spanish table is not among the page's scripts: the Patches section
@@ -381,9 +391,10 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     else if (!ss.status.some(t => /Status/.test(t))) fail('search', 'a sentence of Mechanics, Status finds ' + JSON.stringify(ss.status));
     else if (ss.details < 500 || !ss.character) fail('search', ss.details + ' detail pages read, and a line of a character’s page finds ' + ss.character + ' pages');
     else if (ss.backwards) fail('search', 'a phrase with its words out of order matched ' + ss.backwards + ' pages');
+    else if (ss.again.cache !== 'hit' || ss.again.pages !== ss.again.of) fail('search', 'opened again, the pages were not taken from the kept copy (' + JSON.stringify(ss.again) + ')');
     else if (!ss.early.back || !ss.early.shown) fail('search', 'closed before the pages were all read, the page is ' + (ss.early.shown ? 'shown' : 'still hidden under its copy') + (ss.early.back ? '' : ', on another view'));
     else if (!ss.back || !ss.shown || ss.open !== 'block') fail('search', 'after reading the pages the view is ' + (ss.back ? '' : 'not ') + 'back, the tabs are ' + (ss.shown ? 'shown' : 'hidden') + ' and the panel is ' + ss.open);
-    else console.log('  search: ' + ss.pages + ' pages read in ' + ss.ms + ' ms, ' + ss.details + ' of them detail pages, the Credits, a Mechanics sentence and a character’s line found, the view put back');
+    else console.log('  search: ' + ss.pages + ' pages read in ' + ss.ms + ' ms, ' + ss.details + ' of them detail pages, the Credits, a Mechanics sentence and a character’s line found, the view put back, and the kept copy opened in ' + ss.again.ms + ' ms the second time');
     const sb = r.more.plaques;
     if (!sb || sb.error) fail('start buttons', 'they were not carved in the browser: ' + (sb ? sb.error : 'no result'));
     else {
