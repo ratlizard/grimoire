@@ -600,8 +600,8 @@ const samplesToWav = (rate, samples) => wavFromInt16(samples, rate);
 
 let currentWavBlob = null, currentSoundResid = null;
 
-function drawWaveform(samples) {
-  const canvas = document.getElementById('waveform'), ctx = canvas.getContext('2d');
+function drawWaveform(samples, canvas = document.getElementById('waveform')) {
+  const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height, mid = h / 2;
   ctx.fillStyle = '#090806'; ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = '#786c43'; ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(w, mid); ctx.stroke();
@@ -614,6 +614,19 @@ function drawWaveform(samples) {
     ctx.moveTo(x,y1); ctx.lineTo(x,y2);
   }
   ctx.stroke();
+}
+
+// A resource fork's 'snd ' reaches the page as the WAV decodeSndToWav wrote
+// (js/mac-rsrc-types.js), 8-bit unsigned or 16-bit signed, mono or stereo, so
+// its waveform is read back out of that file. The first channel is drawn,
+// scaled to the 16-bit range drawWaveform expects.
+function wavFirstChannel(view) {
+  const channels = view.getUint16(22, true), bits = view.getUint16(34, true);
+  const step = channels * bits / 8, n = Math.floor((view.byteLength - 44) / step);
+  const out = new Int16Array(n);
+  for (let i = 0, p = 44; i < n; i++, p += step)
+    out[i] = bits === 8 ? (view.getUint8(p) - 128) << 8 : view.getInt16(p, true);
+  return out;
 }
 
 function renderSound() {

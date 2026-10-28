@@ -1699,6 +1699,14 @@ function showMacRsrcDetail(type, id, source) {
       pre.textContent = a.text;
       box.appendChild(pre);
     } else if (a.blob || a.wav) {
+      if (a.ext === 'wav') {
+        const wave = document.createElement('canvas');
+        wave.className = 'waveform';
+        wave.width = 900; wave.height = 160;
+        box.appendChild(wave);
+        (a.blob || a.wav).arrayBuffer().then(buf => drawWaveform(wavFirstChannel(new DataView(buf)), wave))
+          .catch(e => quiet(e, 'drawing a sound resource’s waveform'));
+      }
       const audio = document.createElement('audio');
       audio.controls = true;
       audio.src = URL.createObjectURL(a.blob || a.wav);
