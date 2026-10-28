@@ -83,6 +83,20 @@ jobs:
         with:
           workspaces: wolflizard
 
+      # `disk image in the fork` builds systemless's hfs_dump example unless
+      # the binary is already there (hfs_check.mjs), and the Rust cache drops
+      # the fork's own crate, so each run built it, about 85 seconds and the
+      # longest check of a run. The binary is kept by the fork's commit, so a
+      # run on a fork commit that an earlier run built skips the build.
+      - name: The fork's commit
+        id: fork
+        run: echo "sha=$(git -C wolflizard rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v5
+        with:
+          path: wolflizard/target/debug/examples/hfs_dump
+          key: hfs-dump-${{ steps.fork.outputs.sha }}
+
       # ppc_check.mjs needs llvm-mc 22 or later (21 reads the code section
       # differently); Ubuntu's own llvm is older, so apt.llvm.org's.
       - name: Tools the checks compare against
