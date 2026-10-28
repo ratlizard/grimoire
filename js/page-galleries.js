@@ -1233,7 +1233,9 @@ function renderContactSheet() {
       cell.appendChild(roll);
       const lblDiv = document.createElement('div');
       lblDiv.className = labelFor(resid) ? 'lbl' : 'lbl nolabel';
-      applyLabel(lblDiv, resid);
+      // With outside names off a tune is named by the places that play it
+      // (tunePlaces), and the theme is played by no script.
+      if (!applyLabel(lblDiv, resid)) { lblDiv.textContent = 'played by no script'; lblDiv.classList.remove('placeholder'); }
       cell.appendChild(lblDiv);
       const residDiv = document.createElement('div');
       residDiv.className = 'resid'; residDiv.textContent = '0x' + resid.toString(16).toUpperCase();

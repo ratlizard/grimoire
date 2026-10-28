@@ -460,6 +460,7 @@ function labelSource(resid) {
   if (subn === 25 && selfNameFor(resid)) return 'data';
   if (zoneNameFor(resid)) return 'data';
   if (editorZoneName(resid)) return 'data';
+  if (subn === 143) return tuneTrackName(resid) ? 'builtin' : (tunePlaces(resid) ? 'data' : null);
   return labelFor(resid) ? 'builtin' : null;
 }
 function applyLabel(el, resid) {
@@ -541,6 +542,30 @@ function setBuiltinLabels(on) {
   }
 }
 
+/* A tune's name. No tune has a name in the file, so with outside names on
+   a tune reads as its track on the 20th Anniversary Soundtrack, whose liner
+   notes list all eleven; the workbench matched each to its tune by length,
+   and every length matches to within a few seconds. With outside names
+   off, a tune is named, as a landscape strip is, by where it plays: the
+   places whose scripts start it with PlayMusic (tune 0x9000 + n for
+   PlayMusic n), named by landscapeSetterName. The program starts the
+   theme, 0x9000, and no script does, so it has no name from the file. */
+const TUNE_TRACK_NAMES = {
+  0x9000: 'Cythera Theme', 0x9001: 'Land King Hall', 0x9002: 'Underground', 0x9003: 'Overworld',
+  0x9004: 'Odemia', 0x9005: 'Danger', 0x9006: 'Seldane', 0x9007: 'Pnyx', 0x9008: 'Catamarca',
+  0x9009: 'Cademia', 0x900A: 'Kosha'
+};
+function tuneTrackName(resid) {
+  return window.SHOW_BUILTIN_LABELS && TUNE_TRACK_NAMES[resid] || null;
+}
+function tunePlaces(resid) {
+  let scripts = null;
+  try { scripts = buildSoundUsage().music.get(resid - 0x9000); } catch (e) { quiet(e, 'the places tune 0x' + resid.toString(16) + ' plays in'); }
+  if (!scripts) return null;
+  const names = [...new Set([...scripts.keys()].map(landscapeSetterName))];
+  return names.join(', ') || null;
+}
+
 function labelForUnnormalized(resid) {
   const zn = zoneNameFor(resid);
   if (zn) return zn;
@@ -557,6 +582,7 @@ function labelForUnnormalized(resid) {
   const subn = Math.floor(resid / 0x100) - 1;
   const n = resid % 0x100;
   if (window.SHOW_BUILTIN_LABELS && RESHINTS[resid]) return RESHINTS[resid];
+  if (subn === 143) return tuneTrackName(resid) || tunePlaces(resid);
   const structural = labelForResource(subn, n, resid);
   if (structural) return structural;
   // 0x8EFF is IN the tile-sheet subindex but is not a tile sheet: it is the
@@ -630,6 +656,12 @@ function wavFirstChannel(view) {
   return out;
 }
 
+// The sound panel's audio element and Save as WAV, hidden while a tune's
+// roll is up and its audio not yet rendered (showTuneRoll).
+function setSoundControls(on) {
+  for (const el of document.querySelectorAll('#audioPlayer, #soundPreview > button')) el.style.display = on ? '' : 'none';
+}
+
 // A sound's tile in a gallery: the waveform at thumbnail size. The SFX tab
 // shows the data file's sounds and the program's side by side, so both
 // galleries draw their tiles here and the two look the same.
@@ -662,6 +694,7 @@ function renderSound() {
     currentWavBlob = samplesToWavBlob(rate, samples);
     currentSoundResid = resid;
     drawWaveform(samples);
+    setSoundControls(true);
     if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
     const url = currentObjectUrl = URL.createObjectURL(currentWavBlob);
     const audio = document.getElementById('audioPlayer');

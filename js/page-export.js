@@ -945,16 +945,22 @@ function showRollLegend(colors, info) {
 async function playCurrentTune() {
   const resid = currentResid, raw = window.CUR_RAW_BYTES;
   const pick = document.getElementById('qtPickBtn');
+  // The first Play fetches 7 MB of instruments, and every Play renders for
+  // seconds, so the line above the roll shows which of the two is under way.
+  const label = document.getElementById('soundLabel'), was = label.textContent;
   try {
     setStatus("Loading QuickTime 3's instruments");
+    label.textContent = "Loading QuickTime 3's instruments…";
     await qtLoadInstruments();
   } catch (e) {
+    label.textContent = was;
     setStatus("Could not fetch QuickTime 3's instruments (" + e.message + '). Choose QUICKTIM.EXE or QuickTimeMusicalInstruments.qtx instead.', true);
     if (pick) pick.style.display = '';
     return;
   }
   if (pick) pick.style.display = 'none';
   setStatus('Playing 0x' + resid.toString(16).toUpperCase() + " through QuickTime 3's instruments");
+  label.textContent = 'Rendering the tune…';
   await new Promise(r => setTimeout(r, 30));   // let the status paint before the render blocks the page
   try {
     const info = qtmaToMidi(raw);
@@ -962,22 +968,33 @@ async function playCurrentTune() {
     const wav = qtmaWav(r);
     currentWavBlob = new Blob([wav], {type: 'audio/wav'});
     currentSoundResid = resid;
-    stopTuneRoll();
-    const roll = document.getElementById('waveform'), drawn = drawPianoRoll(roll, info.events);
-    if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
     const audio = document.getElementById('audioPlayer');
+    if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
     audio.src = currentObjectUrl = URL.createObjectURL(currentWavBlob);
-    document.getElementById('soundPreview').style.display = 'block';
-    showRollLegend(drawn.colors, info);
-    if (drawn.span) followTuneRoll(roll, audio, drawn.span);
-    document.getElementById('soundLabel').textContent = '0x' + resid.toString(16).toUpperCase() +
-      " through QuickTime 3's instruments  |  " + (r.left.length / r.rate).toFixed(1) + 's' +
+    const drawn = showTuneRoll(resid, info);
+    setSoundControls(true);
+    if (drawn.span) followTuneRoll(document.getElementById('waveform'), audio, drawn.span);
+    label.textContent = tuneHeading(resid) + " through QuickTime 3's instruments  |  " + (r.left.length / r.rate).toFixed(1) + 's' +
       (r.missing.length ? '  |  no instrument for part ' + r.missing.join(', ') : '');
     setStatus('');
     audio.play().catch(e => quiet(e, 'starting the tune'));
   } catch (e) {
+    label.textContent = was;
     setStatus('Could not play the tune: ' + e.message, true);
   }
+}
+const tuneHeading = resid => '0x' + resid.toString(16).toUpperCase() + (labelFor(resid) ? ' - ' + labelFor(resid) : '');
+/* A tune's roll and key, drawn as soon as the tune opens: the notes need no
+   render, so the picture is there before the instruments load. The audio
+   element and Save as WAV stay hidden until Play has made the audio. */
+function showTuneRoll(resid, info) {
+  stopTuneRoll();
+  const drawn = drawPianoRoll(document.getElementById('waveform'), info.events);
+  showRollLegend(drawn.colors, info);
+  setSoundControls(false);
+  document.getElementById('soundLabel').textContent = tuneHeading(resid) + '  |  ' + info.durationSec.toFixed(1) + "s. Play with QuickTime's Instruments to hear it.";
+  document.getElementById('soundPreview').style.display = 'block';
+  return drawn;
 }
 /* A MIDI file in a tune's place (the maintainer, 6 October 2026: "importing
    MIDI to be playable as QTMA"). The file is made into a tune by midiToQtma

@@ -2747,6 +2747,7 @@ function renderText(sameResource) {
       let head = "--- QTMA TUNE (decoded) ---\n";
       try {
         const info = qtmaToMidi(resDataRaw);
+        showTuneRoll(resid, info);
         const gm = Object.keys(info.noteRequests).sort((a,b)=>a-b)
           .map(p => "  part " + p + " -> MIDI ch " + ((info.chanOf[p]|0)+1) +
                     ", GM program " + info.noteRequests[p] + " (" +
