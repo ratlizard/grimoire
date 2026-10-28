@@ -272,7 +272,7 @@ const SITE_SEARCH_RUN = `(async () => { try {
   const res = { done: S.done, ms, pages: S.pages.length, details: S.pages.filter(p => p.open.d).length,
     credits: titles('"Susan Kare"'), status: titles('"each food fills by a different amount"'),
     character: word ? titles('"' + word.replace(/"/g, '') + '"').length : 0, backwards: titles('"amount different a by"').length,
-    back: document.getElementById('categorySelect').value === before, shown: !document.body.classList.contains('siteReading'),
+    back: document.getElementById('categorySelect').value === before, shown: !document.getElementById('tabShell').classList.contains('siteHidden') && !document.querySelector('[data-site-cover]'),
     open: document.getElementById('searchWrap').style.display };
   closeSearch();
   return res;

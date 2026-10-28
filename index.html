@@ -706,9 +706,10 @@ span.navChip { color:#fff; }
 /* The searched words in a line. Argos has no bold, so they are underlined. */
 .sr-text b, .sr-lines b { font-weight:inherit; text-decoration:underline; text-underline-offset:2px; }
 .sr-where { font-size:0.75rem; color:#dcd8cc; }
-/* While the search reads every page it draws each one here, out of sight
-   under the panel (siteSearchRun in js/page-search.js). */
-body.siteReading #tabShell { display:none !important; }
+/* While the search reads every page it draws each one here, out of sight,
+   with a still copy of the page shown in its place (siteSearchRun in
+   js/page-search.js). */
+#tabShell.siteHidden { display:none !important; }
 /* The place a search opened a page at, outlined for a moment. */
 .searchFound { outline:2px solid #f0ede4; outline-offset:2px; }
 /* Decoded / Strings / Hex were one scroll of concatenated text with
@@ -2698,7 +2699,7 @@ wiki, not from the file. Turn these names on or off in Settings.</div>
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.343.0';
+const GRIMOIRE_VERSION = '1.343.1';
 /* The name at the top, and the tab's icon. The grimoire's tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

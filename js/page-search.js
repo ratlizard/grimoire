@@ -34,8 +34,10 @@
    THE CRAWL draws into the live page, because every renderer writes to
    #sheetGrid and the elements beside it by id, and none can be pointed
    elsewhere. It runs only while the search panel is open, in slices of a
-   few milliseconds, with the tabs hidden under the panel (body.siteReading)
-   so the visitor never sees a page flash past; NAV_SUPPRESS leaves the
+   few milliseconds, with the tabs hidden and a still copy of them shown in
+   their place (siteSearchCover), so the visitor never sees a page flash
+   past. Until 28 October 2026 the tabs were hidden with nothing in their
+   place, and the maintainer saw the page go blank under the panel; NAV_SUPPRESS leaves the
    hash and the back trail alone. When it finishes, or the panel closes,
    the view the visitor was on is drawn again from the same description the
    deep link uses (siteSearchRestore), and the next opening of the panel
@@ -313,7 +315,7 @@ function siteStandingView() {
 function siteSearchRestore(S) {
   const st = S.standing;
   S.standing = null;
-  document.body.classList.remove('siteReading');
+  siteSearchCover(false);
   if (!st) return;
   const wrap = document.getElementById('searchWrap');
   const open = wrap && wrap.style.display !== 'none';
@@ -324,6 +326,31 @@ function siteSearchRestore(S) {
   window.VIEW_TRAIL = st.trail;
   if (open && wrap) wrap.style.display = 'block';
   try { window.scrollTo(0, st.y); } catch (e) { quiet(e); }
+}
+
+/* The still copy shown while the pages are read: the tabs and the sheet
+   cloned, each canvas painted from the one it copies (a clone of a canvas
+   is blank), put after the real ones so that getElementById still finds the
+   real element first, and inert. The real ones are hidden until the crawl
+   stops. */
+function siteSearchCover(on) {
+  const real = document.getElementById('tabShell');
+  const old = document.querySelector('[data-site-cover]');
+  if (old) old.remove();
+  if (!real) return;
+  if (!on) { real.classList.remove('siteHidden'); return; }
+  const shot = real.cloneNode(true);
+  shot.setAttribute('data-site-cover', '');
+  shot.inert = true;
+  const from = real.querySelectorAll('canvas'), to = shot.querySelectorAll('canvas');
+  for (let k = 0; k < from.length && k < to.length; k++) {
+    try {
+      to[k].width = from[k].width; to[k].height = from[k].height;
+      if (from[k].width && from[k].height) to[k].getContext('2d').drawImage(from[k], 0, 0);
+    } catch (e) { quiet(e, 'copying a canvas for the search’s still page'); }
+  }
+  real.after(shot);
+  real.classList.add('siteHidden');
 }
 
 /* One job: draw it, read it, and for a tab queue the details its gallery
@@ -364,7 +391,7 @@ function siteSearchRun() {
   const S = siteSearchState();
   const wrap = document.getElementById('searchWrap');
   if (S.done || !wrap || wrap.style.display === 'none') return;
-  if (!S.standing) { S.standing = siteStandingView(); document.body.classList.add('siteReading'); }
+  if (!S.standing) { S.standing = siteStandingView(); siteSearchCover(true); }
   const until = performance.now() + 30;
   while (S.next < S.jobs.length && performance.now() < until) siteSearchStep(S, S.jobs[S.next++]);
   if (S.next >= S.jobs.length) { S.done = true; siteSearchRestore(S); }
