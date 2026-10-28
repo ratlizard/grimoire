@@ -601,6 +601,7 @@ const samplesToWav = (rate, samples) => wavFromInt16(samples, rate);
 let currentWavBlob = null, currentSoundResid = null;
 
 function drawWaveform(samples, canvas = document.getElementById('waveform')) {
+  if (canvas.id === 'waveform') stopTuneRoll();   // a tune's roll was on this canvas
   const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height, mid = h / 2;
   ctx.fillStyle = '#090806'; ctx.fillRect(0, 0, w, h);

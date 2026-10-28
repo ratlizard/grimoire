@@ -1219,6 +1219,38 @@ function renderContactSheet() {
     return;
   }
 
+  // A tune's tile is its piano roll (drawPianoRoll), the size of a sound's
+  // waveform tile, so Music and SFX read alike.
+  if (subn === 143) {
+    for (const [resid, roff, rlen] of resids) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.style.justifyContent = 'center';
+      const roll = miniWaveCanvas();
+      lazyTile(cell, () => {
+        try { drawPianoRoll(roll, qtmaToMidi(ARCHIVE.bytes.slice(roff, roff + rlen)).events); } catch (e) { quiet(e, 'the piano roll of 0x' + resid.toString(16)); }
+      });
+      cell.appendChild(roll);
+      const lblDiv = document.createElement('div');
+      lblDiv.className = labelFor(resid) ? 'lbl' : 'lbl nolabel';
+      applyLabel(lblDiv, resid);
+      cell.appendChild(lblDiv);
+      const residDiv = document.createElement('div');
+      residDiv.className = 'resid'; residDiv.textContent = '0x' + resid.toString(16).toUpperCase();
+      cell.appendChild(residDiv);
+      const metaDiv = document.createElement('div');
+      metaDiv.className = 'listMeta'; metaDiv.textContent = fmtBytes(rlen);
+      cell.appendChild(metaDiv);
+      cell.title = 'Open this tune';
+      cell.onclick = () => openResource(resid);
+      grid.appendChild(cell);
+      okCount++;
+    }
+    refreshLabelLegend();
+    out.textContent = 'Gallery: ' + okCount + ' tunes. Click a tile to open one.';
+    return;
+  }
+
   if (SOUND_CATEGORIES.has(subn)) {
     for (const [resid, roff, rlen] of resids) {
       const cell = document.createElement('div');

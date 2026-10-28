@@ -860,6 +860,88 @@ function qtAdoptInstruments(lib) {
   qtCache('readwrite', s => s.put(lib.forkBytes, QT_KEY)).catch(e => quiet(e, 'remembering the instruments'));
 }
 
+/* A tune drawn as a piano roll: time left to right, pitch bottom to top, a
+   bar per note, one color per part. A waveform of a whole tune is a solid
+   block, alike from one tune to the next, and needs a render first; the
+   notes are in the tune's events already, so the Music gallery's tiles
+   draw as quickly as the sound tiles beside them (the maintainer,
+   28 October 2026). The colors step round the hue circle in part order and
+   stop short of red's return, and a tune of one part is drawn in the
+   waveform's yellow. Returns the color of each part and the span in tune
+   units. */
+function drawPianoRoll(canvas, events) {
+  const c = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
+  c.fillStyle = '#090806'; c.fillRect(0, 0, w, h);
+  const notes = events.filter(e => e.k === 'note');
+  const parts = [...new Set(notes.map(e => e.part))].sort((a, b) => a - b);
+  const colors = new Map(parts.map((p, i) => [p, parts.length === 1 ? '#f9f86f'
+    : 'hsl(' + Math.round(i * 300 / (parts.length - 1)) + ',85%,62%)']));
+  if (!notes.length) return { colors, span: 0 };
+  const span = Math.max(...notes.map(e => e.t + (e.dur || 0))) || 1;
+  let lo = 127, hi = 0;
+  for (const e of notes) { if (e.pitch < lo) lo = e.pitch; if (e.pitch > hi) hi = e.pitch; }
+  const row = h / (hi - lo + 1);
+  for (const e of notes) {
+    c.fillStyle = colors.get(e.part);
+    c.fillRect(Math.floor(e.t / span * w), Math.floor((hi - e.pitch) * row),
+               Math.max(1, Math.round((e.dur || 0) / span * w)), Math.max(1, Math.floor(row)));
+  }
+  return { colors, span };
+}
+
+/* On a tune's page the roll stands where a sound's waveform does, with a
+   line at the moment the audio element has reached, and a click on the
+   roll moves the audio there. tuneRoll is the roll being followed; a
+   waveform drawn on the canvas (drawWaveform) or the panel hidden ends it. */
+let tuneRoll = null;
+function followTuneRoll(canvas, audio, span) {
+  const base = document.createElement('canvas');
+  base.width = canvas.width; base.height = canvas.height;
+  base.getContext('2d').drawImage(canvas, 0, 0);
+  const me = tuneRoll = { canvas };
+  const secs = span / QTMA_UNITS_PER_SECOND;
+  canvas.onclick = ev => {
+    const r = canvas.getBoundingClientRect();
+    audio.currentTime = Math.max(0, (ev.clientX - r.left) / r.width) * secs;
+  };
+  canvas.style.cursor = 'pointer';
+  const tick = () => {
+    if (tuneRoll !== me) return;
+    if (document.getElementById('soundPreview').style.display === 'none') { stopTuneRoll(); return; }
+    const c = canvas.getContext('2d');
+    c.drawImage(base, 0, 0);
+    const x = Math.min(canvas.width - 1, audio.currentTime / secs * canvas.width);
+    c.strokeStyle = '#ffffff'; c.beginPath(); c.moveTo(x + 0.5, 0); c.lineTo(x + 0.5, canvas.height); c.stroke();
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function stopTuneRoll() {
+  if (!tuneRoll) return;
+  tuneRoll.canvas.onclick = null;
+  tuneRoll.canvas.style.cursor = '';
+  tuneRoll = null;
+  const legend = document.getElementById('rollLegend');
+  if (legend) { legend.style.display = 'none'; legend.textContent = ''; }
+}
+// The key to the roll: a swatch per part and the part's instrument.
+function showRollLegend(colors, info) {
+  const legend = document.getElementById('rollLegend');
+  legend.textContent = '';
+  for (const [p, color] of colors) {
+    const item = document.createElement('span');
+    item.className = 'rollKey';
+    const sw = document.createElement('span');
+    sw.className = 'rollSwatch';
+    sw.style.background = color;
+    item.appendChild(sw);
+    const prog = info.noteRequests[p];
+    item.appendChild(document.createTextNode('Part ' + p + (prog ? ', ' + (GM_NAMES[prog - 1] || 'program ' + prog) : '')));
+    legend.appendChild(item);
+  }
+  legend.style.display = colors.size ? '' : 'none';
+}
+
 async function playCurrentTune() {
   const resid = currentResid, raw = window.CUR_RAW_BYTES;
   const pick = document.getElementById('qtPickBtn');
@@ -880,11 +962,14 @@ async function playCurrentTune() {
     const wav = qtmaWav(r);
     currentWavBlob = new Blob([wav], {type: 'audio/wav'});
     currentSoundResid = resid;
-    drawWaveform(new Int16Array(wav.buffer, 44, r.left.length * 2).filter((_, i) => !(i & 1)));
+    stopTuneRoll();
+    const roll = document.getElementById('waveform'), drawn = drawPianoRoll(roll, info.events);
     if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
     const audio = document.getElementById('audioPlayer');
     audio.src = currentObjectUrl = URL.createObjectURL(currentWavBlob);
     document.getElementById('soundPreview').style.display = 'block';
+    showRollLegend(drawn.colors, info);
+    if (drawn.span) followTuneRoll(roll, audio, drawn.span);
     document.getElementById('soundLabel').textContent = '0x' + resid.toString(16).toUpperCase() +
       " through QuickTime 3's instruments  |  " + (r.left.length / r.rate).toFixed(1) + 's' +
       (r.missing.length ? '  |  no instrument for part ' + r.missing.join(', ') : '');

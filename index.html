@@ -244,6 +244,9 @@ select option { background:#181410; color:var(--gold); padding:8px; }
 #resourceNav button { flex:1; }
 #backToSheet { display:none; }
 #waveform, .waveform { display:block; width:100%; height:100px; background:#090806; border:1px solid var(--edge); margin:0 0 10px; }
+#rollLegend { display:flex; flex-wrap:wrap; gap:4px 14px; margin:0 0 10px; font-size:0.75rem; color:#f0ede4; }
+.rollKey { display:inline-flex; align-items:center; gap:5px; }
+.rollSwatch { display:inline-block; width:10px; height:10px; border-radius:2px; }
 .hiddenWhite { display:none !important; }
 
 /* v22 presentation corrections */
@@ -2512,6 +2515,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
 <div id="soundPreview" style="display:none; margin-top:12px; padding:14px; background:#111; border:2px solid #C4A464; border-radius:8px;">
   <div id="soundLabel" style="color:#fff; margin-bottom:10px; font-size:0.875rem;"></div>
   <canvas id="waveform" width="900" height="160"></canvas>
+  <div id="rollLegend" style="display:none"></div>
   <audio id="audioPlayer" controls style="width:100%; margin-bottom:10px;"></audio>
   <button class="secondary" onclick="downloadCurrentWAV()">Save as WAV</button>
 </div>
@@ -2699,7 +2703,7 @@ wiki, not from the file. Turn these names on or off in Settings.</div>
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.345.6';
+const GRIMOIRE_VERSION = '1.346.0';
 /* The name at the top, and the tab's icon. The grimoire's tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);
