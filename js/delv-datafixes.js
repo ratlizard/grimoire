@@ -298,6 +298,22 @@ const DATA_FIXES = [
       { what: 'water into a full pitcher', resid: 0xE0A, at: 0x00EA, expect: { 0x00CD: 'string(implicit) "The pitcher is already full.', 0x00EA: 'branch 0x0121', 0x00ED: 'string(implicit) "The pitcher is now filled with water' },
         code: 'return\nword False\nend' },
     ] },
+  // Names in the plural printed after "a" (0xF002). ShortName words a thing
+  // with one of four formats, picked by bits 22 and 23 of its tile's word
+  // here: 0 the name alone, 1 "a", 2 "an", 3 "the". The tiles named
+  // "candles" (663 to 665) and "footprints" (2080 to 2085) have 1, so Look
+  // prints "you see a candles"; with 0 it prints "you see candles".
+  // "bellows" and the "-ss" names take "a" in English and stay. (The
+  // maintainer's list of 28 October 2026; every tile's name and article
+  // listed to find these.)
+  { id: 'plural-article', group: 'text', stage: 'found', title: 'Looking at candles or footprints gives “you see candles”, instead of “you see a candles”',
+    dataEdits: [
+      { what: 'the plural names’ article', resid: 0xF002, fn: (b) => {
+          const tiles = [663, 664, 665, 2080, 2081, 2082, 2083, 2084, 2085];
+          for (const t of tiles) { const o = t * 4; if ((b[o + 1] >> 6) !== 1) throw new Error('tile ' + t + ' has article ' + (b[o + 1] >> 6) + ', not 1 ("a")'); b[o + 1] &= 0x3F; }
+          return tiles.length + ' tiles’ article cleared';
+      } },
+    ] },
   // A pitcher dipped in the wine urn (0x10A0): an empty pitcher used on a
   // fountain, a pool or the water urn fills with water, and on anything else
   // but a well or a goat printed "The pitcher is empty.", the wine urn (217)
