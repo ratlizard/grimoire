@@ -761,10 +761,20 @@ const DATA_FIXES = [
   // corner four standing stones, four force walls and a pedestal. Each
   // record is freed, flags 0xFF, as the list's free records are;
   // ChainFreeProps links them when the zone is loaded. A game already
-  // begun keeps the lists it has. Left: the outcropping at (39,96) of the
-  // Underground, on void too but numbered as the one at (86,115) is.
-  { id: 'castoffs', group: 'hidden', stage: 'community', title: 'Fourteen things left outside the walls of Land King Hall and the Underground are now gone, instead of standing where nobody can go',
-    played: 'fork, 68K, 13 October 2026, alone and on “All Fixes”: the hero put on the void beside each group of the Underground; the pedestal, armor and spear at (34,57) and the standing stones, force walls and pedestal of the north-west corner are drawn unpatched and gone with the fix; fork, PowerPC, the fix alone: a new game, saved, has Land King Hall’s dresser and crystal ball as free records, against both on the floor unpatched. Land King Hall was not looked at on “All Fixes”, nor any of it on Mac OS',
+  // begun retains the lists it has.
+  //
+  // The rock outcropping at (39,96) of the Underground (record 849) was left
+  // out at first, because its Data2 is 182, the zoneport of the rope up at
+  // (86,115), and it might have been a rope's far end. Read 28 October 2026:
+  // its class (0x114C) is the anchor a rope is tied to, aspect 0 untied, and
+  // tied it would lead down through zoneport 182 to the Sewers at (16,46),
+  // the square the rope up already leads to; the Sewers' anchor at (17,46)
+  // is the other end of that rope. All nine squares from (38,95) to (40,97)
+  // are tile 0, so the party never stands beside it to tie a rope, and it is
+  // freed with the rest. It was not looked at in the game, so the fix reads
+  // "in part".
+  { id: 'castoffs', group: 'hidden', stage: 'community', title: 'Fifteen things left outside the walls of Land King Hall and the Underground are now gone, instead of standing where nobody can go',
+    played: 'in part. In the fork on 68K, 13 October 2026, alone and on “All Fixes”, with the hero on the void beside each group of the Underground, the pedestal, armor and spear at (34,57) and the standing stones, force walls and pedestal of the north-west corner are drawn unpatched and gone with the fix. In the fork on PowerPC with the fix alone, a new game, saved, has Land King Hall’s dresser and crystal ball as free records, against both on the floor unpatched. Nobody looked at Land King Hall on “All Fixes”, nor at any of it on Mac OS, nor at the rock outcropping at (39,96), which joined the fix on 28 October 2026',
     dataEdits: [
       { what: 'Land King Hall’s castoffs', resid: 0x8103, fn: (b) => {
           const expected = { 68: [18, 4, 16], 626: [321, 4, 18] }; let n = 0;
@@ -775,7 +785,8 @@ const DATA_FIXES = [
       } },
       { what: 'the Underground’s castoffs', resid: 0x8109, fn: (b) => {
           const expected = { 871: [184, 34, 57, 0], 873: [375, 33, 57, 1], 874: [376, 35, 57, 1], 881: [179, 5, 1, 0], 882: [179, 5, 2, 0], 883: [179, 6, 1, 0], 884: [179, 7, 0, 0],
-                         887: [255, 4, 4, 0], 888: [255, 4, 8, 0], 889: [255, 4, 11, 0], 890: [255, 3, 5, 0], 893: [184, 5, 3, 0] }; let n = 0;
+                         887: [255, 4, 4, 0], 888: [255, 4, 8, 0], 889: [255, 4, 11, 0], 890: [255, 3, 5, 0], 893: [184, 5, 3, 0],
+                         849: [332, 39, 96, 0] }; let n = 0;
           for (const [i, [t, x, y, f]] of Object.entries(expected)) { const r = b.subarray(i * 16, i * 16 + 16), xy = (r[1] << 16) | (r[2] << 8) | r[3];
             if (r[0] !== f || (((r[4] << 8) | r[5]) & 0x3FF) !== t || (xy >> 12) !== x || (xy & 0xFFF) !== y) throw new Error('record ' + i + ' is not type ' + t + ' on the floor at (' + x + ',' + y + ')');
             r[0] = 0xFF; n++; }
