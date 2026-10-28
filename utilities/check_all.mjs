@@ -712,8 +712,9 @@ await ensureForks();
    a chore. Named alone, the check's whole output is printed under the table,
    since the row shows one line of it. */
 // A share of the checks, for CHECK_SHARD=i/n and --shard-plan=n.
+const WEIGHTS = JSON.parse(readFileSync(resolve(HERE, 'check_weights.json'), 'utf8'));
 function planShards(count) {
-  const weights = JSON.parse(readFileSync(resolve(HERE, 'check_weights.json'), 'utf8'));
+  const weights = WEIGHTS;
   const weight = check => weights[check.name] ?? 3;
   const load = new Array(count).fill(0), shardOf = new Map();
   const heaviestFirst = [...CHECKS].sort((a, b) => weight(b) - weight(a) || CHECKS.indexOf(a) - CHECKS.indexOf(b));
@@ -864,6 +865,16 @@ for (let i = 0; i < CHECKS.length; i++) {
     continue;
   }
   pending.push(i);
+}
+/* The checks start heaviest first, by the seconds in check_weights.json, so that
+   a long check does not start last and leave the other workers idle while it
+   finishes. A check that others wait on (`after`) counts as the heaviest of
+   them, since they cannot start without it. The table still prints in the
+   list's order. */
+{
+  const seconds = check => WEIGHTS[check.name] ?? 3;
+  const priority = check => Math.max(seconds(check), ...CHECKS.filter(c => (c.after || []).includes(check.name)).map(seconds));
+  pending.sort((a, b) => priority(CHECKS[b]) - priority(CHECKS[a]) || a - b);
 }
 const started = Date.now();
 await new Promise(resolve => {
