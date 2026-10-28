@@ -204,6 +204,35 @@ const APP_FIXES_68K = {
         'bra.l 0x96e6',
       ],
     } },
+    { fixes: ['ai-weight'], seg: 1, site: 0x1F4C2, was: '70d0d2801481', bodies: {
+      'ai-weight': [
+        '70d0d280',                                  // moveq #$d0, d0; add.l d0, d1
+        '0c8100000064',                              // cmpi.l #$64, d1
+        'b6f ok',
+        '7265',                                      // moveq #$65, d1
+        ':ok',
+        '1481',                                      // move.b d1, (a2)
+        'bra.l 0x1f4c8',
+      ],
+    } },
+    { fixes: ['ai-token'], seg: 1, site: 0x1F164, was: '205216d05292', bodies: {
+      'ai-token': [
+        '2052200b90ae000c',                          // movea.l (a2), a0; move.l a3, d0; sub.l $c(a6), d0
+        '0c800000003f',                              // cmpi.l #$3f, d0
+        'b6c full',
+        '16d0',                                      // move.b (a0), (a3)+
+        ':full',
+        '5292',                                      // addq.l #$1, (a2)
+        'bra.l 0x1f16a',
+      ],
+    } },
+    { fixes: ['status-wrap'], seg: 5, site: 0xD6D4, was: '2d41fff842aefffc', bodies: {
+      'status-wrap': [
+        '2d41fff8',                                  // move.l d1, -$8(a6)
+        '70012d40fffc',                              // moveq #$1, d0; move.l d0, -$4(a6)
+        'bra.l 0xd6dc',
+      ],
+    } },
     { fixes: ['hook-load'], seg: 1, site: 0xEC52, was: '4fef00264cdf1cf8', bodies: {
       'hook-load': [
         '2f00598f223c00033c743235180002810000ffff0081404000002f013f3c00f3486f00064ead14d84fef000e201f4fef00264cdf1cf84e5e4e75', // move.l d0, -(a7); subq.l #$4, a7; move.l #$33c74, d1; move.w (a5, d1.l), d1; andi.l #$ffff, d1; ori.l #$40400000, d1; move.l d1, -(a7); move.w #$f3, -(a7); pea.l $6(a7); jsr $14d8(a5); lea.l $e(a7), a7; move.l (a7)+, d0; lea.l $26(a7), a7; movem.l (a7)+, d3-d7/a2-a4; unlk a6; rts
@@ -616,6 +645,8 @@ const APP_FIXES_68K = {
   built: {
     'afternoon': 'a5c5a679bca703b9537ce76a8ffbb979f6def95dd955ecb76af74594888c2234',
     'ai-import': '0b6af25daf450d9a49038b07ee53254d29167f84921499a36828340d7f224743',
+    'ai-token': '94a3609049098a79d2b9887911a7e3fb51f2ef1ba72c78fef1674e340ff0e40c',
+    'ai-weight': 'ccff1067f7fdac49d602e220d6ad0865e7b9d181f7e8205acb55db8c865126d2',
     'books-window': '207b3c02cdf3210a790655b10b292f6af82a2758492771c8b8e1a0d9abc58840',
     'containers-weight': '75a358199feb783bfbc9dc5bfc27a3a330321f6bd0bacb341f4e03f13790c5db',
     'corner-body': '4e6ea0577d046781bffd182dcdfa86ceaa54b5fb1864f7e08eced6cd2b9ec632',
@@ -646,6 +677,7 @@ const APP_FIXES_68K = {
     'speech-clear': 'a7b91ddb66d51c5d86f21da10870af5878909ef0da2d0f97b7916bece17b285b',
     'spell-glow': '65733e09cc4bc606b1fbe63aef755b7851da0c05978df73a04a41117315b40d3',
     'spot-tune': 'f4282e54cf9fed23384f888e205776324efba377f6c45d50c367dc7ef9340670',
+    'status-wrap': '5ee8cd36b5820d8bab69494c74b772c9c64c4f1a576396a72f405487cc188607',
     'tab-pane': '9c637c959a023318fbb2db00a6ae03a47c03aed66b7e3e28bad2289b39b73bb5',
     'take-window': '829d15a468584f4714bc3c92dda3d476cf20e0be34db4308bdd81ce8db75d3b9',
     'target-hunger': 'b6e0d502d9d61a44191634e73650cee8e140533210d5f9545baf7da233bc6422',
@@ -658,6 +690,6 @@ const APP_FIXES_68K = {
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
     'window-leak': 'dafe456d790ddd4a39e181449b5724a0e0e3c2c8a8d1e33e032659968fcfa214',
-    '': '6fef45c65b010d015efbc6d2586fe7f653be747204e24700d87c6afe9ad58b35',   // every fix
+    '': 'c1a594da556aff6d1e86f546c91dbbe039faac2647c2bd4df467f03f8b9a7284',   // every fix
   },
 };

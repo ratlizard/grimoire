@@ -317,6 +317,55 @@ const APP_FIXES = [
         was: [0x7FE00734, 0x5403103A, 0x38030004, 0x7C1C002E, 0x901B0004],
         asm: ['slwi 3, 31, 2', 'addi 3, 3, 4', 'lwzx 0, 28, 3', 'stw 0, 4(27)', 'b @0x7DA98            ; the first found, the newest'] }] },
 
+  // SCombatAIEntry::CompileLine built the digits of a weight after `#` in
+  // byte 0 of the entry, so the value wrapped at 256: #300 compiled as 44
+  // and #356 as 100, and only what was left over 100 gave "Weight higher
+  // than 100%" (the workbench's bugs.md, Found reading the combat AI's
+  // compiler; seen on Mac OS 8.5). The loop's store is a call to a cave.
+  // When the sum, still a full word in r0, passes 100, the cave stores 101
+  // instead, every later digit leaves 101 there, and the test after the
+  // loop gives the error. The routine saved its return address on entry,
+  // so the bl is free.
+  { id: 'ai-weight', kind: 'fix', title: 'A combat AI file with a weight over 100 gives an error when imported, instead of compiling with the weight wrapped round (300 as 44)',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, a file with #300 imported in the user behavior editor gave “Weight higher than 100%”, where the stock program compiled it as 44',
+    bug: 'An imported combat AI weight over 255 wraps round instead of giving an error',
+    sites: [{ at: 0xAE4BC, was: [0x981F0000], asm: ['bl @cave              ; was stb 0, 0(31): the weight so far'] }],
+    cave: ['cmplwi 0, 100', 'ble @ok', 'li 0, 101             ; over 100, and stays over', 'ok:', 'stb 0, 0(31)', 'blr'] },
+
+  // GetToken copied a word of an AI file's line into its caller's buffer
+  // with no bound. CompileLine's buffer at 77(1) has 67 bytes before the
+  // registers it saved and CompileHeader's at 56(1) 64, so a long word ran
+  // over the frame: one of 200 letters in an imported file stopped the Mac
+  // with the letters in the program counter (bugs.md, as above). GetToken
+  // is a leaf with its return address in the link register, so both sites
+  // branch, not call. The first sets r7, free in the routine, to the 64th
+  // byte of the buffer. The second moves the copy's pointer on only while
+  // it is below r7, so a longer word is cut to 63 characters, the line
+  // goes on after it, and the 0 the routine ends with is the 64th byte.
+  { id: 'ai-token', kind: 'fix', title: 'A very long word in an imported combat AI file is cut short, instead of crashing the Mac',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with status-wrap, a file with a word of 200 letters gave “Unknown action” and the game went on, where the stock program stopped the Mac',
+    bug: 'A very long word in an imported combat AI file crashes the Mac',
+    sites: [{ at: 0xADE38, was: [0x38000000], asm: ['b @cave               ; was li 0, 0'] },
+            { at: 0xADF54, was: [0x38840001], asm: ['b @next               ; was addi 4, 4, 1'] }],
+    cave: ['addi 7, 4, 63         ; the last byte a word may use', 'li 0, 0', 'b @0xADE3C',
+           'next:', 'cmplw 4, 7', 'bge @full', 'addi 4, 4, 1', 'full:', 'b @0xADF58'] },
+
+  // TTextOut::SpewText wraps a status message onto new rows with
+  // StyledLineBreak. Its textOffset was 1 only on the pass that continues
+  // the last row, and 0 on every fresh row. Inside Macintosh gives a
+  // nonzero offset as the mark of a line's first run, the case in which a
+  // word wider than the line is broken at a character. With 0 such a word
+  // broke at offset 0, so the routine added an empty row and tried the
+  // same word again, without end: a word of 60 letters in an imported AI
+  // file's error line blanked the status pane and stopped the game on
+  // Mac OS 8.5, stock and patched alike (bugs.md, Found reading the combat
+  // AI's compiler). The offset is 1 on every pass, so a word too wide for
+  // a fresh row is split at the last character that fits.
+  { id: 'status-wrap', kind: 'fix', title: 'A word too wide for the status pane is split across lines, instead of stopping the game',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, an imported AI file’s error line with a word of 60 letters showed split over two rows, where the stock program blanked the pane and stopped answering',
+    bug: 'A status message with a word wider than the pane stops the game',
+    sites: [{ at: 0x39964, was: [0x38000000], asm: ['li 0, 1               ; textOffset: the first run on a row'] }] },
+
   // TCachedSegFiles::RemoveFile skipped an entry of the removed archive that
   // had no cached copy, so opening another saved game during play left it on
   // the freed archive. The branch goes to the clearing instead of past it.
@@ -961,11 +1010,11 @@ const APP_FIX_KIND_GROUP = { hook: 'hidden', text: 'text', menu: 'interface', ch
 const APP_FIX_GROUP = {
   'option-p': 'interface', 'drag-northwest': 'interface', 'books-window': 'interface',
   'take-window': 'interface', 'roster-pose': 'interface', 'tab-pane': 'interface', 'gamepad-keys': 'interface',
-  'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'window-leak': 'interface', 'widget-renumber': 'interface',
+  'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'window-leak': 'interface', 'status-wrap': 'interface', 'widget-renumber': 'interface',
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
-  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules',
+  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules',
   'menu-scroll': 'talk', 'menu-items': 'talk', 'afternoon': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
 };
 function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }
