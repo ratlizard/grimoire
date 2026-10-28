@@ -1990,6 +1990,9 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   background:rgba(18,15,10,.98); border-left:1px solid var(--edge); border-top:1px solid var(--edge); }
 #creditsCaret.open { display:block; }
 #searchWrap #searchResults { text-align:left; }
+#searchWrap .srMeaning { display:flex; flex-wrap:wrap; gap:4px 7px; align-items:center; margin:8px 0 2px; font-size:0.8125rem; text-align:left; }
+#searchWrap .srMeaning input { width:auto; min-height:0; margin:0; accent-color:#c4a464; }
+#searchWrap .srMeaning .amNote { flex-basis:100%; color:#f0ede4; font-size:0.7188rem; }
 #archiveMenu button { width:100%; margin:8px 0 0; }
 #archiveMenu label { display:flex; gap:7px; align-items:flex-start; margin-top:10px;
   padding-top:10px; border-top:1px solid rgba(155,136,80,.35); cursor:pointer; }
@@ -2239,6 +2242,8 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   <p class="sv-why" style="margin:0 0 8px">Searches all the text on the site. Every word must match;
   use OR for either, a minus sign to leave a word out, and quotes for a phrase.</p>
   <input id="searchBox" type="search" placeholder="lava damage -potion, &quot;a phrase&quot;" oninput="queueSearch()">
+  <label class="srMeaning"><input type="checkbox" id="chkMeaning" onchange="setSearchMeaning(this.checked)"> Search by meaning
+    <span class="amNote">Finds pages about what you type, not only pages with its words. The first time, this downloads a 23 MB model.</span></label>
   <div id="searchResults"></div>
 </div>
 <!-- The folder-tab shell. Three tab rows, each the lip of a folder, nested;
@@ -2742,7 +2747,7 @@ wiki, not from the file. Turn these names on or off in Settings.</div>
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.353.0';
+const GRIMOIRE_VERSION = '1.354.0';
 /* The name at the top, and the tab's icon. The grimoire's tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

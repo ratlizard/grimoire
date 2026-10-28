@@ -506,7 +506,11 @@ function openSearch() {
   w.style.display = 'block';
   const box = document.getElementById('searchBox');
   if (box) box.focus();
+  const meaning = document.getElementById('chkMeaning');
+  if (meaning) meaning.checked = !!window.SEARCH_MEANING;
   if (ARCHIVE && !_siteSearchTimer) _siteSearchTimer = setTimeout(siteSearchRun, 0);
+  // A reading by meaning stopped when the panel closed goes on.
+  if (ARCHIVE && window.SEARCH_MEANING && DERIVED.SITE_SEARCH && DERIVED.SITE_SEARCH.done) drawSearchResults();
 }
 function closeSearch() {
   const w = document.getElementById('searchWrap');
@@ -581,6 +585,7 @@ function drawSearchResults() {
       : 'Loading the search…') + '</div>';
     return;
   }
+  if (window.SEARCH_MEANING) { drawMeaningResults(q, S, host); return; }
   if (!q) return;
   const tree = parseSearchQuery(q);
   if (!tree) { host.innerHTML = ''; return; }
@@ -627,6 +632,170 @@ function drawSearchResults() {
   host.innerHTML = h;
 }
 function searchShowAll() { window.SEARCH_ALL = true; drawSearchResults(); }
+
+/* SEARCH BY MEANING (the maintainer, 28 October 2026: "proper semantic
+   search", with a model from a CDN, his choice over word lists). A switch
+   in the panel. With it on, the search matches a query by meaning: "where
+   to buy swords" finds a shop's list where no line has those words.
+
+   THE MODEL is all-MiniLM-L6-v2 (Xenova's ONNX copy, 8-bit, about 23 MB),
+   run by transformers.js, both fetched only when the switch is first turned
+   on: the library from jsDelivr (MEANING_LIB, a fixed version) and the
+   model's files from Hugging Face, which the browser then caches. This is
+   the one thing on the page besides the installer fetched from outside the
+   repository, and nothing fetches it until the visitor turns the switch
+   on; the plain search needs none of it and works from file:// and
+   offline. The library is an ES module, loaded with import(), which a
+   classic script may call; the page's scripts stay classic.
+
+   THE PIECES are the pages the plain search reads (siteSearchState),
+   each cut into runs of lines of about MEANING_CHUNK characters, the page's
+   title before each run. A piece is turned into 384 numbers (an embedding,
+   averaged over its words and scaled to length 1), so how alike two pieces
+   are is the sum of their numbers multiplied pairwise. The site's 900-odd
+   pages make some 3,000 pieces, a minute or two on a desktop and some
+   minutes on a phone, done while the panel is open, a few pieces at a
+   time, and kept in IndexedDB (MEANING_DB) under the plain search's key
+   and the model's name, so it happens once for each file.
+
+   A RESULT is a piece, best first, shown as its page's title and the line
+   of the piece that shares most words with the query (its first line when
+   none does), a link to that line as the plain search's are. */
+const MEANING_LIB = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/dist/transformers.min.js';
+const MEANING_MODEL = 'Xenova/all-MiniLM-L6-v2';
+const MEANING_CHUNK = 500, MEANING_DIM = 384, MEANING_BATCH = 8, MEANING_SHOWN = 30;
+const MEANING_DB = 'grimoire-meaning';
+window.SEARCH_MEANING = false;
+try { window.SEARCH_MEANING = localStorage.getItem('cythera.searchMeaning') === '1'; } catch (e) { quiet(e); }
+const _meaning = { extractor: null, loading: null, error: null, progress: '', vecs: null, pieces: null, key: null, building: false, gen: 0 };
+function setSearchMeaning(on) {
+  window.SEARCH_MEANING = !!on;
+  try { localStorage.setItem('cythera.searchMeaning', on ? '1' : '0'); } catch (e) { quiet(e); }
+  const box = document.getElementById('chkMeaning');
+  if (box) box.checked = !!on;
+  drawSearchResults();
+}
+function meaningModel() {
+  if (_meaning.extractor) return Promise.resolve(_meaning.extractor);
+  if (!_meaning.loading) {
+    _meaning.error = null;
+    _meaning.loading = import(MEANING_LIB).then(T => {
+      T.env.allowLocalModels = false;
+      return T.pipeline('feature-extraction', MEANING_MODEL, { dtype: 'q8', progress_callback: p => {
+        if (p && p.status === 'progress' && p.total) { _meaning.progress = 'Downloading the model, ' + Math.round(100 * p.loaded / p.total) + ' percent.'; drawMeaningNote(); }
+      } });
+    }).then(x => { _meaning.extractor = x; _meaning.progress = ''; return x; },
+      e => { _meaning.error = e; _meaning.loading = null; _meaning.progress = ''; quiet(e, 'loading the model for search by meaning'); throw e; });
+  }
+  return _meaning.loading;
+}
+async function meaningEmbed(texts) {
+  const ex = await meaningModel();
+  const out = await ex(texts, { pooling: 'mean', normalize: true });
+  return out.data;
+}
+function meaningPieces(S) {
+  const pieces = [];
+  S.pages.forEach((p, i) => {
+    let text = '', k0 = -1;
+    const push = () => { if (text) pieces.push({ i, k: k0, text: p.title + '. ' + text }); text = ''; k0 = -1; };
+    p.lines.forEach((l, k) => {
+      if (k0 < 0) k0 = k;
+      text += (text ? ' ' : '') + l;
+      if (text.length >= MEANING_CHUNK) push();
+    });
+    push();
+  });
+  return pieces;
+}
+function meaningDb(mode, fn) {
+  return new Promise((resolve, reject) => {
+    let req;
+    try { req = indexedDB.open(MEANING_DB, 1); } catch (e) { reject(e); return; }
+    req.onupgradeneeded = () => req.result.createObjectStore('vectors');
+    req.onerror = () => reject(req.error || new Error('IndexedDB unavailable'));
+    req.onsuccess = () => {
+      const db = req.result, tx = db.transaction('vectors', mode), r = fn(tx.objectStore('vectors'));
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+      tx.oncomplete = () => db.close();
+    };
+  });
+}
+/* The pieces' embeddings: from IndexedDB when kept for this file, else
+   made a batch at a time while the panel is open and the switch on. */
+async function meaningBuild(S) {
+  const key = (S.key || '') + '|' + MEANING_MODEL + '|' + MEANING_CHUNK;
+  if (_meaning.key === key && _meaning.vecs && _meaning.done) return;
+  if (_meaning.building) return;
+  _meaning.building = true;
+  try {
+    if (_meaning.key !== key) {
+      _meaning.key = key; _meaning.pieces = meaningPieces(S); _meaning.vecs = new Float32Array(_meaning.pieces.length * MEANING_DIM); _meaning.made = 0; _meaning.done = false;
+      try {
+        const rec = typeof indexedDB === 'undefined' ? null : await meaningDb('readonly', s => s.get('current'));
+        if (rec && rec.key === key && rec.vecs && rec.vecs.byteLength === _meaning.vecs.byteLength) { _meaning.vecs.set(new Float32Array(rec.vecs)); _meaning.made = _meaning.pieces.length; _meaning.done = true; }
+      } catch (e) { quiet(e, 'reading the kept embeddings'); }
+    }
+    while (!_meaning.done) {
+      const wrap = document.getElementById('searchWrap');
+      if (!window.SEARCH_MEANING || !wrap || wrap.style.display === 'none' || _meaning.key !== key) return;
+      const from = _meaning.made, to = Math.min(_meaning.pieces.length, from + MEANING_BATCH);
+      const data = await meaningEmbed(_meaning.pieces.slice(from, to).map(p => p.text));
+      _meaning.vecs.set(data, from * MEANING_DIM);
+      _meaning.made = to;
+      if (to >= _meaning.pieces.length) {
+        _meaning.done = true;
+        try { if (typeof indexedDB !== 'undefined') await meaningDb('readwrite', s => s.put({ key, vecs: _meaning.vecs.buffer.slice(0) }, 'current')); } catch (e) { quiet(e, 'keeping the embeddings'); }
+      }
+      drawMeaningNote();
+    }
+  } finally { _meaning.building = false; }
+  drawSearchResults();
+}
+function drawMeaningNote() {
+  const host = document.getElementById('searchResults');
+  if (!host || !window.SEARCH_MEANING || _meaning.done) return;
+  const n = _meaning.pieces ? _meaning.pieces.length : 0;
+  host.innerHTML = '<div class="sv-note">' + (_meaning.progress || (n
+    ? 'Reading the pages for their meaning, ' + _meaning.made + ' of ' + n + ' pieces. Results appear when it finishes. This happens once for each file you open.'
+    : 'Loading the model for search by meaning…')) + '</div>';
+}
+async function drawMeaningResults(q, S, host) {
+  const gen = ++_meaning.gen;
+  if (_meaning.error) { host.innerHTML = '<div class="sv-warn">The page could not load the model for search by meaning (' + svEsc(_meaning.error.message || String(_meaning.error)) + '). Turn the switch off to search the words.</div>'; return; }
+  if (!_meaning.done) { drawMeaningNote(); meaningBuild(S).catch(e => { _meaning.error = e; drawSearchResults(); }); return; }
+  if (!q) { host.innerHTML = ''; return; }
+  let qv;
+  try { qv = await meaningEmbed([q]); } catch (e) { _meaning.error = e; drawSearchResults(); return; }
+  if (gen !== _meaning.gen) return;
+  const { vecs, pieces } = _meaning, scored = [];
+  for (let n = 0; n < pieces.length; n++) {
+    let dot = 0;
+    for (let d = 0, o = n * MEANING_DIM; d < MEANING_DIM; d++) dot += vecs[o + d] * qv[d];
+    scored.push([dot, n]);
+  }
+  scored.sort((a, b) => b[0] - a[0]);
+  const words = searchFold(q).split(/[^a-z0-9']+/).filter(w => w.length > 2);
+  let h = '<div class="partsTitle sr-head">Nearest in meaning</div>';
+  for (const [score, n] of scored.slice(0, MEANING_SHOWN)) {
+    const pc = pieces[n], p = S.pages[pc.i];
+    if (!p) continue;
+    // The line of the piece with most of the query's words, else its first.
+    let best = pc.k, gain = 0;
+    for (let k = pc.k; k < p.lines.length && k < pc.k + 40; k++) {
+      if (pc.text.indexOf(p.lines[k]) < 0) break;
+      const f = searchFold(p.lines[k]), g = words.filter(w => f.includes(w)).length;
+      if (g > gain) { gain = g; best = k; }
+    }
+    const live = p.open.panel !== null;
+    const line = searchSnippet(p.lines[best] || '', words);
+    h += '<div class="sr-item">' + (live ? svLink(p.title, 'openSearchPage(' + pc.i + ',' + best + ')') : '<span class="sr-title">' + svEsc(p.title) + '</span>') +
+      (p.trail ? ' <span class="sr-where">' + svEsc(p.trail) + '</span>' : '') + ' <span class="sr-where">' + Math.round(score * 100) + '%</span>' +
+      '<div class="sr-text"><div>' + (live ? '<a class="srLine" onclick="openSearchPage(' + pc.i + ',' + best + ')">' + line + '</a>' : line) + '</div></div></div>';
+  }
+  host.innerHTML = h;
+}
 
 /* The lines of a page to show under its title, as indexes: each one chosen for the
    searched words it adds to those already shown, first in the page on a
