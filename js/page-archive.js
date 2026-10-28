@@ -926,8 +926,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     const btn = document.getElementById('archiveMenuBtn');
     if (btn) { btn.classList.remove('urgent'); btn.textContent = 'Settings'; }
     openArchiveMenu(false);
-    const cbl = document.getElementById('chkBuiltinLabels');
-    if (cbl) cbl.checked = !!window.SHOW_BUILTIN_LABELS;
+    renderLabelPrecedence();
     // Where a visit starts, when the link it arrived on does not say
     // otherwise -- applyDeepLink below overrides this whenever there is a
     // hash. Without the explicit pick this would open on whatever option

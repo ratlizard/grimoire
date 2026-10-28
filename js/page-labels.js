@@ -319,7 +319,7 @@ const GUIDES_PROGRAM_SOUND_NAMES = {
   134:'Button Down', 135:'Button Up', 256:'Explosion'
 };
 function outsideResourceName(src, type, id) {
-  if (!window.SHOW_BUILTIN_LABELS) return null;
+  if (!labelSourceOn('community')) return null;
   return src === 'app' && type === 'snd ' ? GUIDES_PROGRAM_SOUND_NAMES[id] || null : null;
 }
 // Zone names are the map's entry script's (loadZoneNames) and the editor's
@@ -537,19 +537,95 @@ window.ARCHIVE_OWN = false;
 function applyNamesDefault(own) {
   window.ARCHIVE_OWN = !!own;
   let stored = null;
-  try { stored = localStorage.getItem('cythera.builtinLabels'); } catch (e) { stored = null; }
+  try { stored = localStorage.getItem('cythera.builtinLabels') || localStorage.getItem('cythera.labelPrecedence'); } catch (e) { stored = null; }
   if (stored !== null) return;
-  window.SHOW_BUILTIN_LABELS = !own;
+  for (const s of LABEL_SOURCES) if (s.id !== 'game') LABEL_PREC.on[s.id] = !own;
+  syncBuiltinFlag();
   try { DERIVED.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) { quiet(e); }
 }
 function setBuiltinLabels(on) {
   window.SHOW_BUILTIN_LABELS = !!on;
+  for (const k of LABEL_SOURCES) if (k.id !== 'game') LABEL_PREC.on[k.id] = !!on;
   try { localStorage.setItem('cythera.builtinLabels', on ? '1' : '0'); } catch (e) { quiet(e); }
+  saveLabelPrecedence();
+  labelsChanged();
+}
+function labelsChanged() {
   // The atlas labels its places once, when the scene is built.
   try { DERIVED.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) { quiet(e); }
+  try { renderLabelPrecedence(); } catch (e) { quiet(e); }
   if (ARCHIVE) {
     try { onCategoryChange(); } catch (e) { quiet(e); }
   }
+}
+
+/* Data Label Precedence (the maintainer, 28 October 2026, in place of the
+   one switch for names from outside the game's text). A resource can have
+   a name from up to four sources, and the visitor orders them and turns
+   any but the game's files off:
+
+   - the game's files: zone names, the editor's list, the resource symbols,
+     the helpers' names read off their bytecode, and the page's labels
+     built from what a resource is ("Tile Sheet 4", a tune's places);
+   - delvmod: the sounds' names from its wiki, written by ear;
+   - the community: the soundtrack's track names for the tunes, and Cythera
+     Guides' names for the program's unnamed sounds;
+   - the maintainer: the short descriptions of the data file's tables
+     (RESHINTS).
+
+   The name shown is the first in the order from a source that is on.
+   SHOW_BUILTIN_LABELS stays, true while any source but the game's files is
+   on, for the readers that test only whether outside names are on. */
+const LABEL_SOURCES = [
+  { id: 'game', name: 'The game’s files' },
+  { id: 'maintainer', name: 'The maintainer’s descriptions' },
+  { id: 'community', name: 'The community’s names' },
+  { id: 'delvmod', name: 'delvmod’s wiki' },
+];
+const LABEL_PREC = { order: LABEL_SOURCES.map(s => s.id), on: { game: true, maintainer: true, community: true, delvmod: true } };
+try {
+  const st = JSON.parse(localStorage.getItem('cythera.labelPrecedence') || 'null');
+  if (st && Array.isArray(st.order) && st.order.length === LABEL_SOURCES.length && LABEL_SOURCES.every(s => st.order.includes(s.id))) LABEL_PREC.order = st.order;
+  if (st && st.on) for (const s of LABEL_SOURCES) if (s.id !== 'game' && typeof st.on[s.id] === 'boolean') LABEL_PREC.on[s.id] = st.on[s.id];
+  else if (!st) for (const s of LABEL_SOURCES) if (s.id !== 'game') LABEL_PREC.on[s.id] = !!window.SHOW_BUILTIN_LABELS;
+} catch (e) { quiet(e); }
+function syncBuiltinFlag() { window.SHOW_BUILTIN_LABELS = LABEL_SOURCES.some(s => s.id !== 'game' && LABEL_PREC.on[s.id]); }
+syncBuiltinFlag();
+function saveLabelPrecedence() {
+  syncBuiltinFlag();
+  try { localStorage.setItem('cythera.labelPrecedence', JSON.stringify(LABEL_PREC)); } catch (e) { quiet(e); }
+}
+function labelSourceOn(id) { return id === 'game' || !!LABEL_PREC.on[id]; }
+// The first name from `cands` ({ game, maintainer, community, delvmod }) in
+// the visitor's order, among the sources turned on.
+function labelByPrecedence(cands) {
+  for (const id of LABEL_PREC.order) if (labelSourceOn(id) && cands[id]) return cands[id];
+  return null;
+}
+function setLabelSourceOn(id, on) {
+  if (id === 'game') return;
+  LABEL_PREC.on[id] = !!on;
+  saveLabelPrecedence();
+  labelsChanged();
+}
+function moveLabelSource(id, by) {
+  const o = LABEL_PREC.order, i = o.indexOf(id), j = i + by;
+  if (i < 0 || j < 0 || j >= o.length) return;
+  o.splice(i, 1); o.splice(j, 0, id);
+  saveLabelPrecedence();
+  labelsChanged();
+}
+function renderLabelPrecedence() {
+  const host = document.getElementById('labelPrecList');
+  if (!host) return;
+  host.innerHTML = LABEL_PREC.order.map((id, i) => {
+    const s = LABEL_SOURCES.find(x => x.id === id);
+    return '<li>' +
+      '<button class="secondary lpMove" aria-label="Earlier"' + (i === 0 ? ' disabled' : '') + ' onclick="moveLabelSource(\'' + id + '\', -1)">↑</button>' +
+      '<button class="secondary lpMove" aria-label="Later"' + (i === LABEL_PREC.order.length - 1 ? ' disabled' : '') + ' onclick="moveLabelSource(\'' + id + '\', 1)">↓</button>' +
+      '<label><input type="checkbox"' + (labelSourceOn(id) ? ' checked' : '') + (id === 'game' ? ' disabled' : '') +
+      ' onchange="setLabelSourceOn(\'' + id + '\', this.checked)"> ' + svEsc(s.name) + '</label></li>';
+  }).join('');
 }
 
 /* A tune's name. No tune has a name in the file, so with outside names on
@@ -566,7 +642,7 @@ const TUNE_TRACK_NAMES = {
   0x9009: 'Cademia', 0x900A: 'Kosha'
 };
 function tuneTrackName(resid) {
-  return window.SHOW_BUILTIN_LABELS && TUNE_TRACK_NAMES[resid] || null;
+  return labelSourceOn('community') && TUNE_TRACK_NAMES[resid] || null;
 }
 function tunePlaces(resid) {
   let scripts = null;
@@ -576,23 +652,30 @@ function tunePlaces(resid) {
   return names.join(', ') || null;
 }
 
-function labelForUnnormalized(resid) {
+/* A resource's name from the files: the zone's name from its entry script,
+   the editor's name for a map whose script names nothing, the archive's
+   symbol for it, or the helper's name read off its bytecode. The symbols
+   are code identifiers ("LKH_Guard", "Od_Trough1"), so the underscores
+   become spaces for display; the symbol itself is untouched. */
+function fileNameFor(resid) {
   const zn = zoneNameFor(resid);
   if (zn) return zn;
-  // A map whose entry script names nothing still has the editor's name.
   const ez = editorZoneName(resid);
   if (ez) return ez;
-  // The archive has names for many of its resources; prefer that over our tables.
-  // They are code identifiers -- "LKH_Guard", "Od_Trough1" -- so the
-  // underscores become spaces for display. The symbol itself is untouched.
   try { const sy = resourceSymbol(resid); if (sy) return sy.replace(/_/g, ' '); } catch (e) { quiet(e); }
-  // The AI vocabulary out of the application's lists, and the helpers read
-  // off their bytecode (dvmScriptName in js/delv-script.js).
   try { const sn = dvmScriptName(resid); if (sn) return sn; } catch (e) { quiet(e); }
+  return null;
+}
+function labelForUnnormalized(resid) {
   const subn = Math.floor(resid / 0x100) - 1;
   const n = resid % 0x100;
-  if (window.SHOW_BUILTIN_LABELS && RESHINTS[resid]) return RESHINTS[resid];
-  if (subn === 143) return tuneTrackName(resid) || tunePlaces(resid);
+  // A name from a source, in the visitor's order (labelByPrecedence). The
+  // page's description of a resource ("Tile Sheet 4", a tune's places)
+  // stands only where no source that is on has a name.
+  const named = labelByPrecedence({ game: fileNameFor(resid), maintainer: RESHINTS[resid],
+    community: subn === 143 ? TUNE_TRACK_NAMES[resid] : null });
+  if (named) return named;
+  if (subn === 143) return tunePlaces(resid);
   const structural = labelForResource(subn, n, resid);
   if (structural) return structural;
   // 0x8EFF is IN the tile-sheet subindex but is not a tile sheet: it is the
@@ -601,7 +684,7 @@ function labelForUnnormalized(resid) {
   if (resid === 0x8EFF) return 'Tombstone Slab, a sized image, not a tile sheet';
   if (subn === 141) { const w = tileSheetWords(n); return 'Tile Sheet ' + n + (w ? ': ' + w : ''); }
   if (subn === 142) { const w = pictureWords(resid); return 'General Graphic ' + n + (w ? ': ' + w : ''); }
-  if (subn === 144) return 'Sound ' + n + (window.SHOW_BUILTIN_LABELS && DELVMOD_SOUND_NAMES[resid] ? ': ' + DELVMOD_SOUND_NAMES[resid] : '');
+  if (subn === 144) return 'Sound ' + n + (labelSourceOn('delvmod') && DELVMOD_SOUND_NAMES[resid] ? ': ' + DELVMOD_SOUND_NAMES[resid] : '');
   return null;
 }
 

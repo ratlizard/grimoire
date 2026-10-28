@@ -4812,8 +4812,8 @@ function renderMechanicsSheet(value) {
         d.zones.map(z => svEsc(labelFor(0x8000 + z) || ('zone ' + z))).join(' and ') + '.</td><td>' + where([d]) + '</td></tr>');
     }
     for (const h of highlightsUnanswered()) rows.push('<tr><td>a highlighted word nobody answers</td><td>“' + svEsc(h.word) + '” is highlighted as a question in ' + where([h]) + ', and ' +
-      (h.character.length === 1 ? (chipOf(h.character[0]) || svEsc(characterName(h.character[0]))) + ', who says it, has'
-        : 'none of the ' + h.character.length + ' characters who can say it has') + ' an answer that matches it' +
+      (h.character.length === 1 ? (chipOf(h.character[0]) || svEsc(characterName(h.character[0]))) + ', its speaker, has no'
+        : 'none of the ' + h.character.length + ' characters who can say it has an') + ' answer that matches it' +
       (h.character.length > 1 ? ': ' + h.character.slice(0, 8).map(n => chipOf(n) || svEsc(characterName(n))).join(', ') + (h.character.length > 8 ? ' and ' + countLink((h.character.length - 8) + ' more', 'The ' + h.character.length + ' characters who can say “' + h.word + '”', h.character.map(n => chipOf(n) || svLink(characterName(n), 'showCharacterDetail(' + n + ')'))) : '') : '') + '.</td><td>' + where([h]) + '</td></tr>');
     for (const r of refusalOnEveryCheck()) rows.push('<tr><td>a line repeated on every check</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) +
       '’s answer to whether a thing can go inside it prints “' + svEsc(r.message.trim()) + '” before it answers no, and the inventory window runs it each time it checks a drop, so the line repeats while you drag a thing over it.</td><td>' + where([r]) + '</td></tr>');

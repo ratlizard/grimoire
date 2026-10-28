@@ -938,6 +938,26 @@ try {
   else console.log('  tile animation: 0xF001 animates ' + tab.size + ' tiles; Cademia\'s fountain repaints its square and shows 0x388 at phase 2');
 } catch (e) { fail('tile animation', e); }
 
+/* Data Label Precedence (28 October 2026). With the community's names on, a
+   tune is its soundtrack title; with them off, the places that play it.
+   Moving the maintainer's descriptions above the game's files makes theirs
+   the name where both have one, and the order goes back. */
+try {
+  ctx.setLabelSourceOn('community', true);
+  const titled = ctx.labelFor(0x9003);
+  ctx.setLabelSourceOn('community', false);
+  const placed = ctx.labelFor(0x9003);
+  ctx.setLabelSourceOn('community', true);
+  const before = ctx.labelByPrecedence({ game: 'from the file', maintainer: 'from the maintainer' });
+  ctx.moveLabelSource('maintainer', -1);
+  const after = ctx.labelByPrecedence({ game: 'from the file', maintainer: 'from the maintainer' });
+  ctx.moveLabelSource('maintainer', 1);
+  if (titled !== 'Overworld') fail('labels', 'tune 0x9003 with the community’s names on reads ' + JSON.stringify(titled));
+  else if (!placed || placed === 'Overworld') fail('labels', 'tune 0x9003 with the community’s names off reads ' + JSON.stringify(placed));
+  else if (before !== 'from the file' || after !== 'from the maintainer') fail('labels', 'moving a source does not change the name shown (' + before + ', then ' + after + ')');
+  else console.log('  labels: tune 0x9003 is "' + titled + '" with the community’s names and "' + placed + '" without, and moving a source changes the name shown');
+} catch (e) { fail('labels', e); }
+
 /* Barks on the map (drawBarks). Twelve characters have lines in their own
    conversation scripts; a vendor standing on a square gets a balloon with
    the cry its script gives it, and somebody with no lines gets none. The
