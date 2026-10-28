@@ -1091,9 +1091,31 @@ function countLink(label, title, chips) {
 function resChips(resids) {
   return [...resids].sort((a, b) => a - b).map(r => relChip({ resid: r, main: labelFor(r) || selfNameFor(r) || ('0x' + r.toString(16).toUpperCase()), title: trailForResid(r) }));
 }
+/* A count's list opens in a dialog (the maintainer, 28 October 2026). It
+   opened in the search panel with the box emptied, which read as a search
+   that had found these, when no query finds exactly them; a count one
+   query does find is a searchFor link and puts the query in the box. A
+   chip followed closes the dialog. Where the browser has no <dialog> (the
+   harnesses' DOM), the list goes to the search panel. */
 function showCountList(id) {
   const c = COUNT_LISTS[id];
   if (!c) return;
+  let dlg = document.getElementById('countDialog');
+  if (!dlg && document.createElement('dialog').showModal) {
+    dlg = document.createElement('dialog');
+    dlg.id = 'countDialog';
+    dlg.onclick = ev => {
+      // A click on the backdrop, or on anything that leads somewhere, closes it.
+      if (ev.target === dlg || (ev.target.closest && ev.target.closest('button, a, .sv-chip, .relChip'))) dlg.close();
+    };
+    document.body.appendChild(dlg);
+  }
+  if (dlg && dlg.showModal) {
+    dlg.innerHTML = '<div class="countHead"><b>' + svEsc(c.title) + '</b><button class="secondary countClose" aria-label="Close">×</button></div>' +
+      '<div class="partsStrip">' + c.chips.join('') + '</div>';
+    dlg.showModal();
+    return;
+  }
   setTimeout(() => {
     closeTopPanels();
     openSearch();
