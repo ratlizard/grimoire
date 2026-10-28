@@ -6,8 +6,8 @@
 //   node utilities/check_all.mjs viewer      (one page: viewer | browser | mobile)
 //   node utilities/check_all.mjs 'in the game'   (one check by its name, its whole output after the table)
 //   CHECK_JOBS=1 node utilities/check_all.mjs   (one at a time, as it ran until 18 September 2026)
-//   CHECK_SHARD=2/3 node utilities/check_all.mjs   (the second of three shares of the checks)
-//   node utilities/check_all.mjs --shard-plan=3    (which check goes in which share, and the weights)
+//   CHECK_SHARD=2/4 node utilities/check_all.mjs   (the second of four shares of the checks)
+//   node utilities/check_all.mjs --shard-plan=4    (which check goes in which share, and the weights)
 //
 // Shares let GitHub run the suite on several machines at the same time. Each
 // check goes to the share with the least weight so far, heaviest first, by the
@@ -428,9 +428,12 @@ const CHECKS = [
      patched file with every fix is pinned: a change to any fix moves it, and
      the value moves in the same commit. `--full` adds each fix left out,
      about a minute, and is run when a fix is added. */
-  {page: 'viewer', name: 'game fixes', requiredInputs: [DATA],
-   cmd: ['utilities/data_fix_check.mjs', 'index.html', DATA, COLLECTION],
-   grep: /every fix: [^\n]*/, expect: 'every fix: 346 resources changed, patched file d08a8663006c9558'},
+  /* In three parts (--part=i/n), which deal out the builds and the sections
+     that follow them. The pinned line comes from the section of every fix
+     together, which the first part runs, so the other two have nothing to pin. */
+  ...[1, 2, 3].map(part => ({page: 'viewer', name: `game fixes ${part}`, requiredInputs: [DATA],
+   cmd: ['utilities/data_fix_check.mjs', 'index.html', DATA, COLLECTION, `--part=${part}/3`],
+   ...(part === 1 ? {grep: /every fix: [^\n]*/, expect: 'every fix: 346 resources changed, patched file d08a8663006c9558'} : {grep: /alone: [^\n]*/})})),
   /* Cythera Data in Spanish (js/delv-translate.js with the table
      js/delv-es.js), both forks: the table covers every piece and has no
      stale entry, every script still disassembles, the keyword lists are the
@@ -575,11 +578,13 @@ const CHECKS = [
   {page: 'viewer', name: 'browser', requiredInputs: [CHROME],
    cmd: ['utilities/browser_check.mjs', 'index.html', 'canvas.html', HQX],
    grep: /browser: [^\n]*/},
-  /* The UI smoke, in eight rows that each start from a fresh boot and run
+  /* The UI smoke, in ten rows that each start from a fresh boot and run
      at once (viewer_smoke.mjs with no part named is the whole drive in one
-     process). The galleries loop is halved across two rows, since it is
-     most of the drive's time. */
-  ...['galleries-a', 'galleries-b', 'views', 'atlas', 'rules', 'edits', 'saves', 'installer'].map(part => ({
+     process). The galleries loop is halved across two rows, since it was
+     most of the drive's time, and the rules and the edits are two slices each
+     (`rules@1-2`, the blocks of the part dealt by smoke_weights.json), since
+     they were the longest rows after it. */
+  ...['galleries-a', 'galleries-b', 'views', 'atlas', 'rules@1-2', 'rules@2-2', 'edits@1-2', 'edits@2-2', 'saves', 'installer'].map(part => ({
     page: 'viewer', name: 'smoke ' + part, requiredInputs: [DATA], slow: true, after: ['addons + heuristic'],
     cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL, SAVE, part],
     grep: part.startsWith('galleries') ? /\d+ galleries, [\d,]+ tiles[^\n]*/ : /clean in [\d.]+ s/})),
@@ -592,9 +597,12 @@ const CHECKS = [
      chip and a unit's Stats table chip did the first, 253 links, and every
      script, picture and sound page the second; those runs are the controls.
      About a minute. */
-  {page: 'viewer', name: 'scenario links', requiredInputs: [DATA], slow: true,
-   cmd: ['utilities/link_census.mjs', 'index.html', DATA],
-   grep: /scenario links: [^\n]*/},
+  /* In three parts (--part=i/n after smoke_boot's five positional arguments).
+     Each walks every category page and a third of the detail pages and what
+     they lead to, which together are all the pages one walk reaches. */
+  ...[1, 2, 3].map(part => ({page: 'viewer', name: `scenario links ${part}`, requiredInputs: [DATA], slow: true,
+   cmd: ['utilities/link_census.mjs', 'index.html', DATA, '', '', '', `--part=${part}/3`],
+   grep: /scenario links: [^\n]*/})),
   /* Bad input: every real input corrupted a fixed number of ways from a
      fixed seed and handed to the page's entry point, each case in a
      worker under a deadline. A decoder may return or throw; it may not

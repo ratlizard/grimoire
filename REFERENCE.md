@@ -388,20 +388,28 @@ node utilities/check_all.mjs            # everything, one table, about 80 second
 node utilities/check_all.mjs --quick    # skip the slow browser-ish smokes
 node utilities/check_all.mjs viewer     # the one page there is
 CHECK_JOBS=1 node utilities/check_all.mjs   # one check at a time, as before 18 September 2026
-CHECK_SHARD=2/3 node utilities/check_all.mjs   # the second of three shares of the checks
-node utilities/check_all.mjs --shard-plan=3    # which check is in which share
+CHECK_SHARD=2/4 node utilities/check_all.mjs   # the second of four shares of the checks
+node utilities/check_all.mjs --shard-plan=4    # which check is in which share
 ```
 
-GitHub runs the suite as three shares on three machines at the same time
+GitHub runs the suite as four shares on four machines at the same time
 (`.github/workflows/checks.yml`), which cut a run from about 363 seconds, 312
 of them `check_all`, to the longest check plus the setup. A check goes to the
 share with the least weight so far, heaviest first, by the seconds in
-`utilities/check_weights.json`, taken from a run on GitHub (28 October 2026),
-and a check that is not in the file counts as three seconds. A check named in
-another's `after` runs in the share of each check that names it. The longest
-check sets the floor, `scenario links` at 150 seconds, so more than three
-shares would not shorten a run until that check is split. Refresh the weights
-from a run's log when the times move.
+`utilities/check_weights.json`, taken from a run on GitHub, and a check that is
+not in the file counts as three seconds. A check named in another's `after`
+runs in the share of each check that names it. The longest check sets the floor.
+On 28 October 2026 four checks (`scenario links` at 150 seconds, `smoke rules`,
+`smoke edits` and `game fixes`) were the floor, and each is now several checks
+that the shares deal out. `scenario links` is three parts (`--part=i/3`), each
+walking every category page, a third of the detail pages and the pages reached
+from those. `game fixes` is three parts that deal out its builds and its
+sections. `rules@i-2` and `edits@i-2` are slices of the smoke parts' top-level
+blocks (`blockTaker` in `smoke_boot.mjs`, dealt by `smoke_weights.json`).
+Splitting costs the page's start-up in each part, and `edits` also repeats about
+12 seconds of work that its blocks share, so a slice is not half of its part.
+Refresh both weight files from a run when the times move. `SMOKE_TIMES=1` prints
+each block's time and `link_census.mjs --times` each page's.
 
 `check_all.mjs` is the entry point: it does the setup (extracting data and
 resource forks from `reference/game/Cythera Data.hqx` and `.../Cythera.hqx`

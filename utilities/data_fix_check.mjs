@@ -54,7 +54,18 @@ import {pageContext} from './patch_build.mjs';
 import {readCollection} from './community_text_patch.mjs';
 
 const FULL = process.argv.includes('--full');
-const [htmlPath = 'index.html', dataPath, collDir] = process.argv.slice(2).filter(a => a !== '--full');
+// --part=i/n shares the work between machines. The builds of section 1 (each
+// fix alone, each run of the text) are dealt out in turn, and so are the five
+// sections that follow it (every fix together, the rejections, the places the
+// text's list links to, a row left out, the community's list). A part runs
+// what it is dealt and skips the rest, and the parts together run all of it.
+// A part fails on what it finds. check_all runs the parts as separate checks.
+const PART = /^--part=(\d+)\/(\d+)$/.exec(process.argv.find(a => a.startsWith('--part=')) || '');
+const PART_INDEX = PART ? Number(PART[1]) - 1 : 0, PART_COUNT = PART ? Number(PART[2]) : 1;
+let dealtBuilds = 0, dealtSections = 0;
+const takeBuild = () => !PART || dealtBuilds++ % PART_COUNT === PART_INDEX;
+const takeSection = () => !PART || dealtSections++ % PART_COUNT === PART_INDEX;
+const [htmlPath = 'index.html', dataPath, collDir] = process.argv.slice(2).filter(a => a !== '--full' && !a.startsWith('--part='));
 if (!dataPath) { console.error('usage: data_fix_check.mjs index.html <Cythera Data.data> [collection dir] [--full]'); process.exit(2); }
 if (!existsSync(dataPath)) { console.log('SKIP: no data fork at ' + dataPath); process.exit(3); }
 
@@ -92,6 +103,7 @@ const t0 = Date.now();
 // ---- 1. every fix alone ----------------------------------------------------
 let alone = 0;
 for (const f of top) {
+  if (!takeBuild()) continue;
   const r = build([f.id]);
   if (!r.ok) fail('alone: ' + f.id + ' did not apply: ' + r.why);
   else if (!r.same) fail('alone: ' + f.id + '’s patch does not merge back to the patched file');
@@ -101,6 +113,7 @@ for (const f of top) {
 const SPELLINGS = FIXES.filter(f => f.choice === 'spelling').map(f => f.id);
 const textRuns = [['text'], ...options.concat(others).map(o => ['text', o]), ...SPELLINGS.map(sp => ['text', sp]), ...SPELLINGS.map(sp => ['text', sp, ...options]), ...SPELLINGS.map(sp => ['text', sp, ...others])];
 for (const ids of textRuns) {
+  if (!takeBuild()) continue;
   const r = build(ids);
   if (!r.ok) fail('text: ' + ids.join(' + ') + ' did not apply: ' + r.why);
   else if (!r.same) fail('text: ' + ids.join(' + ') + '’s patch does not merge back');
@@ -118,16 +131,17 @@ for (const ids of textRuns) {
 // a visitor pick it: the hyphens alone stopped the build until 3 October
 // 2026, Helen's hyphen having followed the text's "wearly".
 for (const o of options.concat(others)) {
+  if (!takeBuild()) continue;
   const r = build([o]);
   if (!r.ok) fail('choice alone: ' + o + ' did not apply: ' + r.why);
   else if (!r.same) fail('choice alone: ' + o + '’s patch does not merge back');
   else alone++;
 }
-console.log(`  alone: ${top.length} fixes, ${textRuns.length} runs of the text's options and ${options.length + others.length} of its choices without it apply, each merging back to its patched file`);
+console.log(`  alone: ${alone} of ${top.length + textRuns.length + options.length + others.length} builds apply (${top.length} fixes, ${textRuns.length} runs of the text's options and ${options.length + others.length} of its choices without it${PART ? ', and this part runs a share of them' : ''}), each merging back to its patched file`);
 
 // ---- 2. every fix together -------------------------------------------------
 let pinned = null;
-for (const sp of SPELLINGS.map(id => id.replace('spelling-', ''))) {
+if (takeSection()) for (const sp of SPELLINGS.map(id => id.replace('spelling-', ''))) {
   const r = build(every(sp));
   if (!r.ok) { fail('every fix, ' + sp + ' spelling, did not apply: ' + r.why); continue; }
   if (!r.same) fail('every fix, ' + sp + ' spelling: the patch does not merge back');
@@ -147,7 +161,7 @@ if (FULL) {
 }
 
 // ---- the rejections --------------------------------------------------------
-{
+if (takeSection()) {
   const twice = ids => vm.runInContext(`(() => {
     const once = writeDelverArchive(applyDataFixes(__a, ${JSON.stringify(ids)}).spec);
     try { applyDataFixes(once, ${JSON.stringify(ids)}); return null; } catch (e) { return e.message; }
@@ -167,7 +181,7 @@ if (FULL) {
 }
 
 // ---- 5. the places the text's list links to --------------------------------
-{
+if (takeSection()) {
   const r = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     const arc = openDelverArchive(__a), shipped = {};
     const bytes = id => shipped[id] || (shipped[id] = smartDecrypt(getResourceBytes(arc, id), id).data);
@@ -197,7 +211,7 @@ if (FULL) {
 }
 
 // ---- 7. a row of the text's changes left out ------------------------------
-{
+if (takeSection()) {
   const r = JSON.parse(vm.runInContext(`JSON.stringify((() => {
     const has = (done, id, t) => { const d = done.spec.resources.find(x => x.resid === id).data; let s = ''; for (let i = 0; i < d.length; i++) s += String.fromCharCode(d[i]); return s.indexOf(t) >= 0; };
     const ids = ['text', 'text-hyphens'];
@@ -224,7 +238,7 @@ if (FULL) {
 // the page on 1 October 2026, and its check with it) ---------------------------
 
 // ---- 4. the community's list against the collection ------------------------
-if (collDir && existsSync(collDir)) {
+if (!takeSection()) { /* another part runs this one */ } else if (collDir && existsSync(collDir)) {
   const read = readCollection(collDir);
   const baked = JSON.parse(vm.runInContext('JSON.stringify(DATA_FIX_COMMUNITY_TYPOS)', ctx));
   const same = (a, b) => a.length === b.length && a.every((t, i) => JSON.stringify(t) === JSON.stringify(b[i]));

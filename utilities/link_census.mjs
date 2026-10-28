@@ -23,6 +23,7 @@
 import {ctx, peek, REGISTRY, finish, drainRaf, fail as tallyFail} from './smoke_boot.mjs';
 
 const LIST = process.argv.includes('--list');
+const TIMES = process.argv.includes('--times');   // the milliseconds each page took, on stderr, for balancing the parts
 const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
 const grid = () => all(REGISTRY.get('sheetGrid')) + all(REGISTRY.get('textContent') || {children: []});
 
@@ -64,6 +65,22 @@ const queue = SCEN.map(v => ({go: `showCategory('${v}')`}));
   const units = peek('parseMonsterStats()');
   for (let i = 0; i < units.length; i++) queue.push({go: `showMonsterDetail(${i})`, parent: 'MONSTERS'});
 }
+
+/* --part=i/n (after the five positional arguments smoke_boot reads) shares the
+   walk between machines. Every part walks the category pages, which are few and
+   cheap (11 pages, 4.6 of the 59 seconds). The detail pages found on them, and
+   the characters and units that start the walk, are dealt out in turn. A part
+   walks the pages dealt to it and every page reachable from them. Every page
+   that one walk reaches has a first detail page on the way, and that page is
+   dealt to some part, so the parts together reach all the pages. A page
+   reached from two parts is walked by both. A part fails on what it finds, so
+   a finding in any part fails the check. check_all runs the parts as separate
+   checks on separate machines, and --times shows what each page cost. */
+const PART = /^--part=(\d+)\/(\d+)$/.exec(process.argv.find(a => a.startsWith('--part=')) || '');
+const PART_INDEX = PART ? Number(PART[1]) - 1 : 0, PART_COUNT = PART ? Number(PART[2]) : 1;
+let dealt = 0;
+const dealOut = () => dealt++ % PART_COUNT;   // the index of the part that has the next detail page
+if (PART) for (const entry of queue) if (entry.parent) entry.own = dealOut();
 
 function harvest(label) {
   const html = grid();
@@ -108,7 +125,9 @@ const queued = new Set(queue.map(q => q.go));
 const keyOf = js => (/^\s*(?:return\s+)?([A-Za-z_$][\w$]*\s*\(\s*[^,)]*)/.exec(js) || [, js])[1];
 let pages = 0;
 while (queue.length && pages < 4000) {
-  const {go, parent} = queue.shift();
+  const {go, parent, own} = queue.shift();
+  const startedAt = Date.now();
+  if (own !== undefined && own !== PART_INDEX) continue;   // dealt to another part
   if (visited.has(go)) continue;
   visited.add(go);
   // A detail page draws over whatever tab is showing; open its list first,
@@ -130,12 +149,17 @@ while (queue.length && pages < 4000) {
       if (dest && dest.top === 'Components') dest.down = stepsDown(dest);
       if (!isPage) destOf.set(keyOf(l.js), dest);
     }
-    if (isPage && fn !== 'showCategory' && !visited.has(l.js) && !queued.has(l.js)) { queued.add(l.js); queue.push({go: l.js, parent: here}); }
+    if (isPage && fn !== 'showCategory' && !visited.has(l.js) && !queued.has(l.js)) {
+      queued.add(l.js);
+      // A detail page found on a category page is dealt to a part. One found on a detail page stays with the part that is on it.
+      queue.push({go: l.js, parent: here, ...(PART && /^showCategory\(/.test(go) ? {own: dealOut()} : {})});
+    }
     if (dest.top === 'Components' && !dest.down) { const dk = dest.path + '\t' + keyOf(l.js); if (!noStep.has(dk)) noStep.set(dk, `${go}  "${l.text}"  ${l.js}`); }
     const k = `${kindOf(go)}\t${dest.top}\t${dest.path}\t${fn}`;
     tally.set(k, (tally.get(k) || 0) + 1);
     if (!examples.has(k)) examples.set(k, `${go}  "${l.text}"  ${l.js}`);
   }
+  if (TIMES) console.error(`TIME ${String(Date.now() - startedAt).padStart(6)} ms  ${go}${parent ? '  from ' + parent : ''}`);
 }
 
 console.log(`pages walked: ${pages}`);

@@ -7,12 +7,13 @@
 // all six in this process, in order.
 import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsrcPath, rsrcFork, missingIds,
          El, REGISTRY, catSel, optionSource, CATEGORY_VALUES, body, documentStub, rafQueue, drainRaf, sandbox,
-         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally, withoutApp, readoptApp } from './smoke_boot.mjs';
+         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally, withoutApp, readoptApp, blockTaker } from './smoke_boot.mjs';
+const take = blockTaker(import.meta.url);
 
 // Mechanics: two rules read out of the scripts on the spot. The balloon
 // catalogue must find the lines the trace found by hand, and the dice
 // section must state the payout the script pays.
-try {
+if (take()) try {
   // The sheet as a visitor with no application sees it, which the checks
   // below on where its figures come from are written for.
   const html = withoutApp(() => { ctx.showCategory('MECHANICS'); return (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid')); });
@@ -371,7 +372,7 @@ try {
    holding that number, and on nothing when the offset is one the listing
    does not reach (the negative control, without which a ring painted on
    the first line would pass). */
-try {
+if (take()) try {
   const dt = ctx.damageTakers();
   const row = pt => dt.rows.find(r => r.pt === pt) || {};
   const md = row(3), sd = row(10), ch = row(141), cf = row(142), cr = row(67), at = row(317);
@@ -424,7 +425,7 @@ try {
    readers and the sentences against the sheet. The unguent is named on
    purpose: its Examine returns 0 from the same shape as a prompt earlier in
    the resource, and taking the first match dropped the whole script. */
-try {
+if (take()) try {
   const tg = ctx.targetRules(), tn = ctx.terrainRules(), wt = ctx.springRules();
   const cures = ctx.chanceCures(), grants = ctx.grantRules(), bl = ctx.blastRules();
   ctx.showCategory('MECHANICS');
@@ -463,7 +464,7 @@ try {
    position, the lines that name the informant instead of the errand, and
    the single line composed from a quest value, which is the only way the
    ten counting lines are reached at all. */
-try {
+if (take()) try {
   const td = ctx.todoRules(), eg = ctx.eggKinds();
   ctx.showCategory('MECHANICS');
   const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
@@ -504,7 +505,7 @@ try {
    reading's, arrived at independently of this code: 327 held records across
    311 of the archive's 312 kind-0 eggs. A count is the control; "the table
    is present" would pass on an empty one. */
-try {
+if (take()) try {
   const eg = ctx.eggKinds();
   ctx.showCategory('MECHANICS');
   const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
@@ -540,7 +541,7 @@ try {
    the offset yields text that is long, plausible and missing its first
    character, which is how a wrong reader survives a glance. Both the whole
    string and the truncation are pinned. */
-try {
+if (take()) try {
   const lib = ctx.libraryRules(), le = ctx.looseEnds(), pz = ctx.puzzleRules();
   const walkGrid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   ctx.showCategory('MECHANICS');
@@ -748,7 +749,7 @@ try {
    pinned, and each press sequence the reader worked out is played back
    here through the tables it read: a sequence that does not end on its
    pattern means the rule or the search is wrong, whichever made it. */
-try {
+if (take()) try {
   const td = ctx.thinkADotRules();
   const replay = (ps) => { let st = td.start.slice(); for (const c of ps) { for (let p = c, n = 0; p !== null && p !== undefined && n < 16; n++) { st[p] ^= 1; p = st[p] ? td.lit.v[p] : td.dark.v[p]; } } return st.join(''); };
   ctx.showCategory('MECHANICS');
@@ -781,7 +782,7 @@ try {
    returns an object with no getPropertyValue, which is what an old browser
    does too, and a canvas label is drawn from a paint loop, so an unguarded
    read there brings the whole map down rather than one label. */
-try {
+if (take()) try {
   const stacks = peek('FACE_STACKS');
   const was = ctx.GAME_FONT;
   ctx.GAME_FONT = null;
@@ -820,7 +821,7 @@ try {
    renderMapUncached is what is counted, because a cache hit calls
    mapRenderFor too and only the miss is expensive. The control is the job
    at rest: without it the wrappers could be intercepting nothing. */
-try {
+if (take()) try {
   ctx.showCategory('WORLD');
   const av = peek('atlasView');
   const cache = peek('zoneMapCache');
@@ -1011,7 +1012,7 @@ try {
    draws nothing until it is turned on and something afterwards, on a map
    that has rooms -- Land King Hall has 23. Without the "before" half this
    would pass on a mark that drew unconditionally. */
-try {
+if (take()) try {
   const marks = peek('MAP_MARKS');
   const before = { ...marks };
   if (marks.rooms !== false) fail('rooms mark', 'the rooms mark is on by default: ' + JSON.stringify(marks));
@@ -1057,7 +1058,7 @@ try {
    have chosen that somebody by itself: MAP_MARKS persists across maps, so a
    picker left naming a character from another zone would draw a day that
    does not belong to the map under it. */
-try {
+if (take()) try {
   const marks = peek('MAP_MARKS');
   const before = { ...marks };
   if (marks.path !== false) fail('path mark', 'the path mark is on by default: ' + JSON.stringify(marks));
@@ -1105,7 +1106,7 @@ try {
    would still draw a plausible path, and dropping the rail would still draw
    a path -- just the unreadable one this replaced. The control is that the
    colours are DISTINCT, not merely present. */
-try {
+if (take()) try {
   const marks = peek('MAP_MARKS');
   const before = { ...marks };
   ctx.showCategory('127');
@@ -1154,7 +1155,7 @@ try {
    a COUNT across the archive, against the figures measured when it was
    written: 28 zones name a strip, 14 use one of the engine's backdrops, and
    none lack the call. A presence test would pass on one chip. */
-try {
+if (take()) try {
   let strip = 0, engine = 0, none = 0;
   for (let lvl = 0; lvl < 0x100; lvl++) {
     if (!ctx.refExists(0x8000 + lvl)) continue;
@@ -1185,7 +1186,7 @@ try {
    which tiles let them through: an ethereal void tile, and not Nothing,
    whose pixels are all transparent and which the old rule let through.
    Odemia, which has no such egg, is the control. */
-try {
+if (take()) try {
   const sw = ctx.zoneBackdrop(3) || [];
   const pics = [...new Set(sw.map(b => b.resid))].sort().join();
   if (sw.length !== 12) fail('void pictures', 'Land King Hall has ' + sw.length + ' pictures behind its void, where its list has 12 eggs of kind 10');
@@ -1209,7 +1210,7 @@ try {
    endpoints under two different blocker sets must not be answered with the
    same array. On the old key they were the identical object, which is what
    makes this a real negative control rather than a restatement. */
-try {
+if (take()) try {
   ctx.showCategory('127');
   ctx.openResource(0x8003); drainRaf();
   const m = (ctx.CUR_MAP || {}).m;
@@ -1242,7 +1243,7 @@ try {
    Student group itself has a topic reading "Protesilaus is another student".
    If that ever stops being true, something real changed and a person should
    look, so it fails here rather than passing. */
-try {
+if (take()) try {
   const cv = ctx.convRules();
   const real = cv.groups.filter(g => g.kind === 'group');
   const topics = cv.chars.reduce((n, c) => n + c.topics, 0);
@@ -1292,7 +1293,7 @@ try {
    so this requires the wholly-structural ranges to stay OUT of it. Without
    that control the card would quietly become a list of several hundred
    "uncalled" scripts, all of which run. */
-try {
+if (take()) try {
   const ln = ctx.leanRules();
   ctx.showCategory('MECHANICS');
   const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
@@ -1320,7 +1321,7 @@ try {
    entry copied back in shows up as one the file matches; and the rule
    models take the numbers they are handed, so a default restored in
    js/delv-mechanics.js shows up as a figure where there was no input. */
-try {
+if (take()) try {
   ctx.showCategory('MECHANICS');
   const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   /* A spell's cost is on the Spells sheet since 13 September 2026, so that
@@ -1369,7 +1370,7 @@ try {
    mystery answered by its list), and the nothing map's heap arithmetic
    off 0x8000 -- with the negative control the workbench ran, the same test
    on Land King Hall finding no header at all. */
-try {
+if (take()) try {
   const cheatsHtml = withoutApp(() => ctx.showCategory('CHEATS') ? (REGISTRY.get('sheetGrid').innerHTML || '') : null);
   if (cheatsHtml === null) fail('cheats', 'the Cheats tab did not open');
   else {
@@ -1427,7 +1428,7 @@ try {
    this checks is the half that one cannot: that the fallback reaches the
    visitor -- the switches render, the file builds, and the section shows the
    numbers are the shipped ones rather than the open copy's. */
-try {
+if (take()) try {
   const grid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const [tools, L, built, onTools, tab] = withoutApp(() => {
     ctx.showCategory('TOOLS');
@@ -1463,7 +1464,7 @@ try {
    Run last, since the lists are made as the sheets above are drawn. The
    control is the floor on how many were compared: a run that drew no sheet
    would compare none and pass. */
-try {
+if (take()) try {
   const lists = (ctx.COUNT_LISTS || []).filter(c => /^The \d/.test(c.title) && !/, by [a-z]+$/.test(c.title));
   const off = lists.filter(c => parseInt(c.title.slice(4).replace(/,/g, ''), 10) !== c.chips.length);
   if (lists.length < 20) fail('count lists', 'only ' + lists.length + ' counted lists were made, so the sheets that make them were not drawn');
@@ -1479,7 +1480,7 @@ try {
    the one thing the page must not print; the control is a file a byte
    short, on which the reader must fail where a loose one would read a name
    out of anything. */
-try {
+if (take()) try {
   const grid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   ctx.showCategory('LICENSE');
   const sheet = grid();
@@ -1506,7 +1507,7 @@ try {
    resources a new game's has, and the hero with the stats asked for and
    the sprite of the branch chosen. The control is the other sprite: a
    builder that ignored the choice would give both files the same hero. */
-try {
+if (take()) try {
   const cr = ctx.heroCreationRules();
   const a = ctx.newGameSaveBytes({ name: 'NewGame01', sprite: 0, body: 21, reflex: 14, mind: 9, level: 3 });
   const b = ctx.newGameSaveBytes({ name: 'NewGame01', sprite: 1 });
@@ -1652,7 +1653,7 @@ try {
    leave 0x1801 as the scenario has it: a cut that fired whatever was asked
    would fail there. A hero outside the zone and a name the listing cannot
    hold must be rejected. */
-try {
+if (take()) try {
   const d = ctx.scenarioMakerDefaults();
   const answerText = { name: 'Empty Field', width: 24, height: 20, x: 10, y: 12 };
   const made = ctx.newScenarioBytes(answerText), kept = ctx.newScenarioBytes(Object.assign({ opening: true }, answerText));
@@ -1754,7 +1755,7 @@ try {
    keep to the ramps; and a tile drawn twice must come out the same, since
    the drawing is seeded by numbers and not by chance. The control is the
    bad set under the same tests, which must fail the hero's. */
-try {
+if (take()) try {
   const answerText = { name: 'Fine Field', width: 24, height: 20, x: 10, y: 12 }, d = ctx.scenarioMakerDefaults();
   const plain = new Uint8Array(ctx.newScenarioBytes(answerText)), pspec = ctx.delverArchiveSpec(plain), parc = ctx.openDelverArchive(plain);
   const fine = new Uint8Array(ctx.newScenarioBytes(Object.assign({ badArt: true, fine: true }, answerText))), fspec = ctx.delverArchiveSpec(fine), farc = ctx.openDelverArchive(fine);
@@ -1800,7 +1801,7 @@ try {
    must keep the people he placed, each in the zone with a conversation,
    and nobody else. A JSON file that is not a map must be rejected. Skips
    with a line when the sample is not on the disk. */
-try {
+if (take()) try {
   const sample = 'reference/community/editors/Manborough/mygreatscenario.zip';
   if (!existsSync(sample)) console.log('  manborough: the sample export is not at ' + sample + ', so the import was not tried');
   else {
@@ -1847,7 +1848,7 @@ try {
    sets its flag 0 must show it with a link, a character whose script
    never mentions flag 0 must say nothing, and a flag of byte 26 must name
    its spell on any record. */
-try {
+if (take()) try {
   const cf = ctx.characterFlagSites().flags, f0 = cf.find(x => x.flag === 0);
   const own = f0 ? f0.set.map(s => s.resid - 0x1800).find(i => i > 1 && i < 256 && ctx.loadCharacterTable()[i]) : undefined;
   const touched = new Set(f0 ? [...f0.set, ...f0.clear, ...f0.test, ...f0.effect].flatMap(s => [s.resid - 0x1800, s.character]) : []);
