@@ -124,6 +124,23 @@ have failed, because `git show <ref>:index.html` returns 1.4 MB and Node's
 default pipe buffer is 1 MB; the `maxBuffer` and the failure-rather-than-skip
 in that file are both from that hour.
 
+**Fronts landing together do not stop on the number.** Two fronts that start
+from one version both bump the line, so the second conflicts on it, or merges
+cleanly to a number that two commits share, and `version_check.mjs` fails the
+second because the number has to exceed the deployed one. On 28 October 2026
+sessions landing together changed the number by hand and landed again.
+`.gitattributes` sends `index.html` to the merge driver
+`utilities/version_merge.mjs`, which applies the bump a commit made to the
+number already on main. When the commit moved the middle number, main's middle
+number goes up by one and the last number goes to zero. When it moved the last
+number, main's last number goes up by one. A commit that did not move the number
+leaves main's, and a conflict that is more than the version line stays a
+conflict. `.merge-drivers` is the file `tools/front.sh` reads to register the
+driver in the repository's git configuration, in `new` and again in `land`.
+`utilities/version_merge_check.mjs` rebases real commits with the driver on
+scratch repositories and fails when the number is wrong. Its control, without
+the driver, has to end on main's number.
+
 ### Working beside the forks, in full
 
 
@@ -371,7 +388,20 @@ node utilities/check_all.mjs            # everything, one table, about 80 second
 node utilities/check_all.mjs --quick    # skip the slow browser-ish smokes
 node utilities/check_all.mjs viewer     # the one page there is
 CHECK_JOBS=1 node utilities/check_all.mjs   # one check at a time, as before 18 September 2026
+CHECK_SHARD=2/3 node utilities/check_all.mjs   # the second of three shares of the checks
+node utilities/check_all.mjs --shard-plan=3    # which check is in which share
 ```
+
+GitHub runs the suite as three shares on three machines at the same time
+(`.github/workflows/checks.yml`), which cut a run from about 363 seconds, 312
+of them `check_all`, to the longest check plus the setup. A check goes to the
+share with the least weight so far, heaviest first, by the seconds in
+`utilities/check_weights.json`, taken from a run on GitHub (28 October 2026),
+and a check that is not in the file counts as three seconds. A check named in
+another's `after` runs in the share of each check that names it. The longest
+check sets the floor, `scenario links` at 150 seconds, so more than three
+shares would not shorten a run until that check is split. Refresh the weights
+from a run's log when the times move.
 
 `check_all.mjs` is the entry point: it does the setup (extracting data and
 resource forks from `reference/game/Cythera Data.hqx` and `.../Cythera.hqx`

@@ -6,6 +6,17 @@
 //   node utilities/check_all.mjs viewer      (one page: viewer | browser | mobile)
 //   node utilities/check_all.mjs 'in the game'   (one check by its name, its whole output after the table)
 //   CHECK_JOBS=1 node utilities/check_all.mjs   (one at a time, as it ran until 18 September 2026)
+//   CHECK_SHARD=2/3 node utilities/check_all.mjs   (the second of three shares of the checks)
+//   node utilities/check_all.mjs --shard-plan=3    (which check goes in which share, and the weights)
+//
+// Shares let GitHub run the suite on several machines at the same time. Each
+// check goes to the share with the least weight so far, heaviest first, by the
+// seconds in check_weights.json (taken from a run on GitHub, and a check
+// missing from it counts as three seconds). A check named in another's `after`
+// runs in the share of every check that names it, since each machine unpacks
+// for itself. The longest check sets the floor, because no number of shares
+// brings the run below it. On 28 October 2026 that was `scenario links`, at
+// 150 seconds.
 //
 // The checks run several at a time, up to CHECK_JOBS of them (four unless
 // set otherwise: each is a Node process holding the whole page, and this
@@ -24,7 +35,7 @@
 // before most checks can run, and that is the step most likely to be forgotten.
 
 import {execFile, execFileSync, execSync} from 'node:child_process';
-import {existsSync, mkdirSync, readdirSync, writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {availableParallelism} from 'node:os';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -547,6 +558,13 @@ const CHECKS = [
   {page: 'viewer', name: 'version',
    cmd: ['utilities/version_check.mjs', 'index.html'],
    grep: /version [\d.]+[^\n]*/},
+  /* The merge rule for the version line (version_merge.mjs), run through real
+     rebases on scratch repositories. It fails when the version after a rebase
+     is not main's with the front's bump added, and its control, with no
+     driver registered, has to end on main's number. */
+  {page: 'viewer', name: 'version merge',
+   cmd: ['utilities/version_merge_check.mjs'],
+   grep: /version merge [^\n]*/},
   /* The page in a real browser, over HTTP on a loopback port: index.html
      loads with no console error and the last script ran (a load-order fault
      is what stops it, and the node:vm harnesses run the scripts as one
@@ -685,8 +703,51 @@ await ensureForks();
    list out of this file by hand, which the game check's eight arguments made
    a chore. Named alone, the check's whole output is printed under the table,
    since the row shows one line of it. */
+// A share of the checks, for CHECK_SHARD=i/n and --shard-plan=n.
+function planShards(count) {
+  const weights = JSON.parse(readFileSync(resolve(HERE, 'check_weights.json'), 'utf8'));
+  const weight = check => weights[check.name] ?? 3;
+  const load = new Array(count).fill(0), shardOf = new Map();
+  const heaviestFirst = [...CHECKS].sort((a, b) => weight(b) - weight(a) || CHECKS.indexOf(a) - CHECKS.indexOf(b));
+  for (const check of heaviestFirst) {
+    let lightest = 0;
+    for (let j = 1; j < count; j++) if (load[j] < load[lightest]) lightest = j;
+    shardOf.set(check.name, lightest);
+    load[lightest] += weight(check);
+  }
+  const shares = Array.from({length: count}, () => new Set());
+  const add = (index, name) => {
+    if (shares[index].has(name)) return;
+    shares[index].add(name);
+    for (const before of CHECKS.find(c => c.name === name)?.after || []) add(index, before);
+  };
+  for (const check of CHECKS) add(shardOf.get(check.name), check.name);
+  return {shares, weight};
+}
+const planArg = args.find(a => a.startsWith('--shard-plan='));
+if (planArg) {
+  const {shares, weight} = planShards(Number(planArg.split('=')[1]));
+  shares.forEach((share, i) => {
+    const total = [...share].reduce((sum, name) => sum + weight(CHECKS.find(c => c.name === name)), 0);
+    writeLine(`  share ${i + 1} has ${share.size} checks and ${total} s of work (${[...share].join(', ')})`);
+  });
+  const covered = new Set(shares.flatMap(s => [...s]));
+  const missing = CHECKS.filter(c => !covered.has(c.name));
+  writeLine(missing.length ? `  No share has ${missing.map(c => c.name).join(', ')}.` : `  Every one of the ${CHECKS.length} checks is in a share.`);
+  process.exit(missing.length ? 1 : 0);
+}
+const shardArg = (process.env.CHECK_SHARD || '').match(/^(\d+)\/(\d+)$/);
+let inShard = () => true;
+if (process.env.CHECK_SHARD && (!shardArg || +shardArg[1] < 1 || +shardArg[1] > +shardArg[2])) {
+  writeLine(`  CHECK_SHARD is "${process.env.CHECK_SHARD}" and has to be i/n, with i from 1 to n.`);
+  process.exit(1);
+}
+if (shardArg) {
+  const share = planShards(+shardArg[2]).shares[+shardArg[1] - 1];
+  inShard = check => share.has(check.name);
+}
 const byName = only && CHECKS.some(c => c.name === only);
-const chosen = check => !only || (byName ? check.name === only : check.page === only);
+const chosen = check => inShard(check) && (!only || (byName ? check.name === only : check.page === only));
 // A name that matches nothing once ran nothing and print "A clean run is
 // 0 ok", which reads as a pass.
 if (!CHECKS.some(chosen)) {
@@ -836,7 +897,8 @@ writeLine(`\n  ${ran} checks run, ${failed} failed, ${skipped} skipped, ${wall}s
 // instruction in the handoff was to stop correcting the prose and have the
 // suite say the sentence instead. This is that sentence: paste it in when it
 // changes, rather than counting the checks by hand.
-if (!failed && !skipped && !only)
+if (shardArg) writeLine(`  This was share ${shardArg[1]} of ${shardArg[2]}, and the other shares hold the rest of the checks.`);
+else if (!failed && !skipped && !only)
   writeLine(`  A clean run is ${ran} ok, 0 failed, 0 skipped.`);
 if (byName) {
   const i = CHECKS.findIndex(c => c.name === only);

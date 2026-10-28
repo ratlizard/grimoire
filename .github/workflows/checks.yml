@@ -17,7 +17,16 @@ on:
   workflow_dispatch:
 
 jobs:
+  # The suite runs as three shares on three machines at the same time, which
+  # cut a run from about six minutes to the longest check plus the setup
+  # (check_all.mjs, CHECK_SHARD and check_weights.json). A share that fails
+  # leaves the others running, so one run reports every failure.
   check_all:
+    name: check_all (share ${{ matrix.share }} of 3)
+    strategy:
+      fail-fast: false
+      matrix:
+        share: [1, 2, 3]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -106,11 +115,11 @@ jobs:
         shell: bash
         run: |
           set +e
-          node utilities/check_all.mjs | tee "$TMPDIR/table.txt"
+          CHECK_SHARD=${{ matrix.share }}/3 node utilities/check_all.mjs | tee "$TMPDIR/table.txt"
           status=${PIPESTATUS[0]}
           grep -E '^  FAIL  ' "$TMPDIR/table.txt" | sed -E 's/^  FAIL  (.*)  \([0-9.]+s\)$/\1/' | while read -r name; do
             echo "::group::$name, run alone"
-            node utilities/check_all.mjs "$name" | tail -80
+            CHECK_SHARD= node utilities/check_all.mjs "$name" | tail -80
             echo "::endgroup::"
           done
           exit $status
