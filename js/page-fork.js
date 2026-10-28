@@ -1439,6 +1439,26 @@ function renderMacRsrcSheet() {
         rid.className = 'resid';
         rid.textContent = it.type + ' ' + it.entry.id;
         cell.appendChild(rid);
+        if (it.type === 'snd ') {
+          // The archive's sound tile (miniWaveCanvas), so the SFX tab's two
+          // halves look the same: the waveform, the name, the id, the size.
+          const wave = miniWaveCanvas();
+          cell.style.justifyContent = 'center';
+          cell.replaceChild(wave, imgwrap);
+          const meta = document.createElement('div');
+          meta.className = 'listMeta';
+          meta.textContent = fmtBytes(fork.sizeOf(it.type, it.entry));
+          cell.appendChild(meta);
+          lazyTile(cell, () => {
+            const a = rsrcArtifacts(fork, it.type, it.entry).find(x => x.ext === 'wav');
+            if (a) a.blob.arrayBuffer().then(buf => drawMiniWave(wave, wavFirstChannel(new DataView(buf))))
+              .catch(e => quiet(e, 'drawing a sound resource’s waveform'));
+          });
+          cell.title = 'Open ' + it.type + ' ' + it.entry.id;
+          cell.onclick = () => showMacRsrcDetail(it.type, it.entry.id, src);
+          grid.appendChild(cell);
+          continue;
+        }
         lazyTile(cell, () => {
           const arts = rsrcArtifacts(fork, it.type, it.entry);
           const pic = arts.find(a => a.canvas && a.canvas.width);

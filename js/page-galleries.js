@@ -1224,11 +1224,10 @@ function renderContactSheet() {
       const cell = document.createElement('div');
       cell.className = 'cell';
       cell.style.justifyContent = 'center';
-      const miniWave = document.createElement('canvas');
-      miniWave.width=160; miniWave.height=46; miniWave.style.cssText='width:84px;height:38px;background:#090806;border:1px solid #9b8850;margin-bottom:4px';
+      const miniWave = miniWaveCanvas();
       // Decoding 46 sounds to draw 46 waveforms was the slowest gallery here.
       lazyTile(cell, () => {
-      try { const snd=decodeSound(ARCHIVE.bytes.slice(roff,roff+rlen)); const c=miniWave.getContext('2d'), s=snd.samples, w=miniWave.width,h=miniWave.height,mid=h/2, step=Math.max(1,Math.ceil(s.length/w)); c.strokeStyle='#f9f86f'; c.beginPath(); for(let x=0;x<w;x++){let lo=32767,hi=-32768;for(let j=x*step;j<Math.min(s.length,(x+1)*step);j++){if(s[j]<lo)lo=s[j];if(s[j]>hi)hi=s[j];}c.moveTo(x,mid-hi/32768*(mid-2));c.lineTo(x,mid-lo/32768*(mid-2));}c.stroke(); } catch (e) { quiet(e); }
+        try { drawMiniWave(miniWave, decodeSound(ARCHIVE.bytes.slice(roff, roff + rlen)).samples); } catch (e) { quiet(e); }
       });
       cell.appendChild(miniWave);
       const lbl = labelFor(resid);

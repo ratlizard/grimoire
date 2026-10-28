@@ -629,6 +629,27 @@ function wavFirstChannel(view) {
   return out;
 }
 
+// A sound's tile in a gallery: the waveform at thumbnail size. The SFX tab
+// shows the data file's sounds and the program's side by side, so both
+// galleries draw their tiles here and the two look the same.
+function miniWaveCanvas() {
+  const c = document.createElement('canvas');
+  c.width = 160; c.height = 46;
+  c.style.cssText = 'width:84px;height:38px;background:#090806;border:1px solid #9b8850;margin-bottom:4px';
+  return c;
+}
+function drawMiniWave(canvas, s) {
+  const c = canvas.getContext('2d'), w = canvas.width, h = canvas.height, mid = h / 2;
+  const step = Math.max(1, Math.ceil(s.length / w));
+  c.strokeStyle = '#f9f86f'; c.beginPath();
+  for (let x = 0; x < w; x++) {
+    let lo = 32767, hi = -32768;
+    for (let j = x * step; j < Math.min(s.length, (x + 1) * step); j++) { if (s[j] < lo) lo = s[j]; if (s[j] > hi) hi = s[j]; }
+    c.moveTo(x, mid - hi / 32768 * (mid - 2)); c.lineTo(x, mid - lo / 32768 * (mid - 2));
+  }
+  c.stroke();
+}
+
 function renderSound() {
   const out = document.getElementById('output');
   const sel = document.getElementById('residSelect');
