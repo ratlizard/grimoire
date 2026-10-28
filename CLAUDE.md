@@ -429,7 +429,12 @@ them*, says which, and what `utilities/addons_check.mjs` proves with them.
   his server sends the header — see the per-page notes), both tried after
   the relative paths under `reference/` and before giving up. The rest is
   the path that always worked: an IndexedDB copy of whatever last opened, a
-  file dropped or picked anywhere on the page, or `?src=<url>`.
+  file dropped or picked anywhere on the page, or `?src=<url>`. Two more
+  fetches happen only when the visitor turns them on. Search by meaning
+  loads its library (jsDelivr) and model (Hugging Face) with `import()`
+  when its switch is turned on (`MEANING_LIB` in `js/page-search.js`), and
+  File Comparison downloads the releases when none is open
+  (`compareFetchReleases`).
 - The archives are `reference/game/Cythera Data.hqx` and `Cythera.hqx`, both BinHex,
   both carrying two forks. There is no bare data fork in the repository any
   more; `check_all.mjs` extracts one into `$TMPDIR` because the harnesses want
