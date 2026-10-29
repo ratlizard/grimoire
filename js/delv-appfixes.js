@@ -391,6 +391,17 @@ const APP_FIXES = [
            'lhax 24, 1, 3', 'addi 3, 3, 2', 'lhax 28, 1, 3', 'b @check',
            'wrap:', 'lha 28, 128(1)', 'add 24, 24, 22', 'done:', 'b @0x3EF54'] },
 
+  // TGameViewer::MagicMap, the overload the automap draws with, paints a
+  // thing on the map over the squares its picture spans. It sets one extent
+  // from the tile flag 0x80, two squares wide, and another from 0x40, two
+  // tall, and swaps them for a turned thing. The column loop reads the first
+  // at 120(1), and the row loop read the same one, so a wide thing painted a
+  // 2-by-2 block and a tall one a single square. The row loop reads the
+  // second, at 118(1).
+  { id: 'automap-span', kind: 'fix', title: 'Things two squares wide or tall show on the automap in their true shape',
+    bug: 'On the automap a thing two squares wide shows as a 2-by-2 block, and one two squares tall as one square',
+    sites: [{ at: 0x61084, was: [0xA8010078], asm: ['lha 0, 118(1)         ; was lha 0, 120(1): the rows’ extent'] }] },
+
   // TCachedSegFiles::RemoveFile skipped an entry of the removed archive that
   // had no cached copy, so opening another saved game during play left it on
   // the freed archive. The branch goes to the clearing instead of past it.
@@ -1039,7 +1050,7 @@ const APP_FIX_GROUP = {
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
-  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'conv-field': 'interface',
+  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'conv-field': 'interface', 'automap-span': 'interface',
   'menu-scroll': 'talk', 'menu-items': 'talk', 'afternoon': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
 };
 function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }

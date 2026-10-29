@@ -62,6 +62,7 @@ const APP_FIXES_68K = {
     { fix: 'ai-import', seg: 1, at: 0x1E416, was: '7000600270014a006706297234040004', now: '600e4e71297234040004600c4e714e71' },  // bra.b $1e426; nop; move.l $4(a2, d3.w), $4(a4); bra.b $1e42e; nop; nop
     { fix: 'open-during-play', seg: 1, at: 0x1E52E, was: '4a926718', now: '42aa0004' },  // clr.l $4(a2)
     { fix: 'afternoon', seg: 3, at: 0x7DE0, was: '7006', now: '7012' },  // moveq #$12, d0
+    { fix: 'automap-span', seg: 6, at: 0x4746, was: '302effdc', now: '302effd2' },  // move.w -$2e(a6), d0
     { fix: 'spot-tune', seg: 1, at: 0x6A56, was: '6718', now: '6746' },  // beq.b $6a9e
   ],
   caves: [
@@ -668,6 +669,7 @@ const APP_FIXES_68K = {
     'ai-import': '0b6af25daf450d9a49038b07ee53254d29167f84921499a36828340d7f224743',
     'ai-token': '94a3609049098a79d2b9887911a7e3fb51f2ef1ba72c78fef1674e340ff0e40c',
     'ai-weight': 'ccff1067f7fdac49d602e220d6ad0865e7b9d181f7e8205acb55db8c865126d2',
+    'automap-span': '01f6298c3671f13e197176d134b40566246f9ee0be58b51db4c992d40f25fd63',
     'books-window': '207b3c02cdf3210a790655b10b292f6af82a2758492771c8b8e1a0d9abc58840',
     'containers-weight': '75a358199feb783bfbc9dc5bfc27a3a330321f6bd0bacb341f4e03f13790c5db',
     'conv-field': '3daaf130078a4c59013acaafb2ccfc1794172fdda89a28803ba4b2dddd3dd252',
@@ -712,6 +714,6 @@ const APP_FIXES_68K = {
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
     'window-leak': 'dafe456d790ddd4a39e181449b5724a0e0e3c2c8a8d1e33e032659968fcfa214',
-    '': 'b989e0151daceffc1c80cea434c43aed9680bdbf25f6ab588665562e27cc0ce4',   // every fix
+    '': 'de2bfa0a20ec25311491cb36129ece30868d4f008b426c0a9ef90eef7f45c729',   // every fix
   },
 };
