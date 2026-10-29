@@ -1068,7 +1068,12 @@ const DATA_FIXES = [
   // was never published and he called PickLock directly -- but the cause,
   // found in the scripts afterwards: the task scripts cast their item argument into a local and
   // then send the method to the argument, a bare number, which the
-  // interpreter ignores. Each sends it to the local.
+  // interpreter ignores. Each sends it to the local. The Use task, 0x0C4E,
+  // is queued by the blacksmiths' tasker (0x0C86, Milcom and Thoas) with the
+  // thing whose name slot is 6 or 8, the bellows in each forge; with the fix
+  // the bellows' Use runs there when the tasker's `random 0, 4` gives 1, its sound, its frames and
+  // the fire-pit's red glow, its line printed only for the hero (untested).
+  // Nothing queues UseAt, 0x0C50.
   { id: 'aethon-locks', group: 'rules', stage: 'bugfix', title: 'Aethon now picks a lock when told to, instead of ignoring the order',
     played: 'fork, 3 October 2026: Aethon in the party with his lock picks, Pick Lock from his Do menu on a locked oak door, "Work the Lock!" then "It is now unlocked" and the door saved unlocked, against "Work the Lock!" and the door still locked unpatched; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: Pick Lock from Aethon’s Do menu on a locked oak door, his balloon "Work the Lock!", "The lockpick broke." and on the second try "It is now unlocked", against the balloon and the door saved locked unpatched',
     edits: [[0x0C4E, 'Use'], [0x0C4F, 'UseOn'], [0x0C50, 'UseAt']].map(([resid, m]) => ({
@@ -1510,6 +1515,13 @@ const DATA_FIXES = [
   { id: 'demodocus-song', group: 'talk', stage: 'further', title: 'Demodocus now sings you his song if you ask (nicely)',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "hear" to Demodocus in Land King Hall, "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched; "song" sings on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched',
     plan: (s) => ({ edits: [dataFixRekey(s, 'Demodocus’s song on "hear"', 0x186D, 'song,meti', 'song,hear')] }) },
+  // A highlighted word nobody answers (Loose ends): Ake's "I buy my thread
+  // directly from @Hebe" (0x1820). Neither Ake's script nor any group it
+  // uses has an answer to "hebe", so the reply draws her catch-all line;
+  // Antenor's is the only "hebe" answer in the game. The @ goes and the
+  // name's letters stay.
+  { id: 'ake-hebe', group: 'talk', stage: 'further', title: 'Ake no longer highlights “Hebe”, a name she has no answer for',
+    plan: () => ({ textEdits: [dataFixT('Ake on Hebe', 0x1820, 'directly from @Hebe.', 'directly from Hebe.', 1)] }) },
   // Glaucus's "North Shore @Vineyard" and the family group's answer are
   // keyed "viny", which "vineyard" can never match; "vine".
   { id: 'glaucus-vineyard', group: 'talk', stage: 'further', title: 'Glaucus the vintner and his family now answer when asked about \u201cvineyard\u201d',

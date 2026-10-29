@@ -3431,8 +3431,11 @@ function askedOfNobody() {
    Atussa group (0x0807) after "atus". The wishing fountain (0x1036) does it
    after each of its four wishes, so every wish is followed at once by "Your
    wish is found elsewhere...", which the board lists among the lines that
-   flash past. Magpie's "baho" and "jhia" do it too, inside the block his
-   flag 1 guards, which nothing reaches.
+   flash past. Not listed: an answer whose chain, when the reply matches no
+   further keyword, comes through branches to `exit` and so waits for the
+   next reply. Magpie's "baho" and "jhia" (0x1803) are such answers, inside
+   the block his flag 1 guards: the chain ends at "jinr", which jumps to the
+   prompt, and his catch-all line is never reached.
 
    A yes-or-no answer runs on by design as a rule ("y" falls through to the
    "n" test, and in the bartenders' dice game, 0x0812, "y" runs on into the
@@ -3474,6 +3477,19 @@ function answersThatRunOn() {
       }
       return null;
     };
+    // Whether a reply that matches no further keyword comes, through
+    // branches alone, to `exit`, the wait for the next reply, so that
+    // nothing follows the answer.
+    const toPrompt = (k, kw) => {
+      for (let steps = 0; k !== undefined && k < ops.length && steps < 256; steps++) {
+        const n = RESP.exec(ops[k].text), b = /^branch 0x([0-9A-F]+)$/i.exec(ops[k].text);
+        if (ops[k].text === 'exit') return true;
+        if (n && !n[1].split(',').some(x => x === '*' || x === kw)) k = index.get(parseInt(n[2], 16));
+        else if (b) k = index.get(parseInt(b[1], 16));
+        else return false;
+      }
+      return false;
+    };
     for (let i = 0; i < ops.length; i++) {
       const m = RESP.exec(ops[i].text);
       if (!m) continue;
@@ -3489,6 +3505,7 @@ function answersThatRunOn() {
       let then = null;
       for (const kw of m[1].split(',')) if ((then = answerFor(j, kw))) break;
       if (!then && (m[1] === 'y' || m[1] === 'n' || !/^string/.test(ops[j - 1].text))) continue;
+      if (!then && m[1].split(',').every(kw => toPrompt(j, kw))) continue;
       out.push({ resid: e.resid, at: ops[i].at, list: m[1], then });
     }
   }

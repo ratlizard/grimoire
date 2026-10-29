@@ -4717,7 +4717,14 @@ function renderMechanicsSheet(value) {
     const slots = new Map();
     for (const a of td2.adds) { if (!slots.has(a.slot.v)) slots.set(a.slot.v, { adds: [], dones: [] }); slots.get(a.slot.v).adds.push(a); }
     for (const d of td2.dones) { if (!slots.has(d.slot.v)) slots.set(d.slot.v, { adds: [], dones: [] }); slots.get(d.slot.v).dones.push(d); }
-    const never = [...slots.keys()].filter(s => slots.get(s).adds.length && !slots.get(s).dones.length).sort((a, b) => a - b);
+    /* "Negotiate Wine Contract" stays on the list by design: the
+       maintainer, 28 October 2026, "it's official that nothing strikes off
+       the wine contract, this is not an error by the developer". Matched
+       by the line's words, which are the game's. The To Do List section
+       above still counts it among the lines nothing strikes off. */
+    const BY_DESIGN = new Set(['Negotiate Wine Contract']);
+    const never = [...slots.keys()].filter(s => slots.get(s).adds.length && !slots.get(s).dones.length &&
+      !(td2.lines && BY_DESIGN.has(td2.lines.get(s)))).sort((a, b) => a - b);
     const wrongLine = td2.adds.filter(a => !a.state && a.line.v !== a.slot.v);
     const rows = [];
     /* Every row shows where it came from the same way, through one cell.

@@ -675,22 +675,96 @@ function setSearchMeaning(on) {
   if (box) box.checked = !!on;
   drawSearchResults();
 }
+/* The model runs in a worker, so its start (some seconds of compiling after
+   the download reaches 100 percent, which held the page still) and each
+   batch of pieces leave the page free to scroll and click. The worker is a
+   module made from MEANING_WORKER as a blob, which the page's scripts can
+   start while staying classic. Where a browser has no module workers, or
+   the library fails to load inside one (a page opened from file:// in some
+   browsers), the model runs on the page instead. */
+const MEANING_WORKER = `
+let ready = null;
+const load = m => ready || (ready = import(m.lib).then(T => {
+  T.env.allowLocalModels = false;
+  return T.pipeline('feature-extraction', m.model, { dtype: 'q8', progress_callback: p => {
+    if (p && p.status === 'progress' && p.total) self.postMessage({ progress: p.loaded / p.total });
+  } });
+}));
+self.onmessage = async e => {
+  const m = e.data;
+  try {
+    const ex = await load(m);
+    if (!m.texts) { self.postMessage({ id: m.id, ready: true }); return; }
+    const out = await ex(m.texts, { pooling: 'mean', normalize: true });
+    const data = new Float32Array(out.data);
+    self.postMessage({ id: m.id, data }, [data.buffer]);
+  } catch (err) { ready = null; self.postMessage({ id: m.id, error: String((err && err.message) || err) }); }
+};`;
+// The download's figure, then a line for the start that follows it.
+function meaningProgress(f) {
+  _meaning.progress = f >= 1 ? 'Starting the model…' : 'Downloading the model, ' + Math.round(100 * f) + ' percent.';
+  drawMeaningNote();
+}
+function meaningWorker() {
+  if (_meaning.worker !== undefined) return _meaning.worker;
+  _meaning.worker = null;
+  if (typeof Worker === 'undefined' || typeof Blob === 'undefined') return null;
+  try {
+    const w = new Worker(URL.createObjectURL(new Blob([MEANING_WORKER], { type: 'text/javascript' })), { type: 'module' });
+    _meaning.calls = new Map(); _meaning.callN = 0;
+    w.onmessage = e => {
+      const m = e.data;
+      if (m.id == null) { if (m.progress != null) meaningProgress(m.progress); return; }
+      const call = _meaning.calls.get(m.id);
+      if (!call) return;
+      _meaning.calls.delete(m.id);
+      if (m.error) call.reject(new Error(m.error)); else call.resolve(m.data || true);
+    };
+    w.onerror = e => {
+      quiet(e, 'the worker for search by meaning');
+      for (const c of _meaning.calls.values()) c.reject(new Error(e.message || 'the worker stopped'));
+      _meaning.calls.clear();
+    };
+    _meaning.worker = w;
+  } catch (e) { quiet(e, 'starting a worker for search by meaning'); }
+  return _meaning.worker;
+}
+function meaningAsk(texts) {
+  const w = _meaning.worker;
+  return new Promise((resolve, reject) => {
+    const id = ++_meaning.callN;
+    _meaning.calls.set(id, { resolve, reject });
+    w.postMessage({ id, lib: MEANING_LIB, model: MEANING_MODEL, texts });
+  });
+}
+function meaningOnPage() {
+  return import(MEANING_LIB).then(T => {
+    T.env.allowLocalModels = false;
+    return T.pipeline('feature-extraction', MEANING_MODEL, { dtype: 'q8', progress_callback: p => {
+      if (p && p.status === 'progress' && p.total) meaningProgress(p.loaded / p.total);
+    } });
+  });
+}
 function meaningModel() {
   if (_meaning.extractor) return Promise.resolve(_meaning.extractor);
   if (!_meaning.loading) {
     _meaning.error = null;
-    _meaning.loading = import(MEANING_LIB).then(T => {
-      T.env.allowLocalModels = false;
-      return T.pipeline('feature-extraction', MEANING_MODEL, { dtype: 'q8', progress_callback: p => {
-        if (p && p.status === 'progress' && p.total) { _meaning.progress = 'Downloading the model, ' + Math.round(100 * p.loaded / p.total) + ' percent.'; drawMeaningNote(); }
-      } });
-    }).then(x => { _meaning.extractor = x; _meaning.progress = ''; return x; },
+    const viaWorker = meaningWorker()
+      ? meaningAsk(null).then(() => 'worker', e => {
+        quiet(e, 'loading the model in a worker');
+        try { _meaning.worker.terminate(); } catch (e2) { quiet(e2); }
+        _meaning.worker = null;
+        return meaningOnPage();
+      })
+      : meaningOnPage();
+    _meaning.loading = viaWorker.then(x => { _meaning.extractor = x; _meaning.progress = ''; return x; },
       e => { _meaning.error = e; _meaning.loading = null; _meaning.progress = ''; quiet(e, 'loading the model for search by meaning'); throw e; });
   }
   return _meaning.loading;
 }
 async function meaningEmbed(texts) {
   const ex = await meaningModel();
+  if (ex === 'worker') return meaningAsk(texts);
   const out = await ex(texts, { pooling: 'mean', normalize: true });
   return out.data;
 }
@@ -723,7 +797,8 @@ function meaningDb(mode, fn) {
   });
 }
 /* The pieces' embeddings: from IndexedDB when kept for this file, else
-   made a batch at a time while the panel is open and the switch on. */
+   made a batch at a time while the switch is on, the panel open or not,
+   since the worker leaves the page free. */
 async function meaningBuild(S) {
   const key = (S.key || '') + '|' + MEANING_MODEL + '|' + MEANING_CHUNK;
   if (_meaning.key === key && _meaning.vecs && _meaning.done) return;
@@ -738,8 +813,7 @@ async function meaningBuild(S) {
       } catch (e) { quiet(e, 'reading the kept embeddings'); }
     }
     while (!_meaning.done) {
-      const wrap = document.getElementById('searchWrap');
-      if (!window.SEARCH_MEANING || !wrap || wrap.style.display === 'none' || _meaning.key !== key) return;
+      if (!window.SEARCH_MEANING || _meaning.key !== key) return;
       const from = _meaning.made, to = Math.min(_meaning.pieces.length, from + MEANING_BATCH);
       const data = await meaningEmbed(_meaning.pieces.slice(from, to).map(p => p.text));
       _meaning.vecs.set(data, from * MEANING_DIM);
@@ -752,6 +826,17 @@ async function meaningBuild(S) {
     }
   } finally { _meaning.building = false; }
   drawSearchResults();
+}
+/* With search by meaning on, a file's opening reads the search's kept pages
+   and starts the embeddings a moment later, the panel closed, so a search
+   later finds them made. Only from the kept pages: reading the pages afresh
+   draws every tab under a still copy of the view, so it waits for the panel
+   to open. A visitor who never turned the switch on downloads nothing. */
+function searchWarmUp() {
+  if (!ARCHIVE || !window.SEARCH_MEANING) return;
+  const S = siteSearchState();
+  if (S.cache) return;
+  siteSearchFromCache(S);
 }
 function drawMeaningNote() {
   const host = document.getElementById('searchResults');
