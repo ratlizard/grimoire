@@ -797,6 +797,64 @@ function meaningDb(mode, fn) {
     };
   });
 }
+/* THE PREBUILT SET (the maintainer, 28 October 2026, who agreed to publish
+   numbers made from the game's text). js/meaning-prebuilt.js has the
+   embeddings of the pieces of the default file, the archive.org installers,
+   as utilities/meaning_prebuild.mjs made them in headless Chrome: each
+   piece's numbers under a 64-bit hash of its text, not the text, so no game
+   text is in the repository. The numbers are cut to 8 bits, each piece
+   with a scale (its largest number over 127), which leaves the order of a
+   search's results as it was and makes the file about a megabyte. A
+   classic script, loaded by a script tag only when the switch is on,
+   because a fetch of a data file fails from file://. A piece whose text
+   changed since the set was made has no match and goes to the model as
+   before, so the set can lag the site by some versions and still save most
+   of the reading. */
+const MEANING_PREBUILT_SRC = 'js/meaning-prebuilt.js';
+// Two 32-bit FNV-1a hashes of the text's UTF-16 units, from two starts.
+function meaningHash(text) {
+  let a = 0x811c9dc5, b = 0x01000193 ^ 0x5bd1e995;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193);
+    b = Math.imul(b ^ c, 0x01000193) ^ (b >>> 15);
+  }
+  return (a >>> 0).toString(16).padStart(8, '0') + (b >>> 0).toString(16).padStart(8, '0');
+}
+function meaningBase64(s) {
+  const bin = atob(s), out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function meaningPrebuilt() {
+  if (_meaning.prebuilt !== undefined) return _meaning.prebuilt;
+  _meaning.prebuilt = new Promise(resolve => {
+    const use = () => {
+      const P = window.MEANING_PREBUILT;
+      if (!P || P.model !== MEANING_MODEL || P.chunk !== MEANING_CHUNK || P.dim !== MEANING_DIM) { resolve(null); return; }
+      try {
+        const vecs = new Int8Array(meaningBase64(P.vecs).buffer), scales = new Float32Array(meaningBase64(P.scales).buffer), at = new Map();
+        for (let n = 0; n * 16 < P.ids.length; n++) at.set(P.ids.slice(n * 16, n * 16 + 16), n);
+        resolve({ vecs, scales, at });
+      } catch (e) { quiet(e, 'reading the prebuilt embeddings'); resolve(null); }
+    };
+    if (window.MEANING_PREBUILT || window.MEANING_NO_PREBUILT || typeof document === 'undefined') { use(); return; }
+    const s = document.createElement('script');
+    s.src = MEANING_PREBUILT_SRC;
+    s.onload = use;
+    s.onerror = () => resolve(null);
+    document.head.appendChild(s);
+  });
+  return _meaning.prebuilt;
+}
+// Writes the prebuilt numbers of the piece with this hash at `to`, if any.
+function meaningFromPrebuilt(pre, hash, out, to) {
+  const n = pre.at.get(hash);
+  if (n === undefined) return false;
+  const s = pre.scales[n];
+  for (let d = 0; d < MEANING_DIM; d++) out[to + d] = pre.vecs[n * MEANING_DIM + d] * s;
+  return true;
+}
 /* The pieces' embeddings, made a batch at a time while the switch is on,
    the panel open or not, since the worker leaves the page free.
 
@@ -833,6 +891,15 @@ async function meaningBuild(S) {
           _meaning.made = pieces.length - _meaning.todo.length;
         }
       } catch (e) { quiet(e, 'reading the kept embeddings'); }
+      if (_meaning.todo.length) {
+        const pre = await meaningPrebuilt();
+        if (pre) {
+          const before = _meaning.todo.length;
+          _meaning.todo = _meaning.todo.filter(n => !meaningFromPrebuilt(pre, meaningHash(pieces[n].text), _meaning.vecs, n * MEANING_DIM));
+          _meaning.made += before - _meaning.todo.length;
+          if (_meaning.todo.length < before) _meaning.fresh = true;
+        }
+      }
     }
     for (;;) {
       if (!window.SEARCH_MEANING || _meaning.key !== key) return;
@@ -843,10 +910,12 @@ async function meaningBuild(S) {
         batch.forEach((n, k) => _meaning.vecs.set(data.subarray(k * MEANING_DIM, (k + 1) * MEANING_DIM), n * MEANING_DIM));
         _meaning.todo = _meaning.todo.slice(batch.length);
         _meaning.made += batch.length;
+        _meaning.fresh = true;
       }
       if (!_meaning.todo.length) {
         _meaning.done = true;
-        if (batch.length) try {
+        if (_meaning.fresh) try {
+          _meaning.fresh = false;
           if (typeof indexedDB !== 'undefined') await meaningDb('readwrite', s => s.put({ model, texts: _meaning.pieces.map(p => p.text), vecs: _meaning.vecs.buffer.slice(0) }, 'current'));
         } catch (e) { quiet(e, 'keeping the embeddings'); }
         break;
