@@ -651,9 +651,10 @@ if (take()) try {
      object's start as well as the jump target, which is already a resource
      offset, and so walked no character's chain; the wishing fountain's four
      wishes, which the board lists among the lines that flash past, came in
-     only after that fix. Magpie's two are inside his flag-1 block,
-     which is unreachable anyway, and are stated as the file has them. */
-  else if (ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list).sort().join('|') !== '1036:3,thre|1036:coff|1036:pony|1036:tequ|1803:baho|1803:jhia|1811:n|1824:n|184e:n|807:atus|808:hist') fail('loose', 'the answers without a return are not the fountain\'s four wishes, Magpie\'s two, Atussa\'s, the mages\' history, and Ennomus\'s, Antenor\'s and Pheres\'s second "n" (no other yes-or-no answer, and not Neoptolemus\'s "demo", may be listed): ' + JSON.stringify(ctx.answersThatRunOn().map(r => r.resid.toString(16) + ':' + r.list)));
+     only after that fix. Magpie's "baho" and "jhia" (0x1803) are not
+     listed. With no further keyword matched, their chain jumps to his
+     prompt, so nothing follows them. */
+  else if (ctx.answersThatRunOn().map(r => r.resid.toString(16) + '/' + r.list).sort().join('|') !== '1036/3,thre|1036/coff|1036/pony|1036/tequ|1811/n|1824/n|184e/n|807/atus|808/hist') fail('loose', 'the answers without a return are not the fountain\'s four wishes, Atussa\'s, the mages\' history, and Ennomus\'s, Antenor\'s and Pheres\'s second "n" (no other yes-or-no answer, not Neoptolemus\'s "demo", and not Magpie\'s "baho" or "jhia", may be listed), the reader found ' + JSON.stringify(ctx.answersThatRunOn().map(r => r.resid.toString(16) + '/' + r.list)));
   else if (ctx.leaveNeverLeaves().map(l => l.character).join() !== '97') fail('loose', 'Aethon, who agrees to leave and stays, was not the one companion found: ' + JSON.stringify(ctx.leaveNeverLeaves().map(l => l.character)));
   else if (!/an answer that runs on/.test(html) || !/a companion who agrees to leave and stays/.test(html)) fail('loose', 'the run-on answer or the companion who stays is not on the card');
   /* Characters answered about by their own group: without the test that the

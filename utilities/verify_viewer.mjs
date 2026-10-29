@@ -39,6 +39,7 @@ const HOST_GLOBALS = new Set([
   'OffscreenCanvas', 'createImageBitmap', 'structuredClone', 'queueMicrotask',
   'ResizeObserver', 'IntersectionObserver', 'MutationObserver', 'crypto',
   'CustomEvent', 'Event', 'AbortController', 'globalThis', 'ImageData', 'FontFace',
+  'Worker',
   // Built-ins. Listed because check 4b tests "does anything declare this?", and
   // the answer for Uint8Array is "the language does".
   'Object', 'Array', 'String', 'Number', 'Boolean', 'Symbol', 'BigInt', 'Function',
