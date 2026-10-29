@@ -63,6 +63,7 @@ const APP_FIXES_68K = {
     { fix: 'open-during-play', seg: 1, at: 0x1E52E, was: '4a926718', now: '42aa0004' },  // clr.l $4(a2)
     { fix: 'afternoon', seg: 3, at: 0x7DE0, was: '7006', now: '7012' },  // moveq #$12, d0
     { fix: 'automap-span', seg: 6, at: 0x4746, was: '302effdc', now: '302effd2' },  // move.w -$2e(a6), d0
+    { fix: 'more-button', seg: 5, at: 0xD862, was: '302efff648c0322efffa48c192807020b2805c4f6f0e302efff648c07220d0813d40fffa', now: '302efff606400020b06efffa6c043d40fffa302efffa044000203d40fff65c4f4e714e71' },  // move.w -$a(a6), d0; addi.w #$20, d0; cmp.w -$6(a6), d0; bge.b $d874; move.w d0, -$6(a6); move.w -$6(a6), d0; subi.w #$20, d0; move.w d0, -$a(a6); addq.w #$6, a7; nop; nop
     { fix: 'spot-tune', seg: 1, at: 0x6A56, was: '6718', now: '6746' },  // beq.b $6a9e
   ],
   caves: [
@@ -688,6 +689,7 @@ const APP_FIXES_68K = {
     'load-cost': '3acf3f77d0c6c10de93e8c14f2fdbbbde9ecd7f39fd1a8e8846d0bf9cc2c64aa',
     'menu-items': 'f73a679d7a2eec07a20fe3b5cf2619e3c4f926f673148b00d459bc8a7075e9f6',
     'menu-scroll': '829f52f2fd98bded93a73cc37a16405eedb4efc9c3e9f176d4bbc3b839a221dc',
+    'more-button': '1c700213a8c15bd15c18fbb3745bd410924a43a8f5bc564e3087e00110a8d04a',
     'music-lock': '0be1695d786e5c8c2c855aa96421daabb83b59326ae52e03522d8a148e63ffe9',
     'music-revert': '50c306a8f80643d5467290ea5dbbba4a3e362e072cbaffaa144572ae54cbf5a4',
     'name-clear': 'b1d85aad5ad95485b577f08c7e4273371af7b7ff120e0756553d1b2fe0395c42',
@@ -714,6 +716,6 @@ const APP_FIXES_68K = {
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
     'window-leak': 'dafe456d790ddd4a39e181449b5724a0e0e3c2c8a8d1e33e032659968fcfa214',
-    '': 'de2bfa0a20ec25311491cb36129ece30868d4f008b426c0a9ef90eef7f45c729',   // every fix
+    '': '0059eddfa5b64d3edcffc817ba203185fa4da8a3c35846d09484e385f450ea36',   // every fix
   },
 };

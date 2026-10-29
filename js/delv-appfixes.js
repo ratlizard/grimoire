@@ -403,6 +403,23 @@ const APP_FIXES = [
     bug: 'On the automap a thing two squares wide shows as a 2-by-2 block, and one two squares tall as one square',
     sites: [{ at: 0x61084, was: [0xA8010078], asm: ['lha 0, 118(1)         ; was lha 0, 120(1): the rows’ extent'] }] },
 
+  // TTextOut::More puts the "more" button 5 pixels past the end of the last
+  // row's text and stops its right edge at the pane's right edge less 2,
+  // cutting it to 32 pixels when there is more room. Nothing tests for a row
+  // whose text comes within 37 pixels of the edge, so the button narrows to
+  // a sliver, and past the edge its width is negative and it is not drawn at
+  // all. The right edge becomes the lesser of left plus 32 and the pane's
+  // edge, and the left edge then comes 32 to the left of it, so the button is
+  // always 32 wide and against the edge, over the end of the text, when the
+  // row is full. 72(1) is the button's rectangle (top, left, bottom, right),
+  // and r0 is the pane's edge less 2.
+  { id: 'more-button', kind: 'fix', title: 'The status pane’s "more" button is always full width, instead of narrowing to nothing after a full row',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with the map’s description cut into twenty pieces that move the row’s end toward the edge a few pixels at a pause, the button stayed 32 pixels wide against the edge and a click on it went on, where the stock program narrowed it to a sliver and then drew none, and the same click did nothing. Pauses with room to spare showed the same pixels in both',
+    bug: 'After a row of text that reaches the status pane’s right edge, the "more" button is a sliver or is not drawn at all',
+    sites: [{ at: 0x39B8C, was: [0xB001004E, 0xA801004E, 0xA8840002, 0x7C040050, 0x2C000020, 0x40810010, 0xA881004A, 0x38040020, 0xB001004E],
+      asm: ['lha 4, 74(1)          ; was sth 0, 78(1): the left edge', 'addi 4, 4, 32', 'cmpw 0, 4', 'ble @0x39BA0',
+            'mr 0, 4               ; at most 32 wide', 'sth 0, 78(1)', 'li 4, 32', 'sub 4, 0, 4', 'sth 4, 74(1)          ; and 32 wide'] }] },
+
   // TCachedSegFiles::RemoveFile skipped an entry of the removed archive that
   // had no cached copy, so opening another saved game during play left it on
   // the freed archive. The branch goes to the clearing instead of past it.
@@ -1051,7 +1068,7 @@ const APP_FIX_GROUP = {
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
-  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'conv-field': 'interface', 'automap-span': 'interface',
+  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'conv-field': 'interface', 'automap-span': 'interface', 'more-button': 'interface',
   'menu-scroll': 'talk', 'menu-items': 'talk', 'afternoon': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
 };
 function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }
