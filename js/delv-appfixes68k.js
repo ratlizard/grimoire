@@ -65,6 +65,7 @@ const APP_FIXES_68K = {
     { fix: 'automap-span', seg: 6, at: 0x4746, was: '302effdc', now: '302effd2' },  // move.w -$2e(a6), d0
     { fix: 'more-button', seg: 5, at: 0xD862, was: '302efff648c0322efffa48c192807020b2805c4f6f0e302efff648c07220d0813d40fffa', now: '302efff606400020b06efffa6c043d40fffa302efffa044000203d40fff65c4f4e714e71' },  // move.w -$a(a6), d0; addi.w #$20, d0; cmp.w -$6(a6), d0; bge.b $d874; move.w d0, -$6(a6); move.w -$6(a6), d0; subi.w #$20, d0; move.w d0, -$a(a6); addq.w #$6, a7; nop; nop
     { fix: 'spot-tune', seg: 1, at: 0x6A56, was: '6718', now: '6746' },  // beq.b $6a9e
+    { fix: 'ai-mods', seg: 1, at: 0x1F6DA, was: '0c440004', now: '0c440005' },  // cmpi.w #$5, d4
   ],
   caves: [
     { fixes: ['walk-to'], seg: 5, site: 0x663A, was: '4aaeff486700008e', bodies: {
@@ -668,6 +669,7 @@ const APP_FIXES_68K = {
   built: {
     'afternoon': 'a5c5a679bca703b9537ce76a8ffbb979f6def95dd955ecb76af74594888c2234',
     'ai-import': '0b6af25daf450d9a49038b07ee53254d29167f84921499a36828340d7f224743',
+    'ai-mods': 'e1d515c6ac36d14cf4003d55a7406734a94c645704c6747eac162fd3e3a37b8a',
     'ai-token': '94a3609049098a79d2b9887911a7e3fb51f2ef1ba72c78fef1674e340ff0e40c',
     'ai-weight': 'ccff1067f7fdac49d602e220d6ad0865e7b9d181f7e8205acb55db8c865126d2',
     'automap-span': '01f6298c3671f13e197176d134b40566246f9ee0be58b51db4c992d40f25fd63',
@@ -716,6 +718,6 @@ const APP_FIXES_68K = {
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
     'window-leak': 'dafe456d790ddd4a39e181449b5724a0e0e3c2c8a8d1e33e032659968fcfa214',
-    '': '0059eddfa5b64d3edcffc817ba203185fa4da8a3c35846d09484e385f450ea36',   // every fix
+    '': 'e128221f849f31440106347ceb556b1ecaca2bc2b12d5bc80a43333146919c6b',   // every fix
   },
 };

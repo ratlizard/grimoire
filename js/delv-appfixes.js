@@ -332,6 +332,17 @@ const APP_FIXES = [
     sites: [{ at: 0xAE4BC, was: [0x981F0000], asm: ['bl @cave              ; was stb 0, 0(31): the weight so far'] }],
     cave: ['cmplwi 0, 100', 'ble @ok', 'li 0, 101             ; over 100, and stays over', 'ok:', 'stb 0, 0(31)', 'blr'] },
 
+  // SCombatAIEntry::CompileLine counted the modifiers of a chain such as
+  // enemy.ByStrongest.ByRange.Pick and gave "Maximum number of modifiers
+  // exceeded" at the fourth, though a compiled line has four bytes for
+  // them, 4 to 7, the evaluator (CalculateObject) applies four and
+  // DecompileObject reads four (bugs.md, as above). The modifier goes into
+  // byte 3 plus the count, so a fourth fills byte 7. The test is for a fifth.
+  { id: 'ai-mods', kind: 'fix', title: 'A combat AI file may chain four modifiers, as a compiled rule has room for, instead of three',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, a file with enemy.ByStrongest.ByRange.ByDamage.Pick imported in the user behavior editor compiled, and the rule the game wrote has all four modifiers, where the stock program gave “Maximum number of modifiers exceeded”. With status-wrap, a fifth modifier still gave that error',
+    bug: 'An imported combat AI file with four modifiers in a chain gives "Maximum number of modifiers exceeded"',
+    sites: [{ at: 0xAE72C, was: [0x2C000004], asm: ['cmpwi 0, 5            ; was cmpwi 0, 4, so a fifth modifier is the error'] }] },
+
   // GetToken copied a word of an AI file's line into its caller's buffer
   // with no bound. CompileLine's buffer at 77(1) has 67 bytes before the
   // registers it saved and CompileHeader's at 56(1) 64, so a long word ran
@@ -343,7 +354,7 @@ const APP_FIXES = [
   // it is below r7, so a longer word is cut to 63 characters, the line
   // goes on after it, and the 0 the routine ends with is the 64th byte.
   { id: 'ai-token', kind: 'fix', title: 'A very long word in an imported combat AI file is cut short, instead of crashing the Mac',
-    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with status-wrap, a file with a word of 200 letters gave “Unknown action” and the game went on, where the stock program stopped the Mac',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with status-wrap, a file with a word of 200 letters gave “Unknown action” and the game went on, where the stock program stopped the Mac. A file whose first word, in place of NAME, has 200 letters gave “Expecting Script NAME”, where the stock program stopped the Mac the same way',
     bug: 'A very long word in an imported combat AI file crashes the Mac',
     sites: [{ at: 0xADE38, was: [0x38000000], asm: ['b @cave               ; was li 0, 0'] },
             { at: 0xADF54, was: [0x38840001], asm: ['b @next               ; was addi 4, 4, 1'] }],
@@ -1068,7 +1079,7 @@ const APP_FIX_GROUP = {
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
-  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'conv-field': 'interface', 'automap-span': 'interface', 'more-button': 'interface',
+  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'ai-mods': 'rules', 'conv-field': 'interface', 'automap-span': 'interface', 'more-button': 'interface',
   'menu-scroll': 'talk', 'menu-items': 'talk', 'afternoon': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
 };
 function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }
