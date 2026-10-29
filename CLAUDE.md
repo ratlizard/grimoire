@@ -426,7 +426,9 @@ them*, says which, and what `utilities/addons_check.mjs` proves with them.
   file dropped or picked anywhere on the page, or `?src=<url>`. Two more
   fetches happen only when the visitor turns them on. Search by meaning
   loads its library (jsDelivr) and model (Hugging Face) with `import()`
-  when its switch is turned on (`MEANING_LIB` in `js/page-search.js`), and
+  when its switch is turned on (`MEANING_LIB` in `js/page-search.js`), with
+  `js/meaning-prebuilt.js` from the repository beside them (made by
+  `utilities/meaning_prebuild.mjs`, numbers and text hashes only), and
   File Comparison downloads the releases when none is open
   (`compareFetchReleases`).
 - The archives are `reference/game/Cythera Data.hqx` and `Cythera.hqx`, both BinHex,
