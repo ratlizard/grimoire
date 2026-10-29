@@ -12,6 +12,20 @@
    one such statement that needed a later file, the brand line, stayed in
    the page after the last of these. File 4 of 14. */
 
+/* The page as the search's hidden reader (searchCrawlInFrame in
+   js/page-search.js): index.html?searchcrawl=1 inside a frame of the page
+   the visitor sees. It opens the file from IndexedDB alone, lands on the
+   Data Fork tab rather than the World's map, reads every page for the
+   search and posts a message to its parent when the pages are stored. A
+   history entry it pushed would land in the visitor's back button, since a
+   frame shares its parent's history, so in the frame a push replaces the
+   current entry instead. */
+const SEARCH_CRAWL = (() => {
+  try { return window.parent !== window && new URLSearchParams(location.search).get('searchcrawl') === '1'; }
+  catch (e) { return false; }
+})();
+if (SEARCH_CRAWL) history.pushState = (state, title, url) => history.replaceState(state, title, url);
+
 /* ---------------------------------------------------------------------------
    Getting the archive open
    ---------------------------------------------------------------------------
@@ -490,6 +504,8 @@ async function loadDefaultArchive() {
       }
     } catch (e) { /* no IndexedDB here; go on to the network */ }
   }
+  // The search's hidden reader opens only the copy its parent left.
+  if (SEARCH_CRAWL) { searchCrawlTell({ failed: 'no remembered file' }); return; }
 
   // No remembered copy and no file of the visitor's: before the network,
   // the gate. It shows what is about to be downloaded and how big it is,
@@ -954,13 +970,13 @@ function parseArchiveBytes(bytes, sourceName, meta) {
        where such a file landed until now -- shows six subindexes and states
        nothing about any of them. The Saved Game sheet reads the one that
        matters. */
-    const landOn = hasWorld ? 'WORLD' : (savedAs && getResourceBytes(ARCHIVE, 0xF009) ? 'SAVEGAME' : 'DATAFORK');
+    const landOn = SEARCH_CRAWL ? 'DATAFORK' : hasWorld ? 'WORLD' : (savedAs && getResourceBytes(ARCHIVE, 0xF009) ? 'SAVEGAME' : 'DATAFORK');
     if (!restoring && !showCategory(landOn)) onCategoryChange();
     out.textContent = 'Title: ' + title + (savedAs ? ', saved game “' + savedAs + '”' : '') + ', ' + sourceName;
     // Kept for the search: the next tab replaces this line, and it is the
     // one place the page shows the scenario's name.
     DERIVED.OPENED_LINE = out.textContent;
-    setTimeout(searchWarmUp, 2000);
+    setTimeout(SEARCH_CRAWL ? searchCrawlStart : searchWarmUp, SEARCH_CRAWL ? 0 : 2000);
     // A link to the world -- or the World tab carried across a swap, which
     // is the same hash -- names nothing in a file that has no world.
     let landed = false;

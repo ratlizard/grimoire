@@ -439,32 +439,41 @@ function siteSearchDb(mode, fn) {
       const db = req.result;
       const tx = db.transaction(SEARCH_STORE, mode);
       const r = fn(tx.objectStore(SEARCH_STORE));
-      r.onsuccess = () => resolve(r.result);
+      // Settled when the transaction commits, not when the request
+      // succeeds: the hidden reader's frame is removed on the message that
+      // follows a write, and a frame unloaded before the commit loses it.
       r.onerror = () => reject(r.error);
-      tx.oncomplete = () => db.close();
+      tx.onabort = () => reject(tx.error || new Error('the browser ended the transaction before it committed'));
+      tx.oncomplete = () => { db.close(); resolve(r.result); };
     };
   });
 }
 // Starts the reading from the copy kept in the browser when it matches,
 // else from the first page; until it is known which, nothing is drawn.
-function siteSearchFromCache(S) {
+function siteSearchFromCache(S, onMiss) {
   S.cache = 'checking';
   try { S.key = siteSearchKey(); } catch (e) { quiet(e, 'the key of the search’s kept pages'); S.key = null; }
-  const go = () => { if (!_siteSearchTimer) _siteSearchTimer = setTimeout(siteSearchRun, 0); };
+  const go = () => {
+    if (onMiss) onMiss();
+    if (!_siteSearchTimer) _siteSearchTimer = setTimeout(siteSearchRun, 0);
+  };
   if (!S.key || typeof indexedDB === 'undefined') { S.cache = 'miss'; go(); return; }
   siteSearchDb('readonly', s => s.get(SEARCH_KEY)).then(rec => {
     if (DERIVED.SITE_SEARCH !== S) return;
     if (rec && rec.key === S.key && Array.isArray(rec.pages)) {
       S.pages = rec.pages.map(p => Object.assign({}, p, { hay: searchFold(p.title + '\n' + p.lines.join('\n')) }));
       S.done = true; S.cache = 'hit';
+      if (SEARCH_CRAWL) searchCrawlTell({ done: true, key: S.key });
       drawSearchResults();
     } else { S.cache = 'miss'; go(); }
   }).catch(e => { quiet(e, 'reading the search’s kept pages'); S.cache = 'miss'; go(); });
 }
 function siteSearchToCache(S) {
-  if (!S.key || typeof indexedDB === 'undefined') return;
+  if (!S.key || typeof indexedDB === 'undefined') { if (SEARCH_CRAWL) searchCrawlTell({ failed: 'nowhere to store the pages' }); return; }
   const pages = S.pages.map(p => ({ title: p.title, trail: p.trail, lines: p.lines, open: p.open }));
-  siteSearchDb('readwrite', s => s.put({ key: S.key, pages }, SEARCH_KEY)).catch(e => quiet(e, 'keeping the search’s pages'));
+  siteSearchDb('readwrite', s => s.put({ key: S.key, pages }, SEARCH_KEY))
+    .then(() => { if (SEARCH_CRAWL) searchCrawlTell({ done: true, key: S.key }); })
+    .catch(e => { quiet(e, 'keeping the search’s pages'); if (SEARCH_CRAWL) searchCrawlTell({ failed: 'the pages were not stored' }); });
 }
 
 /* Read the pages for a few milliseconds, then yield to the browser. Runs
@@ -478,6 +487,17 @@ function siteSearchRun() {
   if (S.done || !wrap || wrap.style.display === 'none') return;
   if (!S.cache) { siteSearchFromCache(S); drawSearchResults(); return; }
   if (S.cache === 'checking') return;
+  // The hidden frame is reading the pages, and its message ends the wait.
+  if (_searchFrame) { drawSearchResults(); return; }
+  /* In the frame, a step waits while the visitor is using the page: the
+     frame shares the page's thread, and one tab's drawing can hold it for
+     up to a second (measured in headless Chrome), which a drag or a scroll
+     would feel. */
+  if (SEARCH_CRAWL) {
+    let busy = 0;
+    try { busy = window.parent._searchInputAt || 0; } catch (e) { quiet(e); }
+    if (Date.now() - busy < SEARCH_FRAME_IDLE) { _siteSearchTimer = setTimeout(siteSearchRun, 400); return; }
+  }
   if (!S.standing) { S.standing = siteStandingView(); siteSearchCover(true); }
   const until = performance.now() + 30;
   while (S.next < S.jobs.length && performance.now() < until) siteSearchStep(S, S.jobs[S.next++]);
@@ -486,7 +506,11 @@ function siteSearchRun() {
   // drawing the real page again under the open panel made it jump.
   if (S.next >= S.jobs.length) { S.done = true; siteSearchToCache(S); }
   const now = performance.now();
-  if (S.done || now - _siteSearchDrawn > 250) { _siteSearchDrawn = now; drawSearchResults(); }
+  if (S.done || now - _siteSearchDrawn > 250) {
+    _siteSearchDrawn = now;
+    drawSearchResults();
+    if (SEARCH_CRAWL && !S.done) searchCrawlTell({ next: S.next, total: S.jobs.length });
+  }
   if (!S.done) _siteSearchTimer = setTimeout(siteSearchRun, 0);
 }
 function siteSearchPause() {
@@ -580,8 +604,9 @@ function drawSearchResults() {
   // of them.
   const S = siteSearchState();
   if (!S.done) {
-    host.innerHTML = '<div class="sv-note">' + (S.cache === 'miss' && S.next
-      ? 'Reading the site’s pages, ' + S.next + ' of ' + S.jobs.length + '. Results appear when the reading finishes. This happens once for each file you open.'
+    const next = S.frame ? S.frame.next : S.next, total = S.frame ? S.frame.total : S.jobs.length;
+    host.innerHTML = '<div class="sv-note">' + (S.cache === 'miss' && next
+      ? 'Reading the site’s pages, ' + next + ' of ' + total + '. Results appear when the reading finishes. This happens once for each file you open.'
       : 'Loading the search…') + '</div>';
     return;
   }
@@ -667,7 +692,7 @@ const MEANING_MODEL = 'Xenova/all-MiniLM-L6-v2';
 const MEANING_CHUNK = 500, MEANING_DIM = 384, MEANING_BATCH = 8, MEANING_SHOWN = 30;
 const MEANING_DB = 'grimoire-meaning';
 window.SEARCH_MEANING = false;
-try { window.SEARCH_MEANING = localStorage.getItem('cythera.searchMeaning') === '1'; } catch (e) { quiet(e); }
+try { window.SEARCH_MEANING = !SEARCH_CRAWL && localStorage.getItem('cythera.searchMeaning') === '1'; } catch (e) { quiet(e); }
 const _meaning = { extractor: null, loading: null, error: null, progress: '', vecs: null, pieces: null, key: null, building: false, gen: 0 };
 function setSearchMeaning(on) {
   window.SEARCH_MEANING = !!on;
@@ -925,16 +950,82 @@ async function meaningBuild(S) {
   } finally { _meaning.building = false; }
   drawSearchResults();
 }
-/* With search by meaning on, a file's opening reads the search's kept pages
-   and starts the embeddings a moment later, the panel closed, so a search
-   later finds them made. Only from the kept pages: reading the pages afresh
-   draws every tab under a still copy of the view, so it waits for the panel
-   to open. A visitor who never turned the switch on downloads nothing. */
+/* A file's opening reads the search's kept pages a moment later, the panel
+   closed, so the first search finds them ready; with search by meaning on,
+   the embeddings start from them too. When none are kept for this file and
+   this version, a hidden copy of the page reads them (searchCrawlInFrame).
+   Reading them here draws every tab under a still copy of the view, which
+   the visitor would see, so the page itself does that only when the panel
+   is open and no frame is reading. */
 function searchWarmUp() {
-  if (!ARCHIVE || !window.SEARCH_MEANING) return;
+  if (!ARCHIVE || SEARCH_CRAWL) return;
   const S = siteSearchState();
   if (S.cache) return;
-  siteSearchFromCache(S);
+  siteSearchFromCache(S, () => searchCrawlInFrame(S));
+}
+
+/* THE HIDDEN READER (the maintainer, 28 October 2026, who chose it over
+   shipping the pages, which are the game's text). A frame off the screen
+   loads index.html?searchcrawl=1, which opens the file from the IndexedDB
+   copy this page left (loadDefaultArchive), reads every page as the panel
+   would, stores them under the search's key and posts a message. This page
+   then reads them from IndexedDB as a kept copy and removes the frame. The
+   frame costs a second page's memory for the reading, some seconds on a
+   desktop. It runs only over http(s), where the frame shares the page's
+   origin and storage. From file:// the panel reads the pages itself while
+   it is open. A frame whose key differs (another file stored since), or
+   that fails or goes quiet for SEARCH_FRAME_WAIT ms, is removed, and the
+   panel reads the pages itself when it is next open. */
+const SEARCH_FRAME_WAIT = 120000, SEARCH_FRAME_IDLE = 1500;
+let _searchFrame = null;
+// The time of the visitor's last touch, key or scroll, which the frame reads.
+function searchNoteInput() { window._searchInputAt = Date.now(); }
+function searchCrawlInFrame(S) {
+  if (_searchFrame || S.done || !/^https?:$/.test(location.protocol) || typeof indexedDB === 'undefined') return;
+  if (!window._searchInputWatched) {
+    window._searchInputWatched = true;
+    for (const t of ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchmove', 'scroll'])
+      window.addEventListener(t, searchNoteInput, { passive: true, capture: true });
+  }
+  const f = document.createElement('iframe');
+  f.setAttribute('aria-hidden', 'true');
+  f.tabIndex = -1;
+  f.style.cssText = 'position:fixed;left:-20000px;top:0;width:1280px;height:900px;border:0;opacity:0;pointer-events:none';
+  const end = () => {
+    window.removeEventListener('message', hear);
+    clearTimeout(f._quiet);
+    f.remove();
+    if (_searchFrame === f) _searchFrame = null;
+    S.frame = null;
+  };
+  const quietFor = () => { clearTimeout(f._quiet); f._quiet = setTimeout(() => { end(); siteSearchResume(S); }, SEARCH_FRAME_WAIT); };
+  const hear = e => {
+    if (e.source !== f.contentWindow || !e.data || !e.data.grimoireSearch) return;
+    const m = e.data.grimoireSearch;
+    if (m.next !== undefined) { S.frame = { next: m.next, total: m.total }; quietFor(); drawSearchResults(); return; }
+    end();
+    if (m.done && m.key === S.key && DERIVED.SITE_SEARCH === S) siteSearchFromCache(S);
+    else siteSearchResume(S);
+  };
+  window.addEventListener('message', hear);
+  f.src = 'index.html?searchcrawl=1';
+  _searchFrame = f;
+  quietFor();
+  document.body.appendChild(f);
+}
+// After the frame gave up: the panel, if open, reads the pages itself.
+function siteSearchResume(S) {
+  if (DERIVED.SITE_SEARCH !== S || S.done) return;
+  if (!_siteSearchTimer) _siteSearchTimer = setTimeout(siteSearchRun, 0);
+}
+// In the frame: read the pages as the open panel would.
+function searchCrawlStart() {
+  if (!ARCHIVE) return;
+  window.SEARCH_MEANING = false;
+  openSearch();
+}
+function searchCrawlTell(m) {
+  try { window.parent.postMessage({ grimoireSearch: m }, location.origin); } catch (e) { quiet(e, 'posting the search’s progress to the page'); }
 }
 function drawMeaningNote() {
   const host = document.getElementById('searchResults');
