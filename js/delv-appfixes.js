@@ -587,7 +587,8 @@ const APP_FIXES = [
   // nothing has stored it there yet, so the cave does, as a glue stub would.
   // Packing a row into fewer bytes was the other design, and only moves the
   // limit.
-  { id: 'journal-rows', kind: 'fix', title: 'In a long journal the newest entries stay readable and the oldest leave the window, instead of the game drawing new ones blank',
+  { id: 'journal-rows', kind: 'fix', title: 'In a long journal every row in the window is readable and the oldest entries leave it, instead of the oldest rows showing the wrong day, speaker and no text',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with a save given 1,500 journal notes, about 3,000 rows, the window began at note 157 and every row read right to note 1,500, and a note taken then showed at the end, where the stock program drew its top rows with "Day 0", the cave as the speaker and no text, and its later rows right',
     bug: 'The journal breaks when it gets too long',
     sites: [
       { at: 0x78684, was: [0x4804A4B5], asm: ['bl @cave              ; was bl LAddRow, the entry’s header'] },
@@ -821,7 +822,8 @@ const APP_FIXES = [
   // which the next SetStage undid; on 68K it was played three times and never
   // showed (cross-check of 28 October 2026). The two SetStage stores now pass
   // over a cell with the player's creature in it.
-  { id: 'hero-square', kind: 'fix', title: 'The hero stays in its square of the creature grid when a follower stands on it, so a press there picks up the hero (untested)',
+  { id: 'hero-square', kind: 'fix', title: 'The hero stays in its square of the creature grid when a follower stands on it, so a press there picks up the hero',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, from RULEZ TRADEMARK with Hector set to wait and the hero walked onto his square, Look there gave “you see RULEZ TRADEMARK” and a press dragged east walked the hero, where the stock program gave “you see Hector” and the drag moved nobody. With the hero elsewhere both gave Hector',
     bug: 'You cannot drag the player onto a follower\'s square',
     sites: [
       { at: 0x6B14C, was: [0x40820008], asm: ['b @one                ; was bne 0x6B154'] },
