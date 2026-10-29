@@ -170,6 +170,14 @@ const SITE_VIEW_ROOTS = ['navSubNote', 'resourceNav', 'singlePreview', 'artUsage
 // ending the line at it cut "Home Land King Hall at (12, 30)" into pieces.
 const SITE_BLOCK_TAG = /^(DIV|P|LI|TR|H[1-6]|SECTION|PRE|BR|TABLE|DETAILS|SUMMARY|UL|OL|DT|DD|FIGCAPTION|HEADER|FOOTER|BLOCKQUOTE)$/;
 const SITE_SKIP_TAG = /^(SCRIPT|STYLE|CANVAS|AUDIO|VIDEO|SELECT|TEXTAREA|SVG|IMG|INPUT)$/i;
+/* The tags that sit inside a word or a sentence. Every other element is a
+   cell, a chip or a label the stylesheet sets apart, and its text met the
+   next one's with nothing between: a chart's bars read "Bomb200 obDiamond50
+   ob", which neither search could match a word in. SITE_GAP marks such a
+   boundary, and siteTextOf makes it a space only where it falls between
+   two words, so "the Lockpick." and "Ake’s" stay as written. */
+const SITE_PHRASE_TAG = /^(B|I|EM|STRONG|U|S|SUB|SUP|SMALL|MARK|CODE|KBD|ABBR|Q|WBR)$/;
+const SITE_GAP = '\u0001';
 /* The text of some elements, a line per block, folds included. Not
    innerText, which leaves out the body of a closed <details>, and every
    card on the Mechanics, Skills and Spells sheets is one. An element with
@@ -179,17 +187,23 @@ const SITE_SKIP_TAG = /^(SCRIPT|STYLE|CANVAS|AUDIO|VIDEO|SELECT|TEXTAREA|SVG|IMG
 function siteTextOf(els) {
   const out = [];
   let cur = '';
-  const flush = () => { const t = cur.replace(/\s+/g, ' ').trim(); if (t) out.push(t); cur = ''; };
+  const flush = () => {
+    const t = cur.replace(/([^\s(\[‘“\u0001])\u0001+(?=[^\s.,;:!?)\]’”\u0001])/g, '$1 ').replace(/\u0001/g, '').replace(/\s+/g, ' ').trim();
+    if (t) out.push(t);
+    cur = '';
+  };
   const walk = el => {
     for (let n = el.firstChild; n; n = n.nextSibling) {
       if (n.nodeType === 3) { cur += n.nodeValue; continue; }
       if (n.nodeType !== 1 || SITE_SKIP_TAG.test(n.tagName) || n.hidden) continue;
       if (n.style && n.style.display === 'none') continue;
-      const b = SITE_BLOCK_TAG.test(n.tagName);
+      const b = SITE_BLOCK_TAG.test(n.tagName), gap = !b && !SITE_PHRASE_TAG.test(n.tagName);
       if (b) flush();
       else if (n.tagName === 'TD' || n.tagName === 'TH') cur += ' ';
+      else if (gap) cur += SITE_GAP;
       walk(n);
       if (b) flush();
+      else if (gap) cur += SITE_GAP;
     }
   };
   for (const el of els) if (el && !(el.style && el.style.display === 'none')) { walk(el); flush(); }
@@ -663,7 +677,7 @@ function searchShowAll() { window.SEARCH_ALL = true; drawSearchResults(); }
    in the panel. With it on, the search matches a query by meaning: "where
    to buy swords" finds a shop's list where no line has those words.
 
-   THE MODEL is all-MiniLM-L6-v2 (Xenova's ONNX copy, 8-bit, about 23 MB),
+   THE MODEL is bge-small-en-v1.5 (Xenova's ONNX copy, 8-bit, about 34 MB),
    run by transformers.js, both fetched only when the switch is first turned
    on: the library from jsDelivr (MEANING_LIB, a fixed version) and the
    model's files from Hugging Face, which the browser then caches. This is
@@ -676,10 +690,10 @@ function searchShowAll() { window.SEARCH_ALL = true; drawSearchResults(); }
    THE PIECES are the pages the plain search reads (siteSearchState),
    each cut into runs of lines of about MEANING_CHUNK characters, the page's
    title before each run. A piece is turned into 384 numbers (an embedding,
-   averaged over its words and scaled to length 1), so how alike two pieces
-   are is the sum of their numbers multiplied pairwise. The site's 900-odd
-   pages make some 2,500 pieces, about five minutes in headless Chrome on
-   a desktop and longer on a phone, a few pieces at a time in a worker,
+   scaled to length 1), so how alike two pieces
+   are is the sum of their numbers multiplied pairwise. The site's pages
+   make some 6,800 pieces, about fifty minutes in headless Chrome on a
+   desktop and longer on a phone, a few pieces at a time in a worker,
    and kept in IndexedDB (MEANING_DB) piece by piece (meaningBuild), so a
    later visit, a new version of the site included, reads only the pieces
    whose words changed.
@@ -688,7 +702,16 @@ function searchShowAll() { window.SEARCH_ALL = true; drawSearchResults(); }
    of the piece that shares most words with the query (its first line when
    none does), a link to that line as the plain search's are. */
 const MEANING_LIB = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.2/dist/transformers.min.js';
-const MEANING_MODEL = 'Xenova/all-MiniLM-L6-v2';
+const MEANING_MODEL = 'Xenova/bge-small-en-v1.5';
+/* bge-small reads a piece from its first token (CLS pooling) and expects a
+   query to start with MEANING_QUERY, the words its makers trained it with,
+   ending in a colon (built from its code, 58, so the wording scan reads no
+   sentence break). On twelve plain questions about the game
+   (work/meaningkeep/quality2.mjs in the workspace) it found the right page
+   for about five, where all-MiniLM-L6-v2, the model until 29 October 2026,
+   found three. It is about twice as slow to read the pieces. */
+const MEANING_POOL = 'cls';
+const MEANING_QUERY = 'Represent this sentence for searching relevant passages' + String.fromCharCode(58) + ' ';
 const MEANING_CHUNK = 500, MEANING_DIM = 384, MEANING_BATCH = 8, MEANING_SHOWN = 30;
 const MEANING_DB = 'grimoire-meaning';
 window.SEARCH_MEANING = false;
@@ -721,7 +744,7 @@ self.onmessage = async e => {
   try {
     const ex = await load(m);
     if (!m.texts) { self.postMessage({ id: m.id, ready: true }); return; }
-    const out = await ex(m.texts, { pooling: 'mean', normalize: true });
+    const out = await ex(m.texts, { pooling: m.pool, normalize: true });
     const data = new Float32Array(out.data);
     self.postMessage({ id: m.id, data }, [data.buffer]);
   } catch (err) { ready = null; self.postMessage({ id: m.id, error: String((err && err.message) || err) }); }
@@ -760,7 +783,7 @@ function meaningAsk(texts) {
   return new Promise((resolve, reject) => {
     const id = ++_meaning.callN;
     _meaning.calls.set(id, { resolve, reject });
-    w.postMessage({ id, lib: MEANING_LIB, model: MEANING_MODEL, texts });
+    w.postMessage({ id, lib: MEANING_LIB, model: MEANING_MODEL, pool: MEANING_POOL, texts });
   });
 }
 function meaningOnPage() {
@@ -791,7 +814,7 @@ function meaningModel() {
 async function meaningEmbed(texts) {
   const ex = await meaningModel();
   if (ex === 'worker') return meaningAsk(texts);
-  const out = await ex(texts, { pooling: 'mean', normalize: true });
+  const out = await ex(texts, { pooling: MEANING_POOL, normalize: true });
   return out.data;
 }
 function meaningPieces(S) {
@@ -1048,7 +1071,7 @@ async function drawMeaningResults(q, S, host) {
   if (!_meaning.done) { drawMeaningNote(); meaningBuild(S).catch(e => { _meaning.error = e; drawSearchResults(); }); return; }
   if (!q) { host.innerHTML = ''; return; }
   let qv;
-  try { qv = await meaningEmbed([q]); } catch (e) { _meaning.error = e; drawSearchResults(); return; }
+  try { qv = await meaningEmbed([MEANING_QUERY + q]); } catch (e) { _meaning.error = e; drawSearchResults(); return; }
   if (gen !== _meaning.gen) return;
   const { vecs, pieces } = _meaning, scored = [];
   for (let n = 0; n < pieces.length; n++) {

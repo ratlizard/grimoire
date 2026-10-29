@@ -18,9 +18,8 @@
  * What is written is each piece's 64-bit text hash (meaningHash), its
  * numbers cut to 8 bits and its scale, never the text. The maintainer
  * agreed on 28 October 2026 to publish numbers made from the game's text,
- * not the text. A run lasts some minutes (about seven on this Mac), the
- * plain search's reading of every tab and then 2,500-odd pieces through the
- * model. Run it again when many pages' words have changed. A stale file
+ * not the text. A run lasts about an hour on this Mac, the plain search's
+ * reading of every tab and then some 6,800 pieces through the model. Run it again when many pages' words have changed. A stale file
  * costs only speed, since a piece with no match goes to the model.
  *
  * Chrome is driven over its DevTools pipe as browser_check.mjs drives it,
