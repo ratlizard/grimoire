@@ -343,6 +343,24 @@ const APP_FIXES = [
     bug: 'An imported combat AI file with four modifiers in a chain gives "Maximum number of modifiers exceeded"',
     sites: [{ at: 0xAE72C, was: [0x2C000004], asm: ['cmpwi 0, 5            ; was cmpwi 0, 4, so a fifth modifier is the error'] }] },
 
+  // SCombatAIEntry::CalculateObject's Random and Pick steps choose the
+  // highest of a target's mark plus a roll of 0 to 63 or 0 to 15, but cut
+  // the running best in r23 to a byte, both where it is stored and where
+  // it is compared. A target still marked 255 (next to the creature after
+  // ByRange, unhurt after a health ordering) plus any roll above 0 wrapped
+  // to a small number, so every later target beat it and the choice was
+  // the last one in the monster list (bugs.md, Found by grimoire only).
+  // At each of the four sites the full sum, at most 255 + 63, stays in the
+  // register, and the signed compare after it already handles that range.
+  { id: 'ai-pick', kind: 'fix', title: 'A creature or companion whose combat AI picks among several equally good targets picks one at random, instead of always the last in the list',
+    played: 'Mac OS 8.5, PowerPC, 29 October 2026, a ruffian at Attack Nearest hatched beside RULEZ TRADEMARK, Hector and Timon. The stock program swung at Timon in all five runs, once each, and the ruffian then walked off. With the fix it swung at RULEZ TRADEMARK first in five runs and at Hector in one, swung again every turn and turned from one to the other within a run',
+    bug: 'A creature or companion choosing among several adjacent or unhurt targets picks the same one each time, by list order',
+    sites: [
+      { at: 0xAF630, was: [0x56E0063E], asm: ['mr 0, 23              ; was clrlwi 0, 23, 24, the best so far for Random'] },
+      { at: 0xAF65C, was: [0x5477063E], asm: ['mr 23, 3              ; was clrlwi 23, 3, 24'] },
+      { at: 0xAF6CC, was: [0x56E6063E], asm: ['mr 6, 23              ; was clrlwi 6, 23, 24, the best so far for Pick'] },
+      { at: 0xAF6F8, was: [0x54B7063E], asm: ['mr 23, 5              ; was clrlwi 23, 5, 24'] }] },
+
   // GetToken copied a word of an AI file's line into its caller's buffer
   // with no bound. CompileLine's buffer at 77(1) has 67 bytes before the
   // registers it saved and CompileHeader's at 56(1) 64, so a long word ran
@@ -1081,7 +1099,7 @@ const APP_FIX_GROUP = {
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
-  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'ai-mods': 'rules', 'conv-field': 'interface', 'automap-span': 'interface', 'more-button': 'interface',
+  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'ai-mods': 'rules', 'ai-pick': 'rules', 'conv-field': 'interface', 'automap-span': 'interface', 'more-button': 'interface',
   'menu-scroll': 'talk', 'menu-items': 'talk', 'afternoon': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
 };
 function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }
