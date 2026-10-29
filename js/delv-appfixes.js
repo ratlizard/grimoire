@@ -399,6 +399,7 @@ const APP_FIXES = [
   // 2-by-2 block and a tall one a single square. The row loop reads the
   // second, at 118(1).
   { id: 'automap-span', kind: 'fix', title: 'Things two squares wide or tall show on the automap in their true shape',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with two things beside the hero given pictures two squares wide and two squares tall, the automap showed them as 2 by 1 and 1 by 2, where the stock program showed a 2-by-2 block and a single square',
     bug: 'On the automap a thing two squares wide shows as a 2-by-2 block, and one two squares tall as one square',
     sites: [{ at: 0x61084, was: [0xA8010078], asm: ['lha 0, 118(1)         ; was lha 0, 120(1): the rows’ extent'] }] },
 
