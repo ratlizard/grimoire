@@ -271,29 +271,46 @@ function searchTeacherSentences(tr) {
   }
   return out;
 }
-/* The first answer in a person's talk script (0x1800 plus their number) to
-   the word "job", as the conversation window shows it: the @ that marks a
+/* The answers in a person's talk script (0x1800 plus their number) to the
+   word "job", as the conversation window shows them: the @ that marks a
    keyword dropped, and the parts a * splits into joined. The words are the
-   game's, unchanged. */
-function talkJobAnswer(i) {
+   game's, unchanged. An answer is every string up to the next keyword. A
+   test after a first string that leaves its quote open splits the rest
+   into versions, each the first string and one ending: Alaric's "I am keeper of the land of
+   Cythera," ends "thanks to you." or "though at times I feel like a
+   stranger.", by a local his script sets. */
+function talkJobAnswers(i) {
   const e = dvmScriptEntry(0x1800 + i);
-  if (!e) return null;
+  if (!e) return [];
   let ops;
-  try { ops = dvmOpsOf(e); } catch (err) { quiet(err, 'reading a talk script for its answer to job'); return null; }
+  try { ops = dvmOpsOf(e); } catch (err) { quiet(err, 'reading a talk script for its answer to job'); return []; }
   const RESP = /^conversation_response "([^"]*)" -> 0x[0-9A-F]+$/i;
+  const clean = t => t.split('*').map(p => p.trim().replace(/^"|"$/g, '').trim()).filter(Boolean).join(' ').replace(/@/g, '');
   for (let k = 0; k < ops.length; k++) {
     const m = RESP.exec(ops[k].text);
     if (!m || !m[1].split(',').includes('job')) continue;
-    for (let j = k + 1; j < ops.length && j < k + 12 && !RESP.test(ops[j].text); j++) {
-      const s = /^string[^"]*("(?:[^"\\]|\\.)*")$/.exec(ops[j].text);
+    let head = null, split = false;
+    const ends = [];
+    for (let j = k + 1; j < ops.length && j < k + 24; j++) {
+      const t = ops[j].text;
+      if (RESP.test(t) || /^(?:return|exit|conversation_prompt)/.test(t)) break;
+      if (/^if/.test(t) && head !== null) { split = true; continue; }
+      const s = /^string[^"]*("(?:[^"\\]|\\.)*")$/.exec(t);
       if (!s) continue;
-      let t;
-      try { t = JSON.parse(s[1]); } catch (err) { quiet(err); return null; }
-      return t.split('*').map(p => p.trim().replace(/^"|"$/g, '').trim()).filter(Boolean).join(' ').replace(/@/g, '');
+      let str;
+      try { str = JSON.parse(s[1]); } catch (err) { quiet(err); continue; }
+      if (head === null) head = str;
+      else if (split) ends.push(str);
+      else head += str;
     }
-    return null;
+    if (head === null) return [];
+    // A first string that closes its quote is a whole line, and what a
+    // test leads to after it is a further line (Borus's wife cutting in),
+    // not an ending of it.
+    if (/"\s*$/.test(head)) return [clean(head)];
+    return (ends.length ? ends.slice(0, 3).map(x => head + x) : [head]).map(clean);
   }
-  return null;
+  return [];
 }
 /* A person's page: their home, the places of their day, their answer to
    "job", and the goods and lessons on offer from them. The shops and
@@ -311,9 +328,9 @@ function searchPersonSentences(i, d) {
   if (d.homeZone) out.push(d.name + ' lives in ' + d.homeZone + '.');
   const places = [...new Set(d.schedule.map(e => e.where).filter(Boolean))];
   if (places.length) out.push('During the day ' + d.name + ' is in ' + (places.length > 1 ? places.slice(0, -1).join(', ') + ' and ' + places[places.length - 1] : places[0]) + '.');
-  let job = null;
-  try { job = talkJobAnswer(i); } catch (e) { quiet(e, 'reading a job answer for the search'); }
-  if (job) out.push(d.name + '’s answer to “job” is “' + job + '”');
+  let jobs = [];
+  try { jobs = talkJobAnswers(i); } catch (e) { quiet(e, 'reading a job answer for the search'); }
+  if (jobs.length) out.push(d.name + '’s answer to “job” is ' + jobs.map(j => '“' + j + '”').join(' or ') + '.');
   out.push(...new Set(people.get(i) || []));
   return out;
 }
@@ -846,8 +863,22 @@ const load = m => ready || (ready = import(m.lib).then(T => {
     if (p && p.status === 'progress' && p.total) self.postMessage({ progress: p.loaded / p.total });
   } });
 }));
+let sorter = null;
+const loadSorter = m => sorter || (sorter = import(m.lib).then(async T => {
+  T.env.allowLocalModels = false;
+  return [await T.AutoTokenizer.from_pretrained(m.rerank), await T.AutoModelForSequenceClassification.from_pretrained(m.rerank, { dtype: 'q8' })];
+}));
 self.onmessage = async e => {
   const m = e.data;
+  if (m.rerank) {
+    try {
+      const [tok, model] = await loadSorter(m);
+      const inp = tok(new Array(m.docs.length).fill(m.query), { text_pair: m.docs, padding: true, truncation: true, max_length: m.max });
+      const data = new Float32Array((await model(inp)).logits.data);
+      self.postMessage({ id: m.id, data }, [data.buffer]);
+    } catch (err) { sorter = null; self.postMessage({ id: m.id, error: String((err && err.message) || err) }); }
+    return;
+  }
   try {
     const ex = await load(m);
     if (!m.texts) { self.postMessage({ id: m.id, ready: true }); return; }
@@ -923,6 +954,35 @@ async function meaningEmbed(texts) {
   if (ex === 'worker') return meaningAsk(texts);
   const out = await ex(texts, { pooling: MEANING_POOL, normalize: true });
   return out.data;
+}
+/* THE SECOND SORT. A cross-encoder (MEANING_RERANK) reads the query and a
+   piece together and gives one score, where the embedding model reads each
+   alone. The joint reading separates a piece that answers "where can I buy
+   a sword" from a page that only mentions swords. It is too slow for every
+   piece, so it scores the first MEANING_RERANK_TOP the embeddings found,
+   each cut to MEANING_RERANK_LEN tokens. On the twelve questions
+   (work/meaningsentences/rerank.mjs in the workspace) it put the right
+   piece first for the sword, Alaric's cure, combat damage and the amulet,
+   in about 1.6 seconds a query in headless Chrome. 30 pieces of up to 512
+   tokens took 3 to 13 seconds and sorted no better. The results are drawn
+   before it runs and drawn again after, in the order of its scores. A
+   score is a logit, below 0 for a piece unlikely to answer. */
+const MEANING_RERANK = 'Xenova/ms-marco-MiniLM-L-6-v2', MEANING_RERANK_TOP = 20, MEANING_RERANK_LEN = 128;
+async function meaningRerank(query, docs) {
+  const ex = await meaningModel();
+  if (ex === 'worker') {
+    const w = _meaning.worker;
+    return new Promise((resolve, reject) => {
+      const id = ++_meaning.callN;
+      _meaning.calls.set(id, { resolve, reject });
+      w.postMessage({ id, lib: MEANING_LIB, rerank: MEANING_RERANK, query, docs, max: MEANING_RERANK_LEN });
+    });
+  }
+  if (!_meaning.sorter) _meaning.sorter = import(MEANING_LIB).then(async T => [await T.AutoTokenizer.from_pretrained(MEANING_RERANK),
+    await T.AutoModelForSequenceClassification.from_pretrained(MEANING_RERANK, { dtype: 'q8' })]);
+  const [tok, model] = await _meaning.sorter;
+  const inp = tok(new Array(docs.length).fill(query), { text_pair: docs, padding: true, truncation: true, max_length: MEANING_RERANK_LEN });
+  return (await model(inp)).logits.data;
 }
 function meaningPieces(S) {
   const pieces = [];
@@ -1191,9 +1251,24 @@ async function drawMeaningResults(q, S, host) {
     scored.push([dot, n]);
   }
   scored.sort((a, b) => b[0] - a[0]);
+  const shown = scored.slice(0, MEANING_SHOWN);
+  meaningDrawList(q, S, host, shown, true);
+  // The second sort, which redraws the list in its order unless the query
+  // changed meanwhile. A failure leaves the first order.
+  const top = shown.slice(0, MEANING_RERANK_TOP);
+  let r;
+  try { r = await meaningRerank(q, top.map(([, n]) => pieces[n].text)); } catch (e) { quiet(e, 'sorting the results of search by meaning'); return; }
+  if (gen !== _meaning.gen) return;
+  const sorted = top.map((x, j) => [r[j], x[1]]).sort((a, b) => b[0] - a[0]);
+  meaningDrawList(q, S, host, sorted.concat(shown.slice(MEANING_RERANK_TOP)), false);
+}
+// The results, in the given order. The figure beside each is the
+// embeddings' likeness, shown only before the second sort reorders them.
+function meaningDrawList(q, S, host, list, first) {
+  const { pieces } = _meaning;
   const words = searchFold(q).split(/[^a-z0-9']+/).filter(w => w.length > 2);
   let h = '<div class="partsTitle sr-head">Nearest in meaning</div>';
-  for (const [score, n] of scored.slice(0, MEANING_SHOWN)) {
+  for (const [score, n] of list) {
     const pc = pieces[n], p = S.pages[pc.i];
     if (!p) continue;
     // The line of the piece with most of the query's words, else its first.
@@ -1206,7 +1281,7 @@ async function drawMeaningResults(q, S, host) {
     const live = p.open.panel !== null;
     const line = searchSnippet(p.lines[best] || '', words);
     h += '<div class="sr-item">' + (live ? svLink(p.title, 'openSearchPage(' + pc.i + ',' + best + ')') : '<span class="sr-title">' + svEsc(p.title) + '</span>') +
-      (p.trail ? ' <span class="sr-where">' + svEsc(p.trail) + '</span>' : '') + ' <span class="sr-where">' + Math.round(score * 100) + '%</span>' +
+      (p.trail ? ' <span class="sr-where">' + svEsc(p.trail) + '</span>' : '') + (first ? ' <span class="sr-where">' + Math.round(score * 100) + '%</span>' : '') +
       '<div class="sr-text"><div>' + (live ? '<a class="srLine" onclick="openSearchPage(' + pc.i + ',' + best + ')">' + line + '</a>' : line) + '</div></div></div>';
   }
   host.innerHTML = h;
