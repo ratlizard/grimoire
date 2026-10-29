@@ -653,10 +653,11 @@ function searchShowAll() { window.SEARCH_ALL = true; drawSearchResults(); }
    title before each run. A piece is turned into 384 numbers (an embedding,
    averaged over its words and scaled to length 1), so how alike two pieces
    are is the sum of their numbers multiplied pairwise. The site's 900-odd
-   pages make some 3,000 pieces, a minute or two on a desktop and some
-   minutes on a phone, done while the panel is open, a few pieces at a
-   time, and kept in IndexedDB (MEANING_DB) under the plain search's key
-   and the model's name, so it happens once for each file.
+   pages make some 2,500 pieces, about five minutes in headless Chrome on
+   a desktop and longer on a phone, a few pieces at a time in a worker,
+   and kept in IndexedDB (MEANING_DB) piece by piece (meaningBuild), so a
+   later visit, a new version of the site included, reads only the pieces
+   whose words changed.
 
    A RESULT is a piece, best first, shown as its page's title and the line
    of the piece that shares most words with the query (its first line when
@@ -796,31 +797,59 @@ function meaningDb(mode, fn) {
     };
   });
 }
-/* The pieces' embeddings: from IndexedDB when kept for this file, else
-   made a batch at a time while the switch is on, the panel open or not,
-   since the worker leaves the page free. */
+/* The pieces' embeddings, made a batch at a time while the switch is on,
+   the panel open or not, since the worker leaves the page free.
+
+   Kept in IndexedDB by each piece's text, not by the file and the site's
+   version. The plain search's key has GRIMOIRE_VERSION in it, so a key for
+   the whole set made every release read all the pieces again, some
+   minutes each time, though a release changes the words of few pages. A
+   piece whose text was read before, under the same model and piece size,
+   reuses its kept numbers, and only the rest go to the model. The kept
+   record is the last set made, so a different file shares what its pages
+   have in common with the one before (the menus, the guides) and reads
+   the rest. */
 async function meaningBuild(S) {
   const key = (S.key || '') + '|' + MEANING_MODEL + '|' + MEANING_CHUNK;
+  const model = MEANING_MODEL + '|' + MEANING_CHUNK;
   if (_meaning.key === key && _meaning.vecs && _meaning.done) return;
   if (_meaning.building) return;
   _meaning.building = true;
   try {
     if (_meaning.key !== key) {
-      _meaning.key = key; _meaning.pieces = meaningPieces(S); _meaning.vecs = new Float32Array(_meaning.pieces.length * MEANING_DIM); _meaning.made = 0; _meaning.done = false;
+      const pieces = meaningPieces(S);
+      _meaning.key = key; _meaning.pieces = pieces; _meaning.vecs = new Float32Array(pieces.length * MEANING_DIM);
+      _meaning.todo = pieces.map((p, n) => n); _meaning.made = 0; _meaning.done = false;
       try {
         const rec = typeof indexedDB === 'undefined' ? null : await meaningDb('readonly', s => s.get('current'));
-        if (rec && rec.key === key && rec.vecs && rec.vecs.byteLength === _meaning.vecs.byteLength) { _meaning.vecs.set(new Float32Array(rec.vecs)); _meaning.made = _meaning.pieces.length; _meaning.done = true; }
+        if (rec && rec.model === model && Array.isArray(rec.texts) && rec.vecs && rec.vecs.byteLength === rec.texts.length * MEANING_DIM * 4) {
+          const kept = new Float32Array(rec.vecs), at = new Map(rec.texts.map((t, n) => [t, n]));
+          _meaning.todo = [];
+          pieces.forEach((p, n) => {
+            const k = at.get(p.text);
+            if (k === undefined) _meaning.todo.push(n);
+            else _meaning.vecs.set(kept.subarray(k * MEANING_DIM, (k + 1) * MEANING_DIM), n * MEANING_DIM);
+          });
+          _meaning.made = pieces.length - _meaning.todo.length;
+        }
       } catch (e) { quiet(e, 'reading the kept embeddings'); }
     }
-    while (!_meaning.done) {
+    for (;;) {
       if (!window.SEARCH_MEANING || _meaning.key !== key) return;
-      const from = _meaning.made, to = Math.min(_meaning.pieces.length, from + MEANING_BATCH);
-      const data = await meaningEmbed(_meaning.pieces.slice(from, to).map(p => p.text));
-      _meaning.vecs.set(data, from * MEANING_DIM);
-      _meaning.made = to;
-      if (to >= _meaning.pieces.length) {
+      const batch = _meaning.todo.slice(0, MEANING_BATCH);
+      if (batch.length) {
+        const data = await meaningEmbed(batch.map(n => _meaning.pieces[n].text));
+        if (_meaning.key !== key) return;
+        batch.forEach((n, k) => _meaning.vecs.set(data.subarray(k * MEANING_DIM, (k + 1) * MEANING_DIM), n * MEANING_DIM));
+        _meaning.todo = _meaning.todo.slice(batch.length);
+        _meaning.made += batch.length;
+      }
+      if (!_meaning.todo.length) {
         _meaning.done = true;
-        try { if (typeof indexedDB !== 'undefined') await meaningDb('readwrite', s => s.put({ key, vecs: _meaning.vecs.buffer.slice(0) }, 'current')); } catch (e) { quiet(e, 'keeping the embeddings'); }
+        if (batch.length) try {
+          if (typeof indexedDB !== 'undefined') await meaningDb('readwrite', s => s.put({ model, texts: _meaning.pieces.map(p => p.text), vecs: _meaning.vecs.buffer.slice(0) }, 'current'));
+        } catch (e) { quiet(e, 'keeping the embeddings'); }
+        break;
       }
       drawMeaningNote();
     }
@@ -843,7 +872,7 @@ function drawMeaningNote() {
   if (!host || !window.SEARCH_MEANING || _meaning.done) return;
   const n = _meaning.pieces ? _meaning.pieces.length : 0;
   host.innerHTML = '<div class="sv-note">' + (_meaning.progress || (n
-    ? 'Reading the pages for their meaning, ' + _meaning.made + ' of ' + n + ' pieces. Results appear when it finishes. This happens once for each file you open.'
+    ? 'Reading the pages for their meaning, ' + _meaning.made + ' of ' + n + ' pieces. Results appear when it finishes. Later visits read only what changed.'
     : 'Loading the model for search by meaning…')) + '</div>';
 }
 async function drawMeaningResults(q, S, host) {
