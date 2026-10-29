@@ -1988,6 +1988,9 @@ function showCharacterDetail(i) {
       ' \u00b7 proptype ' + srcNum(cSrc(4, 'the aspect and prop type, two bytes'), '0x' + r.proptype.toString(16).toUpperCase()) +
       (r.aspect ? ' \u00b7 aspect ' + srcNum(cSrc(4, 'the aspect and prop type, two bytes'), String(r.aspect)) : '');
   panel.appendChild(info);
+  // Where they live, their job, and their goods and lessons, as sentences
+  // for the search alone (searchSentences).
+  try { panel.insertAdjacentHTML('beforeend', searchSentences(searchPersonSentences(i, d))); } catch (e) { quiet(e, 'writing a person\u2019s sentences for the search'); }
   // What this person is assembled from, each chip a jump to the component
   // under Components. The dossier used to draw the portrait and the sprite
   // sheet without ever showing which resources they were.

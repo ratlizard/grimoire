@@ -4289,7 +4289,8 @@ function renderMechanicsSheet(value) {
     mechShopFigure(sh) +
     table(['vendor', 'goods, at the listed price in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.character !== null && characterRecord(spn.character) ? characterChip(spn.character) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
-      spn.goods.map(g => svEsc(g.name) + ' <span class="mechPrice">' + srcNum(g.src, g.price) + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') + '</td>' + (spn.terms ? srcCell(spn.termsSrc, spn.terms.join(' ')) : num('')) + '</tr>')), '');
+      spn.goods.map(g => svEsc(g.name) + ' <span class="mechPrice">' + srcNum(g.src, g.price) + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') + '</td>' + (spn.terms ? srcCell(spn.termsSrc, spn.terms.join(' ')) : num('')) + '</tr>')) +
+      searchSentences(searchShopSentences(sh)), '');
 
   // ---- training ----
   const tr = trainingRules();
@@ -4302,7 +4303,8 @@ function renderMechanicsSheet(value) {
     ].filter(Boolean) : [],
     mechTrainingFigure(tr) +
     table(['teacher', 'teaches'], tr.teachers.map(t => '<tr><td>' + (t.character !== null && characterRecord(t.character) ? characterChip(t.character) : svChip(t.resid)) + '</td><td>' +
-      [...t.skills.entries()].sort((a, b) => a[0] - b[0]).map(([id, m]) => (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16)), 0x1A00 + id) : 'skill 0x' + id.toString(16)) + (m ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') + '</td></tr>')), '');
+      [...t.skills.entries()].sort((a, b) => a[0] - b[0]).map(([id, m]) => (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16)), 0x1A00 + id) : 'skill 0x' + id.toString(16)) + (m ? ' <span class="inspDim">to mastery</span>' : '')).join(' ') + '</td></tr>')) +
+      searchSentences(searchTeacherSentences(tr)), '');
 
   // The talk balloons are on the Barks sheet now (balloonsMechSection
   // in js/delv-sheets.js), above the words themselves.
@@ -4479,7 +4481,9 @@ function renderMechanicsSheet(value) {
   // ---- the To Do list ----
   {
     const td = todoRules();
-    const nameOf = rid => labelFor(rid) || propWordHex(rid);
+    // An item's class script by its item's name ("glowing crystal" for
+    // 0x1025), as in the Hunger section.
+    const nameOf = rid => (rid >= 0x1000 && rid < 0x1200 ? propDisplayName(rid - 0x1000) : '') || labelFor(rid) || propWordHex(rid);
     const slots = new Map();
     const slot = v => { if (!slots.has(v)) slots.set(v, { adds: [], dones: [] }); return slots.get(v); };
     for (const a of td.adds) slot(a.slot.v).adds.push(a);
@@ -4508,7 +4512,15 @@ function renderMechanicsSheet(value) {
         counted.length ? 'Some lines count what you have found so far: ' + counted.map(a => srcNum(a.state, nameOf(a.resid))).join(', ') + '.' : '',
         never.length ? '<b>' + never.length + (never.length === 1 ? ' line is' : ' lines are') + ' never struck off</b> by any script: ' + never.map(s => srcNum(slots.get(s).adds[0].slot, td.lines && td.lines.get(s) ? '“' + td.lines.get(s) + '”' : 'slot ' + s)).join(', ') + '.' : ''
       ].filter(Boolean) : [],
-      table(['#slot', 'line', 'added by', 'struck off by'], rows));
+      table(['#slot', 'line', 'added by', 'struck off by'], rows) +
+      // The rows as sentences for the search (searchSentences), so "how do
+      // I cure Alaric" meets the line's words and the crystal in one place.
+      searchSentences([...slots.keys()].sort((a, b) => a - b).map(s => {
+        const g = slots.get(s), line = td.lines ? td.lines.get(s) : '';
+        if (!line) return '';
+        const names = list => [...new Set(list.map(x => nameOf(x.resid)))].join(', ');
+        return 'You get the quest “' + line + '” from ' + (names(g.adds) || 'no one') + (g.dones.length ? ', and ' + names(g.dones) + ' completes it' : ', and nothing completes it') + '.';
+      })));
   }
 
   // ---- the character flags, and where they are set ----

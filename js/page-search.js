@@ -189,27 +189,134 @@ function siteTextOf(els) {
   let cur = '';
   const flush = () => {
     const t = cur.replace(/([^\s(\[‘“\u0001])\u0001+(?=[^\s.,;:!?)\]’”\u0001])/g, '$1 ').replace(/\u0001/g, '').replace(/\s+/g, ' ').trim();
-    if (t) out.push(t);
+    if (t) { if (solo) out.solo.push(out.length); out.push(t); }
     cur = '';
   };
+  // The numbers in out.solo are the lines from a .searchOnly block
+  // (searchSentences), which search by meaning reads one at a time
+  // (meaningPieces).
+  let solo = 0;
+  out.solo = [];
   const walk = el => {
     for (let n = el.firstChild; n; n = n.nextSibling) {
       if (n.nodeType === 3) { cur += n.nodeValue; continue; }
       if (n.nodeType !== 1 || SITE_SKIP_TAG.test(n.tagName) || n.hidden) continue;
       if (n.style && n.style.display === 'none') continue;
       const b = SITE_BLOCK_TAG.test(n.tagName), gap = !b && !SITE_PHRASE_TAG.test(n.tagName);
+      const only = !!(n.classList && n.classList.contains('searchOnly'));
       if (b) flush();
       else if (n.tagName === 'TD' || n.tagName === 'TH') cur += ' ';
       else if (gap) cur += SITE_GAP;
+      if (only) solo++;
       walk(n);
       if (b) flush();
       else if (gap) cur += SITE_GAP;
+      if (only) solo--;
     }
   };
   for (const el of els) if (el && !(el.style && el.style.display === 'none')) { walk(el); flush(); }
   return out;
 }
 function siteViewElements() { return SITE_VIEW_ROOTS.map(id => document.getElementById(id)).filter(Boolean); }
+
+// --- Sentences for the search ---------------------------------------------
+
+/* The facts of a table, written out as sentences the visitor never sees and
+   both searches read (the maintainer, 29 October 2026). Search by meaning
+   matches a question against prose, and the shop table's "Sword 45 ob"
+   beside a chip named Milcom has no word of buying in it, so "where can I
+   buy a sword" found the sword's item pages. Each sentence is made here
+   from the file, as the table beside it is. No fact is typed in, no
+   sentence has anything the table lacks, and nothing of the game's is in
+   the repository.
+
+   They are drawn in a .searchOnly block, which the stylesheet hides and
+   siteTextOf reads all the same, placed after the table or panel they
+   restate, so a search that lands on one outlines that instead
+   (searchShownFor). */
+function searchSentences(lines) {
+  lines = (lines || []).filter(Boolean);
+  return lines.length ? '<div class="searchOnly">' + lines.map(s => '<p>' + svEsc(s) + '</p>').join('') + '</div>' : '';
+}
+function searchShownFor(el) {
+  const hid = el && el.closest ? el.closest('.searchOnly') : null;
+  return hid ? (hid.previousElementSibling || hid.parentElement) : el;
+}
+// "Milcom in Odemia", or the name alone for a person with no placement.
+function searchPersonAt(i) {
+  const d = characterDossier(i);
+  if (!d) return null;
+  return d.homeZone ? d.name + ' in ' + d.homeZone : d.name;
+}
+// "a Sword ... for 45 obols", or "3 Arrows ... for 5 obols".
+function searchShopSentences(sh) {
+  const out = [], seen = new Set();
+  for (const s of sh.shops) {
+    const who = s.character !== null ? searchPersonAt(s.character) : (labelFor(s.resid) || null);
+    for (const g of s.goods) {
+      const line = 'You can buy ' + (g.count > 1 ? g.count + ' ' : /^[aeiou]/i.test(g.name) ? 'an ' : 'a ') + g.name + (who ? ' from ' + who : '') + ' for ' + g.price + ' obol' + (g.price === 1 ? '' : 's') + '.';
+      if (!seen.has(line)) { seen.add(line); out.push(line); }
+    }
+  }
+  return out;
+}
+function searchTeacherSentences(tr) {
+  const out = [];
+  for (const t of tr.teachers) {
+    const who = t.character !== null ? searchPersonAt(t.character) : (labelFor(t.resid) || null);
+    for (const [id, m] of [...t.skills.entries()].sort((a, b) => a[0] - b[0])) {
+      const skill = selfNameFor(0x1A00 + id);
+      if (skill) out.push('You can learn the ' + skill + ' skill' + (who ? ' from ' + who : '') + (m ? ', up to mastery' : '') + '.');
+    }
+  }
+  return out;
+}
+/* The first answer in a person's talk script (0x1800 plus their number) to
+   the word "job", as the conversation window shows it: the @ that marks a
+   keyword dropped, and the parts a * splits into joined. The words are the
+   game's, unchanged. */
+function talkJobAnswer(i) {
+  const e = dvmScriptEntry(0x1800 + i);
+  if (!e) return null;
+  let ops;
+  try { ops = dvmOpsOf(e); } catch (err) { quiet(err, 'reading a talk script for its answer to job'); return null; }
+  const RESP = /^conversation_response "([^"]*)" -> 0x[0-9A-F]+$/i;
+  for (let k = 0; k < ops.length; k++) {
+    const m = RESP.exec(ops[k].text);
+    if (!m || !m[1].split(',').includes('job')) continue;
+    for (let j = k + 1; j < ops.length && j < k + 12 && !RESP.test(ops[j].text); j++) {
+      const s = /^string[^"]*("(?:[^"\\]|\\.)*")$/.exec(ops[j].text);
+      if (!s) continue;
+      let t;
+      try { t = JSON.parse(s[1]); } catch (err) { quiet(err); return null; }
+      return t.split('*').map(p => p.trim().replace(/^"|"$/g, '').trim()).filter(Boolean).join(' ').replace(/@/g, '');
+    }
+    return null;
+  }
+  return null;
+}
+/* A person's page: their home, the places of their day, their answer to
+   "job", and the goods and lessons on offer from them. The shops and
+   teachers are read once a file (DERIVED.SEARCH_PEOPLE). */
+function searchPersonSentences(i, d) {
+  let people = DERIVED.SEARCH_PEOPLE;
+  if (!people) {
+    people = new Map();
+    const of = c => { if (!people.has(c)) people.set(c, []); return people.get(c); };
+    try { const sh = shopRules(); for (const s of sh.shops) if (s.character !== null) of(s.character).push(...searchShopSentences({ shops: [s] })); } catch (e) { quiet(e, 'reading the shops for the search'); }
+    try { const tr = trainingRules(); for (const t of tr.teachers) if (t.character !== null) of(t.character).push(...searchTeacherSentences({ teachers: [t] })); } catch (e) { quiet(e, 'reading the teachers for the search'); }
+    DERIVED.SEARCH_PEOPLE = people;
+  }
+  const out = [];
+  if (d.homeZone) out.push(d.name + ' lives in ' + d.homeZone + '.');
+  const places = [...new Set(d.schedule.map(e => e.where).filter(Boolean))];
+  if (places.length) out.push('During the day ' + d.name + ' is in ' + (places.length > 1 ? places.slice(0, -1).join(', ') + ' and ' + places[places.length - 1] : places[0]) + '.');
+  let job = null;
+  try { job = talkJobAnswer(i); } catch (e) { quiet(e, 'reading a job answer for the search'); }
+  if (job) out.push(d.name + '’s answer to “job” is “' + job + '”');
+  out.push(...new Set(people.get(i) || []));
+  return out;
+}
 
 // "Components › Text › Labels", and the section after it when the leaf
 // has several.
@@ -295,7 +402,7 @@ function siteSearchState() {
     const sig = lines.join('\n');
     if (!sig || S.texts.has(sig)) return;
     S.texts.add(sig);
-    S.pages.push({ title, trail, lines, open, hay: searchFold(title + '\n' + sig) });
+    S.pages.push({ title, trail, lines, open, solo: lines.solo && lines.solo.length ? lines.solo : undefined, hay: searchFold(title + '\n' + sig) });
   };
   S.add = add;
   // The panels written into index.html, read without being opened.
@@ -484,7 +591,7 @@ function siteSearchFromCache(S, onMiss) {
 }
 function siteSearchToCache(S) {
   if (!S.key || typeof indexedDB === 'undefined') { if (SEARCH_CRAWL) searchCrawlTell({ failed: 'nowhere to store the pages' }); return; }
-  const pages = S.pages.map(p => ({ title: p.title, trail: p.trail, lines: p.lines, open: p.open }));
+  const pages = S.pages.map(p => ({ title: p.title, trail: p.trail, lines: p.lines, open: p.open, solo: p.solo }));
   siteSearchDb('readwrite', s => s.put({ key: S.key, pages }, SEARCH_KEY))
     .then(() => { if (SEARCH_CRAWL) searchCrawlTell({ done: true, key: S.key }); })
     .catch(e => { quiet(e, 'keeping the search’s pages'); if (SEARCH_CRAWL) searchCrawlTell({ failed: 'the pages were not stored' }); });
@@ -822,7 +929,11 @@ function meaningPieces(S) {
   S.pages.forEach((p, i) => {
     let text = '', k0 = -1;
     const push = () => { if (text) pieces.push({ i, k: k0, text: p.title + '. ' + text }); text = ''; k0 = -1; };
+    const solo = new Set(p.solo || []);
     p.lines.forEach((l, k) => {
+      // A sentence written for the search is one piece, alone, so a
+      // question meets one fact and not a run of a dozen.
+      if (solo.has(k)) { push(); pieces.push({ i, k, text: p.title + '. ' + l }); return; }
       if (k0 < 0) k0 = k;
       text += (text ? ' ' : '') + l;
       if (text.length >= MEANING_CHUNK) push();
@@ -1172,7 +1283,7 @@ function openSearchPage(i, k) {
   const show = () => {
     if (gen !== _siteScrollGen) return;
     // Found once and still on the page, it is only kept in view.
-    const el = found && document.contains(found) ? found : (found = searchFindLine(line, terms, roots || siteViewElements()));
+    const el = found && document.contains(found) ? found : (found = searchShownFor(searchFindLine(line, terms, roots || siteViewElements())));
     if (!el) return;
     for (let a = el; a; a = a.parentElement) if (a.tagName === 'DETAILS') a.open = true;
     const r = el.getBoundingClientRect();
