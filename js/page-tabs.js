@@ -936,55 +936,8 @@ function optionLabel(v) {
   return v;
 }
 
-/* A tab row too wide for its folder overlaps its tabs (the maintainer,
-   28 October 2026, in place of a row that scrolled with its ends faded).
-   The open tab shows whole. The tabs before it stack to its left, each
-   over the one before, so a sliver of each shows at its left edge. The
-   tabs after it stack to its right, each under the one before, so a
-   sliver of each shows at its right edge. Every sliver is the same width,
-   what the row has left after the open tab shared among the rest. A sliver
-   narrower than TAB_SLIVER_MIN pixels shows too little of its tab, and
-   then the row scrolls with its fades. Measured after the tabs are in and
-   again when the window changes size. */
-const TAB_SLIVER_MIN = 12;
-function tabRowFit(row) {
-  if (!row || !row.children) return;
-  const tabs = [...row.children].filter(b => b.classList && b.classList.contains('ftab'));
-  for (const b of tabs) { b.style.marginLeft = ''; b.style.zIndex = ''; }
-  row.classList.remove('overlapped');
-  if (tabs.length < 2 || !row.clientWidth) return;
-  const pad = parseFloat(getComputedStyle(row).paddingLeft) || 0;
-  const avail = row.clientWidth - pad - 2;
-  const widths = tabs.map(b => b.getBoundingClientRect().width);
-  const gap = 4;                     // the -4px each tab already overlaps by
-  const total = widths.reduce((a, w) => a + w - gap, gap);
-  if (total <= avail) return;
-  const k = Math.max(0, tabs.findIndex(b => b.classList.contains('sel')));
-  const s = (avail - widths[k]) / (tabs.length - 1);
-  if (s < TAB_SLIVER_MIN) return;
-  // Each tab's left edge, then the margin that puts it there after the
-  // tab before it.
-  const left = tabs.map((_, i) => i <= k ? i * s : avail - (tabs.length - 1 - i) * s - widths[i]);
-  for (let i = 0; i < tabs.length; i++) {
-    const after = i ? left[i - 1] + widths[i - 1] : 0;
-    tabs[i].style.marginLeft = (i ? left[i] - after : 0) + 'px';
-    tabs[i].style.zIndex = String(i <= k ? 1 + i : 1 + tabs.length - i);
-  }
-  tabs[k].style.zIndex = String(tabs.length + 2);
-  row.classList.add('overlapped');
-  row.scrollLeft = 0;
-  try { scrollHintUpdate(row); } catch (e) { quiet(e); }
-}
-let _tabFitBound = false;
-function tabRowsFitAll() {
-  for (const id of ['tabRow1', 'tabRow2', 'tabRow3']) tabRowFit(document.getElementById(id));
-}
 function renderTabRow(row, nodes, selectedId) {
   if (!row) return;
-  if (!_tabFitBound) {
-    _tabFitBound = true;
-    try { window.addEventListener('resize', () => requestAnimationFrame(tabRowsFitAll)); } catch (e) { quiet(e); }
-  }
   row.innerHTML = '';
   // The fade at the right edge while the row has more past it; see
   // scrollHintWatch. Measured once the tabs are in, at the foot.
@@ -1024,9 +977,6 @@ function renderTabRow(row, nodes, selectedId) {
     row.appendChild(b);
   }
   watched();
-  tabRowFit(row);
-  // Again once the faces have settled the tabs' widths.
-  try { requestAnimationFrame(() => tabRowFit(row)); if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => tabRowFit(row)); } catch (e) { quiet(e); }
 }
 
 // "1.0.4", from the name of the installer that is open; '' without one.
