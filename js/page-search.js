@@ -959,6 +959,13 @@ async function meaningBuild(S) {
    is open and no frame is reading. */
 function searchWarmUp() {
   if (!ARCHIVE || SEARCH_CRAWL) return;
+  // Without stored pages or a frame to read them there is nothing to start
+  // ahead of the panel, unless search by meaning is on and needs its
+  // embeddings. In the harnesses' DOM, which has no IndexedDB, the page
+  // list (which reads the program's routines) then stays out of the middle
+  // of the views smoke's map steps.
+  const served = /^https?:$/.test(location.protocol) && typeof indexedDB !== 'undefined';
+  if (!served && !window.SEARCH_MEANING) return;
   const S = siteSearchState();
   if (S.cache) return;
   siteSearchFromCache(S, () => searchCrawlInFrame(S));
