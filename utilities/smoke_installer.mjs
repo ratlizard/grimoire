@@ -493,6 +493,26 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         else console.log(`  hero portrait: slot ${pc.first.v} + ${pc.perRow.v} a column past ${pc.base.v.toString(16)}, written as ${pc.writes.v.toString(16)}; ${pc.offered.rows} rows by ${pc.offered.cols} offered; ${opens.length - 1} portraits offered on the hero’s page, each opening its resource`);
       }
     } catch (e) { fail('hero portrait', e); }
+    /* The text styles and the codes in a line of text, v1.359.0: every
+       figure exeTextStyles reads, pinned at the shipped program's value and
+       in the routine it is read from, and the Fonts page's section stating
+       them as links. A shape the reader misses makes it null, and the
+       application is open here, so a null is a failure. */
+    try {
+      const ts = ctx.exeTextStyles();
+      const inR = (val, name) => { const r = val && ctx.exeRoutineAt(val.exe); return !!(r && r.name.startsWith(name)); };
+      const want = { first: 128, count: 23, fallFont: 1, fallSize: 12, plain: 5, open: 60, step: 3, shift: 5, bare: 8, close: 62, back: 5, convBase: 1, pause: 42, keyword: 64, hide: 38 };
+      const wrong = ts ? Object.keys(want).filter(k => !ts[k] || ts[k].v !== want[k]) : ['all'];
+      if (wrong.length) fail('text styles', 'misread ' + wrong.join(', ') + ' ' + JSON.stringify(ts));
+      else if (!inR(ts.first, 'LoadFontInfo') || !inR(ts.step, 'TTextContext::TTextContext') || !inR(ts.convBase, 'TConversation::ShowTalking') || !inR(ts.pause, 'TConversation::myprintstr'))
+        fail('text styles', 'a figure is not in the routine it comes from');
+      else {
+        const box = ctx.textStylesPanel(), html = box.innerHTML, text = html.replace(/<[^>]+>/g, '');
+        if (!new RegExp('jumpToExeAt\\(' + ts.step.exe + '\\)').test(html) || !/so its text is style 6, &lt;1 is style 9 \(Seldane, 12 pt, plain\)/.test(text) || !/TxSt 150/.test(text))
+          fail('text styles', 'the Fonts section does not state the figures (' + text.slice(0, 400) + ')');
+        else console.log(`  text styles: ${ts.count.v} from TxSt ${ts.first.v}, a missing one font ${ts.fallFont.v} at ${ts.fallSize.v}, and "<d" is s + ${ts.shift.v} + ${ts.step.v}d with a conversation's s ${ts.convBase.v}`);
+      }
+    } catch (e) { fail('text styles', e); }
     /* The Cheats sheet off the program, v1.52.0: the gate, every case of the
        key routine's switch, the preferences record scanned out of the whole
        program, what the game stores and the file's keys. The figures pinned

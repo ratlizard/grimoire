@@ -66,6 +66,66 @@ function swapGameFont(bytes, filename) {
   try { installDialogueBox(); } catch (e) { quiet(e); }
   return window.FONT_SWAP;
 }
+/* Text Styles, the first section of Components > Fonts: the styles the game
+   draws its text in and the codes a line of its text can hold, every figure
+   read out of the program (exeTextStyles in js/page-rules.js has what is read
+   and from where) and each style out of the forks. A style is looked up in
+   Cythera Data's fork first, as the Resource Manager looks in the newest open
+   file first, then in the program's; one in neither is the fallback the
+   program gives it. With no program open the section gives the source of its
+   figures and states none (the rule of v1.51.0). */
+function textStylesPanel() {
+  const box = document.createElement('div');
+  box.className = 'mechView';
+  box.id = 'textStyles';
+  const ts = (typeof exeTextStyles === 'function') ? exeTextStyles() : null;
+  const head = '<section class="mechSec"><div class="mechHead"><h3>Text Styles</h3></div>';
+  if (!ts) {
+    box.innerHTML = head + '<p class="mechLede">The game draws its text in the text styles below. How many there are, what a missing one falls back to and the codes a line of text can hold come from the program, and the program is not open.</p></section>';
+    return box;
+  }
+  const styleOf = id => {
+    for (const [fork, from] of [[window.CYTHERA_RSRC, 'Cythera Data'], [window.APP_RSRC, 'Cythera']]) {
+      const e = fork && fork.resourcesByType && (fork.resourcesByType['TxSt'] || []).find(x => x.id === id);
+      if (!e) continue;
+      let s = null;
+      try { s = decodeTxSt(fork.dataOf('TxSt', e)); } catch (err) { quiet(err, 'a text style'); }
+      if (s) return { from, name: e.name || '', text: s.text };
+    }
+    return null;
+  };
+  const n = ts.count.v, first = ts.first.v, b = ts.convBase.v;
+  const fall = 'font ' + srcNum(ts.fallFont) + ' at ' + srcNum(ts.fallSize) + ' points, plain';
+  const rows = [], have = new Set();
+  for (let k = 0; k < n; k++) {
+    const s = styleOf(first + k);
+    if (s) have.add(k);
+    rows.push('<tr><td class="num">' + k + '</td><td class="num">TxSt ' + (first + k) + '</td><td>' + svEsc(s ? s.name : '') + '</td><td>' +
+      svEsc(s ? s.text : 'font ' + ts.fallFont.v + ', ' + ts.fallSize.v + ' pt, plain') + '</td><td>' + (s ? s.from : 'neither file') + '</td></tr>');
+  }
+  const plain = b + ts.plain.v, lang = d => b + ts.shift.v + ts.step.v * d;
+  const missing = [];
+  for (let d = 0; d <= 9; d++) if (lang(d) >= n || !have.has(lang(d))) missing.push(d);
+  const lt = srcNum(ts.open, '<'), gt = srcNum(ts.close, '>');
+  const codes = [];
+  if (ts.keyword) codes.push(srcNum(ts.keyword, '@') + ' before a word draws the word as a keyword.');
+  codes.push(lt + ' and a digit d switch to style s + ' + srcNum(ts.shift) + ' + ' + srcNum(ts.step) + ' × d, where s is the base style of the text. ' +
+    lt + ' with no digit switches to s + ' + srcNum(ts.bare) + ', and ' + gt + ' back to s + ' + srcNum(ts.back) + '.');
+  codes.push('Every line starts in style s + ' + srcNum(ts.plain) + '. A conversation has base style ' + srcNum(ts.convBase) + ', so its text is style ' + plain +
+    ', ' + svEsc('<1') + ' is style ' + lang(1) + (have.has(lang(1)) ? ' (' + svEsc(styleOf(first + lang(1)).text) + ')' : '') +
+    (missing.length ? ', and ' + svEsc('<' + missing[0]) + ' and higher are styles no file has' : '') + '.');
+  if (ts.hide) codes.push(srcNum(ts.hide, '&') + ' hides the text after it.');
+  if (ts.pause) codes.push(srcNum(ts.pause, '*') + ' waits for a click in a conversation. The game leaves out the character just before it.');
+  codes.push('In a conversation, text between double quotes is speech, in the box at the top, and the rest is narration, below it.');
+  box.innerHTML = head +
+    '<p class="mechLede">The game draws each piece of its text in one of its ' + srcNum(ts.count) + ' text styles, a font, a size and a face. Style n is TxSt ' +
+    srcNum(ts.first) + ' + n. The game uses Cythera Data’s styles over the program’s, and a style neither file has is ' + fall + '.</p>' +
+    '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">style</th><th class="num">resource</th><th>name</th><th>font</th><th>from</th></tr></thead><tbody>' +
+    rows.join('') + '</tbody></table></div>' +
+    '<h4>Codes in the Text</h4><p class="mechLede">A line of the game’s text can hold these codes. The game draws none of them, and no code lets a line show one of these characters.</p>' +
+    '<ul class="ruleList">' + codes.map(c => '<li>' + c + '</li>').join('') + '</ul></section>';
+  return box;
+}
 function fontSwapPanel() {
   const box = document.createElement('div');
   box.className = 'mechView';
@@ -1363,7 +1423,7 @@ function renderMacRsrcSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   const view = FORK_VIEWS[window.CUR_SUBN] || null;
-  if (window.CUR_SUBN === 'FONTS') { grid.appendChild(fontSwapPanel()); grid.appendChild(strikeSwapPanel()); grid.appendChild(startButtonsPanel()); }
+  if (window.CUR_SUBN === 'FONTS') { grid.appendChild(textStylesPanel()); grid.appendChild(fontSwapPanel()); grid.appendChild(strikeSwapPanel()); grid.appendChild(startButtonsPanel()); }
   const kinds = view ? view.kinds.map(id => RSRC_KINDS.find(k => k.id === id)) : null;
   const sources = view ? (view.source === 'both' ? ['data', 'app'] : [view.source]) : [window.RSRC_SOURCE === 'app' ? 'app' : 'data'];
   const q = (window.PROP_FILTER || '').trim().toLowerCase();

@@ -4972,6 +4972,71 @@ function exeBarkRules() {
   return r.ticks || r.width ? r : null;
 }
 
+/* THE TEXT STYLES, AND THE CODES IN A LINE OF TEXT (28 October 2026, the
+   maintainer's request to trace where the fonts come from, after a Halloween
+   mod's "<Rattles spookily>" drew as bars).
+
+   LoadFontInfo fills the program's table of text styles once a scenario is
+   open: for n from 0 while n < 23 (cmpwi 0, 23) it fetches 'TxSt' resource
+   128 + n (addi 4, 31, 128 before GetResource), which the Resource Manager
+   finds in the newest open file first, so Cythera Data's styles stand over
+   the program's eight. A style no file has is font 1, the application font
+   (li 3, 1), at 12 points (li 4, 12), plain. SetText(n) is how every drawer
+   picks one.
+
+   TTextContext's constructor lays out a text from a base style (its r7,
+   kept in r23). Every run starts in base + 5 (addi 4, 23, 5). A "<" (cmpwi
+   0, 60) followed by a digit d switches to base + 5 + 3d (addi -48, mulli
+   3, add the base, addi 5); a "<" with no digit to base + 8; a ">" (cmpwi
+   0, 62) back to base + 5. Neither is drawn, and no character escapes
+   them: the loop compares a byte with line breaks, "@", letters and space
+   after it, "<", digits, ">" and "&" and with nothing else. Both switches
+   are read only where text is shown (r28, cleared by the flags' bit 0).
+   The conversation's speech and narration (ShowTalking, ShowMessage) pass
+   base 1, so their text is style 6 (Lang0 Medium), "<1" is style 9, the
+   Seldane script, and "<2" to "<4" are styles 12 to 18, which no file has.
+   Tried headless: "<0zero> <1one> <2two> <3three> <4four>" drew the
+   speech's font, Seldane glyphs, then a small sans three times.
+
+   The "*" pause is myprintstr's (cmpwi 0, 42), which leaves out the byte
+   before it (bugs.md, The character before a pause). Read here by the
+   shape of the instructions; null where a shape is not found. */
+function exeTextStyles() {
+  const lf = exeOpsNamed('LoadFontInfo');
+  const gi = lf.findIndex(o => exeCalls(o, 'GetResource'));
+  const fi = gi >= 0 ? exeFindBack(lf, gi - 1, 4, d => d.mn === 'addi' && d.rd === 4 && d.imm > 0) : -1;
+  const ci = lf.findIndex(o => o.d && o.d.mn === 'cmpwi' && o.d.imm > 1);
+  const st = lf.findIndex(o => o.d && o.d.mn === 'sthx');
+  const ni = st >= 0 ? exeFindBack(lf, st - 1, 6, d => d.mn === 'li' && d.rd === lf[st].d.rt) : -1;
+  const sb = st >= 0 ? exeFind(lf, st + 1, 8, d => d.mn === 'stbx') : -1;
+  const zi = sb >= 0 ? exeFindBack(lf, sb - 1, 4, d => d.mn === 'li' && d.rd === lf[sb].d.rt) : -1;
+  const tc = exeOpsNamed('TTextContext::TTextContext');
+  const bi = tc.findIndex(o => o.d && o.d.mn === 'addi' && o.d.ra === 7 && o.d.imm === 0);
+  const base = bi >= 0 ? tc[bi].d.rd : -1;
+  const pl = base >= 0 ? tc.findIndex(o => o.d && o.d.mn === 'addi' && o.d.rd === 4 && o.d.ra === base) : -1;
+  const lt = tc.findIndex(o => o.d && o.d.mn === 'cmpwi' && o.d.imm === 60);
+  const mu = lt >= 0 ? exeFind(tc, lt + 1, 30, d => d.mn === 'mulli') : -1;
+  const sh = mu >= 0 ? exeFind(tc, mu + 1, 4, d => d.mn === 'addi' && d.imm > 0) : -1;
+  const bare = mu >= 0 ? exeFind(tc, mu + 1, 12, d => d.mn === 'addi' && d.ra === base && d.imm > 0) : -1;
+  const gt = tc.findIndex(o => o.d && o.d.mn === 'cmpwi' && o.d.imm === 62);
+  const back = gt >= 0 ? exeFind(tc, gt + 1, 16, d => d.mn === 'addi' && d.ra === base && d.imm > 0) : -1;
+  const sp = exeOpsNamed('TConversation::ShowTalking');
+  const call = sp.findIndex(o => exeCalls(o, 'TTextContext::TTextContext'));
+  const cb = call >= 0 ? exeFindBack(sp, call - 1, 16, d => d.mn === 'li' && d.rd === 7) : -1;
+  const mp = exeOpsNamed('TConversation::myprintstr');
+  const star = mp.findIndex(o => o.d && o.d.mn === 'cmpwi' && o.d.imm === 42);
+  const at = tc.findIndex(o => o.d && o.d.mn === 'cmpwi' && o.d.imm === 64);
+  const amp = tc.findIndex(o => o.d && o.d.mn === 'cmpwi' && o.d.imm === 38);
+  if ([fi, ci, ni, zi, pl, lt, mu, sh, bare, gt, back, cb].some(i => i < 0)) return null;
+  return { first: exeVal(lf[fi], lf[fi].d.imm), count: exeVal(lf[ci], lf[ci].d.imm),
+           fallFont: exeVal(lf[ni], lf[ni].d.imm), fallSize: exeVal(lf[zi], lf[zi].d.imm),
+           plain: exeVal(tc[pl], tc[pl].d.imm), open: exeVal(tc[lt], 60), step: exeVal(tc[mu], tc[mu].d.imm),
+           shift: exeVal(tc[sh], tc[sh].d.imm), bare: exeVal(tc[bare], tc[bare].d.imm),
+           close: exeVal(tc[gt], 62), back: exeVal(tc[back], tc[back].d.imm),
+           convBase: exeVal(sp[cb], sp[cb].d.imm), pause: star >= 0 ? exeVal(mp[star], 42) : null,
+           keyword: at >= 0 ? exeVal(tc[at], 64) : null, hide: amp >= 0 ? exeVal(tc[amp], 38) : null };
+}
+
 /* WHERE THE HERO'S PORTRAIT COMES FROM. The scenario's 0x8800 is never
    seen in play. CreatePlayer is given the dialog's pick as a slot number --
    TCreatePlayerDialog::GetPortrait answers 240 plus six a column plus the
