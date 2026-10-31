@@ -95,10 +95,13 @@
    reason. The jokes and the recastings (Sour Grapes, the Pipes of the Deep, the Voices of the Hall,
    the Strine opening), which are separate builders and not fixes. */
 
-const DATA_FIX_STAGES = ['found', 'community', 'bugfix', 'further', 'apart', 'cost', 'text', 'community-text', 'spelling', 'map'];
+// 'mods' is last, after the text: the utility mods (below) take the place of
+// whole passages, Alaric's first talk among them, and a text fix that looks
+// for a word in a passage already gone would find nothing.
+const DATA_FIX_STAGES = ['found', 'community', 'bugfix', 'further', 'apart', 'cost', 'text', 'community-text', 'spelling', 'map', 'mods'];
 // The stages whose edits are found in the file, and so are sorted before
 // they are applied (js/delv-datapatch.js).
-const DATA_FIX_STAGE_SORTED = ['further'];
+const DATA_FIX_STAGE_SORTED = ['further', 'mods'];
 
 // The Patches section's lists, in its order. By what a fix touches since
 // 1 October 2026, at the maintainer's word; until then they were by who
@@ -130,6 +133,10 @@ const DATA_FIX_GROUPS = [
   // The larger changes, each a design call rather than a mended slip, in a
   // separate list below the rest (the maintainer, 1 October 2026).
   { id: 'design', title: 'Design Changes', off: true, note: 'These are bug fixes for aspects that might actually be intentional, or for which the issue necessitates a creative solution.' },
+  // Neither a bug nor a design call: ways to play the game with part of it
+  // taken out, for a visitor who starts somewhere else or looks around.
+  // Off, like Design Changes, and in neither preset.
+  { id: 'mods', title: 'Utility Mods', off: true, note: 'These change how the game plays so you can get to the parts you like. None is chosen until you choose it.' },
 ];
 
 // The text's choices, by the name their options share, as the Patches
@@ -2440,6 +2447,113 @@ const DATA_FIXES = [
                  'return', 'call_resource 0x3009', 'arg Arg00', 'end', 'end',
                  'rung:'].join('\n') }] },
     ] },
+
+  /* ---- Utility mods (the stage "mods", the list Utility Mods) --------------
+     Four mods to play with part of the game left out, named by the
+     maintainer on 31 October 2026. None mends anything, so none is in a
+     preset. They run after the text, since the first replaces a passage of
+     Alaric's talk that a text fix may have reworded. */
+
+  // The start of a new game. The hero is made, then Alaric's Talk (0x1802)
+  // runs at once, with the hero on the conjurer's triangle at (19,23). On the
+  // first talk it gives the archetype's things, sets state flag 0 and
+  // Alaric's flag 7, recites the story (one string, 0x07A8 to 0x0C3A) and adds
+  // the quest "Cure Alaric". On "bye" it makes the amulet (type 244, ten
+  // charges), adds "Learn Magic at Magisterium" for a hero with the Magic
+  // skill (195), walks Magpie through the tour, and makes the egg (0xF15) that
+  // brings Omen's first vision on the next turn. The vision sets Omen's flag 7
+  // and sends the hero into Omen's Test (zone 40); the closing speech in the
+  // test's last room (0x1CC3) makes the map (type 378), switches the automap
+  // on and sends the hero back to the hall. A save made after all of it
+  // differs from the new game's in quest flag 31 (the automap), the To Do
+  // list and the rooms entered (playthrough kit, cp0 against cp6, read with
+  // tools/savediff). This replaces the story with those effects and nothing
+  // else: the quest, the amulet, the Magic quest, Omen's flag, the map and
+  // the automap. The hero stays on the triangle, where a new game puts them,
+  // and the talk ends. No egg is made, so no vision comes; Omen's later
+  // visions are other eggs, which other scripts make.
+  { id: 'skip-intro', group: 'mods', stage: 'mods', name: 'No time to waste',
+    played: 'fork, PowerPC, 31 October 2026, a new game with all four mods and one without, each saved at once, the two saves differing in quest flag 31, the To Do list (the same two entries that change after Omen’s Test in the playthrough kit), Omen’s flag 7, and the amulet, the map and the starting things in the hero’s pack, with the hero on the triangle at (19,23)',
+    title: 'A new game now starts with Alaric’s briefing, Magpie’s tour and Omen’s Test already done and the amulet in your pack, instead of playing through them',
+    plan: (s) => {
+      const what = 'Alaric’s first talk', p = dataPatchPlace(s, what, 0x1802, [
+        'call_resource SetCharacterFlag', 'arg Arg00', 'byte 0x07', 'end', 'string(implicit) "\\"Ah - good, you are about',
+        'sys AddQuest', 'byte 0x00', 'word 0x021A[0]', 'byte 0x00', 'add', 'end', 'sys AddConversationKeyword']);
+      return { edits: [{ what, resid: 0x1802, at: p.at(4), to: p.at(11), expect: p.expect, code: [
+        'sys AddQuest', 'byte 0x00', 'word 0x021A[0]', 'byte 0x00', 'add', 'end',
+        'sys Create', 'short 0x0001', 'short 0x00F4', 'byte 0x0A', 'byte 0x00', 'end',
+        'if_not', 'call_resource 0xEAD', 'word Character.Hero', 'short 0x00C3', 'end', 'then -> noMagic',
+        'sys AddQuest', 'byte 0x02', 'word 0x021A[0]', 'byte 0x02', 'add', 'end',
+        'noMagic:',
+        'call_resource 0xF00', 'short 0x007E', 'byte 0x07', 'end',
+        'sys Create', 'short 0x0001', 'short 0x017A', 'byte 0x00', 'byte 0x00', 'end',
+        'sys SetAutomapping', 'word True', 'end',
+        'return', 'byte 0x00', 'end'].join('\n') }] };
+    } },
+
+  // Whether a character fights the hero is decided in three places. A
+  // creature picks its targets from the program's enemy table, indexed by the
+  // alignment in byte 25 of each character record (0 neutral, 1 evil, 2 good,
+  // 3 feral): the hero's is 2, so evil and feral creatures hunt the hero, and
+  // at 0 nobody does (tried in the fork, 31 October 2026: a skeleton on
+  // behavior 8 two squares off hit a hero of alignment 2 and ignored one of
+  // 0). Only the shipped record is changed, so it is a new game's hero. The
+  // hero's area spells (Tremor, Mass Confusion, Mass Terrorisation) pick
+  // their targets from the same table with the hero as the asker, and find
+  // nobody.
+  // A character who is hit answers through the default method 0x3043, which
+  // sets the attacker as target and its fighting behavior, and signals 321
+  // so that the good characters nearby turn on the attacker too (0xD07, and
+  // 0xD06 for the party). Both are skipped when the attacker is the hero, and
+  // 0xD07 ignores signals 320 and 321 altogether, which is how a companion's
+  // cry at a theft sets the guards on the hero.
+  { id: 'love-bellerophon', group: 'mods', stage: 'mods', name: 'Everybody loves Bellerophon',
+    played: 'in part, fork, 68K, 31 October 2026, Hector attacked twice in Land King Hall and the turns passed, the hero losing 69 of 255 health to him on the shipped file and none with the fix, and a skeleton on behavior 8 two squares off hit a hero of alignment 2 and left a hero of alignment 0 alone (a save edited by hand, with the new game’s hero at 0 in the saved game). The guards’ answer to a theft and the three area spells are unplayed',
+    title: 'Nobody now turns on you whatever you do, instead of creatures hunting you and people fighting back or calling the guards (a new game)',
+    plan: (s) => ({ edits: [
+      dataFixInsert(s, 'a hit character answers the hero', 0x3043, ['set_field 0x2A', 'arg Arg00', 'end', 'arg Arg01', 'end', 'set_field behavior'], 0,
+        ['if_not', 'arg Arg01', 'word Character.Hero', 'eq', 'then -> answers', 'return', 'byte 0x00', 'end', 'answers:'].join('\n')),
+      dataFixInsert(s, 'good characters turn on the hero', 0xD07, ['set_local 0x00', 'arg Arg00', 'cast Character', 'end', 'set_field target'], 0,
+        ['return', 'byte 0x00', 'end'].join('\n')),
+    ], dataEdits: [
+      { what: 'the hero’s alignment', resid: 0xF009, fn: (b) => {
+        if (b[32 + 25] !== 2) throw new Error('the hero’s alignment is ' + b[32 + 25] + ', not 2');
+        b[32 + 25] = 0; return 'the hero’s alignment, 2 to 0';
+      } },
+    ] }) },
+
+  // The default TakeDamage (0x3041) is what every blow, missile, spell and
+  // trap reaches for a character whose class has no TakeDamage (the classes
+  // with one are creatures; the hero's prop type, 33 or 32, has none).
+  // The blow (0xE87), the missile (0xE89), the spell helper (0xEB8) and the
+  // traps all end in it, and nothing else subtracts from the hero's health
+  // except the spell that trades health for magic (0xA02). The early return
+  // goes after the character is found and before the flash, the sound and the
+  // wound, so a blow that lands prints its line and does nothing. Companions
+  // are not covered: the test is the hero.
+  { id: 'cant-touch-this', group: 'mods', stage: 'mods', name: 'Can’t touch this',
+    played: 'fork, PowerPC, 31 October 2026, a skeleton on behavior 8 two squares off and twelve turns passed, "Skeleton hit Bellerophon very hard" and the hero’s health 255 of 255, against 223 on the shipped file',
+    title: 'Nothing can now damage you, instead of every blow, spell and trap wounding you',
+    plan: (s) => ({ edits: [
+      dataFixInsert(s, 'damage to the hero', 0x3041, ['set_local 0x00', 'arg Arg00', 'cast Character', 'end', 'if_not', 'local Var00', 'then ->'], 4,
+        ['if_not', 'local Var00', 'word Character.Hero', 'eq', 'then -> hurts', 'return', 'byte 0x00', 'end', 'hurts:'].join('\n')),
+    ] }) },
+
+  // Oboloi are a stack (prop type 130) whose count is two bytes of the
+  // record, set by SetItemCount as a signed short, so 32,767 is the most a
+  // stack can have; a pickup past it wraps. The shipped hero begins with none.
+  // They are made where Alaric's first talk makes the archetype's things,
+  // before it sets state flag 0. A stack weighs its count times the type's
+  // Weight (1), and a character past their limit can take nothing more, so
+  // the type's Weight becomes 0 with them, and the hero can still pick things
+  // up; this changes the weight of every oboloi in the game.
+  { id: 'richie-rich', group: 'mods', stage: 'mods', name: 'Richie rich',
+    played: 'in part, fork, PowerPC, 31 October 2026, a new game saved at once has the stack of 32,767 oboloi in the hero’s pack. Picking things up with it, and picking up more oboloi, are unplayed',
+    title: 'You now start a new game with 32,767 oboloi, which weigh nothing, instead of none',
+    plan: (s) => ({ edits: [
+      dataFixInsert(s, 'the starting oboloi', 0x1802, ['sys SetStateFlag', 'byte 0x00', 'word True', 'end', 'set_local 0x04', 'word True'], 0,
+        ['sys Create', 'short 0x0001', 'short 0x0082', 'byte 0x00', 'short 0x7FFF', 'end'].join('\n')),
+    ], dataEdits: [dataFixClassElement('the oboloi’s weight', 0x1082, 0x24, 0, 1, 0)] }) },
 ];
 // The painting's class (0x1158) as a copy of the bell's (0x10C1), as the
 // session has it: the class table's far addresses, which name the resource

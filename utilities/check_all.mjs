@@ -433,7 +433,7 @@ const CHECKS = [
      together, which the first part runs, so the other two have nothing to pin. */
   ...[1, 2, 3].map(part => ({page: 'viewer', name: `game fixes ${part}`, requiredInputs: [DATA],
    cmd: ['utilities/data_fix_check.mjs', 'index.html', DATA, COLLECTION, `--part=${part}/3`],
-   ...(part === 1 ? {grep: /every fix: [^\n]*/, expect: 'every fix: 346 resources changed, patched file 72d207a63c353fc2'} : {grep: /alone: [^\n]*/})})),
+   ...(part === 1 ? {grep: /every fix: [^\n]*/, expect: 'every fix: 349 resources changed, patched file d29fa23d9232091b'} : {grep: /alone: [^\n]*/})})),
   /* Cythera Data in Spanish (js/delv-translate.js with the table
      js/delv-es.js), both forks: the table covers every piece and has no
      stale entry, every script still disassembles, the keyword lists are the
