@@ -1083,6 +1083,50 @@ const APP_FIXES = [
   { id: 'load-cost', kind: 'change', title: 'Starting or opening a game costs no time, so a game opens on the moment it was saved, instead of fifteen ticks later with everyone moved',
     played: 'fork, PowerPC, 9 October 2026: a save of Cademia opened and saved again has the same clock, where the unpatched program writes it fifteen units on; a new game opens on the king\u2019s welcome as before',
     sites: [{ at: 0x14634, was: [0x3880000F], asm: ['li 4, 0                ; nothing for HeartBeat to spend'] }] },
+  /* The Halloween mod's conversation colors (the Utility Mods' 'halloween',
+     js/delv-halloween.js, is the rest of it): a black tint in place of the
+     blue, orange text in place of the yellow, and white keywords in place
+     of the cyan. The workbench's tools/sprites/halloween/halloween_app.mjs
+     made them first, on 29 October 2026.
+
+     The tint. A conversation, question or prompt window shows the game
+     behind it under a 50% pattern painted in color 1 of the game's palette,
+     clut 256, which is (0, 0, 168). TInteraction::MyCopyBitsBevel and
+     TInteraction::MyCopyBits each read that color's red and green as a word
+     at 18 into the table and its blue as a half-word at 22, for
+     RGBForeColor. Entry n's color starts at 10 + 8n, so 2050 and 2054 read
+     entry 255, black.
+
+     The text. TConversation::ShowTalking (speech), TConversation::ShowMessage
+     (narration) and the TSimpleInteraction constructor pass
+     TTextContext::Draw a text color of 69, QuickDraw's yellow, and a keyword
+     color of 273, cyan. The answer choices and the entry marker
+     (TInteraction::GetResponse, TConvResponseMode) and the pick list
+     (TPickMode::DrawRoutine) pass 69 to TTextContext::DrawTextOutlined. In
+     DrawTextOutlined a color below 0 is entry -n of the palette, and
+     TStyleRun::Draw reaches DrawTextOutlined for every text color but
+     black. So -228 is entry 228, (252, 124, 0), the palette's closest to
+     orange. The keyword color becomes 30, QuickDraw's white. The red of a
+     choice under the mouse (205) and the names under the portraits (30)
+     stay as shipped. PowerPC only: the 68K program has no counterpart here.
+
+     Seen on Mac OS 8.5 in SheepShaver: the black tint and the orange speech
+     and narration of Alaric's opening. The keywords and the answer choices
+     were not on screen in that run. */
+  { id: 'halloween-colors', kind: 'change', name: 'Halloween colors',
+    title: 'A conversation darkens the game behind it in black, with orange text and white keywords, instead of blue, yellow and cyan',
+    played: 'in part, SheepShaver, Mac OS 8.5, 29 October 2026, the black tint and the orange speech and narration in Alaric’s opening. The white keywords and the orange answer choices were not on screen',
+    sites: [
+      { at: 0x3A428, was: [0x80040012], asm: ['lwz 0, 2050(4)        ; was 18(4): entry 255, not 1'] },
+      { at: 0x3A430, was: [0xA0040016], asm: ['lhz 0, 2054(4)        ; was 22(4)'] },
+      { at: 0x3A738, was: [0x80040012], asm: ['lwz 0, 2050(4)        ; was 18(4): entry 255, not 1'] },
+      { at: 0x3A740, was: [0xA0040016], asm: ['lhz 0, 2054(4)        ; was 22(4)'] },
+      // ShowTalking, ShowMessage, TSimpleInteraction: the text, then the keywords.
+      ...[0x3D6C0, 0x3D954, 0x41004].map(at => ({ at, was: [0x39000045], asm: ['li 8, -228             ; was li 8, 69'] })),
+      ...[0x3D6C4, 0x3D97C, 0x41008].map(at => ({ at, was: [0x39200111], asm: ['li 9, 30               ; was li 9, 273'] })),
+      // TConvResponseMode::DrawRoutine and MouseRoutine, GetResponse, TPickMode::DrawRoutine.
+      ...[0x3E21C, 0x3E2C8, 0x3E4F0, 0x3E5AC, 0x3EF8C, 0x3F0DC, 0x3F174, 0x3FE64].map(at => ({ at, was: [0x38E00045], asm: ['li 7, -228             ; was li 7, 69'] })),
+    ] },
 ];
 
 /* Which of the Patches tab's lists (DATA_FIX_GROUPS, js/delv-datafixes.js)
@@ -1101,5 +1145,6 @@ const APP_FIX_GROUP = {
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
   'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'ai-mods': 'rules', 'ai-pick': 'rules', 'conv-field': 'interface', 'automap-span': 'interface', 'more-button': 'interface',
   'menu-scroll': 'talk', 'menu-items': 'talk', 'afternoon': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
+  'halloween-colors': 'mods',
 };
 function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }

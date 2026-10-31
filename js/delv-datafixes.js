@@ -2554,6 +2554,14 @@ const DATA_FIXES = [
       dataFixInsert(s, 'the starting oboloi', 0x1802, ['sys SetStateFlag', 'byte 0x00', 'word True', 'end', 'set_local 0x04', 'word True'], 0,
         ['sys Create', 'short 0x0001', 'short 0x0082', 'byte 0x00', 'short 0x7FFF', 'end'].join('\n')),
     ], dataEdits: [dataFixClassElement('the oboloi’s weight', 0x1082, 0x24, 0, 1, 0)] }) },
+
+  // The Halloween mod, at the maintainer's request of 28 to 31 October 2026
+  // and put here on the 31st. js/delv-halloween.js has every edit and why.
+  // Its conversation colors are the program's change 'halloween-colors'.
+  { id: 'halloween', group: 'mods', stage: 'mods', name: 'Halloween',
+    played: 'in part, SheepShaver, Mac OS 8.5, 31 October 2026, the same patched file, byte for byte, installed through Magpie. A new game shows the one slide, skeletons with skull portraits, the rattling opening scene, Magpie’s cracked face and his heap of bones, and the gray windows over the spiderwebs. Nobody has judged the waltz by ear in the game, and the rest of the game is unplayed with character 206 alive',
+    title: 'Every person is a skeleton with a skull portrait, Alaric and Magpie rattle through the opening scene, Land King Hall plays a spooky waltz, and the windows are gray over a desktop of spiderwebs',
+    plan: (s, ctx) => halloweenPlan(s, ctx) },
 ];
 // The painting's class (0x1158) as a copy of the bell's (0x10C1), as the
 // session has it: the class table's far addresses, which name the resource
