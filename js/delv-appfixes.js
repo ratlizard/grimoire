@@ -1061,6 +1061,83 @@ const APP_FIXES = [
   { id: 'level-keep-made', kind: 'change', title: 'Entering a level leaves in place what play made or left there, corpses among them, instead of removing what the level did not begin with',
     played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a rock made in play stays where the stock program removes it; the patched program sets the door and the slid chair back, as the stock one does',
     sites: [{ at: 0x788C, was: [0x41820038], asm: ['b @0x78C4             ; never delete what play made or moved'] }] },
+  // A thing the story needs can be lost by setting it down. TGameSys::
+  // DropCommand and SlideItemCommand both end by flagging the thing 0x20,
+  // made or moved in play, unless its class's cached flags have 0x08
+  // (ClassFlags 8: the glowing crystals, keys, the strange staff, the
+  // panpipes, the grimoire, the amulet, the map). A thing flagged 0x20 is
+  // overwritten by the scenario's record or deleted when its level is
+  // entered again (LoadLevelProps, ChainFreeProps, above), and in Cademia
+  // deleted by THood::ResetHood once the hero is more than 32 squares from
+  // it. So kelp dropped on a beach, or a Sapphire Book set down to free a
+  // hand, is gone the next time the hero comes back, and the scripts that
+  // need it (Charax, Selinus) then never complete. Here the two routines'
+  // test of the class flag goes to a cave, which also passes over the mark
+  // for the things below, as for a key. They can be dropped, slid, stored
+  // and picked up again as before, and nothing tidies them away.
+  //
+  // WHICH THINGS. Each is a thing a script looks for with WhoHasItem or
+  // removes with RemoveItem or TakeItem, by type, picture and Data1 as
+  // cbwhohas matches them (Data1 0 there is any): the Sapphire Books (book,
+  // picture 0, Data1 11 to 20, Selinus 0x1851) and Charax's book (Data1 5,
+  // 0x184F); deep-sea kelp (270) and the eartheart mushroom (271), any
+  // (0x184F); Eudoxus's note (paper, picture 0, Data1 1, Halos 0x183E);
+  // Periphas's flour (bag of flour, Data1 1, made by 0x1841, removed by
+  // 0x182A); the net for Stentor (fishing net, Data1 1, made by 0x1849,
+  // removed by 0x186C); the half-disks (232, any, made by Sabinate and
+  // Magpie, set on the void bridge's pedestals); Thersites's ring (ring,
+  // picture 2, Data1 4, 0x1865); and the ring that gives its wearer
+  // ability 28 (Data2 28), which Tavara's stronghold tests on entry
+  // (0x1424, 0x1001). And a person's body: a corpse (78 or 283) whose
+  // Data1 is not 0. Data1 is the character's number (TActiveMonster::Die
+  // writes it below 256, and 0 for the creatures above). The amulet and
+  // Resurrection raise that character (0x10F4, 0x1A2F): Ariadne, whose body
+  // goes to Philinus (0x1832), and Jhiaxus, without whom Magpie never
+  // gives the second half-disk (0x1803). A body is made with flags 0x01, so
+  // it is safe where it fell; only a drop after picking it up marks it.
+  // Left out: eggs, which there are dozens of, and Omen's ring (Data1 3),
+  // which changes a line of his and nothing else (0x1CC3). Not covered: a
+  // quest thing inside a container that is dropped, which retains whatever
+  // flags it had.
+  //
+  // The cave's test is a separate routine, called with the record in r3,
+  // and answers with cr0 not equal for a quest thing. It changes r0, r3,
+  // r4 and r5, which both routines write again before reading, and the
+  // link register, which both saved on entry, since both make calls.
+  { id: 'quest-items-kept', kind: 'change', title: 'A quest item or a person’s body that you drop stays where you left it, instead of being cleared away with the level',
+    played: 'fork, PowerPC, 1 November 2026, alone and with every fix. Kelp dragged from the inventory to the floor of Omen’s Test, or slid a square west, is still there after a jump to Land King Hall and back, where the stock program removes it. A paper slid the same way is put back where the level had it, on both programs',
+    sites: [
+      { at: 0x5502C, was: [0x40820010], asm: ['b @cave               ; was bne 0x5503C, DropCommand’s class flag'] },
+      { at: 0x5308C, was: [0x40820010], asm: ['b @slide              ; was bne 0x5309C, SlideItemCommand’s class flag'] }],
+    cave: ['bne @drop0             ; class flag 8, no mark',
+           'mr 3, 30', 'bl @quest', 'bne @drop0             ; a quest thing, no mark',
+           'lbz 0, 0(30)', 'ori 0, 0, 32', 'stb 0, 0(30)',
+           'drop0:', 'b @0x5503C',
+           'slide:', 'bne @slide0', 'mr 3, 27', 'bl @quest', 'bne @slide0',
+           'lbz 0, 0(27)', 'ori 0, 0, 32', 'stb 0, 0(27)',
+           'slide0:', 'b @0x5309C',
+           'quest:', 'lhz 4, 4(3)            ; the picture and the type',
+           'andi. 5, 4, 1023        ; the type',
+           'rlwinm 4, 4, 0, 17, 31  ; the picture and the type, the rotation aside',
+           'lbz 0, 6(3)             ; Data1',
+           'cmpwi 5, 270', 'beq @yes              ; deep-sea kelp',
+           'cmpwi 5, 271', 'beq @yes              ; the eartheart mushroom',
+           'cmpwi 5, 232', 'beq @yes              ; a half-disk',
+           'cmpwi 5, 78', 'beq @body',
+           'cmpwi 5, 283', 'beq @body',
+           'cmpwi 4, 26', 'beq @book',
+           'cmpwi 4, 134', 'beq @one              ; Eudoxus’s note',
+           'cmpwi 4, 166', 'beq @one              ; Periphas’s flour',
+           'cmpwi 4, 214', 'beq @one              ; the net for Stentor',
+           'cmpwi 5, 307', 'bne @no',
+           'cmpwi 4, 2355', 'bne @ring', 'cmpwi 0, 4', 'beq @yes              ; Thersites’s ring',
+           'ring:', 'lbz 0, 7(3)             ; Data2, the ability the ring gives', 'cmpwi 0, 28', 'beq @yes              ; the stronghold’s ring', 'b @no',
+           'body:', 'cmpwi 0, 0', 'bne @yes              ; a person’s body', 'b @no',
+           'book:', 'cmpwi 0, 5', 'beq @yes              ; Charax’s book', 'cmpwi 0, 11', 'blt @no',
+           'cmpwi 0, 20', 'ble @yes              ; a Sapphire Book', 'b @no',
+           'one:', 'cmpwi 0, 1', 'beq @yes',
+           'no:', 'li 0, 0', 'cmpwi 0, 0', 'blr',
+           'yes:', 'li 0, 1', 'cmpwi 0, 0', 'blr'] },
   // A start of play costs fifteen ticks. TDelverApp::BeginPlay, which a new
   // game, Open and a revert all come through, ends by handing 15 to
   // TGameSys::HeartBeat: the hero is busy for fifteen ticks, the clock goes
