@@ -1318,6 +1318,31 @@ const DATA_FIXES = [
         textEdits: [dataFixT('Tlepolemus\u2019s offer', 0x1837, ' - are you interested in buying an old set?', '.', 1)],
       };
     } },
+  // Polydamas (0x185F) and Alcestris (0x1855) are hard of hearing: after
+  // each word, before any keyword is tested, a roll (Random(0,4) == 0 for
+  // him, Random(0,6) == 1 for her) answers "speak up" and goes back to wait
+  // for the next word. The conversation takes a word off its list of topics
+  // as soon as it is used, whatever the answer (TConversation::mygets calls
+  // RemoveAnswer before the script runs), so a misheard topic was gone and
+  // had to be typed, "Bye" among them [453@t1979]. The word used is string
+  // global 10: the `exit` statement reads into the buffer at toc -29472, and
+  // GetGlobStr(10) returns the same pointer, which is how Selinus prints the
+  // name typed after his `ask "*"` (`word 0x2000000A`). After the line,
+  // AddConversationKeyword puts it back, as the game's own scripts add
+  // "Train" and "Leave". A design change at the maintainer's word
+  // (1 November 2026): the mishearing is meant, and only its cost is
+  // changed. A typed word that was never a topic becomes one when misheard;
+  // the script cannot tell the two apart. The other "speak up" lines
+  // (0x180A, 0x1855's second, 0x185A) answer a word nobody knows, the "*"
+  // keyword, and are left alone.
+  { id: 'misheard-topics', group: 'design', stage: 'further', title: 'A topic Polydamas or Alcestris mishears stays on the list, instead of disappearing',
+    note: 'A word typed that was not on the list joins it when misheard.',
+    plan: (s) => ({ edits: [
+      ['Polydamas', 0x185F, 'byte 0x04', '"\\"Eh?  Could you speak up'],
+      ['Alcestris', 0x1855, 'byte 0x06', '"\\"Could you speak up'],
+    ].map(([who, resid, top, said]) => dataFixInsert(s, who + '\u2019s mishearing', resid,
+      ['if_not', 'sys Random', 'byte 0x00', top, 'end', 'byte 0x0', 'eq', 'then ->', 'string(implicit) ' + said, 'branch'], 9,
+      'sys AddConversationKeyword\nword 0x2000000A\nend')) }) },
   // The party roster's figure frame (workbench GRIMOIRE-NOTES,
   // grimoire/roster-art-fnlojp): element 1 of a class's property 55 is the
   // frame of its sheet the party bar draws, and nothing else reads it (the
