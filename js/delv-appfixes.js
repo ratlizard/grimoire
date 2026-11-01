@@ -1083,6 +1083,65 @@ const APP_FIXES = [
   { id: 'load-cost', kind: 'change', title: 'Starting or opening a game costs no time, so a game opens on the moment it was saved, instead of fifteen ticks later with everyone moved',
     played: 'fork, PowerPC, 9 October 2026: a save of Cademia opened and saved again has the same clock, where the unpatched program writes it fifteen units on; a new game opens on the king\u2019s welcome as before',
     sites: [{ at: 0x14634, was: [0x3880000F], asm: ['li 4, 0                ; nothing for HeartBeat to spend'] }] },
+  // The difficulty level, as the game was made to have it. Alaric's
+  // keywords (0x1802) set the script global DifficultyLevel, 17, to 0 for
+  // "very easy", 1 "easy", 2 "norm", 3 "hard" and 4 "very hard", and the
+  // hero's creation (0x1801) sets 2. Two things read a difficulty. The
+  // level-up script (0xE86) gives 6 less the global in training points.
+  // TActiveMonster's constructor, for a creature made from a map's list or
+  // an egg (prop 256 and up; named characters keep their stats), draws a
+  // percentage from a band named by the short at TOC +8562, the third short
+  // of a save's Char block (10 to 49, 25 to 99, 50 to 149, 100 to 199,
+  // 150 to 299) and makes the creature's body, reflex, mind and health that
+  // percentage of its type's, and its level from those, scaled again.
+  //
+  // THE SHIPPED FAULT. SetGlobal stores 12 (karma, into the short at
+  // TOC +8560, beside the difficulty's) and 14 (the languages) and drops
+  // every other number, and GetGlobal's jump table sends 17 to its default,
+  // None. So the keywords change nothing, a level-up gives 6 less None,
+  // which is 6, the very easy figure (seen on the 2019 livestream: 6 a
+  // level twice), and the short stays at the 2 every save begins with, so
+  // creatures are always made at 50 to 149. The workbench's bugs.md has
+  // the reading.
+  //
+  // THE CHANGE. SetGlobal stores 17, held to 0 to 4, into the short at
+  // TOC +8562, and GetGlobal answers 17 from it, so both readers see the
+  // one value, and SaveToFile writes the short into a save. Normal is then
+  // 4 training points a level, not the 6 every game has given, which is
+  // why this is a design change and not a fix.
+  //
+  // THE CAP. Each scaled stat is stored as a byte with the low eight bits
+  // of the product, so at 150 to 299 a type's 100 health can come out as
+  // 300 and be stored as 44, and the level, scaled twice, passes 255 for
+  // the larger types at hard and very hard. Each of the six stores is
+  // capped at 255 first; the test for 0 after it is untouched. Byte 31,
+  // where the percentage goes, is written and read by nothing else in the
+  // program, and the change leaves its store as shipped.
+  //
+  // SetGlobal is a leaf with no frame; its global's number is in r0 and
+  // the value in its caller's slot at 28(1), and the cave uses r0 alone.
+  // GetGlobal's number is in r0 and its answer goes through r31. The
+  // constructor saved its return address on entry, so the bl at each store
+  // is free, and each store's cave changes nothing but the stored
+  // register, which the code after it reads from the record again.
+  { id: 'difficulty', kind: 'change', title: 'Telling Alaric “very easy”, “easy”, “normal”, “hard” or “very hard” sets the training points a level brings and how strong new creatures are, instead of being forgotten',
+    bug: 'The difficulty level is never stored',
+    played: 'fork, PowerPC, 1 November 2026, a new game on a Cythera Data that raises the hero a level after each of Alaric’s five answers, each keyword typed and the game saved. The unpatched program gave 6 training points for “very hard” and left the save’s difficulty at 2. The patched one gave 6, 5, 4, 3 and 2 for very easy to very hard and saved 0 to 4. A played save set to very hard and opened outside Land King Hall made the same creatures on both programs, and one drawn at 214%, whose level came to 259, was stored as 3 by the unpatched program and as 255 by the patched one',
+    sites: [
+      { at: 0x93A84, was: [0x40800058], asm: ['b @set                ; was bge 0x93ADC, every global from 15 dropped'] },
+      { at: 0x9379C, was: [0x28000013], asm: ['b @get                ; was cmplwi 0, 19, the jump table’s bound'] },
+      ...[[0x44E18, 0x98030009, 'body'], [0x44E68, 0x9803000A, 'reflex'], [0x44EB8, 0x9803000B, 'mind'],
+          [0x44F08, 0x9803000E, 'health'], [0x44FF8, 0x98640013, 'base'], [0x45020, 0x98030013, 'level']]
+        .map(([at, was, l]) => ({ at, was: [was], asm: ['bl @' + l + '              ; the store, capped at 255'] }))],
+    cave: ['set:', 'blt @set14             ; 14, the languages, as shipped', 'cmpwi 0, 17', 'bne @setout',
+           'lwz 0, 28(1)', 'slwi 0, 0, 4', 'srawi 0, 0, 4         ; the number, as karma reads it',
+           'cmpwi 0, 0', 'bge @setlow', 'li 0, 0', 'setlow:', 'cmpwi 0, 4', 'ble @sethigh', 'li 0, 4', 'sethigh:',
+           'sth 0, 8562(2)        ; the short beside karma’s', 'setout:', 'b @0x93ADC', 'set14:', 'b @0x93AC4',
+           'get:', 'cmpwi 0, 17', 'bne @getjt', 'lha 0, 8562(2)', 'clrlwi 0, 0, 4        ; a number',
+           'stw 0, 0(31)', 'b @0x93A28', 'getjt:', 'cmplwi 0, 19', 'bgt @getnone', 'b @0x937A4', 'getnone:', 'b @0x93A20',
+           ...[['body', 0, 9, 3], ['reflex', 0, 10, 3], ['mind', 0, 11, 3], ['health', 0, 14, 3], ['base', 3, 19, 4], ['level', 0, 19, 3]]
+             .flatMap(([l, r, off, base]) => [l + ':', 'cmplwi ' + r + ', 255', 'ble @' + l + 'st', 'li ' + r + ', 255',
+                                              l + 'st:', 'stb ' + r + ', ' + off + '(' + base + ')', 'blr'])] },
   /* The Halloween mod's conversation colors (the Utility Mods' 'halloween',
      js/delv-halloween.js, is the rest of it): a black tint in place of the
      blue, orange text in place of the yellow, and white keywords in place
