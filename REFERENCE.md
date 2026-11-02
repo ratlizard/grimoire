@@ -277,9 +277,9 @@ loads all thirteen, in this order, before the two tiers below:
 | `js/delv-plaques.js` | the start screen's stone buttons (PICT 139 to 145, and the six on PICT 132): `START_PLAQUES`, where each sits and the word carved in it; `plaqueLift`, the carved word lifted off by fitting the stone's lighting and refilling the word's box with the button's speckle; `plaqueCarve`, a new word's coverage cut in with Onward's cut, measured on the shipped buttons by the workbench's `tools/plaques/` (`START_PLAQUES.cut`). Pixels to pixels, no canvas: the page draws the word (`plaqueCover` in `js/page-fork.js`). Checked by `plaque_check.mjs` and, for the drawing, `browser_check.mjs` |
 | `js/delv-routinenotes.js` | `ROUTINE_NOTES`, what the program's routines do in plain words, by class, each text keyed by its routine's entry and each claim citing the instructions that show it. **Written by a script**, the workbench's `tools/fnpublish.py`, which copies only the classes read twice there. Change the words there, not here. Data > Program shows a routine's text above its listing, each address a link that rings it (`routineNoteHTML`), and its callers read from the code (`exeCallSitesOf`). The installer smoke's *routine notes* block checks that every cited address lies in its routine in the page's reading of the program |
 
-**The page's own furniture** — loaded last, because it is the only tier that
-knows the document exists. Added 13 September 2026, when the maintainer asked
-why everything was being dumped into `index.html`:
+**The page's furniture** loads last, because it is the only tier that
+reads or writes the document. The tier was split out of `index.html` on
+13 September 2026, and these are its files.
 
 | File | Purpose |
 |---|---|
@@ -854,9 +854,8 @@ implementations have the same bug.** No suite will tell you.
 
 **The quiet labels were grey until 8 October 2026.** `.partsTitle`,
 `.skillKey`, `.mechSub` and about a hundred other rules were `#b5b2a8` and
-`#8c8980`, so that no label was gold-tinted enough to read as a link; the
-maintainer called grey subtitles on the purple "barely legible", and both
-became near-white (`#f0ede4`, `#dcd8cc`) across `index.html` and `js/`. A
+`#8c8980`, so that no label was gold-tinted enough to read as a link. Gray
+on the purple was hard to read, and both became near-white (`#f0ede4`, `#dcd8cc`) across `index.html` and `js/`. A
 quiet label is quiet by its size, not its colour.
 
 #### `canvas.html`
@@ -867,8 +866,7 @@ quiet label is quiet by its size, not its colour.
   only the fields it reads (`USES`). Everything a control does is a hover
   `title`; the long form is the "?" dialog and nowhere else. The previous
   layout (6 September 2026) had a tool picker dialog, a floating tip under a
-  row of eight creatures, and a paragraph beside half the controls, and the
-  maintainer called it a hot mess. On a phone the dock along the bottom is
+  row of eight creatures, and a paragraph beside half the controls. On a phone the dock along the bottom is
   the ink row and the tool row, and the options open as a sheet over the
   picture (`body.sheet`), which is the arrangement that keeps the canvas
   the same size whatever is opened.
