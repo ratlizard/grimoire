@@ -2289,7 +2289,7 @@ function sfntMacRomanGlyphs(data){
    none. Every width is the caller's, so a strike can draw one font's
    letters at another's widths. Written as nfntSpec reads one: a glyph's
    image is its columns from its leftmost pixel to its rightmost, its
-   offset that leftmost column less kernMax, kernMax the furthest left any
+   offset that leftmost column minus kernMax, kernMax the furthest left any
    glyph starts (never right of the pen), fRectWidth the widest reach from
    kernMax, nDescent the negated ascent as Apple's strikes have it,
    and widMax the widest advance. A pixel outside the frame throws. */
