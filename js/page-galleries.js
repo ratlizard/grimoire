@@ -363,7 +363,7 @@ function editStringAt(resid, approxOffset) {
   if (!raw) return;
   const data = smartDecrypt(raw, resid).data;
   const loc = locatePascalString(data, approxOffset);
-  if (!loc) { setStatus('There is no text string at that position, so you cannot edit it in place.', true); return; }
+  if (!loc) { setStatus('There is no text string at that position, so there is nothing to edit in place.', true); return; }
   const oldText = decodeMacRoman(data.subarray(loc.textOffset, loc.textOffset + loc.cap));
   let ov = document.getElementById('textEdit');
   if (ov) ov.remove();
@@ -510,7 +510,7 @@ function openDitherTool() {
     '</div>' +
     '<div class="inspDim">Each mode writes a real resource of its kind, such as a portrait, a landscape strip, an icon, a ' +
     'sixteen-tile sheet or a sized graphic. Transparent pixels stay transparent, the result avoids the colors ' +
-    'the game animates so nothing shimmers, and Replace rebuilds the file in this browser. To download it, use Your Patch in Tools › Patch Generator.</div>' +
+    'the game animates so nothing shimmers, and Replace rebuilds the file in this browser. To download it, use the Patch in Progress in Tools › Patch Generator.</div>' +
     '</div>';
   document.body.appendChild(ov);
   ditherFillTargets();

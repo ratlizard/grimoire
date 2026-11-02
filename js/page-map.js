@@ -2087,7 +2087,7 @@ function drawMapMarks(lensCtx, lensTS) {
     legend.innerHTML = parts.length
       ? parts.join(' &nbsp; ') + ' <span style="color:#dcd8cc">. Doors are the classes whose open or shut state the game resets to the zone’s setting whenever the party enters the zone. ' +
         'Containers are the classes with IsContainer. The page finds hidden ways by prop-type name. Zone exits are visible ways out (holes, stairs, cave mouths) plus the map’s ' +
-        'open edges, which you leave by walking off at any row or column. The page marks concealed passages as ' +
+        'open edges, where walking off at any row or column leaves the map. The page marks concealed passages as ' +
         'hidden ways instead.</span>'
       : '';
   }

@@ -123,20 +123,20 @@ const DATA_FIX_GROUPS = [
   // slips in the books, notes, letters and signs, since a writer in the
   // world could have made them; and wrong names and facts in words that
   // are otherwise right, since a speaker could be mistaken on purpose.
-  { id: 'writings', title: 'Books and Notes', off: true, note: 'These correct slips in the books, notes, letters and signs you find in the game, which could be mistakes their writers made.' },
+  { id: 'writings', title: 'Books and Notes', off: true, note: 'These correct slips in the books, notes, letters and signs in the game, which could be mistakes their writers made.' },
   { id: 'facts', title: 'Factual Errors', off: true, note: 'These correct names and facts that are wrong in lines whose wording is right, which could be mistakes the speaker made.' },
   // Fixes nobody can see in play: the file is put right and the screen is
   // the same either way (the maintainer, 12 October 2026, of the Gate
   // Guard's reply). Named Hidden Bugs on 16 October 2026, his wording. A separate list, so that a mark of "untested" there
   // is read for what it is: there is nothing to see.
-  { id: 'hidden', title: 'Hidden Bugs', note: 'These are bugfixes you’d only notice if you made relevant patches to change default gameplay.' },
+  { id: 'hidden', title: 'Hidden Bugs', note: 'These are bugfixes that only show up with patches that change the default gameplay.' },
   // The larger changes, each a design call rather than a mended slip, in a
   // separate list below the rest (the maintainer, 1 October 2026).
   { id: 'design', title: 'Design Changes', off: true, note: 'These are bug fixes for aspects that might actually be intentional, or for which the issue necessitates a creative solution.' },
   // Neither a bug nor a design call: ways to play the game with part of it
   // taken out, for a visitor who starts somewhere else or looks around.
   // Off, like Design Changes, and in neither preset.
-  { id: 'mods', title: 'Utility Mods', off: true, note: 'These change how the game plays so you can get to the parts you like. None is chosen until you choose it.' },
+  { id: 'mods', title: 'Utility Mods', off: true, note: 'These change how the game plays, to get a player to the parts they like. None is on until chosen.' },
 ];
 
 // The text's choices, by the name their options share, as the Patches
@@ -357,7 +357,7 @@ const DATA_FIXES = [
     ] },
   // "Indeed I am." was drawn as the hero's (0x1804): the string is split and
   // Hadrian named between the halves.
-  { id: 'hadrian-indeed', group: 'talk', stage: 'community', title: 'Hadrian now says \u201cIndeed I am.\u201d instead of you replying to yourself',
+  { id: 'hadrian-indeed', group: 'talk', stage: 'community', title: 'Hadrian now says \u201cIndeed I am.\u201d instead of the hero replying to themselves',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "son" to Hadrian, "Indeed I am." drawn beside his portrait, against beside the hero’s, over the topics, unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Indeed I am." beside Hadrian’s portrait',
     edits: [
       { what: '"Indeed I am." is Hadrian’s', resid: 0x1804, at: 0x02A9, to: 0x02E0,
@@ -366,7 +366,7 @@ const DATA_FIXES = [
     ] },
   // Hadrian asks after Hector (0x1804): his "son" topic tested his own alive
   // bit; it tests Hector's.
-  { id: 'hadrian-hector', group: 'talk', stage: 'community', title: 'You can now tell Hadrian that his son Hector has died',
+  { id: 'hadrian-hector', group: 'talk', stage: 'community', title: 'Now the hero can tell Hadrian that his son Hector has died',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Hector’s flag 0 set and his alive bit cleared by an edit, "son" to Hadrian, "I regret to tell you that Hector has died in my service.", against "Yes, you should be quite proud." unpatched; with Hector alive, that line on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: with Hector dead, "I regret to tell you that Hector has died in my service."',
     edits: [
       { what: 'Hadrian tests Hector', resid: 0x1804, at: 0x0299, replaceOp: true, expect: { 0x0299: 'word Character.Hadrian', 0x029F: 'if_not' }, code: 'word Character.Hector' },
@@ -389,7 +389,7 @@ const DATA_FIXES = [
   // Awakening's blank conversation (0x1A13): the sleeper and the hero are
   // named as speakers before the sleeper's Talk, as the game's Talk
   // command assigns them.
-  { id: 'awakening', group: 'rules', stage: 'community', title: 'You can now talk to someone woken by Awakening, instead of getting a blank conversation',
+  { id: 'awakening', group: 'rules', stage: 'community', title: 'The hero can now talk to someone woken by Awakening, instead of getting a blank conversation',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Awaken, given as an ability by an edit, cast on Theano asleep in Cademia, "A person sleeping is awoken." and the conversation opens with her portrait and the hero’s, against a window with neither unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "A person sleeping is awoken." and the conversation opens with both portraits, against a window with neither unpatched',
     edits: [
       { what: 'Awakening shows its speakers’ names', resid: 0x1A13, at: 0x00D7, expect: { 0x00D5: 'sys OpenConversation', 0x00D7: 'method Talk' },
@@ -520,7 +520,7 @@ const DATA_FIXES = [
   // Eteocles's "kesh" (0x1838): the test reads quest flag 4 (Guild
   // membership), as his other five tests do, not quest value 4, which is
   // where Demodocus is and is never 0.
-  { id: 'eteocles-kesh', group: 'talk', stage: 'community', title: 'Eteocles now recognizes if you\u2019re in the Guild when you ask about kesh',
+  { id: 'eteocles-kesh', group: 'talk', stage: 'community', title: 'Eteocles now recognizes if the hero is in the Guild when asked about kesh',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, the person brought to the hero by the in-party bit: "kesh" to Eteocles from a hero outside the Guild drew "Youse is awful nosy.", against "Yeah, we heard of da stuff." unpatched; a Guild member’s answer was not tried; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "kesh" to Eteocles, where he stands, drew "Youse is awful nosy."',
     edits: [
       { what: 'Eteocles’s "kesh"', resid: 0x1838, at: 0x01ED, replaceOp: true, expect: { 0x01E4: 'conversation_response "kesh"', 0x01ED: 'sys GetState', 0x01EE: 'byte 0x04' }, code: 'sys GetStateFlag' },
@@ -818,7 +818,7 @@ const DATA_FIXES = [
     ] },
   // Sacas's kesh on Eudoxus (0x8104): the five vials in the Abandoned
   // Farmhouse coffer get Data1 2, the value his line waits for.
-  { id: 'eudoxus-kesh', group: 'quests', stage: 'community', title: 'You can now tell Sacas of the kesh on Eudoxus, instead of the vials never counting',
+  { id: 'eudoxus-kesh', group: 'quests', stage: 'community', title: 'Now the hero can tell Sacas of the kesh on Eudoxus, instead of the vials never counting',
     played: 'fork, 68K, 10 October 2026, alone: a vial as it is in the file (Data1 2, against 0 unpatched) put on the floor by an edit and looked at; the save has quest value 13 set, against unset unpatched. Sacas’s line was not played, nor the vial taken from Eudoxus’s coffer; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the Abandoned Farmhouse’s five vials are loaded with Data1 2, against 0 unpatched. Read from a save copied out of the machine. The same day, a save staged with quest value 1 at 1 and the clock a moment before the hour, which is what posts Eudoxus outside the farmhouse door: killed, his corpse and the coffer in it opened and a vial looked at, the save has quest value 13 set; then, in that save with the hero put beside Sacas and the prisoner’s flags set, Sacas’s “yes” ends in “I found some on the band leader himself.” The same saves and steps with no patch installed: the look leaves quest value 13 unset, and Sacas stops at “this might be an important clue.”',
     dataEdits: [
       { what: 'Eudoxus’s kesh', resid: 0x8104, fn: (b) => {
@@ -918,7 +918,7 @@ const DATA_FIXES = [
   // Data1 is 0; the camp's sign, record 14, has Data1 0 and Data2 15, and
   // entry 15 is "Iron Mines". It is the only sign of the 27 with anything in
   // Data2; the number moves to Data1.
-  { id: 'mining-camp-sign', group: 'world', stage: 'community', title: 'You can now read the Mining Camp\u2019s sign, instead of it showing nothing',
+  { id: 'mining-camp-sign', group: 'world', stage: 'community', title: 'The hero can now read the Mining Camp\u2019s sign, instead of it showing nothing',
     played: 'fork, 28 September 2026: the sign reads Iron Mines; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the sign reads Iron Mines',
     dataEdits: [
       { what: 'the Mining Camp’s sign', resid: 0x8118, fn: (b) => {
@@ -1091,7 +1091,7 @@ const DATA_FIXES = [
   // block Hector's has for a thing asked about is put in front of it,
   // without Hector's weapon remarks: open the talk, both portraits, the
   // AskAbout helper (0xEB6), and "Looks like ..." when it has nothing.
-  { id: 'aethon-ask-about', group: 'talk', stage: 'bugfix', title: 'Aethon now answers when you Ask About a thing',
+  { id: 'aethon-ask-about', group: 'talk', stage: 'bugfix', title: 'Aethon now answers when the hero uses Ask About on a thing',
     played: 'fork, 3 October 2026: Ask About from Aethon\u2019s Do menu on the hero\u2019s oboloi drew "Ah, was there ever anything as noble as money!", against "Nothing" unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: Ask About from Aethon’s Do menu on the hero’s oboloi drew "Ah, was there ever anything as noble as money!"',
     edits: [
       { what: 'Aethon asked about a thing', resid: 0x1861, at: 0x0078,
@@ -1226,7 +1226,7 @@ const DATA_FIXES = [
   // Halos's "stop by my office" (0x183E's helper): `behaviour != 144 and
   // behaviour == 138` is redundant as written, and the line fits only away
   // from the office; the second test is `!=`.
-  { id: 'halos-office', group: 'talk', stage: 'further', title: 'Halos tells you to stop by his office when he\u2019s away from it',
+  { id: 'halos-office', group: 'talk', stage: 'further', title: 'Halos invites the hero to stop by his office when he\u2019s away from it',
     played: 'fork, 68K, 9 October 2026, alone and on “All Fixes”: at eleven, when his schedule has taken him from his desk, "ake" to Halos once Ake has sent the hero drew "Lady Ake sent you?" and then "But now is not a good time to talk - please, stop by my office during working hours.", against "So, you came all this way to talk" and no such line unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "ake" to Halos at eleven drew "But now is not a good time to talk - please, stop by my office during working hours."',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Halos away from his office', 0x183E,
@@ -1254,7 +1254,7 @@ const DATA_FIXES = [
   // it only with flag 7 set ("Oh, it's you."); the eating branch opened it
   // with no test, so away from his yard every topic of his was open without
   // the Demodocus keyword. The eating branch is given the yard's test.
-  { id: 'neoptolemus-eating', group: 'talk', stage: 'further', title: 'Neoptolemus stays closed while eating until you mention Demodocus, as he does in his yard',
+  { id: 'neoptolemus-eating', group: 'talk', stage: 'further', title: 'Neoptolemus stays closed while eating until the hero mentions Demodocus, as he does in his yard',
     played: 'fork, 68K, 22 October 2026, alone and on “All Fixes”: at six in the evening, at his table at (44,101), "name" drew "None of your business!", then "neop" and "demo" opened him and "name" drew "Neoptolemus - and show a little respect to your elders!", against that line at the first "name" unpatched. Not played on Mac OS',
     plan: (s) => {
       const what = 'Neoptolemus eating, opened by flag 7', p = dataPatchPlace(s, what, 0x1821,
@@ -1266,14 +1266,14 @@ const DATA_FIXES = [
     } },
   // Thoas's "Please come again" (0x1844): the local it waits on is set once
   // his shop has been opened.
-  { id: 'thoas-farewell', group: 'talk', stage: 'further', title: 'Thoas now says \u201cPlease come again\u201d after you\u2019ve shopped with him',
+  { id: 'thoas-farewell', group: 'talk', stage: 'further', title: 'Thoas now says \u201cPlease come again\u201d after the hero has shopped with him',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "buy", Done, "bye" to Thoas, "Farewell.  Please come again.", against "Farewell." unpatched; with no "buy", "Farewell." on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Farewell.  Please come again." after his shop is closed; the unpatched line was not replayed there',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thoas after his shop', 0x1844, ['conversation_response "buy" ->', 'set_field 0x27'], 1, 'set_local 0x00\nword True\nend'),
     ] }) },
   // Paris and Parium (the family group, 0x0805): "pari" took Parium's answer
   // first, so Paris's could not be given; Parium's is keyed "pariu".
-  { id: 'paris-parium', group: 'talk', stage: 'further', title: 'The game no longer mistakes Paris for Parium when you ask about him',
+  { id: 'paris-parium', group: 'talk', stage: 'further', title: 'The game no longer mistakes Paris for Parium when the hero asks about him',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”, the person brought to the hero by the in-party bit: "paris" to Apis drew "Paris is married to my cousin Helen.", against "My cousin Parium runs the Green Goat Tavern and Inn in Catamarca - fine place." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "paris" to Apis drew "Paris is married to my cousin Helen."',
     plan: (s) => ({ edits: [
       dataFixRekey(s, 'Parium keyed apart from Paris', 0x0805, 'pari', 'pariu', ['string(implicit) "\\"My cousin Parium']),
@@ -1369,7 +1369,7 @@ const DATA_FIXES = [
   // Thuria's mine task (0x1814): "You've heard first hand" is said only once
   // she has given the task, so hearing Amphidamas first no longer shuts it
   // out; her report greeting already has a line for that order.
-  { id: 'thuria-mine', group: 'quests', stage: 'further', title: 'Thuria now still gives the mine task after you have been to the mine, instead of never giving it',
+  { id: 'thuria-mine', group: 'quests', stage: 'further', title: 'Thuria now still gives the mine task after the hero has been to the mine, instead of never giving it',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Amphidamas’s flag 1 set by an edit, "rumo" to Thuria, her offer, Yes, and the task saved in the To Do list, against "You’ve heard first hand of the issues involved at the mine." and no task unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: her offer, "Perhaps you might be interested investigating this matter more?", against "You’ve heard first hand of the issues involved at the mine." unpatched; Yes was not answered',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thuria gives the mine task', 0x1814,
@@ -1379,7 +1379,7 @@ const DATA_FIXES = [
   // The Comana brothers (Kosha Grotto, 0x1417): the one-time signal that
   // kills them and puts Pelagon in Magpie's figure waits for quest value 3 to
   // be 3, the visit on which Pelagon says "House Comana is no more".
-  { id: 'comana-brothers', group: 'quests', stage: 'further', title: 'You now find the Comana brothers dead only once someone tells of their end, instead of before',
+  { id: 'comana-brothers', group: 'quests', stage: 'further', title: 'The hero now finds the Comana brothers dead only once someone tells of their end, instead of before',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: the hero put in the Kosha Grotto by an edit with quest value 3 at 0; quest flag 15, set as the signal that kills the brothers is sent, is saved clear, against set unpatched; with the value at 3 it is set on both. The brothers themselves were not looked at; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the three brothers put in the Grotto by an edit with quest value 3 at 2, the hero loaded among them; all three are saved alive and flag 15 clear, against all three dead and the flag set unpatched. Read from a save copied out of the machine',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'the Comana brothers’ signal', 0x1417,
@@ -1399,7 +1399,7 @@ const DATA_FIXES = [
   // bartenders, Ake, Parium, Crito (three), Apis (three), Paris, Niobe
   // (two), Borus and Sabinate; a `*` after the closing quote, as the game's
   // own lines wait ("Yes, I was a bit puzzled."*).
-  { id: 'lines-run-on', group: 'talk', stage: 'further', title: 'Answers to questions you pose in dialogue no longer disappear too fast to read or run into the next response',
+  { id: 'lines-run-on', group: 'talk', stage: 'further', title: 'Answers to the hero’s questions in dialogue no longer disappear too fast to read or run into the next response',
     played: 'in part: fork, 68K, 10 October 2026, alone and on “All Fixes”: "dice" to Apis with no oboloi, the refusal alone, against the refusal and then "Do you need instructions?" unpatched. The other places are not played; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "dice" to Apis with no oboloi drew the refusal alone',
     plan: (s) => {
       const edits = [];
@@ -1544,7 +1544,7 @@ const DATA_FIXES = [
   // Demodocus's "Would you like to @hear it?" leads to his song, keyed
   // "song,meti", whose "meti" the question itself matches first; it is keyed
   // "song,hear".
-  { id: 'demodocus-song', group: 'talk', stage: 'further', title: 'Demodocus now sings you his song if you ask (nicely)',
+  { id: 'demodocus-song', group: 'talk', stage: 'further', title: 'Demodocus now sings the hero his song when the hero asks (nicely)',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: "hear" to Demodocus in Land King Hall, "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched; "song" sings on both; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ah, you’d like to hear a song, then..." and the song, against "I think I once wrote a song about that..." unpatched',
     plan: (s) => ({ edits: [dataFixRekey(s, 'Demodocus’s song on "hear"', 0x186D, 'song,meti', 'song,hear')] }) },
   // A highlighted word nobody answers (Loose ends): Ake's "I buy my thread
@@ -1704,7 +1704,7 @@ const DATA_FIXES = [
   // creation's write, which nothing reads once this applies, and the
   // creation's read just after it, which comes before field 0x25 has
   // anything.
-  { id: 'gender', group: 'talk', stage: 'further', title: 'Characters no longer address you using the gender of the hero you created previously (e.g. in February of last year)',
+  { id: 'gender', group: 'talk', stage: 'further', title: 'Characters no longer address the hero using the gender of the hero created previously (e.g. in February of last year)',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a heroine (the hero’s figure 33) loaded where no hero had been created, "bye" to Hebe, "Ma’am, one last thing...", against "Sir, one last thing..." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ma’am, one last thing...", against "Sir, one last thing..." unpatched',
     plan: (s) => {
       const edits = [];
@@ -1731,7 +1731,7 @@ const DATA_FIXES = [
   // fall through to the first greeting. So a stranger was greeted as an
   // acquaintance and the reverse, and Eurybates, whose first greeting sets
   // the flag, set it only on the second meeting. Each test is made `if`.
-  { id: 'greetings-backwards', group: 'talk', stage: 'further', title: 'Eurybates and Sardis introduce themselves at the first meeting and greet you as an acquaintance after, instead of the other way round',
+  { id: 'greetings-backwards', group: 'talk', stage: 'further', title: 'Eurybates and Sardis introduce themselves at the first meeting and greet the hero as an acquaintance after, instead of the other way round',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Eurybates’s first greeting', 0x1818, ['if_not', 'call_resource 0xF02', 'arg Arg00', 'byte 0x07', 'end', 'then ->', 'string(implicit) "\\"You\'re new around here'], 0, 'if'),
       dataFixReplaceOp(s, 'Sardis’s first greeting', 0x181F, ['if_not', 'call_resource 0xF02', 'arg Arg00', 'byte 0x07', 'end', 'then ->', 'string(implicit) "\\"Hello, "'], 0, 'if'),
@@ -1745,7 +1745,7 @@ const DATA_FIXES = [
   // relink moves both past the three bytes put in ahead of them; the
   // farewell's, put in first (the stage sorts from the highest offset
   // down), is moved by the greeting's too.
-  { id: 'opheltius-friend', group: 'talk', stage: 'further', title: 'Opheltius addresses you as \u201cfriend\u201d, instead of \u201cfriendcitizen\u201d or \u201cfriendstranger\u201d',
+  { id: 'opheltius-friend', group: 'talk', stage: 'further', title: 'Opheltius addresses the hero as \u201cfriend\u201d, instead of \u201cfriendcitizen\u201d or \u201cfriendstranger\u201d',
     plan: (s) => {
       const what = k => 'Opheltius’s ' + k + ', "friend" alone';
       return { edits: ['greeting', 'farewell'].map((k, i) => {
@@ -1853,7 +1853,7 @@ const DATA_FIXES = [
   // nine unlit torches not at 0, so it burned down in the crate, and was
   // spent or whole by how long the test had run. It is given 0, as the
   // others have.
-  { id: 'omens-torch', group: 'items', stage: 'found', title: 'The torch in the crate at the end of Omen’s Test is no longer spent before you find it',
+  { id: 'omens-torch', group: 'items', stage: 'found', title: 'The torch in the crate at the end of Omen’s Test is no longer spent before the hero finds it',
     played: 'in part: fork, 68K, 22 October 2026, the behaviour in a save from Omen’s Test: with the torch’s Data1 3, as shipped, 110 passed turns leave it saved spent, aspect 2, still unlit in its crate; with Data1 0 set by an edit, saved whole. A save made inside the test already has the zone’s list, so the patched file changes the torch only for a new game, which was not played. Not played on Mac OS',
     dataEdits: [
       { what: 'the torch in Omen’s crate', resid: 0x8128, fn: (b) => {
@@ -1886,7 +1886,7 @@ const DATA_FIXES = [
   // the grass of its neighbour to the north at (25,52), 52. That reads as a
   // notch in the embankment. It opens no other way: (25,52) has a tree,
   // which blocks, so the notch leads only onto the passage.
-  { id: 'citadel-passage', group: 'world', stage: 'map', title: 'You can now step on the secret passage on the shore under the Citadel, instead of it blocking',
+  { id: 'citadel-passage', group: 'world', stage: 'map', title: 'The hero can now step on the secret passage on the shore under the Citadel, instead of it blocking',
     played: 'fork, 26 September 2026: a step north reaches the Underground; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: a step north from (25,54) reaches the Underground',
     dataEdits: [
       { what: 'the passage under the Citadel', resid: 0x8006, fn: (b) => {
@@ -2252,7 +2252,7 @@ const DATA_FIXES = [
   // whatever the trail shows. The Cademia posts now come first. A design
   // change at the maintainer's word, since the files do not say which was
   // meant.
-  { id: 'demodocus-bridge', group: 'design', stage: 'apart', title: 'Demodocus now goes to Cademia when his trail ends there, instead of staying at the Bridge until you return to it',
+  { id: 'demodocus-bridge', group: 'design', stage: 'apart', title: 'Demodocus now goes to Cademia when his trail ends there, instead of staying at the Bridge until the hero returns to it',
     played: 'fork, 68K, 10 October 2026, alone: quest value 9 at 2 and value 4 at 5 set by edits in a saved Land King Hall, the clock just before noon so the hour turns as it loads; Demodocus is saved in Cademia at (18,101), against at the Bridge unpatched. With value 4 alone he is in Cademia on both. Read from the save, not seen on a screen; Mac OS 8.5, 11 October 2026, a patch of the design changes installed by Magpie over “All Fixes”: he is saved in Cademia at (18,101), against zone 38 at (11,9) unpatched. Read from a save copied out of the machine',
     dataEdits: [
       { what: 'Demodocus’s schedule', resid: 0xF00B, fn: (b) => {
@@ -2373,7 +2373,7 @@ const DATA_FIXES = [
         { what: 'the mushroom steak is used on the hero', resid: 0x10D5, at: 0x00E0, to: 0x00F8, expect: { ...at(0x00E0, feed), 0x00F5: 'byte 0x01', 0x00F8: 'return' }, code: use },
       ];
     })() },
-  { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'A targeted spell now takes its magic once you choose the target, so a canceled cast costs nothing, instead of before',
+  { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'A targeted spell now costs its magic only once the caster chooses the target, so a canceled cast costs nothing, instead of before',
     played: 'fork, 68K, 10 October 2026, alone: Awaken, given as an ability by an edit, performed and cancelled with Escape at "Cast ‘Awaken’ on whom?"; the hero’s magic saved as 30 of 60, untouched, against 29 unpatched; cast on its target, 29 on both. One spell of the 33; Mac OS 8.5, 11 October 2026, a patch of the design changes installed by Magpie over “All Fixes”: Awaken cancelled at its question leaves 30 of 60 magic, against 29 unpatched',
     plan: (s) => {
       const edits = [];
@@ -2499,7 +2499,7 @@ const DATA_FIXES = [
   // visions are other eggs, which other scripts make.
   { id: 'skip-intro', group: 'mods', stage: 'mods', name: 'No time to waste',
     played: 'fork, PowerPC, 31 October 2026, a new game with all four mods and one without, each saved at once, the two saves differing in quest flag 31, the To Do list (the same two entries that change after Omen’s Test in the playthrough kit), Omen’s flag 7, and the amulet, the map and the starting things in the hero’s pack, with the hero on the triangle at (19,23)',
-    title: 'A new game now starts with Alaric’s briefing, Magpie’s tour and Omen’s Test already done and the amulet in your pack, instead of playing through them',
+    title: 'A new game now starts with Alaric’s briefing, Magpie’s tour and Omen’s Test already done and the amulet in the hero’s pack, instead of playing through them',
     plan: (s) => {
       const what = 'Alaric’s first talk', p = dataPatchPlace(s, what, 0x1802, [
         'call_resource SetCharacterFlag', 'arg Arg00', 'byte 0x07', 'end', 'string(implicit) "\\"Ah - good, you are about',
@@ -2534,7 +2534,7 @@ const DATA_FIXES = [
   // cry at a theft sets the guards on the hero.
   { id: 'love-bellerophon', group: 'mods', stage: 'mods', name: 'Everybody loves Bellerophon',
     played: 'in part, fork, 68K, 31 October 2026, Hector attacked twice in Land King Hall and the turns passed, the hero losing 69 of 255 health to him on the shipped file and none with the fix, and a skeleton on behavior 8 two squares off hit a hero of alignment 2 and left a hero of alignment 0 alone (a save edited by hand, with the new game’s hero at 0 in the saved game). The guards’ answer to a theft and the three area spells are unplayed',
-    title: 'Nobody now turns on you whatever you do, instead of creatures hunting you and people fighting back or calling the guards (a new game)',
+    title: 'Nobody now turns on the hero whatever the hero does, instead of creatures hunting the hero and people fighting back or calling the guards (a new game)',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'a hit character answers the hero', 0x3043, ['set_field 0x2A', 'arg Arg00', 'end', 'arg Arg01', 'end', 'set_field behavior'], 0,
         ['if_not', 'arg Arg01', 'word Character.Hero', 'eq', 'then -> answers', 'return', 'byte 0x00', 'end', 'answers:'].join('\n')),
@@ -2558,7 +2558,7 @@ const DATA_FIXES = [
   // are not covered: the test is the hero.
   { id: 'cant-touch-this', group: 'mods', stage: 'mods', name: 'Can’t touch this',
     played: 'fork, PowerPC, 31 October 2026, a skeleton on behavior 8 two squares off and twelve turns passed, "Skeleton hit Bellerophon very hard" and the hero’s health 255 of 255, against 223 on the shipped file',
-    title: 'Nothing can now damage you, instead of every blow, spell and trap wounding you',
+    title: 'Nothing can now damage the hero, instead of every blow, spell and trap wounding them',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'damage to the hero', 0x3041, ['set_local 0x00', 'arg Arg00', 'cast Character', 'end', 'if_not', 'local Var00', 'then ->'], 4,
         ['if_not', 'local Var00', 'word Character.Hero', 'eq', 'then -> hurts', 'return', 'byte 0x00', 'end', 'hurts:'].join('\n')),
@@ -2574,7 +2574,7 @@ const DATA_FIXES = [
   // up; this changes the weight of every oboloi in the game.
   { id: 'richie-rich', group: 'mods', stage: 'mods', name: 'Richie rich',
     played: 'in part, fork, PowerPC, 31 October 2026, a new game saved at once has the stack of 32,767 oboloi in the hero’s pack. Picking things up with it, and picking up more oboloi, are unplayed',
-    title: 'You now start a new game with 32,767 oboloi, which weigh nothing, instead of none',
+    title: 'A new game now starts with 32,767 oboloi, which weigh nothing, instead of none',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'the starting oboloi', 0x1802, ['sys SetStateFlag', 'byte 0x00', 'word True', 'end', 'set_local 0x04', 'word True'], 0,
         ['sys Create', 'short 0x0001', 'short 0x0082', 'byte 0x00', 'short 0x7FFF', 'end'].join('\n')),

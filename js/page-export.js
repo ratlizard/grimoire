@@ -457,8 +457,8 @@ function prefsInstallScript(opts) {
     '-- Puts "' + PREFS_FILE_NAME + '" into the System Folder’s Preferences',
     '-- folder, replacing whatever is there. Press Run, or Command-R.',
     '--',
-    '-- It replaces the file, so you lose any settings already stored.',
-    '-- Move the old one somewhere else first if you want to keep them.',
+    '-- Replacing the file loses any settings already in it.',
+    '-- To keep them, move the old one somewhere else first.',
     '--',
     '-- Cheat keys allowed: ' + (o.cheats ? 'ON: type ' + ((cytheraPrefsLayout() || { gate: {} }).gate.word || 'the code') + ' in the map window' : 'off') + '.',
     '-- Settings in the file: ' + prefsSummary(o) + '.',
@@ -536,9 +536,9 @@ function buildInstallScript(archiveName, note) {
     '-- Finds the folder holding the Cythera application on any mounted disk,',
     '-- replaces the "' + archiveName + '" in it with the edited one on this',
     '-- disk, and starts the game. Press Run or Command-R, or open Install',
-    '-- on the disk itself, so you do not have to select anything inside the Mac.',
+    '-- on the disk itself, with nothing to select inside the Mac.',
     '--',
-    '-- Keep a backup of the original first. You cannot undo the replacement.',
+    '-- Keep a backup of the original first. Nothing undoes the replacement.',
     '-- By hand instead: drag "' + archiveName + '" into the game\u2019s folder.',
     '--'].concat((note || []).map(line => '-- ' + line)).concat([
     '',
@@ -591,7 +591,7 @@ function buildInstallScript(archiveName, note) {
    have to be the same bytes, so the build is here and the callers are thin.
 
    `file` is what goes on the disk, { data, rsrc }: since 19 October 2026
-   Your Patch's Cythera Data, the open file with the fixes and the other
+   the Patch in Progress's Cythera Data, the open file with the fixes and the other
    parts merged in (basketDisk), where until then it was always the open
    file as edited, offered by the Patch Generator's section of that name.
    `edited` is the count the script's comment gives. */
@@ -646,7 +646,7 @@ function buildEditedDiskImage(file, edited) {
            forkWarning: forkWarning };
 }
 
-// The disk saved; what to say about it is returned, for Your Patch's note.
+// The disk saved; what to say about it is returned, for the note of the Patch in Progress.
 function downloadEditedDiskImage(file, edited) {
   const built = buildEditedDiskImage(file, edited);
   if (!built) return null;
@@ -1023,7 +1023,7 @@ function midiFilePicked(input) {
       const left = Object.entries(made.dropped).map(([why, n]) => n + ' ' + why).join(', ');
       setStatus('Replaced 0x' + resid.toString(16).toUpperCase() + ' with ' + f.name + ': ' + made.parts.length + (made.parts.length === 1 ? ' part, ' : ' parts, ') +
         made.notes + ' notes, ' + made.seconds.toFixed(1) + ' seconds' + (left ? '. Left out: ' + left : '') +
-        '. To download the edited file, use Your Patch in Tools › Patch Generator.');
+        '. To download the edited file, use the Patch in Progress in Tools › Patch Generator.');
     } catch (e) {
       setStatus('The page could not make ' + f.name + ' into a tune: ' + e.message + '.', true);
     }
@@ -1059,7 +1059,7 @@ function midiFileAdded(input) {
       const left = Object.entries(made.dropped).map(([why, n]) => n + ' ' + why).join(', ');
       setStatus('Added ' + f.name + ' as tune ' + (resid - 0x9000) + ' (0x' + resid.toString(16).toUpperCase() + '): ' + made.parts.length + (made.parts.length === 1 ? ' part, ' : ' parts, ') +
         made.notes + ' notes, ' + made.seconds.toFixed(1) + ' seconds' + (left ? '. Left out: ' + left : '') +
-        '. A script plays it with PlayMusic(' + (resid - 0x9000) + '). To download the edited file, use Your Patch in Tools › Patch Generator.');
+        '. A script plays it with PlayMusic(' + (resid - 0x9000) + '). To download the edited file, use the Patch in Progress in Tools › Patch Generator.');
     } catch (e) {
       setStatus('The page could not make ' + f.name + ' into a tune: ' + e.message + '.', true);
     }

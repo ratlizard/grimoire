@@ -501,7 +501,7 @@ function propInspectRows(p) {
   rows.push(['Tile', '0x' + p.tileId.toString(16).toUpperCase() +
                      (terrainNameFor(p.tileId) ? ', ' + terrainNameFor(p.tileId) : '')]);
   rows.push(['Flags', '0x' + r.flags.toString(16).padStart(2, '0').toUpperCase() +
-                      (r.takeable ? ' (you can take it)' : '')]);
+                      (r.takeable ? ' (the hero can take it)' : '')]);
   // What the square is actually being asked about most of the time: how heavy
   // is that thing, and what does its class say about it. Both come out of the
   // prop type's script resource, which was already parsed for the Items
@@ -842,7 +842,7 @@ function inspectMapSquare(tx, ty) {
     if (isExitProp(p.rec.proptype, window.CUR_MAP ? window.CUR_MAP.resid : undefined)) ways.push('a way out of here, by its class');
     if (isConcealedProp(p.rec.proptype)) ways.push('concealed');
     if (isWallProp(p.rec.proptype) && !(((getTileAttributes(ARCHIVE)[p.tileId] || 0) >> 8) & 0x02))
-      ways.push('a wall you can walk through');
+      ways.push('a wall the hero can walk through');
     const acts = ['<button class="sv-chip" onclick="showPropTypeDetail(' + p.rec.proptype + ')">Prop type</button>'];
     if (isInventoryItem(p.rec.proptype))
       acts.push('<button class="sv-chip" onclick="showItemDetail(' + p.rec.proptype + ')">Item</button>');

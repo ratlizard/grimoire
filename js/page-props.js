@@ -1970,7 +1970,7 @@ const ITEM_GROUP_ORDER = ['Weapons & Armor', 'Containers', 'Carried Goods'];
 function itemGroupNote(group) {
   if (group === 'Weapons & Armor') return 'Anything used in a fight: weapons, launchers, ammunition, armor and shields.';
   if (group === 'Containers') return 'Anything that contains other things or has a lock.';
-  return 'Everything else you can pick up and carry.';
+  return 'Everything else the hero can carry.';
 }
 
 function renderItemSheet() {

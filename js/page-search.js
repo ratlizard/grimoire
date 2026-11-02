@@ -254,7 +254,7 @@ function searchShopSentences(sh) {
   for (const s of sh.shops) {
     const who = s.character !== null ? searchPersonAt(s.character) : (labelFor(s.resid) || null);
     for (const g of s.goods) {
-      const line = 'You can buy ' + (g.count > 1 ? g.count + ' ' : /^[aeiou]/i.test(g.name) ? 'an ' : 'a ') + g.name + (who ? ' from ' + who : '') + ' for ' + g.price + ' obol' + (g.price === 1 ? '' : 's') + '.';
+      const line = 'The hero can buy ' + (g.count > 1 ? g.count + ' ' : /^[aeiou]/i.test(g.name) ? 'an ' : 'a ') + g.name + (who ? ' from ' + who : '') + ' for ' + g.price + ' obol' + (g.price === 1 ? '' : 's') + '.';
       if (!seen.has(line)) { seen.add(line); out.push(line); }
     }
   }
@@ -266,7 +266,7 @@ function searchTeacherSentences(tr) {
     const who = t.character !== null ? searchPersonAt(t.character) : (labelFor(t.resid) || null);
     for (const [id, m] of [...t.skills.entries()].sort((a, b) => a[0] - b[0])) {
       const skill = selfNameFor(0x1A00 + id);
-      if (skill) out.push('You can learn the ' + skill + ' skill' + (who ? ' from ' + who : '') + (m ? ', up to mastery' : '') + '.');
+      if (skill) out.push('The hero can learn the ' + skill + ' skill' + (who ? ' from ' + who : '') + (m ? ', up to mastery' : '') + '.');
     }
   }
   return out;
@@ -744,7 +744,7 @@ function drawSearchResults() {
   if (!S.done) {
     const next = S.frame ? S.frame.next : S.next, total = S.frame ? S.frame.total : S.jobs.length;
     host.innerHTML = '<div class="sv-note">' + (S.cache === 'miss' && next
-      ? 'Reading the site’s pages, ' + next + ' of ' + total + '. Results appear when the reading finishes. This happens once for each file you open.'
+      ? 'Reading the site’s pages, ' + next + ' of ' + total + '. Results appear when the reading finishes. This happens once for each file opened.'
       : 'Loading the search…') + '</div>';
     return;
   }

@@ -453,7 +453,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
     <button type="button" class="btn" id="bFile" aria-haspopup="true" aria-expanded="false">File</button>
     <div class="menu" id="fileMenu" hidden role="menu">
       <button type="button" data-file="open" role="menuitem" title="A picture, unscaled, or a GIF saved here with the whole project inside">Open&hellip;</button>
-      <button type="button" data-file="place" role="menuitem" title="A picture into the canvas you already have">Place&hellip;</button>
+      <button type="button" data-file="place" role="menuitem" title="A picture into the open canvas">Place&hellip;</button>
       <button type="button" data-file="paste" role="menuitem" title="The clipboard, placed the same way">Paste</button>
       <hr>
       <button type="button" data-file="copy" role="menuitem" title="This frame, to the clipboard">Copy frame</button>
@@ -568,7 +568,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       <div class="fld" data-for="fillstyle"><span class="eyebrow lbl">Bands follow</span>
         <div class="seg" id="fillSeg">
           <button type="button" data-fs="contour" aria-pressed="true" title="Parallel to the shoreline">Shore</button>
-          <button type="button" data-fs="radiate" aria-pressed="false" title="Spreading from where you click">Spread</button>
+          <button type="button" data-fs="radiate" aria-pressed="false" title="Spreading from the click">Spread</button>
           <button type="button" data-fs="twist" aria-pressed="false" title="Warps what is already inside">Twist</button>
         </div>
       </div>
@@ -579,13 +579,13 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
           <button type="button" data-dm="part" aria-pressed="false" title="Forces them open and fills the gap">Part</button>
         </div>
       </div>
-      <label class="fld" data-for="meltsteps" title="Auto makes room for every color you drag across"><span>Ramp colors <b id="vMelt">Auto</b></span>
+      <label class="fld" data-for="meltsteps" title="Auto makes room for every color the drag crosses"><span>Ramp colors <b id="vMelt">Auto</b></span>
         <input type="range" id="meltN" min="0" max="18" value="0"></label>
       <div class="fld" data-for="meltbounce"><label class="chk" title="The ramp runs from the first color to the last and back, so it loops with no seam"><input type="checkbox" id="meltBounce" checked>
         There and back</label></div>
-      <div class="fld" data-for="meltpour"><label class="chk" title="The colors you drag across start turning as the new ramp, where they touch your drag"><input type="checkbox" id="meltPour" checked>
-        Set what you melted turning</label></div>
-      <label class="fld" data-for="meltreach" title="How far from your drag the melted colors start turning"><span>Reach <b id="vReach">16 px</b></span>
+      <div class="fld" data-for="meltpour"><label class="chk" title="The colors the drag crosses start turning as the new ramp, where the drag touches them"><input type="checkbox" id="meltPour" checked>
+        Set the melted colors turning</label></div>
+      <label class="fld" data-for="meltreach" title="How far from the drag the melted colors start turning"><span>Reach <b id="vReach">16 px</b></span>
         <input type="range" id="meltReach" min="0" max="8" value="3"></label>
       <div class="fld" data-for="selmode"><span class="eyebrow lbl">Select by</span>
         <div class="seg" id="selSeg">
@@ -677,9 +677,9 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
     <p><strong>The ink sets what the tools are.</strong> With a ramp loaded the tools are Flow,
       Vortex, Sparkle, Pool, Divert, Select, Melt and Pick. With a flat color the first five are Paint,
       Shape, Spray, Fill and Smudge. Drag across a run of colors with <strong>Melt</strong> and it joins
-      them into a new ramp, then sets the pixels you dragged across turning where they are. With
+      them into a new ramp, then sets the pixels the drag crossed turning where they are. With
       There and back on, the ramp runs to its last color and back, so it loops with no seam.
-      Reach sets how far from your drag the colors start turning.</p>
+      Reach sets how far from the drag the colors start turning.</p>
     <p><strong>Select confines everything.</strong> A box, a lasso or a region is a mask, and all
       painting checks it, so every tool and every creature that paints works inside it and
       nowhere else. Drag from inside a selection to move what is in it.</p>
@@ -689,7 +689,7 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
       the color it shows at that moment. The links the slug made break where they are, and
       the registers go back to turning separately from there.</p>
     <p><strong>Hydra Polyp</strong> takes a tool at random once a second and uses it somewhere at
-      random. Leave it running and it will paint over everything you own.</p>
+      random. Leave it running and it will paint over everything on the canvas.</p>
     <p><strong>Harpy</strong> flies the canvas and leaves a wake that pushes turning color
       along its ramp, more in the middle of its track than at the edges. It leaves flat paint alone.</p>
     <p><strong>Undead</strong> gives every register a separate pace, stopped, slow, even or fast,
@@ -1607,7 +1607,7 @@ function makeRamp(cols, name, hint) {
   var base = PAL.length;
   cols.forEach(function (c) { PAL.push(quant(c)); });
   var r = { id: 'c' + base, name: (name || 'Ramp').slice(0, 18), base: base, len: cols.length,
-            dir: 1, eng: 0, on: 1, hint: hint || 'your ramp' };
+            dir: 1, eng: 0, on: 1, hint: hint || 'a custom ramp' };
   CUSTOM.push(r); relut(); invalidateMap();
   return r;
 }
@@ -2947,13 +2947,13 @@ var EFFECTS = [
   { id: 'harpy', name: 'Harpy',
     help: 'Flies the canvas and leaves a wake that pushes turning color along its ramp. It leaves flat paint alone.' },
   { id: 'undead', name: 'Undead',
-    help: 'Every register turns at a separate pace, and the pace changes as you watch. Off again, each color stays where it is.' }
+    help: 'Every register turns at a separate pace, and the paces change over time. Off again, each color stays where it is.' }
 ];
 /* Each slot is one behaviour wearing two names, and belongs to one of the two
    families the picker is split by. */
 var TOOLS = [
   { id: 'flow', cat: 'create',
-    ramp:  { name: 'Flow', icon: 'flow', help: 'Drag; the color travels the way you drag.' },
+    ramp:  { name: 'Flow', icon: 'flow', help: 'Drag, and the color travels the way of the drag.' },
     still: { name: 'Paint', icon: 'paint', help: 'An ordinary brush.' } },
   { id: 'burst', cat: 'create',
     ramp:  { name: 'Vortex', icon: 'vortex', help: 'Press at the center and drag out: rings, or a spiral with arms.' },
@@ -2965,8 +2965,8 @@ var TOOLS = [
     ramp:  { name: 'Divert', icon: 'divert', help: 'Pushes a flow that is already there.' },
     still: { name: 'Smudge', icon: 'smudge', help: 'Drags the pixels that are already there.' } },
   { id: 'pool', cat: 'create',
-    ramp:  { name: 'Pool', icon: 'pool', help: 'Floods the region you click with a flow in its shape.' },
-    still: { name: 'Fill', icon: 'puddle', help: 'Floods the region you click with the one color.' } },
+    ramp:  { name: 'Pool', icon: 'pool', help: 'Floods the clicked region with a flow in its shape.' },
+    still: { name: 'Fill', icon: 'puddle', help: 'Floods the clicked region with the one color.' } },
   { id: 'select', cat: 'modify',
     ramp:  { name: 'Select', icon: 'select', help: 'Everything works inside the selection and nowhere else. Drag inside it to move it.' },
     still: { name: 'Select', icon: 'select', help: 'Everything works inside the selection and nowhere else. Drag inside it to move it.' } },
@@ -3273,7 +3273,7 @@ function paintRamps() {
   rampSel.innerHTML = '';
   rs.forEach(function (r, i) {
     var o = document.createElement('option');
-    o.value = i; o.textContent = r.name + ' · ' + r.len + ' steps' + (r.eng ? '' : ' · yours');
+    o.value = i; o.textContent = r.name + ' · ' + r.len + ' steps' + (r.eng ? '' : ' · custom');
     if (r === ramp) o.selected = true;
     rampSel.appendChild(o);
   });
@@ -3317,7 +3317,7 @@ function openRampList() {
     rampStrip(cv, r, frame);
     var nm = document.createElement('span'); nm.className = 'rn'; nm.textContent = r.name;
     var tg = document.createElement('span'); tg.className = 'tag';
-    tg.textContent = r.len + ' steps' + (r.eng ? '' : ' · yours');
+    tg.textContent = r.len + ' steps' + (r.eng ? '' : ' · custom');
     b.appendChild(cv); b.appendChild(nm); b.appendChild(tg);
     b.addEventListener('click', function () {
       ramp = r; paintRamps(); sync();
@@ -3361,7 +3361,7 @@ function paintRegs() {
       ' · ' + r.len + ' steps</span>';
     var tg = document.createElement('span');
     tg.className = 'tag' + (r.eng ? ' eng' : '');
-    tg.textContent = r.eng ? 'in the game' : (CUSTOM.indexOf(r) >= 0 ? 'yours' : 'studio only');
+    tg.textContent = r.eng ? 'in the game' : (CUSTOM.indexOf(r) >= 0 ? 'custom' : 'studio only');
     b.appendChild(cv); b.appendChild(txt); b.appendChild(tg);
     b.addEventListener('click', toggle);
     var row = document.createElement('div'); row.className = 'regRow';
@@ -3409,7 +3409,7 @@ function paintStops() {
     box.appendChild(inp);
     var aim = document.createElement('button');
     aim.type = 'button'; aim.className = 'aim'; aim.textContent = '◉';
-    aim.title = 'Fill this stop from the next color you pick below';
+    aim.title = 'Fill this stop from the next color picked below';
     aim.addEventListener('click', function () { stopTarget = i; paintStops(); });
     box.appendChild(aim);
     if (STOPS.length > 2) {
@@ -3523,7 +3523,7 @@ function paintPal() {
     : depth === 'direct'
     ? 'No grid. Every color stays exactly as it arrived. A picture opened from a file lands here, so it loses none of its colors.'
     : (1 << depth) + ' colors at ' + depth + '-bit' +
-      (depth > 12 ? ', and the grid below is a sample. Anything you mix snaps to the full one.' : '.');
+      (depth > 12 ? ', and the grid below is a sample. Any mixed color snaps to the full one.' : '.');
 }
 document.getElementById('mixAdd').addEventListener('click', function () {
   var i = addColor(hex2rgb(document.getElementById('mixColour').value));
@@ -4689,7 +4689,7 @@ var SCENES = [
   { id: 'falls', name: 'Falls', w: CAVE.FW, h: CAVE.FH, note: 'a gorge at night, made for an upright phone',
     run: async function () { idx.set(CAVE.falls()); } },
 
-  { id: 'cavebare', name: 'Cave, bare', w: CAVE.W, h: CAVE.H, note: 'same rock, nothing moving, paint your own',
+  { id: 'cavebare', name: 'Cave, bare', w: CAVE.W, h: CAVE.H, note: 'same rock, nothing moving, ready to paint',
     run: async function () { idx.set(CAVE.build(true)); } },
 
   { id: 'alaric', name: 'Alaric', w: 64, h: 64, note: 'portrait 0x8701 at native size',

@@ -600,7 +600,7 @@ function exePseudoHTML(r, ringAt, why) {
     else line = off(l.at) + '  ' + svEsc(l.text).replace('\u0001', l.to !== null ? exeTargetHTML(r, l.to) : '');
     if (i !== ringLine) return line;
     const o = ops[(ringAt - r.offset) >> 2];
-    const note = (why ? 'You followed \u201c' + svEsc(why) + '\u201d. ' : '') + 'The line above has the instruction at +0x' + (ringAt - r.offset).toString(16).toUpperCase() +
+    const note = (why ? 'The link \u201c' + svEsc(why) + '\u201d leads here. ' : '') + 'The line above has the instruction at +0x' + (ringAt - r.offset).toString(16).toUpperCase() +
       (o && exePlainLines(r)[(ringAt - r.offset) >> 2] ? ': ' + svEsc(exePlainLines(r)[(ringAt - r.offset) >> 2]).replace('\u0001', 'there').replace(/^./, c => c.toLowerCase()) : '.');
     return '<span id="listingHit" class="listingHit">' + line + '</span><span class="listingNote">' + note + '</span>';
   });
@@ -634,7 +634,7 @@ function exeListingHTML(r, ringAt, why) {
     const line = plainOn ? ('+0x' + (o.at - r.offset).toString(16).toUpperCase()).padEnd(7) + ' ' + shownText
       : hex(o.at) + '  ' + o.word.toString(16).toUpperCase().padStart(8, '0') + '  ' + t;
     if (o.at !== ringAt) return line;
-    const note = [why ? 'You followed “' + svEsc(why) + '”. The program sets it on the line above.' : '',
+    const note = [why ? 'The link “' + svEsc(why) + '” leads here. The program sets it on the line above.' : '',
                   plainOn ? '' : plain[i]].filter(Boolean).join(' ');
     return '<span id="listingHit" class="listingHit">' + line + '</span>' + (note ? '<span class="listingNote">' + note + '</span>' : '');
   });
@@ -775,14 +775,14 @@ const PREF_HELP = {
   frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second. These three come from the game’s hidden Preferences menu. The file can hold others, down to no limit at all. A higher limit plays each step’s animation faster, but holding a key still walks at the pace of the Mac’s key repeat.'],
   motionFilters: ['movement', 'Preferences dialog', 'Leaves blowing on the trees and waves rippling across the ocean.'],
   walkAround: ['movement', 'Preferences dialog', 'The hero steps around things in the way rather than stopping at them.'],
-  liveDrag: ['windows', 'Preferences dialog', 'Lets you drag the game’s windows around the screen.'],
-  manualContainers: ['windows', 'Preferences dialog', 'Opening a container lets you choose where its window goes. Off, the game places it for you.'],
+  liveDrag: ['windows', 'Preferences dialog', 'The player can drag the game’s windows around the screen.'],
+  manualContainers: ['windows', 'Preferences dialog', 'Opening a container lets the player choose where its window goes. Off, the game places it.'],
   zoomRects: ['windows', 'Preferences dialog', 'Windows open with a zooming outline.'],
   Backdrop: ['windows', 'Not in the game', 'The pattern that fills the screen behind every window. Nothing in the game sets it.'],
   switch256: ['startup', 'Startup prompt', 'On a screen set to more than 256 colors, the game switches it to 256 when it starts. Off, it runs in the colors the screen already has.'],
   noPrompt: ['startup', 'Startup prompt', 'The game shows no 256-color prompt when it starts. Off, it shows the prompt on a screen set to more than 256 colors, and the answer replaces the switch above.'],
   cheats: ['startup', 'Not in the game', null],
-  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if you held Command, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu. The right-click fix in the Patch Generator puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
+  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button. The second button clicks with Command held, the third with Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu. The right-click fix in the Patch Generator puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
 };
 /* The License tab, a stub by the maintainer's word (6 October 2026): what
    the file is, where it goes, a link to the thing that makes one, and a
@@ -869,7 +869,7 @@ function renderPrefsSheet() {
   sheet.innerHTML = '<p class="prefLede">' + svEsc('Choose the settings, then download the file and put it in the Preferences folder of the System Folder, replacing the one there. ' +
       'Each setting starts as a new copy of the game has it.') + '</p>' +
     '<p class="prefFrom">' + svEsc(layout.from === 'shipped'
-      ? 'The settings are the same in all four releases, so nothing needs to be open. Open the game to read them from your copy instead.'
+      ? 'The settings are the same in all four releases, so nothing needs to be open. Open the game to read them from that copy instead.'
       : 'The page reads the settings from the program open here.') + '</p>';
   /* The two presets (cytheraPrefsPreset): each sets every row, the switches
      by their ids and the choosers by their values. Built with createElement,
@@ -958,7 +958,7 @@ function renderPrefsSheet() {
   // start on: the game's recommendation, and no question in the way.
   (layout.startup || []).forEach((x, i) => { if (PREF_STARTUP_IDS[i]) sw(['switch256', 'noPrompt'][i], PREF_STARTUP_IDS[i], x.text, true); });
   sw('cheats', 'prefCheats', 'Allow the cheat keys', true,
-     svEsc('Lets the cheat keys work after you type ' + layout.gate.word + '. Nothing in the game turns this on, so a copy as released cannot enter cheat mode.'));
+     svEsc('Lets the cheat keys work after typing ' + layout.gate.word + '. Nothing in the game turns this on, so a copy as released cannot enter cheat mode.'));
   // No label anywhere in the game, so the row's name is one the page supplies.
   if (layout.buttons) sw('mouseButtons', 'prefMouseButtons', 'Extra mouse buttons', false);
   for (const [g, title] of PREF_GROUPS) {
@@ -1073,13 +1073,13 @@ function renderToolsSheet() {
      Generator, Save File Generator, Preferences File Generator, Graphics
      Ditherizer and ColorCycleCanvas. The Font Replacer, the Seldane Script
      Replacer and the MIDI Importer left for a section of the Patch
-     Generator (Fonts and Music), since what they change goes into Your
-     Patch. The canvas page's row is its name drawn as that page draws it
+     Generator (Fonts and Music), since what they change goes into the
+     Patch in Progress. The canvas page's row is its name drawn as that page draws it
      (.ccMark). */
   for (const [label, note, go, icon, mark] of [
     ['Patch Generator', 'Bugfixes and the tools that make a patch, in one download.', () => showCategory('PATCHES'), BUILD_A_PATCH_ICON],
-    ['Save File Generator', 'A saved game made from the scenario open here, with the hero you set.', at('SAVEGAME', 'saveMaker')],
-    ['Preferences File Generator', 'The game’s settings file, made with the options you choose.', at('PREFS')],
+    ['Save File Generator', 'A saved game made from the scenario open here, with the hero set on the form.', at('SAVEGAME', 'saveMaker')],
+    ['Preferences File Generator', 'The game’s settings file, made with the options chosen here.', at('PREFS')],
     ['Graphics Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
       () => { showCategory('135'); openDitherTool(); }],
     ['ColorCycleCanvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener'), null, true]]) {
@@ -2970,7 +2970,7 @@ function convScrollTo(resid, at) {
 
 function convBadgeFor(a) {
   if (a.call !== undefined) {
-    if (a.call === 0xF00) return 'learns your name';
+    if (a.call === 0xF00) return 'learns the hero’s name';
     if (a.call === 0xE86) return 'training';
     if (a.call === 0x813) return 'a rumor from the pool';
     if ((a.call >> 8) === 8) return null;              // chain calls render in the header
@@ -3543,7 +3543,7 @@ function applyResourceEditFromText() {
    MIDI file under a new number (the maintainer, 24 October 2026, after the
    import could only replace a tune). With `encrypted` set the writer stores
    it enciphered, as the rest of its subindex is. It joins the edited set,
-   so it is in Your Patch, and a patch can add a resource the game file
+   so it is in the Patch in Progress, and a patch can add a resource the game file
    lacks (mergeDelverPatch). A number already in the file returns false,
    with the reason on the status line. */
 function addResource(resid, data, encrypted) {
@@ -3581,13 +3581,13 @@ function applyResourceEdit(resid, newData) {
   setStatus('Rebuilt the file with 0x' + resid.toString(16).toUpperCase() +
     (newData.length ? ' edited' : ' removed') + ', ' + dirty.size +
     ' resource(s) changed this session. Edits stay in the page’s memory only. To download the edited file, ' +
-    'use Your Patch in Tools › Patch Generator.');
+    'use the Patch in Progress in Tools › Patch Generator.');
   showEditNotice(resid, newData.length ? 'edited' : 'removed', dirty.size);
   return true;
 }
 /* The status line lives in the Settings panel, so an edit made from a page
    showed where it went to nobody. This line under the top row shows it on the
-   page, with Your Patch a link (the Changes tab until 17 October 2026, the
+   page, with the Patch in Progress a link (the Changes tab until 17 October 2026, the
    Patch Generator's section of that name until the 19th), and goes away by
    itself. */
 let _editNoticeTimer = null;
@@ -3595,7 +3595,7 @@ function showEditNotice(resid, what, count) {
   const el = document.getElementById('editNotice');
   if (!el) return;
   el.innerHTML = '0x' + resid.toString(16).toUpperCase() + ' ' + what + ' in memory, ' + count + ' resource' + (count === 1 ? '' : 's') +
-    ' changed this session. ' + svLink('Your Patch', "showCategory('CHANGES')", 'is where to download it');
+    ' changed this session. The ' + svLink('Patch in Progress', "showCategory('CHANGES')", 'is where to download it');
   el.style.display = '';
   if (_editNoticeTimer) clearTimeout(_editNoticeTimer);
   _editNoticeTimer = setTimeout(() => { el.style.display = 'none'; }, 15000);
@@ -3714,7 +3714,7 @@ const DISK_ARCHIVE_NAME = 'Cythera Data';
    which is why index.html fetches the `.hqx` and not the data fork. */
 function missingForkWarning(rsrc) {
   if (rsrc && rsrc.length) return null;
-  return 'You opened this file without its resource fork, so the disk will not ' +
+  return 'This file opened without its resource fork, so the disk will not ' +
          'work in the game. Cythera rejects it with “Unable to open RT”. Open the ' +
          '.hqx (or a MacBinary copy) instead of the data fork alone, and export again.';
 }

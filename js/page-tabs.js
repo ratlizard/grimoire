@@ -93,14 +93,14 @@ const SUBINDEX_PURPOSE = {
   12:  ['Party and inventory helpers', 'Scripts that go through what the party carries. They total what it holds and what that weighs, count money (0xD04), react to theft (0xD06) and spill coins when a purse is too heavy (0xD09).'],
   13:  ['Rule helpers', 'The scripts the page reads the rules from, for lock picking (0xE43), combat (0xE84 to 0xE89), experience and levels (0xE86, 0xE8B), spells (0xEA1), shops (0xEA5), training (0xEB1) and damage (0xEB8).'],
   14:  ['Character helpers', 'Twenty-two scripts of one function each, every one acting on a single character. They set, clear and test a flag (0xF00 to 0xF02, called from hundreds of lines of dialogue), handle behavior, health, poison, attributes, experience, level and karma, and two of them make a character.'],
-  15:  ['Item classes', 'What each kind of item is called, and what happens when you use it.'],
-  16:  ['Object classes', 'Objects with data and scripts, and text in them that you can read.'],
-  19:  ['Zone entry scripts', 'One for each map. It runs as you enter the zone and has the zone names that the game shows.'],
+  15:  ['Item classes', 'The name of each kind of item, and what happens when the hero uses it.'],
+  16:  ['Object classes', 'Objects with data and scripts, and the text in them that the hero can read.'],
+  19:  ['Zone entry scripts', 'One for each map. It runs as the hero enters the zone and has the zone names that the game shows.'],
   20:  ['Sub-zone scripts', 'For maps that hold several zones in one 0x80xx resource and show one part at a time.'],
-  23:  ['Character dialogue', 'What a named character says when you talk to them.'],
+  23:  ['Character dialogue', 'A named character’s lines when the hero talks to them.'],
   24:  ['Monster classes', 'What each kind of monster is. The script that sets one up receives the monster and the thing that represents it, and entry 0x1D sets what happens when it dies.'],
   25:  ['Skill & spell classes', 'Descriptions and scripts for spells, skills and actions. Each is usually several small functions, one giving the name and another the description.'],
-  26:  ['Room scripts', 'One for each room, at id 0x1B00 plus the room number. Each has the description shown the first time you enter, and some have an Enter that does more. A room is a rectangle that an egg marks on the map, and an egg is a trigger with nothing to see.'],
+  26:  ['Room scripts', 'One for each room, at id 0x1B00 plus the room number. Each has the description the game shows the first time the hero enters, and some have an Enter that does more. A room is a rectangle that an egg marks on the map, and an egg is a trigger with nothing to see.'],
   27:  ['Room scripts', 'Rooms 256 to 511 are here, in the same form as 0x1Bxx; the file has rooms 301 to 454.'],
   29:  ['Room scripts', 'Room 800, the one room numbered past 511. Entering it changes zone.'],
   47:  ['Character actions', 'Scripts that seem to be for things done to a character, ToggleLock among them.'],
@@ -792,7 +792,7 @@ const TAB_TREE = [
   // word ("move out completely"): its value lights Tools, as does CHANGES,
   // the Changes tab that became its Patch Generator the same day. Since
   // 19 October 2026 the page is named Patch Generator and CHANGES opens its
-  // Your Patch. Its icon, worn by
+  // Patch in Progress. Its icon, worn by
   // that row (BUILD_A_PATCH_ICON), is Magpie's DelP when a Magpie archive has been opened on this
   // device (magpieIcon) and the fishing pole (0x29A) otherwise.
   { id: 'tools', label: 'Tools', tile: 0x2A9, tileOpen: 0x2AD, values: ['TOOLS', 'PATCHES', 'CHANGES'] }       // a wheelbarrow, another frame of it when selected: the maintainer's pick, 16 September 2026; it was the anvil (0x2E0)
@@ -1024,7 +1024,7 @@ function syncTabsTo(v) {
   const sel = document.getElementById('categorySelect');
   const have = new Set(Array.from(sel.options).map(o => o.value));
   // CHANGES lights Tools and has no chip: it opens the Patch Generator's
-  // Your Patch, which that page's chip reaches (19 October 2026).
+  // Patch in Progress, which that page's chip reaches (19 October 2026).
   const vals = leaf ? leaf.values.filter(x => have.has(x) && x !== 'CHANGES') : [];
   const sub = document.getElementById('navSub');
   if (sub) {

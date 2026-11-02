@@ -135,7 +135,7 @@ function fontSwapPanel() {
   box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Font Replacer</h3></div>' +
     (target
       ? '<p class="mechLede">Choose a TrueType font (<b>.ttf</b>) to replace the game’s font, ' + svEsc(target.name || 'ArgosANouveau') + ' (<b>sfnt ' + target.id + '</b>), in the copy of the file in this browser.</p>' +
-        '<ul class="ruleList"><li>To play with it, download <b>Your Patch</b> in the ' + actionChip('Patch Generator', "showCategory('CHANGES')") + ' as a disk image, and run the game from it in an emulator.</li>' +
+        '<ul class="ruleList"><li>To play with it, download the <b>Patch in Progress</b> in the ' + actionChip('Patch Generator', "showCategory('CHANGES')") + ' as a disk image, and run the game from it in an emulator.</li>' +
         '<li>An <b>.otf</b> font cannot be used, because a classic Mac cannot draw it.</li></ul>' +
         '<div class="mechStats"><input type="file" id="fontSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoFontSwap()">Restore the game’s font</button>' : '') +
@@ -513,7 +513,7 @@ function strikeSwapPanel() {
    Ambrosia's words and not the last carving. The pictures are entered in
    RSRC_PICTURES under START_BUTTONS, and that entry is the only record that
    they are carved: every path that puts the fork back (opening a file,
-   Restore the game's font) empties the map, and in Your Patch the eight
+   Restore the game's font) empties the map, and in the Patch in Progress the eight
    are one edit (basketEdits). A font swapped after the buttons were carved
    is carved into them again (fontSwapPanel).
 --------------------------------------------------------------------------- */
@@ -683,7 +683,7 @@ function startButtonsCarve() {
   const note = document.getElementById('startButtonsNote');
   if (note) note.textContent = 'Carving…';
   carveStartButtons().then(() => {
-    setStatus('Carved the start screen’s buttons in ' + (window.FONT_SWAP ? window.FONT_SWAP.name : 'the game’s font') + '. To download them, use Your Patch in Tools › Patch Generator.');
+    setStatus('Carved the start screen’s buttons in ' + (window.FONT_SWAP ? window.FONT_SWAP.name : 'the game’s font') + '. To download them, use the Patch in Progress in Tools › Patch Generator.');
     renderMacRsrcSheet();
   }).catch(e => {
     if (note) note.textContent = 'The page could not carve the buttons: ' + e.message;
@@ -701,7 +701,7 @@ function startButtonsPanel() {
   box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Start Screen Buttons</h3></div>' +
     (have
       ? '<p class="mechLede">Carve the words on the start screen’s buttons in the game’s font as it is in this copy. To carve them in another font, choose it in Font Replacer first.</p>' +
-        '<ul class="ruleList"><li>To see them in the game, download <b>Your Patch</b> in the ' + actionChip('Patch Generator', "showCategory('CHANGES')") + ' as a disk image.</li></ul>' +
+        '<ul class="ruleList"><li>To see them in the game, download the <b>Patch in Progress</b> in the ' + actionChip('Patch Generator', "showCategory('CHANGES')") + ' as a disk image.</li></ul>' +
         '<div class="mkRow">' + START_PLAQUES.buttons.filter(b => !b.grayed).map(b =>
           '<label class="mkField">' + svEsc(b.word) + ' <input type="text" maxlength="24" value="' + svEsc(words[b.id]) + '" oninput="window.START_WORDS[' + b.id + '] = this.value"></label>').join('') + '</div>' +
         '<div class="mechStats"><button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="startButtonsCarve()">Carve the Buttons</button>' +
@@ -1574,7 +1574,7 @@ function renderMacRsrcSheet() {
 
    Cythera Data's fork is replaced in window.CYTHERA_RSRC_RAW, as the font
    swap's is, so it is in Replacement Files and the disk image with no more
-   work, and RSRC_PICTURES names what changed for Your Patch. The program's
+   work, and RSRC_PICTURES names what changed for the Patch in Progress. The program's
    fork is the program's, which leaves the page only as the program: an
    edit there is kept in APP_RSRC_EDITS with the bytes it replaced, and
    basketProgram writes the edits into whichever program it builds, so the
@@ -1677,7 +1677,7 @@ function forkPicturePicked(input, side, type, id) {
     try { replaceForkImage(side, type, id, new Uint8Array(buf), f.name); }
     catch (e) { setStatus('The page could not replace ' + type + ' ' + id + '. ' + e.message, true); return; }
     showMacRsrcDetail(type, id, side);
-    setStatus('Replaced ' + type + ' ' + id + ' with ' + f.name + '. To download it, use Your Patch in Tools › Patch Generator.');
+    setStatus('Replaced ' + type + ' ' + id + ' with ' + f.name + '. To download it, use the Patch in Progress in Tools › Patch Generator.');
   }).catch(e => setStatus('The page could not read ' + f.name + ': ' + e.message, true));
 }
 function forkPictureRestore(side, type, id) {
@@ -1768,7 +1768,7 @@ function showMacRsrcDetail(type, id, source) {
           box.appendChild(back);
           const noteElement = document.createElement('div');
           noteElement.style.cssText = 'font-size:0.75rem;color:#f0ede4;margin-top:4px';
-          noteElement.textContent = 'Replaced with ' + replaced + '. It is in Your Patch' + (side === 'app' ? ', with the program.' : '.');
+          noteElement.textContent = 'Replaced with ' + replaced + '. It is in the Patch in Progress' + (side === 'app' ? ', with the program.' : '.');
           box.appendChild(noteElement);
         }
       }
@@ -2117,9 +2117,9 @@ function heroPortraitCard() {
   const head = '<b style="color:#f0ede4">Portrait</b> ';
   if (!pc) {
     card.innerHTML = head + (isSave
-      ? 'The portrait above is this file\u2019s 0x8800, which you chose when you made the character. '
+      ? 'The portrait above is this file\u2019s 0x8800, which the player chose when making the character. '
       : 'The portrait above is the scenario\u2019s 0x8800, which the game never shows in play. ') +
-      'Which portraits the game offers when you make a character, and where it writes the chosen one, are in the program, and the program is not open.';
+      'Which portraits the game offers at character creation, and where it writes the chosen one, are in the program, and the program is not open.';
     return card;
   }
   const hex = v => '0x' + v.toString(16).toUpperCase();
@@ -2127,8 +2127,8 @@ function heroPortraitCard() {
   const slots = [];
   for (let r = first; r < first + 64 && getResourceBytes(ARCHIVE, r); r++) slots.push(r);
   let text = head + (isSave
-    ? 'The portrait above is the one you chose when you made this character, ' + srcNum(pc.writes, 'saved') + ' in this file. '
-    : 'The game never shows the portrait above in play. It uses the one you choose when you make the character, and ' + srcNum(pc.writes, 'saves') + ' it in the saved game file. ');
+    ? 'The portrait above is the one the player chose when making this character, ' + srcNum(pc.writes, 'saved') + ' in this file. '
+    : 'The game never shows the portrait above in play. It uses the one the player chooses at character creation, and ' + srcNum(pc.writes, 'saves') + ' it in the saved game file. ');
   const choices = 'The ' + srcNum(pc.first, 'choices') + ' at character creation';
   if (!slots.length) { card.innerHTML = text + choices + ' are not in this file.'; return card; }
   // Which of the run the list draws: column c, row r is the first plus the
@@ -2295,7 +2295,7 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'CHEATS') { renderCheatsSheet(); return; }
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
   // A link to the Changes tab, which was a section of the Patch Generator
-  // from 17 to 19 October 2026, opens Your Patch, which has the edits.
+  // from 17 to 19 October 2026, opens the Patch in Progress, which has the edits.
   if (window.CUR_SUBN === 'CHANGES') { renderPatchesSheet(); setTimeout(() => { const pb = document.getElementById('patchBar'); if (pb && pb.scrollIntoView) pb.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
   // One tab per group of the rules sheet, and Hackery, all one renderer.

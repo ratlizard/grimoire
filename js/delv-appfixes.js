@@ -98,7 +98,7 @@ const APP_FIXES = [
     bug: 'A one-square drag to the north-west does nothing',
     sites: [{ at: 0x28838, was: [0x41820064], asm: ['beq @0x28858          ; cursor 22 slides too'] }] },
 
-  { id: 'theft-moved', kind: 'fix', title: 'The theft check catches you taking someone else’s stuff after you move it along the ground',
+  { id: 'theft-moved', kind: 'fix', title: 'The theft check catches the hero taking someone else’s stuff after moving it along the ground',
     bug: 'Moving an item before taking it avoids the theft check',
     sites: [
       { at: 0x54FFC, was: [0x540007FF], asm: ['andi. 0, 0, 17        ; free if it was free, or carried'] },
@@ -123,7 +123,7 @@ const APP_FIXES = [
   // be empty is written as one free slot (flags 0xFF, what the routine's
   // own trimming loop treats as unused), 16 bytes, which is copied like
   // any other and replaces what was there.
-  { id: 'empty-zone-save', kind: 'fix', title: 'Saving at the clearing of the hidden fortress no longer doubles everything in your inventory',
+  { id: 'empty-zone-save', kind: 'fix', title: 'Saving at the clearing of the hidden fortress no longer doubles everything in the hero’s inventory',
     bug: 'Saving and reverting around Tavara\u2019s ring duplicates everything carried',
     played: 'Mac OS 8.5, 11 October 2026, the program with the fix alone and with every fix beside the stock one, the hero given stairs to the fortress and to Land King Hall: a save on the island without the fortress, the hall and a save, the island again, and the save then has 36 carried records on the stock program, the hero\u2019s six things twice, and 18 with the fix alone and with every fix. The board\u2019s route on foot (the island and a save, the ring on, the Stronghold, the ring off and a save, Revert To Saved, out by the west edge and onto the fortress\u2019s square): 34 carried on the stock program, 17 with the fix alone. Fork, PowerPC, 12 October 2026: after the save in the hall the stock program\u2019s save still holds the island\u2019s list with the 18 carried records and the fixed ones\u2019 do not; the step back to the island did not land there, so the doubled count is not shown in the fork. Mac OS 8.5, 12 October 2026, ten rounds of the island, a save, the hall, a save: the stock program stops on the tenth return with "Sorry - there has been a fatal error:Out of space for new props!", 288 carried records after four rounds; the program with the fix alone ends the ten with 18',
     sites: [{ at: 0x6EF8, was: [0x54062036], asm: ['bl @cave               ; was slwi 6, 0, 4: the length, 16 a record'] }],
@@ -132,7 +132,7 @@ const APP_FIXES = [
 
   { id: 'books-window', kind: 'fix', title: 'Taking a thing out redraws the window of whatever held it',
     played: 'fork, PowerPC, 30 September 2026: a book handed to Selinus from an open pouch leaves its window',
-    bug: 'You can hand in Sapphire Books in a container again and again',
+    bug: 'The hero can hand in Sapphire Books in a container again and again',
     sites: [{ at: 0x95344,
       was: [0x7FE3FB78, 0x4BFC0435, 0x60000000, 0x7C630734, 0x7FC00734, 0x7C001800, 0x41800028, 0x7FE3FB78, 0x4BFC0419, 0x60000000, 0x38030000, 0x387D0000,
             0x7FC0F050, 0x4BF72615, 0x60000000, 0x48000024, 0x7FE3FB78, 0x4BFC03F5, 0x60000000, 0x7C9E1850, 0x387F0000, 0x4BFC0275, 0x60000000, 0x3BC00000],
@@ -483,7 +483,7 @@ const APP_FIXES = [
   // ---- New code ---------------------------------------------------------------
   { id: 'containers-weight', kind: 'fix', title: 'A thing put in a container someone carries counts against that carrier’s weight too',
     played: 'fork, 68K, 22 October 2026, alone: the hero’s Body set to 1 by an edit, a sack in the pack opened by a double-click and a flatbread dragged from the floor into it; with the fix "There isn’t room." and the bread stays on the floor, against the bread put in the sack unpatched; with the hero’s Body as it was, the fix lets the bread in. The PowerPC half was not played, nor Mac OS',
-    bug: 'Containers let you carry any weight',
+    bug: 'Containers let the hero carry any weight',
     sites: [{ at: 0x5423C, was: [0x40810018], asm: ['b @cave               ; was ble 0x54254'] }],
     cave: [
       'bgt @fail              ; over the container’s limit',
@@ -556,7 +556,7 @@ const APP_FIXES = [
   // as before, which disarms the command: press the key again to go on.
   { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach makes the hero step toward it, instead of doing nothing, and so does a touch spell, which the game still cancels',
     played: 'fork, PowerPC, 30 September 2026: Use from the popup and by U, Take by G; Paralyze on a student two squares off steps once and cancels, as the unpatched game cancels without the step',
-    bug: 'Touch spells only work on someone next to you',
+    bug: 'Touch spells only work on someone next to the caster',
     sites: [{ at: 0x50E5C, was: [0x38600000], asm: ['b @cave               ; was li 3, 0 (and blr)'] },
             { at: 0x5A9AC, was: [0x2C0000FF], asm: ['cmpwi 0, -1           ; the start square, as FindPath marks it'] },
             { at: 0x272CC, was: [0x418200AC], asm: ['b @useKey             ; was beq 0x27378'] },
@@ -800,7 +800,7 @@ const APP_FIXES = [
            'cmp:', 'cmpw 0, 3', 'blr     ; both routines saved LR on entry'] },
 
   { id: 'widget-renumber', kind: 'fix', title: 'A scripted window’s buttons follow their owner to its new number on a zone change',
-    bug: 'You have to reopen the strange device after changing zones',
+    bug: 'The hero has to reopen the strange device after changing zones',
     sites: [{ at: 0x87B94, was: [0x4E800020], asm: ['b @cave               ; was a bare blr'] }],
     cave: ['lwz 6, 4(3)           ; the owner copy', 'clrlwi 7, 6, 16', 'cmpw 7, 4             ; the old number', 'bnelr',
            'rlwimi 6, 5, 0, 16, 31 ; the new one', 'stw 6, 4(3)', 'blr'] },
@@ -842,7 +842,7 @@ const APP_FIXES = [
   // over a cell with the player's creature in it.
   { id: 'hero-square', kind: 'fix', title: 'The hero stays in its square of the creature grid when a follower stands on it, so a press there picks up the hero',
     played: 'Mac OS 8.5, PowerPC, 28 October 2026, from RULEZ TRADEMARK with Hector set to wait and the hero walked onto his square, Look there gave “you see RULEZ TRADEMARK” and a press dragged east walked the hero, where the stock program gave “you see Hector” and the drag moved nobody. With the hero elsewhere both gave Hector',
-    bug: 'You cannot drag the player onto a follower\'s square',
+    bug: 'The player cannot drag the hero onto a follower\'s square',
     sites: [
       { at: 0x6B14C, was: [0x40820008], asm: ['b @one                ; was bne 0x6B154'] },
       { at: 0x6B020, was: [0x40820010], asm: ['b @four               ; was bne 0x6B030'] },
@@ -989,7 +989,7 @@ const APP_FIXES = [
       'lwz 3, 4(31)          ; the unit, as NewProp is handed it', 'srwi. 4, 0, 28', 'beq @number', 'b @0x46B74            ; not a number: the unit’s default',
       'number:', 'sth 0, 130(1)', 'b @0x46B7C'] },
 
-  { id: 'hook-load', kind: 'hook', method: 243, title: 'Scripts can act each time you begin, open or revert to a game',
+  { id: 'hook-load', kind: 'hook', method: 243, title: 'Scripts can act each time the player begins, opens or reverts to a game',
     script: 'Method 243, sent to the hero',
     played: 'fork, PowerPC, 28 September 2026: a 0x30F3 script set a flag',
     sites: [{ at: 0x14654, was: [0x80010068], asm: ['b @cave               ; was lwz 0, 104(1)'] }],
@@ -1051,7 +1051,7 @@ const APP_FIXES = [
   // clear; and it never goes down the door path, branching to the Seek that
   // stays in step with the stream. The second branches past ChainFreeProps's
   // deletion, so what is still flagged stays, flag and all.
-  { id: 'level-keep-place', kind: 'change', title: 'Entering a level leaves its doors, and the things it began with that moved in play, as you left them, instead of setting them back',
+  { id: 'level-keep-place', kind: 'change', title: 'Entering a level leaves its doors, and the things it began with that moved in play, as the hero left them, instead of setting them back',
     played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a door left open stays open and a slid chair stays where it was; a rock made in play is still removed, as on the stock program, which also shuts the door and puts the chair back',
     sites: [
       { at: 0x7588, was: [0x80610060, 0x80010064, 0x907F0000, 0x901F0004, 0x80610068, 0x8001006C, 0x907F0008, 0x901F000C],
@@ -1104,7 +1104,7 @@ const APP_FIXES = [
   // and answers with cr0 not equal for a quest thing. It changes r0, r3,
   // r4 and r5, which both routines write again before reading, and the
   // link register, which both saved on entry, since both make calls.
-  { id: 'quest-items-kept', kind: 'change', title: 'A quest item or a person’s body that you drop stays where you left it, instead of being cleared away with the level',
+  { id: 'quest-items-kept', kind: 'change', title: 'A quest item or a person’s body that the hero drops stays where the hero left it, instead of being cleared away with the level',
     played: 'fork, PowerPC, 1 November 2026, alone and with every fix. Kelp dragged from the inventory to the floor of Omen’s Test, or slid a square west, is still there after a jump to Land King Hall and back, where the stock program removes it. A paper slid the same way is put back where the level had it, on both programs',
     sites: [
       { at: 0x5502C, was: [0x40820010], asm: ['b @cave               ; was bne 0x5503C, DropCommand’s class flag'] },

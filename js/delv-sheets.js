@@ -94,7 +94,7 @@ function spellsMechSection() {
       'Spell damage works like a blow’s. The victim’s resistance applies, and the caster earns experience as usual.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.character)) ? '<b>Fireball hurts only the character on the square it targets</b>, although by its description it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Non-magical damage, whether fire, electric, blunt or edged, does <b>nothing at all</b> to monsters that resist non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike count as magical, which is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
-      'Spell damage prints no message, and <b>every enemy</b> means every hostile character on the loaded map, on screen or not, so Tremor hurts enemies you cannot see.',
+      'Spell damage prints no message, and <b>every enemy</b> means every hostile character on the loaded map, on screen or not, so Tremor hurts enemies out of sight.',
       (function () {
         const et = appImage() ? exeEnemyTable() : null;
         if (!et || !et.alignmentByte || !et.enemy) return '';
@@ -109,7 +109,7 @@ function spellsMechSection() {
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
         if (!t.length) return '';
         const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that need a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>. The target has to be in one of the eight squares around the caster. You can aim the rest anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
+        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that need a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>. The target has to be in one of the eight squares around the caster. The rest can go anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
       })()
     ].filter(Boolean) : [],
     '', '');
@@ -160,7 +160,7 @@ function libraryMechSection(lib) {
       '<b>' + countLink(passages + ' passages', 'The ' + passages + ' passages', lib.flatMap(d => d.entries.map(e => passageLink(d, e)))) + '</b> across <b>' +
         countLink(lib.length + ' arrays', 'The ' + lib.length + ' arrays of passages', resChips(lib.map(d => d.resid))) + '</b>, shown by ' + [...new Set(lib.flatMap(d => d.readers.map(r => r.name)))].join(', ') + '.',
       unshown.length ? '<b>' + countLink(String(unshown.length), 'The ' + unshown.length + ' passages that appear nowhere in play',
-        unshown.map(u => passageLink(u.d, u.e))) + ' appear nowhere in play</b>. No prop in the world and no script points to them. They exist in the file, but you cannot read them.' : '',
+        unshown.map(u => passageLink(u.d, u.e))) + ' appear nowhere in play</b>. No prop in the world and no script points to them. They exist in the file, but nothing in the game shows them.' : '',
       dangling.length ? '<b>' + countLink(String(dangling.length), 'The ' + dangling.length + ' Data1 values that point to no passage',
         dangling.map(x => svLink('Data1 ' + x.k, 'jumpToResource(' + x.d.resid + ')', '0x' + x.d.resid.toString(16).toUpperCase()))) + '</b> are the opposite case, a thing in the world whose Data1 points to no passage.' : ''
     ].filter(Boolean) : [],
@@ -280,7 +280,7 @@ function mechCardAboveGallery(grid, build) {
    up. */
 const MECH_GROUPS = [
   { value: 'MECH_PROGRESS', title: 'Progress', tile: 0x240,
-    note: 'The payoff from your trials and travails.',
+    note: 'The payoff from the hero’s trials and travails.',
     ids: ['experience', 'karma', 'training', 'todo'] },
   { value: 'MECH_STATUS', title: 'Status', tile: 0x3CE,
     note: 'Food, healing, potions, sleep, time, swamp, lava and light.',
@@ -313,11 +313,11 @@ const MECH_GROUPS = [
    it. */
 /* Build a Patch until 19 October 2026, when the maintainer named it
    Patch Generator on Tools and the section that had that name, what was
-   edited this session, went: Your Patch has the edits, and its View
+   edited this session, went: the Patch in Progress has the edits, and its View
    Comparison shows them. */
 const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Patch Generator',
   note: 'Cythera\u2019s official add-on system is the PowerPC application Magpie. It was released by Glenn Andreas alongside a sample patch \u201cPumpkin Patch\u201d, but specifications to create new patches were not released. The format has been reverse-engineered to make new patches possible, though Magpie is limited to editing the data fork of the Cythera Data file.' +
-      ' Select as many of the fixes below as you\u2019d like and download them either as replacement files (modified from the input files) or as a combined patch file for use with Magpie. Note that while stacking multiple Magpie patch files is a convenient way to toggle patches selectively, they can overwrite parts of each other if they modify similar resources.',
+      ' Select any of the fixes below and download them either as replacement files (modified from the input files) or as a combined patch file for use with Magpie. Note that while stacking multiple Magpie patch files is a convenient way to toggle patches selectively, they can overwrite parts of each other if they modify similar resources.',
   /* Three parts by use (the maintainer, 16 October 2026): the game's
      fixes, the patches that add or change content, and the sections that
      read a patch or compare two files. Each is headed as a group is on the

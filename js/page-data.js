@@ -830,24 +830,24 @@ const US_OPTION_KEYS = { 0xA9: 'option-g', 0xC6: 'option-j', 0xEF: 'option-shift
 // built from what the case was read to do (`x`, the helpers in
 // renderCheatsSheet). A key the program does not have is not listed.
 const CHEAT_KEY_WORDS = {
-  0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with where you are, prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then ' + x.via('GoToLocation', 'moves you there') + ': anywhere in the game.'],
-  0xEF: ['Take teleporter', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ', then ' + x.via('TeleportTo', 'sends you') + ' where that teleporter goes.'],
+  0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with the hero’s position, prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then ' + x.via('GoToLocation', 'moves the hero there') + ', anywhere in the game.'],
+  0xEF: ['Take teleporter', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ', then ' + x.via('TeleportTo', 'sends the hero') + ' where that teleporter goes.'],
   0xA7: ['Create a prop', x => 'Prompts for ' + x.promptWords() + ', then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
     'The number is the type plus 1,024 times the aspect: 0x0064 is a spear, and 0x0864 a spear at aspect 2, which has the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
   0xB9: ['What prop is this?', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ' and prints the record: class, state, position, Data1 and Data2.' +
     (x.fallsInto ? ' Then, because of a missing jump, it carries on into ' + x.fallsInto + '.' : '')],
-  0xC0: ['Where am I?', x => 'Prints your x and y as ' + x.q(0) + '.'],
+  0xC0: ['Where am I?', x => 'Prints the hero’s x and y as ' + x.q(0) + '.'],
   0xFF: ['What time is it?', x => 'Prints ' + x.q(0) + ', the clock and the day.'],
   0xA0: ['Pass the time', x => x.via('DoTicks', 'Passes') + ' ' + x.arg('DoTicks', 4) + ' clock units' + x.clockWords('DoTicks', 4) + '.'],
   0x3C: ['Darken', x => x.via('DarkenLight', 'Darkens') + ' the level’s light a step.'],
   0x3E: ['Brighten', x => x.via('BrightenLight', 'Brightens') + ' the level’s light a step.'],
-  0xC3: ['Magic map', x => 'Shows the ' + x.via('MagicMap', 'magic map') + ' around you until you click.'],
-  0xBD: ['Show the room you are in', x => x.via('CopyBits', 'Shows') + ' the ground you can reach from where you stand, until you click. The magic map starts from it.'],
+  0xC3: ['Magic map', x => 'Shows the ' + x.via('MagicMap', 'magic map') + ' around the hero until the next click.'],
+  0xBD: ['Show the hero’s room', x => x.via('CopyBits', 'Shows') + ' the ground the hero can reach from where they stand, until the next click. The magic map starts from it.'],
   0xB5: ['Show the walls', x => x.walls()],
-  0xB7: ['Walk through anything', x => 'Nothing blocks you while it is on (' + x.flip() + ').'],
+  0xB7: ['Walk through anything', x => 'Nothing blocks the hero while it is on (' + x.flip() + ').'],
   0xFA: ['Nobody is anybody’s enemy', x => x.peace()],
-  0xFE: ['See in the dark', x => 'Switches flag ' + x.flag() + ' on and off for you.'],
-  0xA8: ['Regenerate', x => 'Switches flag ' + x.flag() + ' on and off for you: the healing every six minutes that Omen’s ring gives.'],
+  0xFE: ['See in the dark', x => 'Switches flag ' + x.flag() + ' on and off for the hero.'],
+  0xA8: ['Regenerate', x => 'Switches flag ' + x.flag() + ' on and off for the hero. It is the healing every six minutes that Omen’s ring gives.'],
   0xC5: ['Look coordinates', x => x.look()],
   0xCA: ['Turn-based movement', x => 'Switches it on and off (' + x.flip() + ') and prints ' + x.q(1) + ' or ' + x.q(0) + '.'],
   0xC2: ['Speed limiter', x => 'Flips a switch (' + x.flip() + ') and calls the ' + x.via('SLEnable', 'speed limit') + ', which is empty in this release, so the key has no effect.'],
@@ -1017,7 +1017,7 @@ function renderCheatsSheet() {
         const w = exeWallMask(); if (!w) return 'Marks each wall on every square of the level (MakeBitMap).';
         const attrs = getTileAttributes(ARCHIVE), names = new Set(); let n = 0;
         for (let t = 0; t <= w.tiles.v && t < attrs.length; t++) if ((attrs[t] & w.mask.v) === w.mask.v) { n++; const nm = terrainNameFor(t); if (nm) names.add(nm); }
-        return 'Shows the walls the room view stops at, until you click: every square of ' + srcNum(w.mask, n + ' kinds of terrain') + ', ' + [...names].map(svEsc).join(', ') + '.';
+        return 'Shows the walls the room view stops at, until the next click. They are every square of ' + srcNum(w.mask, n + ' kinds of terrain') + ', ' + [...names].map(svEsc).join(', ') + '.';
       },
       peace: () => {
         if (!enemy || !enemy.peace || !enemy.peaceKey) return 'Switches a byte that the enemy check reads first.';
@@ -1079,7 +1079,7 @@ function renderCheatsSheet() {
       (setters.length ? '<li>Written by ' + setters.map(w => srcNum(w.bits, w.routine.name.replace(/\(.*$/, ''))).join(', ') + '.</li>'
         : '<li><b>Nothing in the game sets it</b>' + (defaults && !clear ? ', though a record the game stores at first run has it set' : '') + ', so on a copy as released typing the code does nothing.</li>') +
       (others.length && wait ? '<li>The preference also adds a ' + srcNum(wait.ticks, (wait.ticks.v / 60) + '-second') + ' pause at startup.</li>' : '') +
-      '<li>Typing the letters of the code also switches on targeting modes, so the tab reads ATTACK afterward until you press <b>M</b>.</li></ul>' +
+      '<li>Typing the letters of the code also switches on targeting modes, so the tab reads ATTACK afterward until the next press of <b>M</b>.</li></ul>' +
       '<div class="cheatNote">To set it, write the preferences file from ' +
       actionChip('Data › Preferences', "showCategory('PREFS')") +
       ', as a MacBinary for a real Mac or a disk image for an emulator.</div></div>';
@@ -1140,7 +1140,7 @@ function renderCheatsSheet() {
       const menuName = m => (m.title ? svEsc(m.title) : 'MENU ' + m.id);
       h += '<div class="cheatNote">' +
         (bars.unlisted.length
-          ? bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are menus that work' : ' is a menu that works') + ' but ' + (bars.unlisted.length > 1 ? 'are' : 'is') + ' in no menu bar, so you cannot reach the Preferences menu or the frame-rate limit. ' +
+          ? bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are menus that work' : ' is a menu that works') + ' but ' + (bars.unlisted.length > 1 ? 'are' : 'is') + ' in no menu bar, so the player cannot reach the Preferences menu or the frame-rate limit. ' +
             'Add-on 612, the Cythera menu patch, adds three of them; add-on 613 removes them again.'
           : 'Every menu the game defines is in its menu bar.') + '</div>';
     }
@@ -1196,7 +1196,7 @@ function renderCheatsSheet() {
     h += '<div class="mechSec"><h4 class="cheatH4">Level 0, the Nothing Map</h4><ul class="ruleList">' +
       '<li>Map 0 is ' + heap.w + ' by ' + heap.h + ', with no roof, no exits, ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') + ' and no name. The map window’s title reads Untitled there.</li>' +
       '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory. The program made the map and never filled it in.</li>' +
-      '<li>You can reach it by accident, from a bed in Cademia and from beneath Pnyx. ' +
+      '<li>The hero can reach it by accident, from a bed in Cademia and from beneath Pnyx. ' +
       'It has a figure with a guard’s sprite called Nothing, or Omen if killed twice. ' +
       'That figure is character record 0, which is empty, and option-x writes to that record. ' +
       actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li></ul></div>';
@@ -1222,7 +1222,7 @@ function renderCheatsSheet() {
     '<li><b>The party’s records.</b> Where they stand, how strong and how well fed they are, and how many training ' +
     'points they have. ' + actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li>' +
     '<li><b>Any resource, as hex</b>, through Edit Bytes on the resource itself.</li>' +
-    '<li><b>Where to download the changed file.</b> ' + actionChip('Your Patch', "showCategory('CHANGES')") + '</li></ul></div>';
+    '<li><b>Where to download the changed file.</b> ' + actionChip('Patch in Progress', "showCategory('CHANGES')") + '</li></ul></div>';
 
   if (kr && kr.cases.length) {
     const find = k => kr.cases.find(c => c.keys.some(x => x.v === k));
@@ -1292,7 +1292,7 @@ function savedGameParts() {
     add(0x8200 | hero.zone, 'what the player has seen of that zone, one switch for each square: width ÷ 8, rounded up, times the height, in bytes (SaveLevelProps)');
   }
   add(0xF306, 'the first 256 prop records, the characters as they stand on that zone (SaveLevelProps)');
-  add(0x8800, 'the player’s portrait, which the game writes when you make the character (CreatePlayer)');
+  add(0x8800, 'the player’s portrait, which the game writes when the player makes the character (CreatePlayer)');
   add(0x0400, 'the live game, five tagged chunks: the quest values and flags, the active monsters with their queued activities, the spell effects in flight, the open windows, and the 256 gremlin frames (SaveToFile)');
   add(0x0401, 'the To Do list (SaveToDo)');
   add(0x0404, 'the twenty macro slots, with 0xFF for an unassigned one (SaveMacros)');
@@ -1920,7 +1920,7 @@ function renderSaveSheet() {
     '</div></div></div>';
 
   if (namesAreBorrowed())
-    h += '<div class="saveNote">The names here come from the scenario you opened earlier in this ' +
+    h += '<div class="saveNote">The names here come from the scenario opened earlier in this ' +
       'session, not from this file. A saved game has no table of names, but a character number ' +
       'means the same person in every Cythera file.</div>';
 
@@ -1974,7 +1974,7 @@ function renderSaveSheet() {
   if (isSave) h += saveByteMapHTML();
   h += '<div class="saveNote">Edit shows all 32 bytes of a record and what each one is. ' +
     'Edits change only the copy in this browser. They go into ' +
-    actionChip('Your Patch', "showCategory('CHANGES')") + ' to download.</div>';
+    actionChip('Patch in Progress', "showCategory('CHANGES')") + ' to download.</div>';
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
   out.textContent = (isSave ? 'Saved game' : 'Character records') + ': ' +
     inUse.length + ' of 512 slots in use' + (hero && hero.zone ? ', the player in ' + zoneDisplayName(hero.zone) : '') + '.';
@@ -2119,7 +2119,7 @@ const CHAR_GROUPS = [
     { id: 'b23', raw: [23, 1], label: 'price', max: 0xFF,
       what: () => { const p = shopPriceRule();
         return 'a merchant’s price, in tenths of a thing’s worth' +
-               (p ? ': shops start at ' + srcNum(p.buy, String(p.buy.v)) + ' to sell to you and ' + srcNum(p.sell, String(p.sell.v)) + ' to buy from you, and keep what haggling leaves' : ''); } },
+               (p ? ', with prices starting at ' + srcNum(p.buy, String(p.buy.v)) + ' when the hero buys and ' + srcNum(p.sell, String(p.sell.v)) + ' when the hero sells, and staying where haggling leaves them' : ''); } },
     { id: 'b31', raw: [31, 1], label: 'size', max: 0xFF,
       what: () => { const c = exeCreatureSize();
         return 'for a creature made from a map’s list, the percentage of its kind’s stats it was ' + (c ? srcNum({ exe: c.exe }, 'made at') : 'made at') +
@@ -2530,7 +2530,7 @@ function saveMakerHTML() {
   const num = (id, label, v) => '<label class="mkField">' + svEsc(label) + ' <input type="number" id="' + id + '" min="1" max="255" value="' + v + '"></label>';
   const spriteName = v => propDisplayName(v.v & 0x3FF) || ('sprite ' + propWordHex(v.v & 0x3FF));
   return '<div class="saveMaker" id="saveMaker"><h3>Save File Generator</h3>' +
-    '<div class="mechLede">' + svEsc('Make a saved game: the hero, the place, the hour, a point in the story and who is with you. Make the Save opens it here, where the forms set the rest.') + '</div>' +
+    '<div class="mechLede">' + svEsc('Make a saved game with the hero, the place, the hour, a point in the story and the party. Make the Save opens it here, where the forms set the rest.') + '</div>' +
     '<div class="mkRow"><label class="mkField">Name <input type="text" id="mkName" maxlength="31" value="NewGame01"></label>' +
     '<label class="mkField">Sprite <select id="mkSprite">' + d.cr.sprites.map((s, i) => '<option value="' + i + '">' + svEsc(spriteName(s)) + '</option>').join('') + '</select></label>' +
     '<label class="mkField">Portrait <select id="mkPortrait">' + d.portraits.map(r => '<option value="' + r + '"' + (r === d.portrait ? ' selected' : '') + '>' + svEsc(labelFor(r) || propWordHex(r)) + '</option>').join('') + '</select></label></div>' +
@@ -2546,7 +2546,7 @@ function saveMakerHTML() {
     '<label class="mkField">Day <input type="number" id="mkDay" min="1" value="' + NEW_GAME_SHIPPED.day + '"></label>' +
     (d.stories.length ? '<label class="mkField">Story <select id="mkStory">' + d.stories.map(t => '<option value="' + svEsc(t.name) + '">' + svEsc(t.name) + '</option>').join('') + '</select></label>' : '') + '</div>' +
     (d.welcome ? '<div class="mkRow"><label class="mkField"><input type="checkbox" class="mkWith" id="mkWelcomed" checked> The king has spoken</label>' +
-      '<span class="mechSub" style="display:inline">' + svEsc('His welcome is done, you carry the ' + (propDisplayName(d.welcome.gift.type) || 'thing he gives') + ', and the To Do list has its first line.') + '</span></div>' : '') +
+      '<span class="mechSub" style="display:inline">' + svEsc('After his welcome the hero has the ' + (propDisplayName(d.welcome.gift.type) || 'thing he gives') + ' and the To Do list has its first line.') + '</span></div>' : '') +
     (d.todo.length ? '<details class="mkTodo"><summary class="mechSub">' + svEsc('To Do list: ' + d.todo.length + ' lines to choose from') + '</summary>' +
       d.todo.map(t => '<label class="mkField mkTodoRow"><select class="mkTodoPick" data-slot="' + t.slot + '" data-line="' + t.line + '"><option value="">Off</option><option value="on">To do</option><option value="done">Done</option></select> ' + svEsc(t.text) + '</label>').join('') +
       '<div class="mechSub">' + svEsc('This sets the list the player reads, not the quests behind it.') + '</div></details>' : '') +
@@ -3225,7 +3225,7 @@ function gremlinsHTML(words) {
   }
   return '<h4 class="saveH4">Gremlins</h4>' +
     '<div class="saveNote">A gremlin is a script the game runs when the party enters a room or a zone, and when a script sends a signal. ' +
-    'A save records each gremlin as on, off or none, as it was at the moment of saving, so a gremlin added to Cythera Data later shows as none here until you switch it on. ' +
+    'A save records each gremlin as on, off or none, as it was at the moment of saving, so a gremlin added to Cythera Data later shows as none here until switched on. ' +
     (words ? (scripted.size ? 'The scenario opened before this save has ' + scripted.size + ' gremlin' + (scripted.size === 1 ? '' : 's') + '.' : 'The scenario opened before this save has no gremlins.')
            : 'No scenario was open before this save, so the list has only the gremlins the save has on or off.') + '</div>' +
     '<div class="tableScroll"><table class="forkTable"><thead><tr><th class="num">gremlin</th><th>state</th><th>in the scenario</th></tr></thead><tbody>' +

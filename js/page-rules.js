@@ -161,7 +161,7 @@ function diceGame() {
   const byte = (what, val) => ({ what, at: val.at + 1, now: val.v, val });
   const bytes = [
     byte('faces on the innkeeper’s first die', before[0].val),
-    byte('faces on your die', before[1].val),
+    byte('faces on the hero’s die', before[1].val),
     byte('faces on the innkeeper’s second die', before[2].val)
   ];
   // The branch that needs the skill: `then -> T` after GetSkill's `end`.

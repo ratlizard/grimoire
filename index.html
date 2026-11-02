@@ -1300,6 +1300,8 @@ details:not([open]) > summary .mechFrom { display:none; }
 .mechStatNote { color:#dcd8cc; font-size:0.7188rem; }
 .mechQuote { margin:6px 0 4px; padding:6px 12px; border-left:3px solid rgba(155,136,80,.5); color:#fff; font-size:0.7812rem; font-style:italic; line-height:1.45; }
 .mechQuote footer { font-style:normal; color:#dcd8cc; font-size:0.6875rem; margin-top:2px; }
+.mechEq { display:block; margin:5px 0; padding:3px 12px; border-left:3px solid rgba(155,136,80,.5); color:#fff; font-size:0.8125rem; line-height:1.5; }
+.mechEq sup { font-size:0.65em; }
 .mechSub { color:#f0ede4; font-size:0.6875rem; letter-spacing:0; margin:8px 0 2px; }
 /* The patches section. The tile pairs are the point of it: a shipped tile and
    the patch's beside it, at 2x so a 32-pixel tile is legible without a zoom
@@ -1385,7 +1387,7 @@ details:not([open]) > summary .mechFrom { display:none; }
 #sheetGrid button.fixChip { width:auto; margin:0; padding:5px 12px !important; border-radius:14px; }
 #sheetGrid button.fixChipOn { outline:2px solid var(--gold); }
 .fixSearch { width:100%; max-width:420px; box-sizing:border-box; margin:6px 0 4px; }
-/* Your patch, first on the Build a Patch tab. It was pinned to the screen
+/* The Patch in Progress, first on the Build a Patch tab. It was pinned to the screen
    as the tab scrolled, at the foot and then the top, until 17 October
    2026, when the maintainer had it stay in place. */
 .patchBar { margin:0 0 14px; padding:8px 12px; background:#16130e; border:2px solid var(--gold); border-radius:8px; max-height:60vh; overflow-y:auto; box-shadow:0 4px 12px rgba(0,0,0,.5); }
@@ -2200,7 +2202,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
     <label><input type="radio" name="faceChoice" value="chicago" onchange="setFaceChoice(this.value)"> Chicago</label>
     <label><input type="radio" name="faceChoice" value="system" onchange="setFaceChoice(this.value)"> this device’s</label>
     <span class="amNote">Cythera uses the font Argos A Nouveau, which is in the game’s resource fork. The page reads it from
-    whatever file you open and uses it unless you choose otherwise here. With no file open there is nothing to read it from, so the
+    whatever file is open and uses it unless the choice above is Chicago or this device’s font. With no file open there is nothing to read it from, so the
     page uses Chicago, Susan Kare’s 1984 font for the Macintosh, recreated by Duane King. The page does not include a copy
     of the game’s font.</span></div>
   <div id="unditherWrap">Undither
@@ -2243,7 +2245,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   use OR for either, a minus sign to leave a word out, and quotes for a phrase.</p>
   <input id="searchBox" type="search" placeholder="lava damage -potion, &quot;a phrase&quot;" oninput="queueSearch()">
   <label class="srMeaning"><input type="checkbox" id="chkMeaning" onchange="setSearchMeaning(this.checked)"> Search by meaning
-    <span class="amNote">Finds pages about what you type, not only pages with its words. The first time, this downloads a 23 MB model.</span></label>
+    <span class="amNote">Finds pages about the search, not only pages with its words. The first time, this downloads a 23 MB model.</span></label>
   <div id="searchResults"></div>
 </div>
 <!-- The folder-tab shell. Three tab rows, each the lip of a folder, nested;
@@ -2338,7 +2340,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
         <option value="PATCHES">Patch Generator</option>
         <option value="CHEATS">Cheat mode: the keys, and how to switch it on</option>
         <option value="DATAFORK">Data fork (every subindex)</option>
-        <option value="CHANGES">Your Patch: this session's changes</option>
+        <option value="CHANGES">Patch in Progress: this session's changes</option>
         <option value="INSTALLER">The installer: every file in it</option>
         <option value="APPRSRC">Cythera application: resource fork</option>
         <option value="APPPEF">Cythera application: data fork (PEF)</option>
