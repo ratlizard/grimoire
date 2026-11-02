@@ -595,7 +595,7 @@ function mechTrainingFigure(tr) {
     x: { min: 1, max: 11, ticks: levels.filter(l => l % 2).map(l => ({ v: l, label: String(l) })) },
     y: { min: 0, max: 60, ticks: [{ v: 60, label: '60' }, { v: 30, label: '30' }, { v: mastery, label: String(mastery) }, { v: 0, label: '0' }] },
     marks: [{ x: 6, y: mastery + 3, label: 'one skill mastered', color: MECH_INK.ink }]
-  }), 'A career to level 11 earns ' + earned(11) + ' points, ' + (earned(11) / mastery).toFixed(1) + ' skills’ worth.');
+  }), 'By level 11 a character has earned ' + earned(11) + ' points, enough to master ' + (earned(11) / mastery).toFixed(1) + ' skills.');
 }
 
 // The balloon itself, at the size the engine draws it, because the sheet
