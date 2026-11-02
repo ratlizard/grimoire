@@ -2197,7 +2197,7 @@ function atlasZoomHintHide() {
 /* The map and its zoom row fill the screen below the tabs, whatever the
    screen (the maintainer, 2 October 2026: the whole world and the zoom bar
    on the screen when the page opens). The sheet's 78vh, and a phone's
-   100svh less an estimate of the chrome above, either ran the zoom row off the
+   100svh minus an estimate of the chrome above, either ran the zoom row off the
    bottom or left a gap, because what sits above the map differs by screen.
    So it is measured: the viewport's top in the page, the zoom row's height
    and the gap between them, taken from the window's height. Set inline,

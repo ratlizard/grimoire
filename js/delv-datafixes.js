@@ -1490,7 +1490,7 @@ const DATA_FIXES = [
     ].map(([character, resid, line]) => ({ what: character + '\u2019s description', resid, find: line, replace: line + '\n*', count: 1 })) },
   // The letter before a pause. TConversation::myprintstr, at a `*`, draws
   // the text up to one character short of it (the length it hands
-  // AppendConv or AppendMessage is the `*`'s place less one, less the
+  // AppendConv or AppendMessage is the `*`'s place minus one, minus the
   // start), which is right when that character is the new line the writers
   // mostly put there and drops a full stop or a letter when the writers put
   // something else there:
@@ -3290,7 +3290,7 @@ const DATA_FIX_TEXT_BRITISH = (() => {
    the history. The `prose` and `except` filters it needed stay in
    js/delv-datapatch.js, unused. */
 
-// The text stage's edits for the options chosen: the list, less the options
+// The text stage's edits for the options chosen: the list, without the options
 // not chosen, each keeping the option it belongs to for the list of changes
 // (dataFixTextChanges). And the spelling stage's, for the spelling chosen.
 // An option's row may hold only with the text or only without it

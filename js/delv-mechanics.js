@@ -4,7 +4,7 @@
    WHAT THIS IS. The Mechanics sheet reads Cythera's rules off the archive's
    own scripts and states them in prose: the dice game pays this, a blow lands
    when that, a lock opens when the other. Prose is where a rule can be read;
-   it is not where a rule can be *seen*. "Reflex plus a roll of 0 to 29, less
+   it is not where a rule can be *seen*. "Reflex plus a roll of 0 to 29, minus
    the defender's reflex plus a roll of 0 to 29" gives a reader no sense of
    how often a blow lands against an even opponent, and the answer -- a shade
    under half, with a long tail either way -- is the interesting part. Every

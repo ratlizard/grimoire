@@ -43,7 +43,7 @@
    The parts of a cave: 'hex' bytes; ':name' a label; 'bXX name' a short
    branch, XX its opcode byte (60 bra, 66 bne, 67 beq, 6c bge, 6d blt...), to
    a label; 'bra.l 0x..' and 'bsr.l 0x..' a 32-bit branch to an offset in the
-   segment; 'pcrel 0x.. k' a long holding that offset less its place plus
+   segment; 'pcrel 0x.. k' a long holding that offset minus its place plus
    k (the operand of a `move.l #d,d0` that a `move.l (0,pc,d0.l)` six bytes
    on reads from). These are the forms the caves use and no more; the 68K
    instructions themselves are bytes, with capstone's reading beside them in

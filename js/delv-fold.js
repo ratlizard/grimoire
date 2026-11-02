@@ -361,7 +361,7 @@ function dvmFoldCall(n, ctx) {
  * statement folds; the renderer reads them when it prints the line. */
 // A slot of opcode 0x82, as `local` and `arg` spell it: below 0x30 VarNN,
 // 0x30 to 0x3F ArgNN (TInterp::DoInterpAt stores the second kind in the
-// arguments at the slot less 0x30). Null for anything else.
+// arguments at the slot minus 0x30). Null for anything else.
 function dvmSlotName(bare) {
   const slot = parseInt(bare, 16);
   if (!Number.isFinite(slot) || slot < 0 || slot >= 0x40) return null;
@@ -506,7 +506,7 @@ function dvmFoldStatement(n, ctx) {
          interpreter on 23 September 2026: TInterp::DoInterpAt's case for
          opcode 0x82 evaluates the expression and, for an operand below 48,
          stores it in the frame's locals at that index, and for 48 to 63 in
-         its arguments at the operand less 48 (the two arrays `local` and
+         its arguments at the operand minus 48 (the two arrays `local` and
          `arg` read). So `set_local 0x31` is `Arg01 = ...`. The raw listing
          retains delvmod's spelling, with this name in a note. */
       const lhs = dvmSlotName(bare);

@@ -3959,7 +3959,7 @@ function renderMechanicsSheet(value) {
 
   // ---- combat ----
   const cb = combatRules(), ar = attackRules();
-  const rollFrom = (what) => ar && ar.scale ? 'a random number from 0 to ' + what + ' less ' + srcNum(ar.scale.subVal) + ' over ' + srcNum(ar.scale.divVal) : '';
+  const rollFrom = (what) => ar && ar.scale ? 'a random number from 0 to ' + what + ' minus ' + srcNum(ar.scale.subVal) + ' over ' + srcNum(ar.scale.divVal) : '';
   const rollTo = v => v ? srcNum(v, v.v - 1) : '';
   add('combat', 'Combat', null, src('the attack', 0x3042) + src('a blow', 0xE88) + src('a missile', 0xE89) + src('the outcome', 0xE87),
     cb ? 'How a blow lands, misses or meets a parry, and how much damage it does.'
@@ -3969,13 +3969,13 @@ function renderMechanicsSheet(value) {
         (ar.range && ar.beyondAdjacent ? '. If nothing reaches, and the target is not adjacent but is in sight, it <b>throws</b> the first thing with a thrown figure as a missile' : '') + '.' +
         (ar.squared && ar.lessOne && ar.reachAt ? ' Something reaches when its ' + srcNum(ar.reachAt, 'reach') +
           (ar.rangeAt ? ', ' + (ar.launcherAt ? '' : 'or ') + 'its ' + srcNum(ar.rangeAt, 'thrown range') : '') + (ar.launcherAt ? ' or a launcher’s ' + srcNum(ar.launcherAt, 'range') : '') +
-          ', squared, is at least the distance squared (across squared plus down squared) less ' + srcNum(ar.lessOneVal) + '.' : '') +
+          ', squared, is at least the distance squared (across squared plus down squared) minus ' + srcNum(ar.lessOneVal) + '.' : '') +
         (ar.squared && ar.lessOne ? ' Reach ' + srcNum(ar.lessOneVal, '1') + ' covers the eight squares around the attacker, and reach 2 covers two squares in a straight line or a knight’s move.' : '') : '',
       'The margin is the attacker’s <b>reflex</b>' + (cb.roll ? ' <b>plus a random number from 0 to ' + rollTo(cb.roll) + '</b>' : '') +
         (cb.skillOffLoop
           ? (cb.barehand ? ', plus Barehand when the attacker wields nothing' : '') + (cb.missileSkill ? ' (Missile for a launcher)' : '')
           : ', plus the weapon’s skill' + (cb.barehand ? ' (Barehand with none' : '') + (cb.missileSkill ? ', Missile for a launcher)' : ')')) +
-        ', <b>less the defender’s reflex' + (cb.rollDefender ? ' plus a random number from 0 to ' + rollTo(cb.rollDefender) : '') + '</b>, plus Attack less Defense. ' +
+        ', <b>minus the defender’s reflex' + (cb.rollDefender ? ' plus a random number from 0 to ' + rollTo(cb.rollDefender) : '') + '</b>, plus Attack minus Defense. ' +
         (cb.bodyForReflex ? 'Some attackers use their <b>' + srcNum(cb.bodyForReflex, 'body') + '</b> instead of their reflex' + combatBodyUnitsText(cb.bodyForReflex.v) + '.' : 'A monster’s flags can make it use its body in place of its reflex.'),
       cb.skillOffLoop ? '<b>A weapon’s skill adds nothing</b>, because of a bug. The script ' +
         srcNum(cb.skillOffLoop[0], 'reads it from the wrong place') + ' and always finds 0, so Sword, Axe and Mace make no difference to an armed blow.' : '',
@@ -4119,7 +4119,7 @@ function renderMechanicsSheet(value) {
     xp.rule ? 'Fighting and the deeds listed below earn experience, and enough of it raises a character’s level and with it their full health.' : 'This file has no experience script.',
     xp.rule ? [
       'A character gains experience' + (xp.rule.cap ? ', <b>capped at ' + srcNum(xp.rule.cap, xp.rule.cap.v.toLocaleString('en-US')) + '</b>' : '') +
-        (xp.rule.doubling && xp.rule.base ? ', and the level rises by one when it passes <b>' + srcNum(xp.rule.base) + ' × 2 to the power of the level less ' + srcNum(xp.rule.less, xp.rule.less ? xp.rule.less.v : '') + '</b>: above ' +
+        (xp.rule.doubling && xp.rule.base ? ', and the level rises by one when it passes <b>' + srcNum(xp.rule.base) + ' × 2 to the power of the level minus ' + srcNum(xp.rule.less, xp.rule.less ? xp.rule.less.v : '') + '</b>: above ' +
           [2, 3, 4, 5, 6].map(l => mechLevelThreshold(l - 1, xp.rule.base.v).toLocaleString('en-US') + (l === 2 ? ' for level 2' : l < 5 ? ' for ' + l : '')).join(', ') + ', doubling.' : '.'),
       xp.rule.healthReflexDiv && xp.rule.healthMul && xp.rule.healthDiv ? 'At each new level, full health becomes <b>body + reflex ÷ ' + srcNum(xp.rule.healthReflexDiv) + ' + level, plus Defense × ' + srcNum(xp.rule.healthMul) + ' × reflex ÷ ' + srcNum(xp.rule.healthDiv) + '</b>, and full magic <b>mind + Mana</b>.' : '',
       xp.rule.defenseStandIn && xp.rule.manaStandIn ? (function () {
@@ -4298,7 +4298,7 @@ function renderMechanicsSheet(value) {
     tr.teachers.length ? tr.teachers.length + ' teachers, and the skills each one teaches.' : 'No script in this file teaches a skill.',
     tr.teachers.length ? [
       'A lesson raises the skill one level' + (tr.points.perLesson !== null ? ' and costs <b>' + srcNum(tr.points.perLessonVal) + ' training point' + (tr.points.perLesson === 1 ? '' : 's') + '</b>' : '') + '.',
-      (tr.points.atStart !== null ? 'A new character starts with <b>' + srcNum(tr.points.atStartVal) + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + srcNum(tr.points.perLevel) + ' less the difficulty level</b> with each level' : '') + '.',
+      (tr.points.atStart !== null ? 'A new character starts with <b>' + srcNum(tr.points.atStartVal) + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + srcNum(tr.points.perLevel) + ' minus the difficulty level</b> with each level' : '') + '.',
       tr.points.mastery !== null ? 'A character masters a skill at level <b>' + srcNum(tr.points.masteryVal) + '</b>. A teacher marked <i>to mastery</i> can teach beyond the first lessons.' : ''
     ].filter(Boolean) : [],
     mechTrainingFigure(tr) +

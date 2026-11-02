@@ -223,7 +223,7 @@ function paintBackdrop(ctx, backdrop, TS, phase, x0, y0, x1, y1) {
    - THE ROLLING WORD. The key's low byte is shifted into a global word
      (`clrlwi 0, key, 24` then `rlwimi 0, word, 8, 0, 23`), and the word is
      tested against constants as an `addis`/`cmplwi` pair, the compiler's way
-     of comparing 32 bits: the constant is the `cmplwi` operand less the
+     of comparing 32 bits: the constant is the `cmplwi` operand minus the
      `addis` operand shifted up 16. The first such test is the cheat code,
      the others the CD words.
    - THE GATE. After the code's test the routine computes the address of a
@@ -516,7 +516,7 @@ function exePrefFields() {
 /* What the game stores when there are no preferences: TDelverApp::PostInitMac
    writes the whole record once for each processor class, each word loaded
    from the data section (`addi r, 2, d`, `lwz 0, 0(r)`, `stw 0, 0(record)`),
-   and the compare tree above each write, over the answer Gestalt gave less
+   and the compare tree above each write, over the answer Gestalt gave minus
    one, shows which processors get it. The selectors are the `lis`/`addi`
    pairs handed to Gestalt. */
 function exePrefDefaults() {
@@ -1743,11 +1743,11 @@ function byteMapResourceFork(raw) {
   p.f(map + 22, 2, 'the fork’s attributes', { value: byteMapHex(b, map + 22, 2) });
   p.f(map + 24, 2, 'where the type list is, from the map', { value: String(tl - map) });
   p.f(map + 26, 2, 'where the name list is, from the map', { value: String(nl - map) });
-  p.f(tl, 2, 'the number of types, less one', { value: String(u16be(b, tl)) });
+  p.f(tl, 2, 'the number of types minus one', { value: String(u16be(b, tl)) });
   fork.typeList.forEach((t, i) => {
     const e = tl + 2 + i * 8;
     p.f(e, 4, 'a type', { value: t.type });
-    p.f(e + 4, 2, 'how many ' + t.type + ' resources, less one', { value: String(t.count - 1) });
+    p.f(e + 4, 2, 'how many ' + t.type + ' resources minus one', { value: String(t.count - 1) });
     p.f(e + 6, 2, 'where its reference list is, from the type list', { value: String(t.refListOff) });
     (fork.resourcesByType[t.type] || []).forEach((r, k) => {
       const rp = tl + t.refListOff + k * 12, d = fork.dataOff + r.dataOffRel, len = u32be(b, d);

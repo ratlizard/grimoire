@@ -490,7 +490,7 @@ if (dataPath && existsSync(dataPath) && typeof ctx.mapRoofSections === 'function
 // js/page-labels.js copies the wiki's names for the archive's sounds
 // (DELVMOD_SOUND_NAMES), shown with the names from outside the game's text. The
 // copy is typed, so it is compared with the wiki page each run: the same ids,
-// each name the wiki's less its "*" marks and bracketed notes (and a "[sic]"
+// each name the wiki's without its "*" marks and bracketed notes (and a "[sic]"
 // the copy adds), the "?" and "??" entries included. A wiki page that changes,
 // or a slip in the copy, fails here.
 {

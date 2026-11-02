@@ -16,7 +16,7 @@
      here. A cave is parts: 'hex' bytes, ':name' a label, 'bXX name' a short
      branch whose opcode byte is XX, 'bra.l 0x..' and 'bsr.l 0x..' a long one
      to an offset in the segment, 'pcrel 0x.. k' a long holding that offset
-     less its place plus k. `bodies` has one per choice of the fixes that
+     minus its place plus k. `bodies` has one per choice of the fixes that
      share the site, keyed by their names joined with '+' in this order;
    - values: a relocated long given another value (seg 0 is CODE 0's header,
      the size of the A5 world above A5, which is the largest any chosen fix

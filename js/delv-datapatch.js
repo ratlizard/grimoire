@@ -55,7 +55,7 @@
              so this is the same edit for all of them. `resid: null` is the
              same edit over every script resource, each allowed to match
              nothing (the British spellings, which are not tied to a place),
-             less the resources in `except`. `prose: true` matches a whole
+             except the resources in `except`. `prose: true` matches a whole
              word of running text only: not a word's part, not a
              highlighted word (after an @), and nothing in a keyword list,
              which a spelling that changed a word's start would stop
@@ -73,7 +73,7 @@
    writing the file out and opening it again between stages did. */
 
 // The scenario's script resources by delvmod's hints: subindexes 0..14 and
-// 47 direct, 15..125 class, less the graphics, map, prop and sound ones.
+// 47 direct, 15..125 class, except the graphics, map, prop and sound ones.
 function dataPatchScriptResids(spec) {
   const NON = new Set([127, 128, 131, 135, 137, 141, 142, 144]);
   return spec.resources.map(r => r.resid).filter(id => { const si = (id >> 8) - 1; return !NON.has(si) && si !== 3 && ((si >= 0 && si <= 14) || si === 47 || (si >= 15 && si <= 125)); });

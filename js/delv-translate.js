@@ -22,7 +22,7 @@
    opcode wherever the interpreter reads text, so "á" cannot be its Mac Roman
    byte. The text drawer passes a control byte to QuickDraw, and QuickDraw's
    TrueType scaler draws it by the font's cmap, so the patched Argos has
-   the accented letters at codes 0x01 to 0x13 (less the tab, the line feed
+   the accented letters at codes 0x01 to 0x13 (except the tab, the line feed
    and the return). That was proved on Mac OS 8.5 in Infinite Mac on 24 and
    25 September 2026 with the opening of the game; the proof images and
    scripts are beside the other images in cythera-reference

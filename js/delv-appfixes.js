@@ -274,7 +274,7 @@ const APP_FIXES = [
   // its rows 4 pixels apart: DrawTheList offsets each row by the tallest
   // item's height at 28 of the mode plus 4. The code that makes the scroll
   // bar (0x3F9DC on, before its NewControl) counts the rows that fit by the
-  // height alone, the box's bottom less its top of 20 over 20 pixels, so it
+  // height alone, the box's bottom minus its top of 20 over 20 pixels, so it
   // needs 11 rows to fit where 9 are drawn and sets the bar's maximum two
   // short: the last two entries of any list longer than the box are never
   // shown. That is the board's "the last two" missing from Land King Hall's,
@@ -292,7 +292,7 @@ const APP_FIXES = [
     sites: [
       { at: 0x3F9DC, was: [0xA81F001C, 0xA8810048, 0xA8630004, 0x833F0014, 0x7C641850],
         asm: ['lha 4, 28(31)         ; a row’s height', 'addi 0, 4, 4          ; and the gap DrawTheList leaves', 'lha 3, 4(3)',
-              'lwz 25, 20(31)', 'addi 3, 3, -20        ; less the top, 20'] },
+              'lwz 25, 20(31)', 'addi 3, 3, -20        ; minus the top, 20'] },
       { at: 0x402C8, was: [0xA87D001C, 0x7C852050, 0x7C641BD6, 0x7C630734],
         asm: ['lha 3, 28(29)', 'sub 4, 4, 5', 'addi 3, 3, 4          ; the gap', 'divw 3, 4, 3          ; a page'] }] },
 
@@ -433,7 +433,7 @@ const APP_FIXES = [
     sites: [{ at: 0x61084, was: [0xA8010078], asm: ['lha 0, 118(1)         ; was lha 0, 120(1): the rows’ extent'] }] },
 
   // TTextOut::More puts the "more" button 5 pixels past the end of the last
-  // row's text and stops its right edge at the pane's right edge less 2,
+  // row's text and stops its right edge at the pane's right edge minus 2,
   // cutting it to 32 pixels when there is more room. Nothing tests for a row
   // whose text comes within 37 pixels of the edge, so the button narrows to
   // a sliver, and past the edge its width is negative and it is not drawn at
@@ -441,7 +441,7 @@ const APP_FIXES = [
   // edge, and the left edge then comes 32 to the left of it, so the button is
   // always 32 wide and against the edge, over the end of the text, when the
   // row is full. 72(1) is the button's rectangle (top, left, bottom, right),
-  // and r0 is the pane's edge less 2.
+  // and r0 is the pane's edge minus 2.
   { id: 'more-button', kind: 'fix', title: 'The status pane’s "more" button is always full width, instead of narrowing to nothing after a full row',
     played: 'Mac OS 8.5, PowerPC, 28 October 2026, with the map’s description cut into twenty pieces that move the row’s end toward the edge a few pixels at a pause, the button stayed 32 pixels wide against the edge and a click on it went on, where the stock program narrowed it to a sliver and then drew none, and the same click did nothing. Pauses with room to spare showed the same pixels in both',
     bug: 'After a row of text that reaches the status pane’s right edge, the "more" button is a sliver or is not drawn at all',
@@ -1164,7 +1164,7 @@ const APP_FIXES = [
   // keywords (0x1802) set the script global DifficultyLevel, 17, to 0 for
   // "very easy", 1 "easy", 2 "norm", 3 "hard" and 4 "very hard", and the
   // hero's creation (0x1801) sets 2. Two things read a difficulty. The
-  // level-up script (0xE86) gives 6 less the global in training points.
+  // level-up script (0xE86) gives 6 minus the global in training points.
   // TActiveMonster's constructor, for a creature made from a map's list or
   // an egg (prop 256 and up; named characters keep their stats), draws a
   // percentage from a band named by the short at TOC +8562, the third short
@@ -1175,7 +1175,7 @@ const APP_FIXES = [
   // THE SHIPPED FAULT. SetGlobal stores 12 (karma, into the short at
   // TOC +8560, beside the difficulty's) and 14 (the languages) and drops
   // every other number, and GetGlobal's jump table sends 17 to its default,
-  // None. So the keywords change nothing, a level-up gives 6 less None,
+  // None. So the keywords change nothing, a level-up gives 6 minus None,
   // which is 6, the very easy figure (seen on the 2019 livestream: 6 a
   // level twice), and the short stays at the 2 every save begins with, so
   // creatures are always made at 50 to 149. The workbench's bugs.md has

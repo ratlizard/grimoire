@@ -239,9 +239,9 @@ function plaqueCarve(lifted, cover, W, H, lighting) {
   const M = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? 0
     : Math.min(1, Math.max(0, (cover[y * W + x] * stone[y * W + x] - e0) / e1));
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    // The three parts: the stroke itself, the coverage to the left less the
+    // The three parts: the stroke itself, the coverage to the left minus the
     // coverage to the right (a stroke's left side against its right), and
-    // above less below.
+    // above minus below.
     const f = [M(x, y), M(x - 1, y) - M(x + 1, y), M(x, y - 1) - M(x, y + 1)];
     if (!f[0] && !f[1] && !f[2]) continue;
     const i = y * W + x;

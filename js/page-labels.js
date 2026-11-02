@@ -286,7 +286,7 @@ const RESHINTS = {
 // outside the game's text, and a sound's page lists what plays it either way.
 // The names went on 23 September 2026 (v1.163.0) with the other typed labels
 // and came back behind the switch on 25 October 2026, at the maintainer's
-// word. Copied as the wiki has them, less its "*" marks (delv's trouble
+// word. Copied as the wiki has them, without its "*" marks (delv's trouble
 // decoding a sound) and its bracketed notes, the wiki's "?" and "??" entries
 // among them, which the maintainer chose to show over a bare "Sound n".
 // utilities/delv_crosscheck.mjs compares this table with the wiki page on

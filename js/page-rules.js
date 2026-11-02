@@ -1371,7 +1371,7 @@ function dvmVal(resid, op) {
 // offset of its instruction: what a sheet quotes, so that a quote links to
 // its line the way a figure does and shows what is in the file, not what was
 // typed beside a test for it (the bed's "Hey! Out of my bed!", until
-// 3 October 2026). The text as the file has it, page breaks and all, less
+// 3 October 2026). The text as the file has it, page breaks and all, without
 // the closing newline; null when no string matches.
 function dvmStringVal(resid, re) {
   const e = dvmScriptEntry(resid);
@@ -1890,7 +1890,7 @@ function shopRules() {
    a constant is one lesson on offer, and a menu of them is a data list of
    name-and-skill pairs built just before the call. A lesson costs one
    training point (0xEAF): a character is made with 4 (the hero's script),
-   gains 6 less the difficulty level with each level (0xE86), and a skill
+   gains 6 minus the difficulty level with each level (0xE86), and a skill
    is mastered at level 15. */
 function trainingRules() {
   const byTeacher = new Map();
@@ -1910,7 +1910,7 @@ function trainingRules() {
     }
   }
   // The points, each off the line that sets it: gained with a level (0xE86, n
-  // less the difficulty level), given at creation (the hero's script), taken
+  // minus the difficulty level), given at creation (the hero's script), taken
   // by a lesson and the aspect that is mastery (0xEAF).
   const at = (resid, pat, k) => { const g = dvmSeqIn(resid, pat); return g ? dvmVal(resid, g[k]) : null; };
   const perLevel = at(0xE86, [/^get_field training/, DVM_NUM, /^global DifficultyLevel/, /^sub$/], 1);
@@ -1928,8 +1928,8 @@ function trainingRules() {
 /* COMBAT. Three routines. 0xE88 (melee) and 0xE89 (missile) work out the
    attacker's margin: reflex -- body, for a monster flagged so -- plus the
    weapon's skill (Barehand for no weapon, Missile for a launcher) plus a
-   roll of 0 to 29, less the defender's reflex plus a roll of 0 to 29, plus
-   the attacker's Attack skill less the defender's Defence (0xE84, each a
+   roll of 0 to 29, minus the defender's reflex plus a roll of 0 to 29, plus
+   the attacker's Attack skill minus the defender's Defense (0xE84, each a
    class figure where the skill is absent). 0xE87 resolves it: every shield
    the defender wears blocks a roll of 0 to its block plus the Shield skill,
    and a margin under that is parried; the weapon's enchantment and skill
@@ -2007,7 +2007,7 @@ function combatRules() {
 /* THE ATTACK ITSELF. Before a blow or a missile is resolved, one routine
    (0x3042, called by nothing in the archive, so the executable's, and the
    only caller of 0xE88 and 0xE89) sets what is swung or thrown. It uses
-   the squared distance from 0xE8C (dx² + dy²) less one, and walks the
+   the squared distance from 0xE8C (dx² + dy²) minus one, and walks the
    attacker's equipment for the first melee entry whose reach squared is at
    least that; that weapon swings, its damage figure plus a roll of 0 to
    (body − 12) / 4 (0xE90). Only when nothing reached, the target is beyond
@@ -5826,7 +5826,7 @@ function exeSeatRule() {
   const lt = t55 ? ops.findIndex(o => o.at > ops[li].at && o.d && o.d.mn === 'lwz' && o.d.ra === 2 && o.d.d === t55.disp.v) : -1;
   const facings = lt >= 0 ? exeFind(ops, lt, 6, d => d.mn === 'cmplwi') : -1;
   // The fixed frames: the `li` operands inserted into the sitter's aspect
-  // after the switch on the Chair word less one.
+  // after the switch on the Chair word minus one.
   const fixed = [];
   const own = exeFind(ops, li, 200, d => d.mn === 'ori' && d.imm === 3);
   for (let i = li; i < Math.min(ops.length, li + 200); i++) {

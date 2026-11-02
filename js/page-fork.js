@@ -213,7 +213,7 @@ function copyStrikeGlyph(spec, i) {
 }
 /* How big to draw the chosen face, and where its baseline goes, read off the
    strike's letters and the face's capital. Until 26 September 2026
-   the face was drawn with its em at the cell less the descent (12 and 18
+   the face was drawn with its em at the cell minus the descent (12 and 18
    px) on the strike's nominal baseline, and that is wrong twice over for
    Seldane: its letters fill the whole cell, descent rows included (14 and
    21 rows, feet on the last row), and a face's capitals are some 0.7 of its
