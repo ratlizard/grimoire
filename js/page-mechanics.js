@@ -577,20 +577,25 @@ function mechShopFigure(sh) {
 // A lesson costs a point, a level earns a few, and mastery is fifteen
 // lessons. Drawn against the levels, the question the sheet's numbers pose
 // -- can you master anything? -- has a visible answer.
+//
+// One line, at the full figure. 0xE86 subtracts the DifficultyLevel global,
+// but the shipped SetGlobal never stores it and GetGlobal answers None for
+// it, so every game gains the full figure at every setting
+// (js/delv-appfixes.js, 'difficulty', has the reading). The sheet describes
+// the game as shipped and leaves the design change to the Patch Generator.
 function mechTrainingFigure(tr) {
   if (!tr.points.perLevel || tr.points.atStart === null || tr.points.mastery === null) return '';
   const levels = Array.from({ length: 11 }, (_, i) => i + 1);
-  const series = [1, 2, 3, 4].map((difficulty, i) => ({
-    name: 'difficulty ' + difficulty, color: MECH_SERIES[i],
-    points: levels.map(l => [l, tr.points.atStart + (l - 1) * Math.max(0, tr.points.perLevel.v - difficulty)])
-  }));
+  const per = tr.points.perLevel.v;
+  const earned = l => tr.points.atStart + (l - 1) * per;
+  const series = [{ color: MECH_SERIES[0], points: levels.map(l => [l, earned(l)]) }];
   const mastery = tr.points.mastery;
   return mechFig('Training points earned, against what mastery costs', mechPlot({
     height: 140, series,
     x: { min: 1, max: 11, ticks: levels.filter(l => l % 2).map(l => ({ v: l, label: String(l) })) },
     y: { min: 0, max: 60, ticks: [{ v: 60, label: '60' }, { v: 30, label: '30' }, { v: mastery, label: String(mastery) }, { v: 0, label: '0' }] },
     marks: [{ x: 6, y: mastery + 3, label: 'one skill mastered', color: MECH_INK.ink }]
-  }), 'At difficulty 4 a career to level 11 earns ' + (tr.points.atStart + 10 * Math.max(0, tr.points.perLevel.v - 4)) + ' points, ' + ((tr.points.atStart + 10 * Math.max(0, tr.points.perLevel.v - 4)) / mastery).toFixed(1) + ' skills’ worth.');
+  }), 'A career to level 11 earns ' + earned(11) + ' points, ' + (earned(11) / mastery).toFixed(1) + ' skills’ worth.');
 }
 
 // The balloon itself, at the size the engine draws it, because the sheet
@@ -4298,7 +4303,7 @@ function renderMechanicsSheet(value) {
     tr.teachers.length ? tr.teachers.length + ' teachers, and the skills each one teaches.' : 'No script in this file teaches a skill.',
     tr.teachers.length ? [
       'A lesson raises the skill one level' + (tr.points.perLesson !== null ? ' and costs <b>' + srcNum(tr.points.perLessonVal) + ' training point' + (tr.points.perLesson === 1 ? '' : 's') + '</b>' : '') + '.',
-      (tr.points.atStart !== null ? 'A new character starts with <b>' + srcNum(tr.points.atStartVal) + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + srcNum(tr.points.perLevel) + ' minus the difficulty level</b> with each level' : '') + '.',
+      (tr.points.atStart !== null ? 'A new character starts with <b>' + srcNum(tr.points.atStartVal) + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + srcNum(tr.points.perLevel) + '</b> with each level' : '') + '.',
       tr.points.mastery !== null ? 'A character masters a skill at level <b>' + srcNum(tr.points.masteryVal) + '</b>. A teacher marked <i>to mastery</i> can teach beyond the first lessons.' : ''
     ].filter(Boolean) : [],
     mechTrainingFigure(tr) +
