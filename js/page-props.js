@@ -1895,7 +1895,7 @@ function propWordRender() {
   let others = [];
   try { others = inventoryItemList().filter(e => e.pt !== pt && (tiles[e.pt] || 0) && (tiles[e.pt] || 0) <= tile && tile < (tiles[e.pt] || 0) + 32)
     .map(e => ({ pt: e.pt, aspect: tile - (tiles[e.pt] || 0), name: e.name })).sort((x, y) => x.aspect - y.aspect); } catch (e) { others = []; }
-  h += '<div class="mechSub">Other prop types that reach this tile</div>';
+  h += '<div class="mechSub">Other prop types that can show this tile</div>';
   h += '<div class="sv-note" style="margin-top:0">' + (others.length ? others.map(o => svLink(o.name, 'propWordOpen(' + o.pt + ',' + o.aspect + ')', 'at ' + o.aspect + ', ' + propWordHex((o.aspect << 10) | o.pt))).join(', ')
     : 'No other item’s base tile is within 31 tiles before this one.') + '</div>';
   st.read.innerHTML = h;
@@ -2436,7 +2436,7 @@ function showItemDetail(pt) {
       fold('aimed', 'Aimed at', words.join(', '),
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">Its prompt is “' + svEsc(t.prompt) + '”, and its answer is ' + srcNum(t.val, propWordHex(t.word)) +
         ', which accepts <b>' + words.map(svEsc).join(', ') + '</b>.' + ((t.word & 0x8000) ? ' Within reach means the user’s square and the eight around it.' : '') + '</div>' +
-        '<div class="sv-note">' + mechLink('target', 'Mechanics › What a Use Can Be Aimed At') + '</div>');
+        '<div class="sv-note">' + mechLink('target', 'Mechanics › What Each Use Can Target') + '</div>');
     }
   }
   // The one thing that damages a square rather than a target.

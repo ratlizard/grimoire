@@ -301,7 +301,7 @@ if (take()) try {
   else if (!(dice.faces.join() === '6,6,6' && dice.matchPay === 2 && dice.skillFaces === 6 && !dice.skillAlways && !dice.skillFree && dice.bytes.length === 7 &&
              dice.bytes.some(b => b.at === 0x0506 && b.now === 2) && dice.bytes.some(b => b.at === 0x0492 && b.target && b.next === 0x0494) && dice.bytes.some(b => b.at === 0x047C && b.target && b.next === 0x047E) && dice.bytes.some(b => b.at === 0x045E && b.now === 6)))
     fail('mechanics', 'the dice constants were not read off the script with their offsets: ' + JSON.stringify(dice && dice.bytes));
-  else if (!/What to edit/.test(html) || !/0x0506/.test(html) || !/a match pays nothing/.test(html) || !/every game you play with the skill is a match/.test(html))
+  else if (!/What to edit/.test(html) || !/0x0506/.test(html) || !/a match pays nothing/.test(html) || !/every game played with the skill is a match/.test(html))
     fail('mechanics', 'the dice section does not say what to edit');
   else if (!ctx.gearTable().some(r => r.name === 'axe' && r.damage === 22 && r.skill === 'Axe') || !ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2) || !ctx.gearTable().some(r => r.name === 'bow' && r.ammoClass === 1 && r.reach === 5)) fail('mechanics', 'the gear table does not show the axe’s damage and skill, the spear’s reach, or the bow’s ammunition and range');
   else if (!(ctx.combatRules() && ctx.combatRules().d30 && ctx.combatRules().parry && ctx.combatRules().words.length >= 8)) fail('mechanics', 'the combat rules were not read: ' + JSON.stringify(ctx.combatRules()));
@@ -453,7 +453,7 @@ if (take()) try {
   else if (!unguent || unguent.word !== 8) fail('aim', 'the unguent’s prompt was not reached: a script whose Examine returns first is being dropped');
   else if (!reach.length || reach.length === tg.length) fail('aim', 'every target or none needs a neighbour: ' + reach.length + ' of ' + tg.length);
   else if (!link(unguent).test(html) || !link(reach[0]).test(html)) fail('aim', 'a target word is not a link to the line it is on');
-  else if (!/What a Use Can Be Aimed At/.test(html) || !/within reach/.test(html)) fail('aim', 'the Mechanics sheet does not state what a use is aimed at');
+  else if (!/What Each Use Can Target/.test(html) || !/within reach/.test(html)) fail('aim', 'the Mechanics sheet does not state what a use is aimed at');
   else if (!tn || !tn.swamp || !tn.lava) fail('ground', 'the ground script was misread: ' + JSON.stringify([!!(tn && tn.swamp), !!(tn && tn.lava)]));
   else if (!tn.swamp.flag || tn.swamp.flag.v !== 31 || tn.swamp.flagName !== null || tn.lava.flagName !== 'Lava Proof') fail('ground', 'the flags that protect were misread: ' + JSON.stringify([tn.swamp.flagName, tn.lava.flagName]));
   else if (!new RegExp(String(swampChance)).test(html) || !/Ouch! Something bit me!/.test(html) || !/Ouch! That's hot!/.test(html)) fail('ground', 'the sheet does not state the swamp and the lava in the file’s words');

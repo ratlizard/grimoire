@@ -657,7 +657,7 @@ function mechSleepFigure(sl, clock) {
   }));
   return mechFig('Health an hour asleep at level 6',
     mechBars(bars, { max: Math.max.apply(null, withRing.map(w => w.value)) }) +
-    '<div class="mechSub">and the same with Omen’s ring</div>' +
+    '<div class="mechSub">With Omen’s ring</div>' +
     mechBars(withRing, { max: Math.max.apply(null, withRing.map(w => w.value)) }),
     'The bed multiplies the usual ' + mechHealRate(level, clock) + ' an hour by <b>1 + quality ÷ ' + div + '</b>.');
 }
@@ -4117,7 +4117,7 @@ function renderMechanicsSheet(value) {
     for (const t of tg) { if (!byWord.has(t.word)) byWord.set(t.word, []); byWord.get(t.word).push(t); }
     const reach = tg.filter(t => t.word & 0x8000);
     const nameLink = t => srcNum(t.val, t.name);
-    add('target', 'What a Use Can Be Aimed At', null, '',
+    add('target', 'What Each Use Can Target', null, '',
       tg.length ? 'What each of the ' + tg.length + ' spells and items that need a target can aim at.'
                 : 'No script in this file prompts for a target.',
       tg.length ? [
@@ -4241,7 +4241,7 @@ function renderMechanicsSheet(value) {
         (r.hunger ? 'hungry: nutrition below ' + (pc.hungry ? srcNum(pc.hungry) : 'a threshold') : (dvmFlagName(r.flag.v) || 'flag') + ' ' + srcNum(r.flag, 'flag ' + r.flag.v)) + '</td></tr>');
       if (pc.plain) rows.push('<tr><td>' + sw(0) + ' ' + srcNum(pc.plain) + '</td><td>none of these</td></tr>');
       return '<div class="mechSub">The Party Bar</div><p>The party bar draws each party member\u2019s figure on a color that shows their state. It shows the first of these that applies.</p>' +
-        table(['colour', 'when'], rows);
+        table(['color', 'when'], rows);
     })(), '');
 
   // ---- hunger, and healing with it ----
@@ -4311,7 +4311,7 @@ function renderMechanicsSheet(value) {
     sh.shops.length ? sh.shops.length + ' shops, what each sells, and at what price.' : 'No script in this file opens a shop.',
     sh.shops.length ? ['Each vendor bargains down from the listed price by four figures set for each, under terms' + (sh.haggling ? '. <b>Haggling</b> lowers it by a further random amount from 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
     mechShopFigure(sh) +
-    table(['vendor', 'goods, at the listed price in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.character !== null && characterRecord(spn.character) ? characterChip(spn.character) : svChip(spn.resid)) +
+    table(['vendor', 'goods and listed prices in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.character !== null && characterRecord(spn.character) ? characterChip(spn.character) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
       spn.goods.map(g => svEsc(g.name) + ' <span class="mechPrice">' + srcNum(g.src, g.price) + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') + '</td>' + (spn.terms ? srcCell(spn.termsSrc, spn.terms.join(' ')) : num('')) + '</tr>')) +
       searchSentences(searchShopSentences(sh)), '');
@@ -4475,7 +4475,7 @@ function renderMechanicsSheet(value) {
           svLink(wt.setter.name, wt.setter.pt !== null ? 'showItemDetail(' + wt.setter.pt + ')' : 'jumpToResource(' + wt.setter.resid + ')') + ', and fresh, sometimes reviving, after that.' : '',
         'A drink affects the character who uses the fountain.'
       ].filter(Boolean) : [],
-      wt ? table(['#kind', 'says', 'does', 'where it stands'], wt.kinds.map(k => '<tr>' + srcCell(k.val) + '<td>' + (k.message[0] ? srcQuoteText(0x1036, k.message[0]) : '') + '</td><td>' + kindWords(k) + '</td><td>' + where(k.kind) + '</td></tr>')) : '', '');
+      wt ? table(['#kind', 'message', 'does', 'where it stands'], wt.kinds.map(k => '<tr>' + srcCell(k.val) + '<td>' + (k.message[0] ? srcQuoteText(0x1036, k.message[0]) : '') + '</td><td>' + kindWords(k) + '</td><td>' + where(k.kind) + '</td></tr>')) : '', '');
   }
 
   // ---- the combat AI ----
@@ -4587,13 +4587,13 @@ function renderMechanicsSheet(value) {
     const testedBy = bit => {
       const hits = [];
       for (const r of readers) for (const m of r.masks) if ((m.mask & bit) === bit && !hits.some(h => h.routine === r.routine)) hits.push({ routine: r.routine, at: m.at });
-      return hits.length ? hits.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : '<span class="mechSub" style="display:inline">nothing reads this switch within twenty-four instructions of a load</span>';
+      return hits.length ? hits.map(h => srcNum({ exe: h.at }, h.routine)).join(', ') : '<span class="mechSub" style="display:inline">no test of this flag within 24 instructions of a load</span>';
     };
     const keyName = k => (DVM_SYM.method[String(k)] ? prettyLabel(DVM_SYM.method[String(k)]) : 'key ' + k);
     const rows = cb.bits.map(b => {
       const moved = ic && ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === b.bit);
       return '<tr><td class="num">' + propWordHex(b.bit) + '</td>' + num(b.character.length) + '<td>' + character(b.character, b.bit) + '</td>' +
-        (ic ? '<td>' + (moved ? srcNum(moved.cacheBit, propWordHex(moved.cacheBit.v)) : '<span class="mechSub" style="display:inline">not copied</span>') + '</td><td>' + (moved ? testedBy(moved.cacheBit.v) : '') + '</td>' : '') + '</tr>';
+        (ic ? '<td>' + (moved ? srcNum(moved.cacheBit, propWordHex(moved.cacheBit.v)) : '<span class="mechSub" style="display:inline">not cached</span>') + '</td><td>' + (moved ? testedBy(moved.cacheBit.v) : '') + '</td>' : '') + '</tr>';
     });
     const hasRows = ic ? ic.has.map(h => '<tr><td>' + srcNum({ exe: h.keyOp.at }, keyName(h.key)) + '</td><td class="num">' + srcNum(h.cacheBit, propWordHex(h.cacheBit.v)) + '</td><td>' + testedBy(h.cacheBit.v) + '</td></tr>') : [];
     const stackRows = ic ? ic.bits.filter(x => x.key !== 39).map(x => '<tr><td>' + keyName(x.key) + (x.tag ? ', not a plain number' : ' bit ' + propWordHex(x.mask.v)) + '</td><td class="num">' + srcNum(x.cacheBit, propWordHex(x.cacheBit.v)) + '</td><td>' + testedBy(x.cacheBit.v) + '</td></tr>') : [];
@@ -4656,11 +4656,11 @@ function renderMechanicsSheet(value) {
         })() : MECH_NO_APP,
         ic ? 'The last table below shows how a chair seats a character, and the zone maps seat their people by it.' : ''
       ].filter(Boolean),
-      '<div class="mechSub">The switches</div>' +
-      table(ic ? ['#switch', '#classes', 'carried by', 'in the copy as', 'read by'] : ['#switch', '#classes', 'carried by'], rows) +
-      (hasRows.length ? '<div class="mechSub">Entries a class has or has not</div>' + table(['entry', '#in the copy as', 'read by'], hasRows) : '') +
-      (stackRows.length ? '<div class="mechSub">Other rows moved into the copy</div>' + table(['from', '#in the copy as', 'read by'], stackRows) : '') +
-      (tableRows.length ? '<div class="mechSub">The four numbers kept beside it</div>' + table(['from', 'kept as', 'read by'], tableRows) : ''));
+      '<div class="mechSub">The flags</div>' +
+      table(ic ? ['#flag', '#classes', 'on', 'cached as', 'read by'] : ['#flag', '#classes', 'on'], rows) +
+      (hasRows.length ? '<div class="mechSub">Class entries the program checks for</div>' + table(['entry', '#cached as', 'read by'], hasRows) : '') +
+      (stackRows.length ? '<div class="mechSub">Other class data the program caches</div>' + table(['from', '#cached as', 'read by'], stackRows) : '') +
+      (tableRows.length ? '<div class="mechSub">Numbers the program stores for each class</div>' + table(['from', 'stored as', 'read by'], tableRows) : ''));
   }
 
   // ---- the syscalls, by the program's names ----
@@ -4697,7 +4697,7 @@ function renderMechanicsSheet(value) {
     const handlerCell = kind => {
       const h = eh && eh.handlers[kind];
       if (!h || h.at === null) return '<td></td>';
-      if (h.nothing) return '<td>' + srcNum({ exe: h.at }, propWordHex(h.at)) + ' <span class="mechSub" style="display:inline">the loop’s end: nothing</span></td>';
+      if (h.nothing) return '<td>' + srcNum({ exe: h.at }, propWordHex(h.at)) + ' <span class="mechSub" style="display:inline">does nothing (the end of the loop)</span></td>';
       return '<td>' + srcNum({ exe: h.at }, propWordHex(h.at)) +
         (h.calls.length ? ' <span class="mechSub" style="display:inline">calls ' + h.calls.map(c => srcNum({ exe: c.at }, c.name)).join(', ') + '</span>' : '') + '</td>';
     };
@@ -5271,15 +5271,15 @@ function renderMechanicsSheet(value) {
       const rows = bu.buttons.map((b, i) => '<tr>' + num(i + 1) + '<td>' + b.x + ', ' + b.y + '</td>' +
         '<td>' + sq(b.a.rec) + ' through table ' + b.a.table + '</td>' +
         '<td>' + sq(b.b.rec) + ' through table ' + b.b.table + '</td></tr>');
-      buttonsHtml += '<div class="partsTitle">The buttons, and the two panels each one drives</div>' +
+      buttonsHtml += '<div class="partsTitle">The buttons and the two panels each one drives</div>' +
         table(['#no.', 'square', 'first panel', 'second panel'], rows);
-      if (bu.arrays) buttonsHtml += '<div class="partsTitle">The tables they read through</div>' +
-        table(['#table', 'aspect 0 to 15 becomes'], bu.arrays.map((a, i) =>
+      if (bu.arrays) buttonsHtml += '<div class="partsTitle">The tables that turn a panel’s aspect into the next</div>' +
+        table(['#table', 'aspects 0 to 15 turn into'], bu.arrays.map((a, i) =>
           '<tr>' + num(i) + '<td class="mechSub">' + a.join(', ') + (i === 0 && a.every((v, j) => v === j) ? '  (unchanged: this button moves nothing)' : '') + '</td></tr>'));
     }
     const ri = pz.riddles;
     if (ri && ri.buttons.length) {
-      riddlesHtml += '<div class="partsTitle">The riddles, and the answer to each</div>' +
+      riddlesHtml += '<div class="partsTitle">The riddles and their answers</div>' +
         table(['#no.', 'the riddle', 'the answer', 'the door it opens'],
           ri.buttons.map(b => '<tr>' + num(b.which + 1) +
             '<td>' + (ri.text[b.which] ? svEsc(ri.text[b.which]).replace(/\n/g, '<br>') : '') + '</td>' +
@@ -5292,7 +5292,7 @@ function renderMechanicsSheet(value) {
     const tu = pz.tunes;
     if (tu && tu.bells) {
       const bl = tu.bells;
-      bellsHtml += '<div class="partsTitle">The bells, and the orders they are rung in</div>' +
+      bellsHtml += '<div class="partsTitle">The bells and the orders to ring them in</div>' +
         '<ul class="ruleList"><li>' + srcNum(bl.base, 'Only the last four rings count') + ', so after a wrong ring just carry on.</li></ul>' +
         (bl.bells.length ? table(['#bell', 'square'], bl.bells.map(b =>
           '<tr>' + num(b.number) + '<td>' + b.x + ', ' + b.y + '</td></tr>')) : '') +

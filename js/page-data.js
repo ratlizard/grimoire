@@ -1072,7 +1072,7 @@ function renderCheatsSheet() {
     const distinct = defaults ? [...new Set(defaults.words.map(w => w.v))] : [];
     const clear = distinct.every(v => !((v >>> (24 - 8 * g.byte.v)) & (1 << g.bit.v)));
     const letters = chars(g.word.v);
-    h += '<div class="mechSec"><h4 class="cheatH4">The Gate (How It Switches On)</h4><ul class="ruleList">' +
+    h += '<div class="mechSec"><h4 class="cheatH4">The Cheat Mode Switch</h4><ul class="ruleList">' +
       '<li>Type <b>' + srcNum(g.word, g.word.v) + '</b> (' + letters.map(t => '<b>' + svEsc(t) + '</b>').join(', then ') + ' on a US layout) in the map window. With ' +
       srcNum(g.bit, 'the preference') + ' set, cheat mode ' + srcNum(g.flip, 'switches') + ' and the ' +
       'status window prints ' + (g.on ? '“' + srcNum(g.on, g.on.v.replace(/\n+$/, '')) + '”' : 'that it is on') + (g.on && /[.!?]\s*$/.test(g.on.v) ? '' : '.') + '</li>' +
@@ -1166,7 +1166,7 @@ function renderCheatsSheet() {
   // The numbers the keys prompt for, off the file.
   const levels = cheatLevels();
   if (levels.length) {
-    h += '<div class="mechSec"><h4 class="cheatH4">Levels, for Option-J</h4>' +
+    h += '<div class="mechSec"><h4 class="cheatH4">Levels for Option-J</h4>' +
       '<div class="cheatNote">Enter the level in hex, and X and Y in squares. Where the editor’s name for a map differs, its name is beside the game’s.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">hex</th><th class="num">dec</th><th>map</th></tr></thead><tbody>' +
       levels.map(l => '<tr><td class="num">' + l.n.toString(16).toUpperCase().padStart(2, '0') + '</td><td class="num">' + l.n + '</td><td>' +
@@ -1179,10 +1179,10 @@ function renderCheatsSheet() {
   if (tp.last) {
     const mapOrder = [...tp.byMap.keys()].sort((a, b) => a - b);
     const mapName = resid => { const l = levels.find(x => x.resid === resid); return l ? l.name : (labelFor(resid) || ('0x' + resid.toString(16).toUpperCase())); };
-    h += '<div class="mechSec"><h4 class="cheatH4">Teleporters, for Option-Shift-J</h4>' +
+    h += '<div class="mechSec"><h4 class="cheatH4">Teleporters for Option-Shift-J</h4>' +
       '<div class="cheatNote">' + tp.last + ' destinations, 1 to ' + tp.last + ' in decimal. Any higher number leads to the nothing map. Click one to open the map there. ' +
       'The community’s Zone list (add-on 620) calls Timon Ruins Headwater Ruins, Swamp Ruins Seldane Maayti Ruins, and Crypts Pnyx Upstairs.</div>' +
-      '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">level</th><th>map</th><th class="num">no.</th><th>teleporter, and the square it reaches</th></tr></thead><tbody>' +
+      '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">level</th><th>map</th><th class="num">no.</th><th>teleporter and the square it leads to</th></tr></thead><tbody>' +
       mapOrder.map(resid => {
         const list = tp.byMap.get(resid);
         return '<tr><td class="num">' + (resid & 0xFF).toString(16).toUpperCase().padStart(2, '0') + '</td><td>' + svEsc(mapName(resid)) + '</td><td class="num">' + list.length + '</td><td>' +
@@ -1193,7 +1193,7 @@ function renderCheatsSheet() {
   let heap = null;
   try { heap = refExists(0x8000) ? nothingMapHeap(0x8000) : null; } catch (e) { heap = null; }
   if (heap) {
-    h += '<div class="mechSec"><h4 class="cheatH4">Level 0, the Nothing Map</h4><ul class="ruleList">' +
+    h += '<div class="mechSec"><h4 class="cheatH4">The Nothing Map at Level 0</h4><ul class="ruleList">' +
       '<li>Map 0 is ' + heap.w + ' by ' + heap.h + ', with no roof, no exits, ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') + ' and no name. The map window’s title reads Untitled there.</li>' +
       '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory. The program made the map and never filled it in.</li>' +
       '<li>The hero can reach it by accident, from a bed in Cademia and from beneath Pnyx. ' +
@@ -1204,7 +1204,7 @@ function renderCheatsSheet() {
 
   const sprites = cheatSpriteClasses();
   if (sprites.length) {
-    h += '<div class="mechSec"><h4 class="cheatH4">Be Somebody Else</h4>' +
+    h += '<div class="mechSec"><h4 class="cheatH4">Another Body for the Hero</h4>' +
       '<div class="cheatNote">The classic Cythera cheat: use Pandora’s Box, a program that edits another program’s memory while it runs, to find ' +
       'the number <b>32</b>, the hero’s sprite, in the running game and write another number over it. ' +
       'The Saved Game page does the same with the <b>sprite class</b> field. ' +
@@ -1233,7 +1233,7 @@ function renderCheatsSheet() {
     const fh = find(0xFA);
     if (fh) items.push('<li><b>option-h empties the enemy list.</b> ' + facts(fh).peaceShort() + '</li>');
     if (cl && !c1) items.push('<li><b>The speed limiter is ' + srcNum(cl.keys[0], 'option-l') + '</b>, not option-1.</li>');
-    if (items.length) h += '<div class="mechSec"><h4 class="cheatH4">Things Read from the Code</h4><ul class="ruleList">' + items.join('') + '</ul></div>';
+    if (items.length) h += '<div class="mechSec"><h4 class="cheatH4">Figures Read from the Program</h4><ul class="ruleList">' + items.join('') + '</ul></div>';
   }
 
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
@@ -1953,7 +1953,7 @@ function renderSaveSheet() {
   h += '<div class="tableScroll"><table class="forkTable"><thead><tr>' +
     '<th class="num">no.</th><th>who</th><th>where</th><th class="num">lv</th><th class="num">xp</th>' +
     '<th class="num">health</th><th class="num">magic</th>' +
-    '<th class="num">food</th><th class="num">train</th><th></th></tr></thead><tbody>';
+    '<th class="num">food</th><th class="num">training</th><th></th></tr></thead><tbody>';
   for (const r of shown) {
     const i = r.index;
     h += '<tr' + (i === 1 ? ' class="saveHero"' : '') + '>' +

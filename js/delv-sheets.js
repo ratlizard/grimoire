@@ -109,7 +109,7 @@ function spellsMechSection() {
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
         if (!t.length) return '';
         const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that need a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>. The target has to be in one of the eight squares around the caster. The rest can go anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
+        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that need a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>. The target has to be in one of the eight squares around the caster. The rest can go anywhere. ' + mechLink('target', 'What Each Use Can Target') : '';
       })()
     ].filter(Boolean) : [],
     '', '');
@@ -165,7 +165,7 @@ function libraryMechSection(lib) {
         dangling.map(x => svLink('Data1 ' + x.k, 'jumpToResource(' + x.d.resid + ')', '0x' + x.d.resid.toString(16).toUpperCase()))) + '</b> are the opposite case, a thing in the world whose Data1 points to no passage.' : ''
     ].filter(Boolean) : [],
     mechTable(['#passages', 'array', 'shown by', '#shown', '#not shown'], rows) +
-    (unshown.length ? '<div class="partsTitle">Written, never shown</div>' +
+    (unshown.length ? '<div class="partsTitle">Written but never shown</div>' +
       mechTable(['array', '#no.', 'the passage'], unshown.map(u =>
         '<tr><td>' + propWordHex(u.d.resid) + '</td>' + mechNum(u.e.index) +
         '<td>' + svEsc(String(u.e.str).replace(/\s+/g, ' ').trim().slice(0, 120)) + '</td></tr>')) : ''), '');
