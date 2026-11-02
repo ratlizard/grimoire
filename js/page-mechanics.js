@@ -4599,7 +4599,15 @@ function renderMechanicsSheet(value) {
             return countLink(word, 'The ' + hit.length + ' classes named ' + (match || word) + ' with class flag ' + propWordHex(m), hit.map(w => svLink(propDisplayName(w.pt), kindLink(w.pt))));
           };
           return bitText(0x80, 'lets a character walk onto the square (the ' + eg(0x80, 'doors', 'door') + ', the ' + eg(0x80, 'passthrough') + ', the ' + eg(0x80, 'curtain') + ').') + ' ' +
-            bitText(0x08, 'means you cannot drop a thing (the ' + eg(0x08, 'key') + ', the ' + eg(0x08, 'grimoire') + ', the ' + eg(0x08, 'amulet') + ').') + ' ' +
+            /* Read on 1 November 2026. TGameSys::DropCommand and
+               SlideItemCommand both end by ORing 0x20, moved in play, into
+               the record's flags unless the class has 0x08; the thing is
+               dropped either way. A 0x20 record is replaced by the
+               scenario's record or deleted on entering the level again, and
+               in Cademia by THood::ResetHood. The hero's amulet dropped in
+               the fork on the stock program lay on the floor with flags 0
+               after the save. */
+            bitText(0x08, 'means a thing you drop or push stays where you leave it (the ' + eg(0x08, 'key') + ', the ' + eg(0x08, 'grimoire') + ', the ' + eg(0x08, 'amulet') + '). Anything else you move goes back to its place or vanishes when you return to the level, and in Cademia when you walk away from it.') + ' ' +
             bitText(0x200, 'puts a door back open or shut as the zone starts it, each time you enter. Its lock stays the same. The map’s door mark shows it.') + ' ' +
             /* Read on 6 October 2026, when the maintainer asked what the
                rest do. TGameViewer::DoTicks runs down byte 6 of each
