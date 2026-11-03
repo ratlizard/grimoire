@@ -17,7 +17,10 @@
 // 1. EVERY FIX ALONE on the shipped file applies, and the patch written
 //    from it, merged back onto the shipped file, gives the patched file byte
 //    for byte. The text with no option, with each option, and with each
-//    spelling, likewise.
+//    spelling, likewise. And a fix's `newGame` is what the resources it
+//    changes make it (3 November 2026): true for one a save has a copy of
+//    always, the zones for a zone's thing list or explored map. Its control:
+//    panpipes with the field taken out failed, naming the zone it needs.
 // 2. EVERY FIX TOGETHER, in both spellings, applies and merges back. The
 //    American one is the combined build's set plus the three kept apart,
 //    and its patched file is pinned (the count of resources and a hash,
@@ -83,11 +86,19 @@ vm.runInContext(`__build = (ids, skip) => {
     const w = writeDelverPatch(done.spec, done.changed, { description: 'check', typeCode: DELV_PATCH_EXPORT_TYPE });
     const merged = mergeDelverPatch(__a, w.bytes);
     const same = !!(merged && merged.bytes && merged.bytes.length === patched.length && merged.bytes.every((x, i) => x === patched[i]));
-    return { ok: true, changed: done.changed.length, same, patched };
+    return { ok: true, changed: done.changed.length, changedIds: done.changed, same, patched };
   } catch (e) { return { ok: false, why: e.message }; }
 }`, ctx);
 const build = (ids, skip) => sandbox.__build(ids, skip);
-const FIXES = JSON.parse(vm.runInContext('JSON.stringify(DATA_FIXES.map(f => ({ id: f.id, parent: f.parent || null, choice: f.choice || null, title: f.title })))', ctx));
+const FIXES = JSON.parse(vm.runInContext('JSON.stringify(DATA_FIXES.map(f => ({ id: f.id, parent: f.parent || null, choice: f.choice || null, title: f.title, newGame: f.newGame || null })))', ctx));
+// A fix's `newGame` (js/delv-datafixes.js, above DATA_FIXES), worked out
+// from the resources it changes: true for one a save always has a copy of,
+// the zones for a zone's thing list or explored map, null for neither.
+const newGameOf = ids => {
+  if (ids.some(x => [0xF009, 0xF306, 0xF00E, 0x0301].includes(x))) return true;
+  const zones = [...new Set(ids.filter(x => (x >> 8) === 0x81 || (x >> 8) === 0x82).map(x => x & 0xFF))].sort((a, b) => a - b);
+  return zones.length ? zones : null;
+};
 const top = FIXES.filter(f => !f.parent);
 // The text's options: since 1 October 2026 every one is half of a choice
 // (the spelling, and four that go one way or the other). `options` is the
@@ -108,6 +119,8 @@ for (const f of top) {
   if (!r.ok) fail('alone: ' + f.id + ' did not apply: ' + r.why);
   else if (!r.same) fail('alone: ' + f.id + '’s patch does not merge back to the patched file');
   else if (!r.changed) fail('alone: ' + f.id + ' changed nothing');
+  else if (JSON.stringify(newGameOf([...r.changedIds])) !== JSON.stringify(f.newGame))
+    fail('alone: ' + f.id + '’s newGame is ' + JSON.stringify(f.newGame) + ', and what it changes makes it ' + JSON.stringify(newGameOf([...r.changedIds])));
   else alone++;
 }
 const SPELLINGS = FIXES.filter(f => f.choice === 'spelling').map(f => f.id);

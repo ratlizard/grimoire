@@ -1878,6 +1878,17 @@ function appFixSource() {
 // played for four of its nineteen characters read as played.
 function fixPlayedInPart(f) { return /^in part\b/i.test(f.played || ''); }
 function untestedMark(f) { return !f.played ? ' (untested)' : fixPlayedInPart(f) ? ' (partially tested)' : ''; }
+// A data fix to something a save has a copy of (`newGame`, js/delv-datafixes.js
+// above DATA_FIXES) is marked so (the maintainer, 3 November 2026): one to
+// the characters needs a new game, one to a zone's things needs a new game
+// or a save that has not been to the zone.
+function newGameBadge(f) {
+  if (!f.newGame) return '';
+  if (f.newGame === true) return 'needs a new game';
+  const names = f.newGame.map(z => { try { return zoneDisplayName(z); } catch (e) { quiet(e, 'a zone name with no file open'); return 'zone ' + z; } });
+  const list = names.length < 2 ? names[0] : names.slice(0, -1).join(', ') + ' or ' + names[names.length - 1];
+  return 'needs a new game, or a first visit to ' + list;
+}
 // A program fix has two halves, the PowerPC program and the 68K one
 // (js/delv-app68k.js), played separately: `played` is the PowerPC half's,
 // APP_FIXES_68K.played has the fixes whose 68K part was shown. A fix seen
@@ -2785,7 +2796,7 @@ function renderDataFixMaker() {
       words.appendChild(t);
       const meta = el('span', 'fixMeta');
       meta.appendChild(el('span', 'fixFile', file));
-      if (badge) meta.appendChild(el('span', 'fixBadge', badge));
+      for (const b of [].concat(badge || [])) if (b) meta.appendChild(el('span', 'fixBadge', b));
       if (f.note) words.appendChild(el('span', 'fixNote', f.note));
       words.appendChild(meta);
       l.appendChild(words);
@@ -2794,7 +2805,7 @@ function renderDataFixMaker() {
       fold.d.appendChild(r);
     };
     const badgeOf = mark => mark.trim().replace(/^\(|\)$/g, '');
-    for (const f of list) row(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f, badgeOf(untestedMark(f)), 'Cythera Data', function (h) { fixDataChanges(f, h); });
+    for (const f of list) row(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f, [badgeOf(untestedMark(f)), newGameBadge(f)], 'Cythera Data', function (h) { fixDataChanges(f, h); });
     for (const f of rsrcs) row(window.BACKSTAGE_CHOSEN.has(f.id), function (c) { backstageToggle(f.id, c); }, f, badgeOf(untestedMark(f)), 'Cythera Data', function (h) {
       const ul = document.createElement('ul'); ul.className = 'ruleList';
       for (const e of f.rsrc) { const li = document.createElement('li'); li.textContent = 'The map editor\u2019s name \u201c' + e.was + '\u201d becomes \u201c' + e.now + '\u201d (' + e.type + ' ' + e.id + ', string ' + e.index + ')'; ul.appendChild(li); }

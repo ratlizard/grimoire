@@ -1313,7 +1313,7 @@ const APP_FIXES = [
   // argument in r3; r5 is free, and the call that follows ends r5 and cr0
   // anyway.
   { id: 'worn-at-death', kind: 'fix', title: 'A character raised by Resurrection or the Land King Amulet wears again what they wore when they died, instead of having it in the inventory',
-    played: 'fork, PowerPC, 3 November 2026, alone and with every fix. Aethon, wearing a belt and with kelp in his inventory, killed by the hero and raised with the Land King Amulet, wears the belt again and has the kelp in his inventory, where the stock program puts both in his inventory. The belt in his body has byte 1 at 255 and the kelp 0. The belt taken out of the body into the hero’s inventory has byte 1 at 0. A thing put back into the body is not played',
+    played: 'fork, PowerPC, 3 November 2026, alone and with every fix. Aethon, wearing a belt and with kelp in his inventory, killed by the hero and raised with the Land King Amulet, wears the belt again and has the kelp in his inventory, where the stock program puts both in his inventory. The belt in his body has byte 1 at 255 and the kelp 0. The belt taken out of the body into the hero’s inventory has byte 1 at 0. Taken out and put back into the body, it is in Aethon’s inventory after the raise, not worn',
     sites: [
       { at: 0x46C98, was: [0x981C0000], asm: ['b @death               ; was stb 0, 0(28), the kind made 9'] },
       { at: 0x54410, was: [0x5405021E], asm: ['li 5, 0                ; was rlwinm 5, 0, 0, 8, 15, byte 1 left as it was'] },
@@ -1329,6 +1329,33 @@ const APP_FIXES = [
            'lbz 5, 1(30)', 'cmpwi 5, 255', 'bne @plain             ; not worn at death',
            'li 0, 24                ; worn', 'li 5, 0', 'stb 5, 1(30)            ; the mark cleared',
            'plain:', 'stb 0, 0(30)', 'b @0x92EB8'] },
+  // Whether a character was in the party when they died, written on the
+  // corpse for the Resurrection fix (the data fix resurrection), which puts
+  // a companion back in the party. TActiveMonster::Die clears the party
+  // bit, byte 8's 0x40, and rebuilds the party (0x46B38 to 0x46B68) before
+  // it makes the corpse, so nothing after the death had the membership, and
+  // the data fix had read a party behavior at death, 1 to 13, which the
+  // hero's attacks also give a joiner outside the party (8 for Aethon). Die
+  // writes the corpse's Data2, byte 7, as 0 (0x46BE8); here it is 2 for a
+  // character in the party and 1 for one outside it, and the data fix reads
+  // 0 as a corpse made without this fix. No script reads a corpse's Data2
+  // (the classes of types 78 and 283 have no method that does).
+  //
+  // THE SLOT. Die's frame word at 100(1) is written once, at 0x46B54 on the
+  // party branch, read at once and never again, so the answer stays there
+  // across the two calls between (RebuildParty, NewProp). 0x46B3C, which
+  // every character below 256 passes, writes 1 there; the party branch
+  // writes 2 after its clear. r0 is loaded again after each site before it
+  // is read (0x46B44, the call at 0x46B68, 0x46BEC).
+  { id: 'party-at-death', kind: 'fix', title: 'A character’s corpse records whether they were in the party when they died, which the Resurrection fix reads to put a companion back in the party',
+    played: 'fork, PowerPC, 3 November 2026, alone and with every fix, with the Resurrection fix. Aethon killed by the hero outside the party leaves a body with Data2 1, and the Land King Amulet raises him outside the party. Aethon in the party, poisoned to death, leaves a body with Data2 2, and the amulet raises him into the party',
+    sites: [
+      { at: 0x46B3C, was: [0x90010068], asm: ['b @start               ; was stw 0, 104(1)'] },
+      { at: 0x46B64, was: [0x98030008], asm: ['b @left                ; was stb 0, 8(3), the party bit cleared'] },
+      { at: 0x46BE8, was: [0x98170007], asm: ['b @corpse              ; was stb 0, 7(23), the corpse’s Data2 made 0'] }],
+    cave: ['start:', 'stw 0, 104(1)', 'li 0, 1', 'stw 0, 100(1)           ; outside the party, until the branch below', 'b @0x46B40',
+           'left:', 'stb 0, 8(3)', 'li 0, 2', 'stw 0, 100(1)           ; in the party', 'b @0x46B68',
+           'corpse:', 'lwz 0, 100(1)', 'stb 0, 7(23)            ; Data2, 1 or 2', 'b @0x46BEC'] },
   // A start of play costs fifteen ticks. TDelverApp::BeginPlay, which a new
   // game, Open and a revert all come through, ends by handing 15 to
   // TGameSys::HeartBeat: the hero is busy for fifteen ticks, the clock goes

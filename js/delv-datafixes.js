@@ -238,10 +238,14 @@ function dataFixResurrection(resid, base) {
           ...setField('flags (0x0)', 'local Var04', ['byte 0x42']),
           ...setField('x (0x1)', 'local Var00', ['arg Arg01', 'get_field x (0x1)']),
           ...setField('y (0x2)', 'local Var00', ['arg Arg01', 'get_field y (0x2)']),
-          // 3: a companion who died in the party rejoins it.
+          // 3: a companion who died in the party rejoins it: the corpse's
+          // Data2 2 (party-at-death), or with Data2 0 a party behavior.
           'if_not', ...isJoiner,
+          'arg Arg01', 'get_field data2 (0x7)', 'byte 0x02', 'eq',
+          'arg Arg01', 'get_field data2 (0x7)', 'byte 0x00', 'eq',
           'local Var00', 'get_field behavior (0x15)', 'byte 0x01', 'ge', 'and',
           'local Var00', 'get_field behavior (0x15)', 'byte 0x0D', 'le', 'and',
+          'or', 'and',
           'then -> gone',
           'sys JoinParty', 'local Var00', 'end',
           'gone:',
@@ -252,6 +256,15 @@ function dataFixResurrection(resid, base) {
   };
 }
 
+// `newGame`: a fix that changes something a save has a copy of reaches a
+// saved game only in part (the maintainer, 3 November 2026: tag the patches
+// that need a new game). A save has the character records (0xF009), the
+// characters' map records (0xF306), the rooms entered (0xF00E) and the
+// store 0x301 always: a fix to them is `newGame: true`. It has a zone's
+// thing list (0x81zz) and explored map (0x82zz) from the hero's first visit
+// on: a fix to them is the zones' numbers, and reaches a save whose hero
+// has not been to them. utilities/data_fix_check.mjs works the field out
+// from what each fix alone changes and fails on a fix whose field differs.
 const DATA_FIXES = [
 
   /* ---- Found in the files (the stage "found"; found_fixes_patch.mjs,
@@ -643,7 +656,7 @@ const DATA_FIXES = [
     ] },
   // Only Philinus's panpipes work (0x8108): the two placed sets get Data1 1,
   // the set that can play PHJMD.
-  { id: 'panpipes', group: 'items', stage: 'community', title: 'Every set of panpipes can now play the tune, instead of Philinus\u2019s alone',
+  { id: 'panpipes', newGame: [8], group: 'items', stage: 'community', title: 'Every set of panpipes can now play the tune, instead of Philinus\u2019s alone',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the set on the table at (62,24) of Cademia, used, shows the notes P M J H D, against P M J G D unpatched; the tune itself was not played; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the set at (62,24) of Cademia shows P M J H D, its picture drawn as pipes',
     dataEdits: [
       { what: 'the placed panpipes', resid: 0x8108, fn: (b) => {
@@ -755,13 +768,13 @@ const DATA_FIXES = [
   // 1, so it draws the desk's tile and has no Use, where a desk's opens it:
   // the desk beside Paris that "is immovable and unusable". Each is given
   // the type whose picture it wears, at that type's first aspect.
-  { id: 'furniture-types', group: 'items', stage: 'community', title: 'Three end tables that were chairs underneath can no longer be carried off, and a desk in Pnyx that was an end table underneath now opens',
+  { id: 'furniture-types', newGame: [3, 6, 12], group: 'items', stage: 'community', title: 'Three end tables that were chairs underneath can no longer be carried off, and a desk in Pnyx that was an end table underneath now opens',
     played: 'Mac OS 8.5, 12 October 2026, the fix alone and with every fix, each installed by Magpie, a save that had never held Catamarca or Pnyx: Take on the end table at (26,37) of Catamarca, "You can\u2019t take an end table!" and the record on the floor in the save, against "Your deeds stain your soul." and the record carried, unpatched; Use on the desk at (16,51) of Pnyx opens its drawer, against nothing unpatched. Fork, 68K, the same day and the same two, the stock file, the fix alone and every fix: the same lines, and the desk\u2019s window. In a save that already has a zone, that zone\u2019s records stay as they were, so the end table in Land King Hall stayed a chair in a save made there; the hall\u2019s and the second of Catamarca\u2019s were not played',
     dataEdits: [[0x8103, 34, 0x100C, 0x000D, 'the end table in Land King Hall'], [0x8106, 46, 0x100C, 0x000D, 'an end table in Catamarca'],
                 [0x8106, 48, 0x100C, 0x000D, 'another end table in Catamarca'], [0x810C, 321, 0x040D, 0x0011, 'the desk in Pnyx']].map(([resid, rec, was, now, what]) => (
       { what, resid, fn: new Function('b', `const p = ${rec} * 16; if ((b[p + 4] << 8 | b[p + 5]) !== ${was}) throw new Error('record ${rec} is not the type and aspect the page read'); b[p + 4] = ${now >> 8}; b[p + 5] = ${now & 0xFF}; return 'record ${rec} given the type its picture is of';`) })) },
 
-  { id: 'arrow-stacks', group: 'items', stage: 'community', title: 'The magic arrow in Land King Hall now looks like one arrow, instead of a stack, and two stacks in Cademia look right',
+  { id: 'arrow-stacks', newGame: [3, 8], group: 'items', stage: 'community', title: 'The magic arrow in Land King Hall now looks like one arrow, instead of a stack, and two stacks in Cademia look right',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the crate at (103,58) of Cademia, opened, shows its arrows with the count 30, against one arrow and no count unpatched; the Land King Hall arrow and the second Cademia stack were not looked at; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the crate at (103,58) of Cademia shows its arrows with the count 30',
     dataEdits: [
       { what: 'the Cademia arrow stacks', resid: 0x8108, fn: (b) => {
@@ -799,7 +812,7 @@ const DATA_FIXES = [
   // are tile 0, so the party never stands beside it to tie a rope, and it is
   // freed with the rest. It was not looked at in the game, so the fix reads
   // "in part".
-  { id: 'castoffs', group: 'hidden', stage: 'community', title: 'Fifteen things left outside the walls of Land King Hall and the Underground are now gone, instead of standing where nobody can go',
+  { id: 'castoffs', newGame: [3, 9], group: 'hidden', stage: 'community', title: 'Fifteen things left outside the walls of Land King Hall and the Underground are now gone, instead of standing where nobody can go',
     played: 'in part. In the fork on 68K, 13 October 2026, alone and on “All Fixes”, with the hero on the void beside each group of the Underground, the pedestal, armor and spear at (34,57) and the standing stones, force walls and pedestal of the north-west corner are drawn unpatched and gone with the fix. In the fork on PowerPC with the fix alone, a new game, saved, has Land King Hall’s dresser and crystal ball as free records, against both on the floor unpatched. Nobody looked at Land King Hall on “All Fixes”, nor at any of it on Mac OS, nor at the rock outcropping at (39,96), which joined the fix on 28 October 2026',
     dataEdits: [
       { what: 'Land King Hall’s castoffs', resid: 0x8103, fn: (b) => {
@@ -821,7 +834,7 @@ const DATA_FIXES = [
     ] },
   // Sacas's kesh on Eudoxus (0x8104): the five vials in the Abandoned
   // Farmhouse coffer get Data1 2, the value his line waits for.
-  { id: 'eudoxus-kesh', group: 'quests', stage: 'community', title: 'Now the hero can tell Sacas of the kesh on Eudoxus, instead of the vials never counting',
+  { id: 'eudoxus-kesh', newGame: [4], group: 'quests', stage: 'community', title: 'Now the hero can tell Sacas of the kesh on Eudoxus, instead of the vials never counting',
     played: 'fork, 68K, 10 October 2026, alone: a vial as it is in the file (Data1 2, against 0 unpatched) put on the floor by an edit and looked at; the save has quest value 13 set, against unset unpatched. Sacas’s line was not played, nor the vial taken from Eudoxus’s coffer; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the Abandoned Farmhouse’s five vials are loaded with Data1 2, against 0 unpatched. Read from a save copied out of the machine. The same day, a save staged with quest value 1 at 1 and the clock a moment before the hour, which is what posts Eudoxus outside the farmhouse door: killed, his corpse and the coffer in it opened and a vial looked at, the save has quest value 13 set; then, in that save with the hero put beside Sacas and the prisoner’s flags set, Sacas’s “yes” ends in “I found some on the band leader himself.” The same saves and steps with no patch installed: the look leaves quest value 13 unset, and Sacas stops at “this might be an important clue.”',
     dataEdits: [
       { what: 'Eudoxus’s kesh', resid: 0x8104, fn: (b) => {
@@ -838,7 +851,7 @@ const DATA_FIXES = [
   // the four kilts into record 673, taking it for the dresser: they came out
   // of the tunic and into the cape, as far from reach as before, which
   // showed when the fix was first played.
-  { id: 'kilts', group: 'items', stage: 'community', title: 'The tunics and kilts in a Kosha dresser are now in the dresser, instead of inside a cape and a tunic',
+  { id: 'kilts', newGame: [13], group: 'items', stage: 'community', title: 'The tunics and kilts in a Kosha dresser are now in the dresser, instead of inside a cape and a tunic',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the dresser at (48,17) of Kosha, opened, contains a cape, three tunics and four kilts, against the cape alone unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the dresser at (48,17) of Kosha contains a cape, three tunics and four kilts',
     dataEdits: [
       { what: 'the tunics and kilts', resid: 0x810D, fn: (b) => {
@@ -921,7 +934,7 @@ const DATA_FIXES = [
   // Data1 is 0; the camp's sign, record 14, has Data1 0 and Data2 15, and
   // entry 15 is "Iron Mines". It is the only sign of the 27 with anything in
   // Data2; the number moves to Data1.
-  { id: 'mining-camp-sign', group: 'world', stage: 'community', title: 'The hero can now read the Mining Camp\u2019s sign, instead of it showing nothing',
+  { id: 'mining-camp-sign', newGame: [24], group: 'world', stage: 'community', title: 'The hero can now read the Mining Camp\u2019s sign, instead of it showing nothing',
     played: 'fork, 28 September 2026: the sign reads Iron Mines; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the sign reads Iron Mines',
     dataEdits: [
       { what: 'the Mining Camp’s sign', resid: 0x8118, fn: (b) => {
@@ -1885,7 +1898,7 @@ const DATA_FIXES = [
   // nine unlit torches not at 0, so it burned down in the crate, and was
   // spent or whole by how long the test had run. It is given 0, as the
   // others have.
-  { id: 'omens-torch', group: 'items', stage: 'found', title: 'The torch in the crate at the end of Omen’s Test is no longer spent before the hero finds it',
+  { id: 'omens-torch', newGame: [40], group: 'items', stage: 'found', title: 'The torch in the crate at the end of Omen’s Test is no longer spent before the hero finds it',
     played: 'in part: fork, 68K, 22 October 2026, the behaviour in a save from Omen’s Test: with the torch’s Data1 3, as shipped, 110 passed turns leave it saved spent, aspect 2, still unlit in its crate; with Data1 0 set by an edit, saved whole. A save made inside the test already has the zone’s list, so the patched file changes the torch only for a new game, which was not played. Not played on Mac OS',
     dataEdits: [
       { what: 'the torch in Omen’s crate', resid: 0x8128, fn: (b) => {
@@ -2098,9 +2111,18 @@ const DATA_FIXES = [
   // another give its holder's square, so a corpse carried in a pack raises
   // its person beside whoever carries it. 3. A person who can join the party
   // -- the six JoinParty is ever called for: Hector 6, Meleager 34, Ariadne
-  // 53, Timon 74, Aethon 97, Dryas 98 -- and whose behaviour when they died
-  // was a party one, 1 to 13, is put back in it with JoinParty, whose
-  // RebuildParty hatches them immediately. Death does not touch the behaviour
+  // 53, Timon 74, Aethon 97, Dryas 98 -- and who was in the party when they
+  // died is put back in it with JoinParty, whose RebuildParty hatches them
+  // immediately. Die clears the party bit (byte 8, 0x40) before it makes
+  // the corpse, so the program fix party-at-death writes the corpse's Data2,
+  // which Die otherwise leaves 0: 2 for a character in the party, 1 for a
+  // character outside it. The test reads that Data2, and with Data2 0, a
+  // corpse made without that program fix, it reads the behavior at death
+  // instead, 1 to 13 counting as a party one. The behavior test is wrong
+  // for a joiner killed in a fight outside the party. The hero's attacks
+  // set Aethon's to 8, and the amulet with this fix took him into a party
+  // he had never been in (the workbench's log, 3 November 2026). Death does
+  // not touch the behavior
   // byte (neither Die nor CharEntry::DeathRites writes it), and with no
   // creature on the map the `behavior` field reads it straight from the
   // record. The party writes 1 (following) and 2 (leading) when it rebuilds,
@@ -2148,8 +2170,8 @@ const DATA_FIXES = [
           return out;
       } },
     ] },
-  { id: 'resurrection', group: 'design', stage: 'apart', title: 'Resurrection and the Land King Amulet now revive the character with their containers’ contents in place and their party membership, instead of taking everything out of their containers and removing them from the party',
-    played: 'Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie over “All Fixes”. Hector, dead while in the party (staged by an edit), raised from his corpse beside the hero, is in the party again and stands beside the hero, against saved three squares off and out of the party unpatched. The hero was given Casting 15 by an edit, without which the cast failed about ten times in eleven. Nobody looked at his belongings. A dagger put inside his corpse is his after the raising, patched and unpatched alike. Fork, PowerPC, 3 November 2026, the Land King Amulet with this fix alone. Aethon, not in the party, killed by the hero and raised from his body, stands on his body’s square with his inventory, as unpatched. He joins the party, since the hero’s attacks had set his behavior to 8, a party one by this fix’s test',
+  { id: 'resurrection', group: 'design', stage: 'apart', title: 'Resurrection and the Land King Amulet now revive the character with party membership intact and with the same nesting of items inside containers in their inventory, instead of taking everything out of the containers in their inventory and removing them from the party',
+    played: 'Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie over “All Fixes”. Hector, dead while in the party (staged by an edit), raised from his corpse beside the hero, is in the party again and stands beside the hero, against saved three squares off and out of the party unpatched. The hero was given Casting 15 by an edit, without which the cast failed about ten times in eleven. Nobody looked at his belongings. A dagger put inside his corpse is his after the raising, patched and unpatched alike. Fork, PowerPC, 3 November 2026, the Land King Amulet with this fix. Aethon, not in the party, killed by the hero and raised from his body, stands on his body’s square with his inventory, as unpatched. With the program fix party-at-death he stays outside the party. With the stock program his body has Data2 0, the fix reads his behavior instead, and the hero’s attacks had set it to 8, so he joins the party (played before the Data2 test, with the behavior test alone). Aethon in the party, poisoned to death, is raised into the party with the stock program and with party-at-death, alone and with every fix',
     // Its offsets are the shipped file's; nobody-corpse, an earlier stage,
     // inserts before them in both scripts, so the plan measures where the
     // corpse's things are walked in each and moves every offset by the
@@ -2185,7 +2207,7 @@ const DATA_FIXES = [
   // set. Every release from 1.0.1 is the same. THE CHANGE: the one bit, set.
   // A saved game has a separate character table, so this reaches new games
   // only.
-  { id: 'peirithous', group: 'design', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is now alive in a new game, instead of dead',
+  { id: 'peirithous', newGame: true, group: 'design', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is now alive in a new game, instead of dead',
     played: 'fork, 10 October 2026, alone: a new game on the PowerPC slice saves character 96 alive in Odemia at (55,40), against dead at (0,0) unpatched; that record put into a saved Odemia by an edit and placed, on the 68K slice, he stands at his post and answers "I am called Peirithous." and "I am the majordomo of Judge Sacas.". He was not met in the new game itself; Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie: a new game saves him alive in Odemia at (55,40). Read from a save copied out of the machine; he was not met',
     dataEdits: [
       { what: 'Peirithous alive', resid: 0xF009, fn: (b) => {
@@ -2229,7 +2251,7 @@ const DATA_FIXES = [
   //    the one thing of type 0 a player could Look at. The table is four
   //    bytes shorter; this comes after hydra-name, whose place it finds by
   //    offset, in the stage order.
-  { id: 'nobody-speakers', group: 'talk', stage: 'apart', title: 'The Abydos ghost, the vision, the wishing fountain, the riddle switch and Omen are no longer called \u201cNothing\u201d when they speak',
+  { id: 'nobody-speakers', newGame: true, group: 'talk', stage: 'apart', title: 'The Abydos ghost, the vision, the wishing fountain, the riddle switch and Omen are no longer called \u201cNothing\u201d when they speak',
     dataEdits: [
       { what: 'speakers 187, 188, 189 and 191 known by name', resid: 0xF009, fn: (b) => {
           for (const n of [187, 188, 189, 191]) {
@@ -2579,7 +2601,7 @@ const DATA_FIXES = [
   // 0xD06 for the party). Both are skipped when the attacker is the hero, and
   // 0xD07 ignores signals 320 and 321 altogether, which is how a companion's
   // cry at a theft sets the guards on the hero.
-  { id: 'love-bellerophon', group: 'mods', stage: 'mods', name: 'Everybody loves Bellerophon',
+  { id: 'love-bellerophon', newGame: true, group: 'mods', stage: 'mods', name: 'Everybody loves Bellerophon',
     played: 'in part, fork, 68K, 31 October 2026, Hector attacked twice in Land King Hall and the turns passed, the hero losing 69 of 255 health to him on the shipped file and none with the fix, and a skeleton on behavior 8 two squares off hit a hero of alignment 2 and left a hero of alignment 0 alone (a save edited by hand, with the new game’s hero at 0 in the saved game). The guards’ answer to a theft and the three area spells are unplayed',
     title: 'Nobody now turns on the hero whatever the hero does, instead of creatures hunting the hero and people fighting back or calling the guards (a new game)',
     plan: (s) => ({ edits: [
@@ -2630,7 +2652,7 @@ const DATA_FIXES = [
   // The Halloween mod, at the maintainer's request of 28 to 31 October 2026
   // and put here on the 31st. js/delv-halloween.js has every edit and why.
   // Its conversation colors are the program's change 'halloween-colors'.
-  { id: 'halloween', group: 'mods', stage: 'mods', name: 'Halloween',
+  { id: 'halloween', newGame: true, group: 'mods', stage: 'mods', name: 'Halloween',
     played: 'in part, SheepShaver, Mac OS 8.5, 31 October 2026, the same patched file, byte for byte, installed through Magpie. A new game shows the one slide, skeletons with skull portraits, the rattling opening scene, Magpie’s cracked face and his heap of bones, and the gray windows over the spiderwebs. Nobody has judged the waltz by ear in the game, and the rest of the game is unplayed with character 206 alive',
     title: 'Every person is a skeleton with a skull portrait, Alaric and Magpie rattle through the opening scene, Land King Hall plays a spooky waltz, and the windows are gray over a desktop of spiderwebs',
     plan: (s, ctx) => halloweenPlan(s, ctx) },
