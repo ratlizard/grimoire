@@ -833,7 +833,7 @@ const CHEAT_KEY_WORDS = {
   0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with the hero’s position, prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then ' + x.via('GoToLocation', 'moves the hero there') + ', anywhere in the game.'],
   0xEF: ['Take teleporter', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ', then ' + x.via('TeleportTo', 'sends the hero') + ' where that teleporter goes.'],
   0xA7: ['Create a prop', x => 'Prompts for ' + x.promptWords() + ', then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
-    'The number is the type plus 1,024 times the aspect: 0x0064 is a spear, and 0x0864 a spear at aspect 2, which has the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
+    'The number is type + 1,024 × aspect. So 0x0064 is a spear, and 0x0864 a spear at aspect 2, which has the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
   0xB9: ['What prop is this?', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ' and prints the record: class, state, position, Data1 and Data2.' +
     (x.fallsInto ? ' Then, because of a missing jump, it carries on into ' + x.fallsInto + '.' : '')],
   0xC0: ['Where am I?', x => 'Prints the hero’s x and y as ' + x.q(0) + '.'],
@@ -1202,20 +1202,6 @@ function renderCheatsSheet() {
       actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li></ul></div>';
   }
 
-  const sprites = cheatSpriteClasses();
-  if (sprites.length) {
-    h += '<div class="mechSec"><h4 class="cheatH4">Another Body for the Hero</h4>' +
-      '<div class="cheatNote">Pandora’s Box, a program that edits another program’s memory while it runs, can find ' +
-      'the number <b>32</b>, the hero’s sprite, in the running game and write another number over it. ' +
-      'The Saved Game page does the same with the <b>sprite class</b> field. ' +
-      'These are the ' + sprites.length + ' sprites someone in the game uses. ' +
-      actionChip('Saved Game', "showCategory('SAVEGAME')") + '</div>' +
-      '<div class="cheatSprites">' + sprites.map(s =>
-        '<span class="cheatSprite' + (s.kind === 'monster' ? ' isMonster' : '') + '"><b>' + s.pt +
-        '</b> ' + svEsc(s.name) + '</span>').join('') +
-      '</div></div>';
-  }
-
   h += '<div class="mechSec"><h4 class="cheatH4">Cheats That Need No Cheat Mode</h4>' +
     '<div class="cheatNote">Changes this page can make to a file the game will open.' +
     '</div><ul class="ruleList">' +
@@ -1289,7 +1275,7 @@ function savedGameParts() {
   const hero = loadCharacterTable()[1];
   if (hero && hero.zone) {
     add(0x8100 | hero.zone, 'the props of the zone the player stands in, from record 256 up (SaveLevelProps)');
-    add(0x8200 | hero.zone, 'what the player has seen of that zone, one switch for each square: width ÷ 8, rounded up, times the height, in bytes (SaveLevelProps)');
+    add(0x8200 | hero.zone, 'what the player has seen of that zone, one switch for each square, in (width ÷ 8, rounded up) × height bytes (SaveLevelProps)');
   }
   add(0xF306, 'the first 256 prop records, the characters as they stand on that zone (SaveLevelProps)');
   add(0x8800, 'the player’s portrait, which the game writes when the player makes the character (CreatePlayer)');

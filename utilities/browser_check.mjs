@@ -439,6 +439,9 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     // Mechanics, at Combat open: the rules set as equations (mechEq, 2 November
     // 2026), whose long lines must wrap inside the phone's width.
     ['mechCombat', "showCategory('MECHANICS'); const d = document.getElementById('mech-combat'); d.open = true; d.scrollIntoView()"],
+    // Sleeping, whose caption and bonus set a division as a stacked fraction
+    // (mechFrac), which must stay inside the phone's width.
+    ['mechSleep', "showCategory('MECHANICS'); const d = document.getElementById('mech-sleep'); d.open = true; d.scrollIntoView()"],
     ['skills', "showCategory('SKILLS')"],
     // Data > Patches, at the scenario in Spanish.
     ['spanish', "showCategory('PATCHES'); const d = document.getElementById('spanishMaker').closest('details'); if (d) d.open = true; document.getElementById('spanishMaker').scrollIntoView()"],

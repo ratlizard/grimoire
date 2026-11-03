@@ -1165,7 +1165,7 @@ function effectSummary(entry) {
     else if (/sys StatusEffect/.test(l)) {
       const fnm = dvmFlagNameOfLine(lines[i + 2]);
       const c = /byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)\s+sys Random\s+byte (0x[0-9A-F]+)\s+byte (0x[0-9A-F]+)/i.exec(lines.slice(i + 3, i + 9).join(' '));
-      out.push({ text: (fnm || 'a status') + (c ? ' for ' + parseInt(c[1]) + ' plus ' + parseInt(c[2]) + ' times ' + rollWords([parseInt(c[3]), parseInt(c[4])]) : ''), src: at(i) });
+      out.push({ text: (fnm || 'a status') + (c ? ' for ' + parseInt(c[1]) + ' + ' + parseInt(c[2]) + ' × (' + rollWords([parseInt(c[3]), parseInt(c[4])]) + ')' : ''), src: at(i) });
     }
     else if (/sys SpecialView/.test(l)) { const m = /byte (0x[0-9A-F]+)/i.exec(next); out.push({ text: 'a special view' + (m ? ' (' + parseInt(m[1]) + ')' : ''), src: at(i) }); }
   }

@@ -316,7 +316,7 @@ if (take()) try {
   // over the listing, so each is required here, and the two throw figures
   // must come off the spear's class rather than a typed table.
   else if (!(function () { const ar = ctx.attackRules(); return ar && ar.squared && ar.lessOne && ar.reach && ar.range && ar.launcher && ar.meleeFirst && ar.beyondAdjacent && ar.flies && ar.lodges && ar.drops && ar.bodyRoll && ar.reflexRoll && ar.scale && ar.scale.sub === 12 && ar.scale.div === 4 && ar.bodyAddVal && ar.bodyAddVal.v === 1 && ar.ammoSpent; })()) fail('mechanics', 'the attack routine was not read: ' + JSON.stringify(ctx.attackRules()));
-  else if (!/knight’s move/.test(html) || !/hits or meets a parry/.test(html) || !/\(body − (?:<button[^>]*>)?12(?:<\/button>)?\) ÷ (?:<button[^>]*>)?4(?:<\/button>)?/.test(html) || !/uses up one piece of ammunition per shot/.test(html)) fail('mechanics', 'the attack rules are not on the sheet');
+  else if (!/knight’s move/.test(html) || !/hits or meets a parry/.test(html) || !/<span class="mechFrac"><span>body − (?:<button[^>]*>)?12(?:<\/button>)?<\/span><span>(?:<button[^>]*>)?4(?:<\/button>)?<\/span><\/span>/.test(html) || !/uses up one piece of ammunition per shot/.test(html)) fail('mechanics', 'the attack rules are not on the sheet');
   else if (!ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2 && r.thrownDamage === 10 && r.thrownRange === 4) || !ctx.gearTable().some(r => r.name === 'mystic spear' && r.reach === 1 && r.thrownDamage === 25 && r.thrownRange === 8) || !ctx.gearTable().some(r => r.name === 'sword' && r.thrownDamage === null)) fail('mechanics', 'the throw figures were not read off the spear classes');
   else if (ctx.spellRules().spells.length < 35 || !ctx.spellRules().spells.some(x => /Fireball/.test(x.name) && x.level === 5 && x.cost === 20) || !(ctx.spellRules().rule && ctx.spellRules().rule.failure)) fail('mechanics', 'the spells were not read: ' + ctx.spellRules().spells.length);
   else if ((function () { const fx = ctx.spellEffects(); const sp = ctx.spellRules().spells; const by = n => fx.get((sp.find(x => x.name === n) || {}).resid); const fb = by('Fireball'), ds = by('Death Strike'), lh = by('Lesser Healing'), tr = by('Tremor'); return !(fb && fb.damage[0] && fb.damage[0].amount.base === 25 && fb.damage[0].amount.rolls[0][1] === 10 && fb.damage[0].type === 8 && /target square/.test(fb.damage[0].character)) || !(ds && ds.damage[0].amount.base === 200) || !(lh && lh.heals[0] && /health \+ 5 \+ a random number from 1 to 4/.test(lh.heals[0].text)) || !(tr && tr.damage[0].amount.rolls.length === 2 && tr.damage[0].character === 'every enemy'); })()) fail('mechanics', 'the spell effects were misread: ' + JSON.stringify([...ctx.spellEffects()].slice(0, 3)))
@@ -592,7 +592,7 @@ if (take()) try {
   else if (!((ctx.buildScriptTextIndex().find(e => e.resid === 0x1848) || {}).text || '').match(/sys SetState\n\s+[0-9A-F]{4}\s+byte 0x03\n\s+[0-9A-F]{4}\s+byte 0x03\n/) ||
            !/Stentor claimed to have seen Pelagon/.test((ctx.buildScriptTextIndex().find(e => e.resid === 0x1848) || {}).text || ''))
     fail('loose', 'Berossus\u2019s subroutine 0x003A, with SetState 3, 3, is not in his listing');
-  else if (!/Loose Ends/.test(html)) fail('loose', 'the sheet does not state the loose ends');
+  else if (/Loose Ends/.test(html)) fail('loose', 'the Loose Ends section, taken off the sheet on 2 November 2026, is back');
   /* Three kinds added 17 September 2026, each a bug the community or the
      workbench had on record and each read off its line. The flag pins include
      a control: flags 254 and 255 are set only by queueing task 165,
@@ -601,14 +601,12 @@ if (take()) try {
   else if (!le.exactStrikes.some(x => x.slot.v === 18 && x.n.v === 5)) fail('loose', 'the Books of Wisdom line, struck off only when the count is exactly five, was not found');
   else if (!le.flagReadNeverWritten.includes(2)) fail('loose', 'quest flag 2, which Timon tests and nothing sets, was not found');
   else if (le.flagReadNeverWritten.some(k => k === 254 || k === 255)) fail('loose', 'flags 254 and 255 read as never set: the writes through task 165 are not being counted');
-  else if (!/one line shown for two errands/.test(html)) fail('loose', 'line 114, shown by Ake for the Comana errand and by Demodocus for the mine, was not reported');
-  else if (!/a value read from the wrong thing/.test(html)) fail('loose', 'the combat resolver\'s weapon-skill term is not on the loose ends card');
   /* The three "use a thing" task scripts send their method to the raw
      argument past an unused cast. Exactly those three: the reader is kept to
      the task range, and a reader over every script also reports Awaken and
      two default methods, where the argument already is a prop. The join to
      Lock Picking is what ties the row to Aethon. */
-  else if (!ctx.sleepRules() || !ctx.sleepRules().magicGuard || !ctx.sleepRules().magicCap || !/a value read in place of another/.test(html)) fail('loose', 'the sleep helper reading full health for magic, in its guard and its cap, was not found and stated');
+  else if (!ctx.sleepRules() || !ctx.sleepRules().magicGuard || !ctx.sleepRules().magicCap) fail('loose', 'the sleep helper reading full health for magic, in its guard and its cap, was not found');
   /* Character flags tested and never set: exactly the five the reading of
      17 September 2026 found. Two controls ride along. Ascalon's flag 5 is
      set only through the helper 0xC85 he calls, so a reader that lost the
@@ -637,16 +635,13 @@ if (take()) try {
   else if (ctx.askedOfNobody().map(a => a.character + ':' + a.items.length).join() !== '97:15') fail('loose', 'Aethon\'s fifteen unheard Ask About answers were not the one finding: ' + JSON.stringify(ctx.askedOfNobody().map(a => a.character + ':' + a.items.length)));
   else if (ctx.tileReadWithSeenBit().map(t => t.resid.toString(16)).join() !== '1091') fail('loose', 'the fishing pole, the one script that reads the map and never masks the seen bit, was not found alone: ' + JSON.stringify(ctx.tileReadWithSeenBit()));
   else if (ctx.wrongCarryFlags().map(w => w.resid.toString(16)).sort().join() !== '1a28,3042') fail('loose', 'Fetch and the attack routine putting things into a character with flags 9 were not the two found (the shop\'s 24 must not be): ' + JSON.stringify(ctx.wrongCarryFlags()));
-  else if (!/a map tile read with its seen bit/.test(html) || !/a thing given to a character with the wrong flags/.test(html)) fail('loose', 'the seen-bit or carry-flag row is missing from the card');
   /* Awaken opens a conversation and assigns no speaker. With the
      TalkParticipant test taken out the reader finds thirteen sites, so the
      one it finds is the test's doing. */
   else if (ctx.speechWithNoSpeaker().map(c => c.resid.toString(16) + ':' + c.talk).join() !== '1a13:true') fail('loose', 'the conversation with no speaker was not Awaken alone: ' + JSON.stringify(ctx.speechWithNoSpeaker()));
-  else if (!/a conversation with no one to speak/.test(html)) fail('loose', 'the conversation-with-no-speaker row is missing from the card');
   /* Lines replaced before they can be read: the board's Crito, Borus,
      Niobe (two), Ake and bartender lines, and the rest the same walk finds. */
   else if (ctx.linesReplacedAtOnce().map(r => r.resid.toString(16) + '@' + r.at.toString(16)).sort().join() !== '1820@60e,1828@252,1829@375,1829@440,1829@463,182a@13f,182a@190,182a@f5,1857@52,1859@55,1859@9b,1867@251,1878@181,812@12,812@383') fail('loose', 'the lines replaced at once are not the fifteen known: ' + JSON.stringify(ctx.linesReplacedAtOnce().map(r => r.resid.toString(16) + '@' + r.at.toString(16))));
-  else if (!/a line replaced before the player can read it/.test(html)) fail('loose', 'the replaced-line row is missing from the card');
   /* The run-on answers. The reader's first form linked the chain through the
      object's start as well as the jump target, which is already a resource
      offset, and so walked no character's chain; the wishing fountain's four
@@ -656,7 +651,6 @@ if (take()) try {
      prompt, so nothing follows them. */
   else if (ctx.answersThatRunOn().map(r => r.resid.toString(16) + '/' + r.list).sort().join('|') !== '1036/3,thre|1036/coff|1036/pony|1036/tequ|1811/n|1824/n|184e/n|807/atus|808/hist') fail('loose', 'the answers without a return are not the fountain\'s four wishes, Atussa\'s, the mages\' history, and Ennomus\'s, Antenor\'s and Pheres\'s second "n" (no other yes-or-no answer, not Neoptolemus\'s "demo", and not Magpie\'s "baho" or "jhia", may be listed), the reader found ' + JSON.stringify(ctx.answersThatRunOn().map(r => r.resid.toString(16) + '/' + r.list)));
   else if (ctx.leaveNeverLeaves().map(l => l.character).join() !== '97') fail('loose', 'Aethon, who agrees to leave and stays, was not the one companion found: ' + JSON.stringify(ctx.leaveNeverLeaves().map(l => l.character)));
-  else if (!/an answer that runs on/.test(html) || !/a companion who cannot leave the party/.test(html)) fail('loose', 'the run-on answer or the companion who stays is not on the card');
   /* Characters answered about by their own group: without the test that the
      group's answer has their name, Paris (told about Parium) comes in too. */
   else if (ctx.selfToldByGroup().map(t => t.character).join() !== '30,39,50,60,62,79,88,120') fail('loose', 'the characters whose group answers their own name are not Milcom, Eioneus, Philinus, Propontis, Halos, Charax, Helen and Sabinate: ' + JSON.stringify(ctx.selfToldByGroup().map(t => t.character)));
@@ -666,19 +660,8 @@ if (take()) try {
   else if (ctx.containedUnseen().map(u => u.resid.toString(16) + ':' + u.pt.toString(16)).join() !== '1a04:160,1a04:161,1af2:160,1af2:161,1af3:160,1af3:161') fail('loose', 'the searches that pass over contained things are not the three trap skills on poison and blast traps: ' + JSON.stringify(ctx.containedUnseen().map(u => u.resid.toString(16) + ':' + u.pt.toString(16))));
   else if (ctx.refusalOnEveryCheck().map(r => r.pt.toString(16) + ':' + r.message.trim()).join() !== "d2:You can't stuff the carcass!") fail('loose', 'the only container answer that prints is not the carcass\'s: ' + JSON.stringify(ctx.refusalOnEveryCheck()));
   else if (ctx.highlightsUnanswered().map(h => h.resid.toString(16) + '@' + h.at.toString(16) + ':' + h.word + ':' + h.character.length).sort().join() !== '1802@171a:join:1,1820@36c:Hebe:1,1866@ef:Vineyard:1,186d@126e:hear:1,801@424:Magisterium:66,813@19:join:7') fail('loose', 'the highlighted words nobody answers are not the six known: ' + JSON.stringify(ctx.highlightsUnanswered().map(h => h.resid.toString(16) + '@' + h.at.toString(16) + ':' + h.word + ':' + h.character.length)));
-  else if (!/a highlighted word nobody answers/.test(html)) fail('loose', 'the highlighted-word row is missing from the card');
-  else if (ctx.stateNoSaveKeeps().map(w => w.resource.toString(16) + ':' + w.offset.toString(16) + ':' + w.writers.map(x => x.resid.toString(16)).join('/')).join() !== '500:10:1801' || !/a value no saved game stores/.test(html)) fail('loose', 'the word written before the game has a file is not the hero\'s gender alone (the inn room, written in play, is saved), or its row is missing: ' + JSON.stringify(ctx.stateNoSaveKeeps().map(w => [w.resource, w.offset, w.writers.length, w.readers.length])));
-  else if (ctx.deletedAcrossZoneChange().map(d => d.pt.toString(16) + ':' + d.skill.toString(16) + ':' + d.zones.join('/')).join() !== '4b:1a00:3' || !/a delete after the zone has changed/.test(html)) fail('loose', 'the scroll deleting after Directed Nexus has moved the party is not the one found, or its row is missing: ' + JSON.stringify(ctx.deletedAcrossZoneChange()));
-  else if (!/a character’s name answered by their dialogue group/.test(html) || !/a search that passes over what is inside things/.test(html) || !/a line repeated on every check/.test(html)) fail('loose', 'the own-group, contained-search or repeated-line row is missing from the card');
-  else if (!/a light that stays on/.test(html) || !/two people scheduled into one place/.test(html) || !/a name answer that sets no name flag/.test(html) || !/Ask About answers that are never given/.test(html)) fail('loose', 'a fourth-batch row is missing from the card');
-  else if (!/a sprite frame that repeats another pose/.test(html)) fail('loose', 'the repeated sprite frames are not on the card');
-  else if (!/a check that the speaker is alive/.test(html)) fail('loose', 'the self-alive test is not on the card');
-  else if (!/a check of something that is always false/.test(html)) fail('loose', 'the local only ever set false is not on the card');
-  else if (!/an answer hidden by an earlier one/.test(html)) fail('loose', 'the shadowed answers are not on the card');
-  else if (!/a value checked where the flag is meant/.test(html)) fail('loose', 'the value-for-flag slip is not on the card');
-  else if (!/a keyword that needs a space typed first/.test(html)) fail('loose', 'the keywords that need a space are not on the card');
-  else if (!/a Data1 value no item has/.test(html)) fail('loose', 'the kesh vial nobody has is not on the card');
-  else if (!/a character flag checked and never set/.test(html)) fail('loose', 'the character flags tested and never set are not on the card');
+  else if (ctx.stateNoSaveKeeps().map(w => w.resource.toString(16) + ':' + w.offset.toString(16) + ':' + w.writers.map(x => x.resid.toString(16)).join('/')).join() !== '500:10:1801') fail('loose', 'the word written before the game has a file is not the hero\'s gender alone (the inn room, written in play, is saved). Found ' + JSON.stringify(ctx.stateNoSaveKeeps().map(w => [w.resource, w.offset, w.writers.length, w.readers.length])));
+  else if (ctx.deletedAcrossZoneChange().map(d => d.pt.toString(16) + ':' + d.skill.toString(16) + ':' + d.zones.join('/')).join() !== '4b:1a00:3') fail('loose', 'the scroll deleting after Directed Nexus has moved the party is not the one found (' + JSON.stringify(ctx.deletedAcrossZoneChange()) + ')');
   else if (!/killing a townsperson raises karma by/.test(html)) fail('karma', 'the karma section does not say what killing an alignment-0 townsperson does, off the character table');
   else if (le.unusedCast.map(u => u.task).sort((a, b) => a - b).join() !== '78,79,80') fail('loose', 'the use, use-on and use-at tasks were not found as exactly three: ' + JSON.stringify(le.unusedCast.map(u => u.task)));
   else if (!le.unusedCast.find(u => u.task === 79).queuedBy.some(s => s.resid === 0x1AD5)) fail('loose', 'task 79 is not joined to Lock Picking, which queues it for Aethon');

@@ -1302,6 +1302,10 @@ details:not([open]) > summary .mechFrom { display:none; }
 .mechQuote footer { font-style:normal; color:#dcd8cc; font-size:0.6875rem; margin-top:2px; }
 .mechEq { display:block; margin:5px 0; padding:3px 12px; border-left:3px solid rgba(155,136,80,.5); color:#fff; font-size:0.8125rem; line-height:1.5; }
 .mechEq sup { font-size:0.65em; }
+.mechFrac { display:inline-flex; flex-direction:column; vertical-align:middle; text-align:center; margin:2px 0.15em; line-height:1.25; }
+.mechFrac > span { padding:0 0.25em; }
+.mechFrac > span:first-child { border-bottom:1px solid currentColor; }
+.mechTerm { white-space:nowrap; }
 .mechSub { color:#f0ede4; font-size:0.6875rem; letter-spacing:0; margin:8px 0 2px; }
 /* The patches section. The tile pairs are the point of it: a shipped tile and
    the patch's beside it, at 2x so a 32-pixel tile is legible without a zoom
@@ -1916,12 +1920,6 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
 .cheatGlyph { color:#fff; font-size:0.875rem; margin-left:4px; }
 .cheatCode { display:block; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:0.6562rem; color:#7f7760; margin-top:3px; }
 .cheatDoes { font-size:0.75rem; color:#f0ede4; line-height:1.5; margin-top:2px; }
-.cheatSprites { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
-.cheatSprite { font-size:0.7188rem; color:#f0ede4; background:rgba(20,18,14,.55);
-  border:1px solid rgba(155,136,80,.3); border-radius:4px; padding:2px 7px; }
-.cheatSprite b { color:#fff; font-family:ui-monospace,Menlo,Consolas,monospace; }
-.cheatSprite.isMonster { border-color:rgba(190,120,90,.4); }
-.cheatSprite.isMonster b { color:#e0b48c; }
 /* ---- the saved-game sheet -------------------------------------------------
    The head is a portrait beside a sentence, the rest is the fork table's
    look, so this adds five rules rather than a second table style. */

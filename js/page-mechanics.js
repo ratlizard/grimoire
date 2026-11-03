@@ -79,7 +79,14 @@ function mechEq(html) {
 }
 // A random number from 0 to `to`, as an equation term.
 function mechRand(to) {
-  return '(random 0 to ' + to + ')';
+  return '<span class="mechTerm">(random 0 to ' + to + ')</span>';
+}
+// A division in an equation, set as a stacked fraction the way a book prints
+// one (the maintainer, 2 November 2026). A typesetting library would be one
+// more thing fetched from outside the repository, so this is two spans and
+// the .mechFrac rule in index.html.
+function mechFrac(num, den) {
+  return '<span class="mechFrac"><span>' + num + '</span><span>' + den + '</span></span>';
 }
 // Horizontal bars: a label, a track, a figure. `rows` are {label, value,
 // colour, text, html}; the value sets the width and `text` overrides what is
@@ -527,8 +534,8 @@ function mechHungerFigure(belly, clock) {
       { points: pt(ring), color: MECH_INK.cool, name: 'health with Omen’s ring' }
     ],
     marks: empty <= hours ? [{ x: empty, y: 8, label: 'the belly is empty', color: MECH_INK.warm }] : []
-  }), 'At level 6 health rises by 1 every <b>' + mechHealPeriodMinutes(6, clock) + ' minutes</b>, ' + mechHealRate(6, clock) + ' an hour, until nutrition reaches zero. ' +
-    'Omen’s ring adds ' + clock.regenStep + ' more every <b>' + mechPeriodMinutes(clock, clock.poisonIndex) + ' minutes</b>, ' + mechRegenRate(clock) + ' an hour, fed or hungry.');
+  }), 'At level 6, health increases by 1 every <b>' + mechHealPeriodMinutes(6, clock) + ' minutes</b> unless nutrition is zero. ' +
+    'Omen’s ring adds an increase of ' + clock.regenStep + ' every <b>' + mechPeriodMinutes(clock, clock.poisonIndex) + ' minutes</b>, regardless of nutrition.');
 }
 
 // The staircase. A lock's difficulty is divided by twenty before it is used,
@@ -660,7 +667,8 @@ function mechSleepFigure(sl, clock) {
     mechBars(bars, { max: Math.max.apply(null, withRing.map(w => w.value)) }) +
     '<div class="mechSub">With Omen’s ring</div>' +
     mechBars(withRing, { max: Math.max.apply(null, withRing.map(w => w.value)) }),
-    'Asleep, health rises by the usual ' + mechHealRate(level, clock) + ' an hour times <b>1 + quality ÷ ' + div + '</b>.');
+    'Every hour a character is asleep, their health rises by the usual ' + mechHealRate(level, clock) + ' (' + mechBedRate(level, 0, { regenerating: true, div, clock }) + ' with Omen’s ring), multiplied by' +
+    mechEq('1 + ' + mechFrac('q', div)) + 'where q is the quality of the bed.');
 }
 
 // The clock, on one line and logarithmic, because the numbers it deals in
@@ -3975,7 +3983,7 @@ function renderMechanicsSheet(value) {
 
   // ---- combat ----
   const cb = combatRules(), ar = attackRules();
-  const rollFrom = (what) => ar && ar.scale ? mechRand('(' + what + ' − ' + srcNum(ar.scale.subVal) + ') ÷ ' + srcNum(ar.scale.divVal)) : '';
+  const rollFrom = (what) => ar && ar.scale ? mechRand(mechFrac(what + ' − ' + srcNum(ar.scale.subVal), srcNum(ar.scale.divVal))) : '';
   const rollTo = v => v ? srcNum(v, v.v - 1) : '';
   add('combat', 'Combat', null, src('the attack', 0x3042) + src('a blow', 0xE88) + src('a missile', 0xE89) + src('the outcome', 0xE87),
     cb ? 'How a blow lands, misses or meets a parry, and how much damage it does.'
@@ -4035,11 +4043,11 @@ function renderMechanicsSheet(value) {
         oneTable ? typed.map(nm).join(', ') + ' take ' +
           typed[0].types.map((t, i, all) => '<b>' + opWord(t) + '</b> from ' + srcNum(t.mask, carriers(all, i) ? svEsc(carriers(all, i)) : 'type ' + t.mask.v)).join('; ') +
           '. Fire and other damage is unchanged.' : '',
-        door && door.destroy && doors.length ? 'Each locked door has a strength (' + listStrength(doors) + '). A blow above <b>' + srcNum(door.destroy.factor) + ' times the strength</b> destroys it' + q(door.messageDestroyed) + '.' +
+        door && door.destroy && doors.length ? 'Each locked door has a strength (' + listStrength(doors) + '). A blow above <b>' + srcNum(door.destroy.factor) + ' × the strength</b> destroys it' + q(door.messageDestroyed) + '.' +
           (door.opens ? ' Below that, a blow greater than what is left of the strength ' + srcNum(door.opens, 'bashes it open') + q(door.messageOpened) : '') +
           (door.wear && door.step ? ', and one above what is left ÷ ' + srcNum(door.wear) + ' wears it down by ' + srcNum(door.step) + q(door.messageWorn) : '') + '.' +
           (door.magicOnlyDestroyed ? ' The only way past a magically locked door is to destroy it.' : '') + ' A blow opens a closed, unlocked door, and does nothing to an open one.' : '',
-        chest && chest.destroy && chests.length ? 'A chest’s strength: ' + listStrength(chests) + '. Whatever its state, a blow above <b>' + srcNum(chest.destroy.factor) + ' times the strength</b> destroys it' + (chest.spills ? ' and drops what it held' : '') + '.' +
+        chest && chest.destroy && chests.length ? 'A chest’s strength: ' + listStrength(chests) + '. Whatever its state, a blow above <b>' + srcNum(chest.destroy.factor) + ' × the strength</b> destroys it' + (chest.spills ? ' and drops what it held' : '') + '.' +
           (chest.opens ? ' Locked, a blow above what is left ' + srcNum(chest.opens, 'opens it') + q(chest.messageOpened) : '') +
           (chest.wear && chest.step ? ', one above what is left ÷ ' + srcNum(chest.wear) + ' wears it down by ' + srcNum(chest.step) + q(chest.messageWorn) : '') +
           (chest.messageHeld ? ', and a smaller one shows ' + srcQuoteText(0xE4A, chest.messageHeld) + (/[.!?]$/.test(chest.messageHeld) ? '' : '.') : '.') +
@@ -4088,7 +4096,7 @@ function renderMechanicsSheet(value) {
   add('propword', 'Prop Records: Type, Aspect, Data1 and Data2', null, src('the outcome', 0xE87) + (pwEx ? src('Examine', 0x1000 + pwEx.pt) : ''),
     'Everything placed in the world is a prop record: a number for what it is, and two values, Data1 and Data2, whose meaning depends on the kind of thing.',
     [
-      'The number is <b>the type plus 1,024 times the aspect</b>. The create-a-prop cheat prompts for it, then Data1 in decimal, then Data2 in hex.' +
+      'The number is <b>type + 1,024 × aspect</b>. The create-a-prop cheat prompts for it, then Data1 in decimal, then Data2 in hex.' +
         (pwBuild ? ' Any item’s page builds one under Prop record: ' + svLink(pwBuild.name, 'showItemDetail(' + pwBuild.pt + ')') + '.' : ''),
       'Aspect <i>n</i> draws the base tile plus <i>n</i>, and the prop <b>has that tile’s name</b>. ' + mechAspectReaders(),
       mechAspectContrast(),
@@ -4143,7 +4151,7 @@ function renderMechanicsSheet(value) {
           mechEq('threshold = ' + srcNum(xp.rule.base) + ' × 2<sup>level − ' + srcNum(xp.rule.less, xp.rule.less ? xp.rule.less.v : '') + '</sup>') +
           'The thresholds are ' + [2, 3, 4, 5, 6].map(l => mechLevelThreshold(l - 1, xp.rule.base.v).toLocaleString('en-US') + (l === 2 ? ' for level 2' : l < 5 ? ' for ' + l : '')).join(', ') + ', doubling.' : ''),
       xp.rule.healthReflexDiv && xp.rule.healthMul && xp.rule.healthDiv ? 'At each new level the game sets full health and full magic.' +
-        mechEq('full health = body + reflex ÷ ' + srcNum(xp.rule.healthReflexDiv) + ' + level + Defense × ' + srcNum(xp.rule.healthMul) + ' × reflex ÷ ' + srcNum(xp.rule.healthDiv)) +
+        mechEq('full health = body + ' + mechFrac('reflex', srcNum(xp.rule.healthReflexDiv)) + ' + level + ' + mechFrac('Defense × ' + srcNum(xp.rule.healthMul) + ' × reflex', srcNum(xp.rule.healthDiv))) +
         mechEq('full magic = mind + Mana') : '',
       xp.rule.defenseStandIn && xp.rule.manaStandIn ? (function () {
         const d = xp.rule.defenseStandIn, m = xp.rule.manaStandIn;
@@ -4287,7 +4295,7 @@ function renderMechanicsSheet(value) {
         const n = lk.rule.numbers, up = n.addend.v === n.per.v - 1;
         return 'A pick opens the lock when' +
           mechEq('reflex + ' + mechRand(srcNum(n.pickRoll, n.pickRoll.v - 1)) + ' ≥ ' + srcNum(n.base) + ' + ' + mechRand(srcNum(n.lockRoll, n.lockRoll.v - 1)) + ' + ' + srcNum(n.step) + ' × ' +
-            (up ? '(difficulty ÷ ' + srcNum(n.per) + ', rounded up)' : '((difficulty + ' + srcNum(n.addend) + ') ÷ ' + srcNum(n.per) + ')')) +
+            (up ? '(' + mechFrac('difficulty', srcNum(n.per)) + ', rounded up)' : mechFrac('difficulty + ' + srcNum(n.addend), srcNum(n.per)))) +
           (lk.rule.breaks ? 'Otherwise the pick <b>breaks</b>.' : '') +
           (up ? ' So a difficulty of 1 counts as much as a difficulty of ' + n.per.v + '.' : '');
       })() : '',
@@ -4341,7 +4349,7 @@ function renderMechanicsSheet(value) {
     sl ? [
       sl.own !== null ? 'The hero’s bed in Land King Hall has quality <b>' + srcNum(sl.ownVal) + '</b>. An inn’s bed has the quality of the room the hero pays for, and the hero cannot sleep in it before paying.' : '',
       sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (perHour && sl.quarterVal.v * sl.hoursVal.v === perHour ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + (sl.owner ? ', and if the bed’s owner turns up they throw the hero out (' + srcQuote(sl.owner) + ')' : '') + '.' : '',
-      sl.half ? 'Above quality 0' + (sl.soundly ? ' (' + srcQuote(sl.soundly) + ')' : '') + ' the party also gains a bonus in health and magic.' + mechEq('bonus = amount healed overnight × quality ÷ ' + srcNum(sl.div)) + (sl.own !== null ? '<b>Quality ' + sl.own + ' is ' + (1 + sl.own / sl.div.v) + ' times the game’s rate.</b>' : '') : '',
+      sl.half ? 'Above quality 0' + (sl.soundly ? ' (' + srcQuote(sl.soundly) + ')' : '') + ' the party also gains a bonus in health and magic.' + mechEq('bonus = ' + mechFrac('amount healed overnight × quality', srcNum(sl.div))) + (sl.own !== null ? '<b>The hero’s bed, quality ' + sl.own + ', multiplies the usual healing by ' + (1 + sl.own / sl.div.v) + '.</b>' : '') : '',
       sl.toss ? 'Quality 0 is ' + srcQuote(sl.toss) + ', the usual rate only.' : '',
       sl.magicGuard || sl.magicCap ? 'Because of a bug the game caps the magic bonus at ' + srcNum(sl.magicGuard || sl.magicCap, 'full health') + ', so a character can wake with more magic than their maximum.' : ''
     ].filter(Boolean) : [],
@@ -4373,7 +4381,7 @@ function renderMechanicsSheet(value) {
         'Things happen every ' + clk.table.v.map((u, i) => srcNum(clk.table, u) + ' <span class="inspDim">(' + exeClockWords(u, perHour) + ')</span>').join(', ') + '.',
         clk.poisonBit && clk.regenBit && clk.deathAt && clk.statusWord ? 'Every ' + period(model.poisonIndex).replace(/^(<button[^>]*>)(an |a )?/, '$1') + ', a <b>poisoned</b> character' + flagWords(clk.poisonBit) + ' loses ' + srcNum(clk.poisonStep) + ' health, and <b>dies</b> once health is ' + srcNum(clk.deathAt) + ' or less. A character with <b>regeneration</b>' + flagWords(clk.regenBit) + ' gains ' + srcNum(clk.regenStep) + '. One with both receives ' + srcNum(clk.coinToss, 'one or the other at random') + '.' : '',
         clk.lighting && clk.schedules && clk.quarterShift ? 'The light changes every ' + srcNum(clk.lighting, exeClockWords(1 << clk.quarterShift.v, perHour)) + ', and the schedules every ' + srcNum(clk.schedules, 'hour') + '.' : '',
-        sp.rule && sp.rule.timing ? 'A spell takes ' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times its level in clock units. Monsters move while that time passes.' : ''
+        sp.rule && sp.rule.timing ? 'A spell takes ' + srcNum(sp.rule.timeBase) + ' + ' + srcNum(sp.rule.timeMult) + ' × level clock units. Monsters move while that time passes.' : ''
       ].filter(Boolean) : [],
       (costs.length ? '<div class="mechSub">The time each command takes</div>' +
         table(['#units', 'spent by'], costs.slice().sort((a, b) => (a.cost ? a.cost.v : 1e9) - (b.cost ? b.cost.v : 1e9)).map(c => '<tr>' + (c.cost ? srcCell(c.cost) : srcCell(c.call, 'varies')) + '<td>' + svLink(nameHalves(c.routine).method, 'jumpToExeAt(' + c.call.exe + ')') + ' <span class="inspDim">' + svEsc(nameHalves(c.routine).cls) + '</span></td></tr>')) : '') +
@@ -4748,205 +4756,9 @@ function renderMechanicsSheet(value) {
       '<span class="partsTitle">On the map</span>' + svLink('World', "showCategory('WORLD')"));
   }
 
-  // The game's writing is on the Writings sheet now
-  // (libraryMechSection in js/delv-sheets.js), above the arrays it
-  // tabulates. Loose ends still reads both of these; both memoise.
-  const libAll = libraryRules();
-  const todoAll = todoRules();
-
-  // ---- loose ends ----
-  {
-    const le = looseEnds();
-    const td2 = todoAll;
-    const lib2 = libAll;
-    const slots = new Map();
-    for (const a of td2.adds) { if (!slots.has(a.slot.v)) slots.set(a.slot.v, { adds: [], dones: [] }); slots.get(a.slot.v).adds.push(a); }
-    for (const d of td2.dones) { if (!slots.has(d.slot.v)) slots.set(d.slot.v, { adds: [], dones: [] }); slots.get(d.slot.v).dones.push(d); }
-    /* "Negotiate Wine Contract" stays on the list by design: the
-       maintainer, 28 October 2026, "it's official that nothing strikes off
-       the wine contract, this is not an error by the developer". Matched
-       by the line's words, which are the game's. The To Do List section
-       above still counts it among the lines nothing strikes off. */
-    const BY_DESIGN = new Set(['Negotiate Wine Contract']);
-    const never = [...slots.keys()].filter(s => slots.get(s).adds.length && !slots.get(s).dones.length &&
-      !(td2.lines && BY_DESIGN.has(td2.lines.get(s)))).sort((a, b) => a - b);
-    const wrongLine = td2.adds.filter(a => !a.state && a.line.v !== a.slot.v);
-    const rows = [];
-    /* Every row shows where it came from the same way, through one cell.
-       Half of them used to state a plain name instead, because the reader
-       kept only the resource for those and srcNum needs an instruction to
-       ring; so the sheet looked as though grey rows were a lesser kind of
-       finding, when the difference was only in what the reader had bothered
-       to record. looseEnds records a site for everything now, and nothing
-       here depends on which row it is building: the name falls back from the
-       site's name, to the resource's label, to its hex id. */
-    /* One chip per SCRIPT, not per place. A script that writes the same value
-       three times printed its name three times, which is noise rather
-       than provenance (the maintainer, 12 September 2026): the reader wants
-       to know which script, and the count of places is a detail for the first
-       link. */
-    const where = sites => {
-      const byRes = new Map();
-      for (const s of (sites || [])) {
-        if (!byRes.has(s.resid)) byRes.set(s.resid, []);
-        byRes.get(s.resid).push(s);
-      }
-      return [...byRes.values()].map(list => {
-        const s = list[0];
-        const name = s.name || labelFor(s.resid) || propWordHex(s.resid);
-        return srcNum(s, name) + (list.length > 1 ? ' <span class="mechSub">in ' + list.length + ' places</span>' : '');
-      }).join(', ');
-    };
-    const sitesOf = m => m ? [...m.values()] : [];
-    for (const s of never) rows.push('<tr><td>a To Do line nothing strikes off</td><td>' +
-      (td2.lines && td2.lines.get(s) ? svEsc(td2.lines.get(s)) : 'slot ' + s) + '</td><td>' +
-      where(slots.get(s).adds.map(a => a.slot)) + '</td></tr>');
-    for (const u of le.unreachable) rows.push('<tr><td>a test nothing can satisfy</td><td>quest value ' + u.state +
-      ' is only ever set to ' + (u.assigned.join(', ') || 'nothing') + ', and this tests whether it is ' + u.testedValue.v + '</td><td>' +
-      where([u.testedValue]) + '</td></tr>');
-    for (const a of wrongLine) rows.push('<tr><td>a line that shows another line’s words</td><td>slot ' + a.slot.v +
-      (td2.lines && td2.lines.get(a.slot.v) ? ' (' + svEsc(td2.lines.get(a.slot.v)) + ')' : '') + ' shows line ' + a.line.v +
-      (td2.lines && td2.lines.get(a.line.v) ? ' (' + svEsc(td2.lines.get(a.line.v)) + ')' : '') + '</td><td>' +
-      where([a.line]) + '</td></tr>');
-    /* Say what the finding MEANS, not only what it is. "quest value 9" is a
-       fact about the file; that setting it changes nothing is the finding,
-       and it is what a reader is here for. */
-    for (const k of le.writtenNeverRead) rows.push('<tr><td>written and never read</td><td>Quest value ' + k +
-      ': a script sets it, but no script ever checks it, so setting it changes nothing.</td><td>' +
-      where(sitesOf(le.writes.get(k))) + '</td></tr>');
-    for (const k of le.readNeverWritten) rows.push('<tr><td>read and never written</td><td>Quest value ' + k +
-      ': a script checks it, but no script ever sets it, so the check only ever finds 0.</td><td>' +
-      where(sitesOf(le.reads.get(k))) + '</td></tr>');
-    /* Flags, which the reader has collected since the card was new and the
-       card never showed. Only the one direction: a flag no script sets,
-       whether by SetStateFlag or by queueing task 165, is a test that never
-       passes, since nothing else in the application writes the array. The
-       other direction is not shown, because the application READS flags
-       itself (EvalCondition, for the conditional eggs), so a flag
-       no script tests is not thereby unread. */
-    for (const k of le.flagReadNeverWritten) rows.push('<tr><td>read and never written</td><td>Quest flag ' + k +
-      ': a script checks it, but no script sets it, directly or through a queued task, so the check never passes.</td><td>' +
-      where(sitesOf(le.flagReads.get(k))) + '</td></tr>');
-    const lineText = n => (td2.lines && td2.lines.get(n) ? ' (' + svEsc(td2.lines.get(n)) + ')' : '');
-    // A slot by its line's words, for the lists that the counts above the
-    // table open.
-    const slotWords = n => td2.lines && td2.lines.get(n) ? '“' + td2.lines.get(n) + '”' : 'slot ' + n;
-    for (const x of le.exactStrikes) rows.push('<tr><td>a line struck off only at an exact count</td><td>slot ' + x.slot.v + lineText(x.slot.v) +
-      ' comes off the list only when quest value ' + x.state + ' is exactly ' + srcNum(x.n) +
-      ', but the scripts count that value upward, so a visit that brings it past ' + x.n.v + ' never strikes the line.</td><td>' +
-      where([x.slot]) + '</td></tr>');
-    /* One line shown for two different errands. A line that does not belong
-       to its slot is usually the informant's wording of that slot's errand, and
-       that is deliberate; but a line's words can only describe one errand,
-       so the same line under two slots is wrong under one of them. That is
-       Ake: she sends the hero to Halos about House Comana, slot 10, and
-       shows line 114, the wording Demodocus shows for the iron mine. */
-    const bySharedLine = new Map();
-    for (const a of wrongLine) {
-      if (!bySharedLine.has(a.line.v)) bySharedLine.set(a.line.v, []);
-      bySharedLine.get(a.line.v).push(a);
-    }
-    const twoErrands = [...bySharedLine.values()].filter(list => new Set(list.map(a => a.slot.v)).size > 1);
-    // The resolver's weapon-skill term, read in combatRules (`cb` above).
-    const skillOff = cb && cb.skillOffLoop;
-    if (skillOff) rows.push('<tr><td>a value read from the wrong thing</td><td>The script that settles a blow adds the weapon’s skill to the margin and to the maximum damage, but reads it from a value that its check of the shields leaves at 0 instead of from the weapon, so Sword, Axe and Mace add nothing to an armed blow.</td><td>' +
-      where(skillOff) + '</td></tr>');
-    // Four readers of 17 September 2026's fourth batch (page-rules.js).
-    for (const d of goesDarkStillLit().filter(x => x.light > 0)) rows.push('<tr><td>a light that stays on</td><td>The ' + svEsc(propDisplayName(d.pt) || ('prop ' + d.pt)) +
-      ' shows “' + svEsc(d.message.trim()) + '” and moves to aspect ' + srcNum(d.aspect) + ', whose tile still gives light of level ' + d.light + ', so it still gives light.</td><td>' +
-      svLink('tile 0x' + d.tile.toString(16).toUpperCase(), 'showPropTypeDetail(' + d.pt + ')') + '</td></tr>');
-    for (const c of scheduleCollisions()) rows.push('<tr><td>two people scheduled into one place</td><td>' + (chipOf(c.a) || svEsc(characterName(c.a))) + ' and ' + (chipOf(c.b) || svEsc(characterName(c.b))) +
-      ' are both scheduled to (' + c.x + ', ' + c.y + ') on map ' + c.level + ' in the same mode from ' + c.from + ':00 to ' + c.to + ':00.</td><td>' + svLink('the schedules', "showCategory('SCHEDULES')") + '</td></tr>');
-    for (const n of nameNeverKept()) rows.push('<tr><td>a name answer that sets no name flag</td><td>' + (chipOf(n.character) || svEsc(characterName(n.character))) +
-      ' answers “name” but never sets their character flag 7, which every other name topic sets, so they are still called by what they look like.</td><td>' + where([n]) + '</td></tr>');
-    for (const a of askedOfNobody()) rows.push('<tr><td>Ask About answers that are never given</td><td>' + a.items.length + ' item classes write an Ask About answer for ' + (chipOf(a.character) || svEsc(characterName(a.character))) +
-      ', whose script never passes a question to the shared Ask About script, so none of these answers is ever given.</td><td>' + a.items.slice(0, 6).map(pt => svLink(svEsc(propDisplayName(pt) || ('prop ' + pt)), 'showItemDetail(' + pt + ')')).join(', ') + (a.items.length > 6 ? ' and ' + countLink((a.items.length - 6) + ' more', 'The ' + a.items.length + ' item classes with an answer for ' + characterName(a.character), a.items.map(pt => svLink(svEsc(propDisplayName(pt) || ('prop ' + pt)), 'showItemDetail(' + pt + ')'))) : '') + '</td></tr>');
-    for (const r of answersThatRunOn()) rows.push('<tr><td>an answer that runs on</td><td>The answer to “' + svEsc(r.list) + '” has no instruction to stop after it, so ' +
-      (r.then ? 'the answer to “' + svEsc(r.then.list) + '” further on follows for the same reply straight away, and replaces the first answer before the player can read it.'
-        : 'the conversation goes on checking the next keywords, and when none matches, the character’s “don’t understand” line follows it.') + '</td><td>' + where([r]) + '</td></tr>');
-    // The last part of a spoken line, after its last click, as the balloon shows it.
-    const lastPart = t => svEsc(t.split('*').filter(x => x.trim()).pop() || t);
-    for (const r of linesReplacedAtOnce()) rows.push('<tr><td>a line replaced before the player can read it</td><td>' +
-      (r.oneString ? lastPart(r.line) + ' and ' + lastPart(r.next) + ' are back to back in one string, with no * between them to wait for a click, so the second replaces the first as soon as the game draws it.'
-        : lastPart(r.line) + ' ends without a * to wait for a click, and the next line the script can come to, ' + lastPart(r.next) + (r.speaker ? ', said by someone the script has just named to speak,' : '') + ' replaces it as soon as the game draws it.') +
-      '</td><td>' + where([r]) + '</td></tr>');
-    for (const t of selfToldByGroup()) rows.push('<tr><td>a character’s name answered by their dialogue group</td><td>' + (chipOf(t.character) || svEsc(characterName(t.character))) +
-      ' has no answer to “' + svEsc(t.key) + '”, so the question passes to a dialogue group their script uses, which answers as if about someone else: ' + svEsc(t.message) + '</td><td>' + where([t]) + '</td></tr>');
-    {
-      const bySkill = new Map();
-      for (const u of containedUnseen()) { if (!bySkill.has(u.resid)) bySkill.set(u.resid, []); bySkill.get(u.resid).push(u); }
-      for (const list of bySkill.values()) rows.push('<tr><td>a search that passes over what is inside things</td><td>' + where([list[0]]) +
-        ' looks only at things lying loose, and ' + list.map(u => 'all ' + u.inside + ' ' + svEsc(propDisplayName(u.pt) || ('prop ' + u.pt)) + (u.inside === 1 ? ' is' : 's are') +
-          ' inside ' + u.hosts.map(h => svEsc(propDisplayName(h) || ('prop ' + h))).join(' or ')).join(', and ') + ', so it never finds one.</td><td>' + where([list[0]]) + '</td></tr>');
-    }
-    for (const w of stateNoSaveKeeps()) rows.push('<tr><td>a value no saved game stores</td><td>' + where(w.writers) + ' write' + (w.writers.length === 1 ? 's' : '') +
-      ' word 0x' + w.offset.toString(16).toUpperCase() + ' of resource 0x' + w.resource.toString(16).toUpperCase().padStart(4, '0') + ', and ' + w.readers.length + ' place' + (w.readers.length === 1 ? ' reads' : 's read') +
-      ' it back. The writing happens while the player makes the hero, before the game has a saved file. A saved game does not store it, so the value is whatever the last hero made left in it.</td><td>' + where(w.readers) + '</td></tr>');
-    for (const d of deletedAcrossZoneChange()) {
-      const item = svEsc(propDisplayName(d.pt) || ('prop ' + d.pt));
-      rows.push('<tr><td>a delete after the zone has changed</td><td>Using a ' + item + ' of ' + where([{ resid: d.skill, at: d.skillAt }]) +
-        ' casts a copy of the spell, which moves the party to another zone. Then the ' + item + '’s Use script deletes the copy and the ' + item + ' by their numbers, but those numbers now belong to things in the new zone, so it destroys two of those things and the ' + item + ' stays. One lies in ' +
-        d.zones.map(z => svEsc(labelFor(0x8000 + z) || ('zone ' + z))).join(' and ') + '.</td><td>' + where([d]) + '</td></tr>');
-    }
-    for (const h of highlightsUnanswered()) rows.push('<tr><td>a highlighted word nobody answers</td><td>“' + svEsc(h.word) + '” is highlighted as a question in ' + where([h]) + ', and ' +
-      (h.character.length === 1 ? (chipOf(h.character[0]) || svEsc(characterName(h.character[0]))) + ', its speaker, has no'
-        : 'none of the ' + h.character.length + ' characters who can say it has an') + ' answer that matches it' +
-      (h.character.length > 1 ? ': ' + h.character.slice(0, 8).map(n => chipOf(n) || svEsc(characterName(n))).join(', ') + (h.character.length > 8 ? ' and ' + countLink((h.character.length - 8) + ' more', 'The ' + h.character.length + ' characters who can say “' + h.word + '”', h.character.map(n => chipOf(n) || svLink(characterName(n), 'showCharacterDetail(' + n + ')'))) : '') : '') + '.</td><td>' + where([h]) + '</td></tr>');
-    for (const r of refusalOnEveryCheck()) rows.push('<tr><td>a line repeated on every check</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) +
-      '’s answer to whether a thing can go inside it prints “' + svEsc(r.message.trim()) + '” before it answers no, and the inventory window runs it each time it checks a drop, so the line repeats while the player drags a thing over it.</td><td>' + where([r]) + '</td></tr>');
-    for (const l of leaveNeverLeaves()) rows.push('<tr><td>a companion who cannot leave the party</td><td>' + (chipOf(l.character) || svEsc(characterName(l.character))) +
-      ' can join the party and answers “leave”, and nothing in the script ever removes them from it.</td><td>' + where([l]) + '</td></tr>');
-    for (const t of tileReadWithSeenBit()) rows.push('<tr><td>a map tile read with its seen bit</td><td>' + where([t]) + ' compares the map’s tile at a square with ' + t.compared.join(' and ') +
-      ' without removing the automap’s marker, bit 0x8000, which is set on every square the player has seen, so the comparison never matches for a square the player can see.</td><td>' + where([t]) + '</td></tr>');
-    for (const w of wrongCarryFlags()) rows.push('<tr><td>a thing given to a character with the wrong flags</td><td>' + where([w]) + ' sets a thing’s flags to ' + srcNum({ v: 9, resid: w.resid, at: w.at }, '9') +
-      ' and its container to ' + svEsc(w.into.replace(/ \(0x[0-9A-F]+\)$/i, '')) + '. A carried thing has flag 0x10, and 9 means inside another prop, so the thing ends up inside nothing and disappears.</td><td>' + where([w]) + '</td></tr>');
-    for (const c of speechWithNoSpeaker()) rows.push('<tr><td>a conversation with no one to speak</td><td>' + where([c]) + ' opens a conversation and ' +
-      (c.talk ? 'has the one it is used on talk' : 'has someone speak') + ' without naming a speaker. A conversation starts with no speaker, and the game draws quoted words where the speaker would be, so they appear above the window, out of sight.</td><td>' + where([c]) + '</td></tr>');
-    // Character sprite frames that repeat another pose (spriteRepeats).
-    for (const r of spriteRepeats()) rows.push('<tr><td>a sprite frame that repeats another pose</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) + '’s ' + r.aName + ' frame and its ' + r.bName + ' frame ' +
-      (r.pixels ? 'differ by ' + r.pixels + ' pixel' + (r.pixels === 1 ? '' : 's') : 'are identical') + ', whereas a sheet’s poses otherwise differ by hundreds of pixels.</td><td>' +
-      svLink('tile 0x' + r.a.toString(16).toUpperCase(), 'showPropTypeDetail(' + r.pt + ')') + '</td></tr>');
-    // A character asking whether they themselves are alive.
-    for (const a of le.selfAlive) rows.push('<tr><td>a check that the speaker is alive</td><td>' + (chipOf(a.character) || svEsc(characterName(a.character))) +
-      ' checks whether ' + svEsc(characterName(a.character)) + ' is alive, which is always true while they are talking, so the other answer is never given.</td><td>' + where([a]) + '</td></tr>');
-    // A local tested for truth and only ever set false.
-    for (const l of le.localOnlyFalse) rows.push('<tr><td>a check of something that is always false</td><td>The script checks a local variable for true or false, but its function only ever sets it to false, so the code for the true case never runs.</td><td>' +
-      where([l]) + '</td></tr>');
-    // Answers that an earlier answer in the same list matches first.
-    for (const a of le.shadowed) rows.push('<tr><td>an answer hidden by an earlier one</td><td>“' + svEsc(a.list) +
-      '” has an answer earlier in the same list, and the game uses the first match, so it never gives this answer.</td><td>' + where([a]) + '</td></tr>');
-    // A quest value tested where the same-numbered flag is meant.
-    for (const v of le.valueForFlag) rows.push('<tr><td>a value checked where the flag is meant</td><td>' + where([v]) + ' checks quest value ' + v.k +
-      ' as true or false where its other checks use quest flag ' + v.k + '. Quest value ' + v.k + ' gets a starting value when it is 0, and nothing sets it back to 0, so the check always passes.</td><td>' +
-      where([v]) + '</td></tr>');
-    // Keywords behind a comma and a space, read in looseEnds.
-    for (const k of le.spacedKeywords) rows.push('<tr><td>a keyword that needs a space typed first</td><td>“' + svEsc(k.list) + '”: ' +
-      k.spaced.map(w => '“' + svEsc(w) + '”').join(' and ') + ' follow' + (k.spaced.length === 1 ? 's' : '') + ' a comma and a space, and the space stays part of the keyword, so it only matches an answer the player types with a space in front.</td><td>' +
-      where([k]) + '</td></tr>');
-    // A quest value only a thing that does not exist sets, read in looseEnds.
-    for (const d of le.dataCaseNoThing) rows.push('<tr><td>a Data1 value no item has</td><td>' + svEsc(propDisplayName(d.pt) || ('prop ' + d.pt)) +
-      ' sets quest value ' + d.state + ' when its Data1 is ' + srcNum(d.v) + ', and no ' + svEsc(propDisplayName(d.pt) || 'such thing') +
-      ' anywhere has that Data1, so quest value ' + d.state + ' never changes. The scripts that read it: ' + where(d.readers) + '.</td><td>' + where([d.v]) + '</td></tr>');
-    // Character flags tested and never set, read in looseEnds.
-    for (const f of le.charFlagNeverSet) rows.push('<tr><td>a character flag checked and never set</td><td>Flag ' + f.bit + ' of ' +
-      (chipOf(f.character) || svEsc(characterName(f.character) || ('character ' + f.character))) +
-      ': a script checks it, but nothing sets it, whether by a call, a shared script, a queued task or the character table, so the check never passes.</td><td>' +
-      where(f.sites) + '</td></tr>');
-    // The sleep helper's magic half, read in sleepRules.
-    const slp = sleepRules();
-    if (slp && slp.magicGuard && slp.magicCap) rows.push('<tr><td>a value read in place of another</td><td>Sleep adds the magic bonus while magic is below full health, and a total above full magic sets magic to full health, so a character whose full health is higher than their full magic wakes with more magic than their maximum.</td><td>' +
-      where([slp.magicGuard, slp.magicCap]) + '</td></tr>');
-    // The three "use a thing" task scripts, read in looseEnds (unusedCast).
-    for (const u of le.unusedCast) rows.push('<tr><td>a task that does nothing</td><td>Task ' + u.task + ' converts its item to a prop, then sends ' + svEsc(u.method) +
-      ' to the unconverted item instead. The game passes a queued task’s item as a plain number rather than as the thing itself, and a number cannot respond, so the task never does anything.' +
-      (u.queuedBy.length ? ' Queued by ' + where(u.queuedBy) + '.' : ' Nothing queues it.') + '</td><td>' + where([u]) + '</td></tr>');
-    for (const list of twoErrands) rows.push('<tr><td>one line shown for two errands</td><td>line ' + list[0].line.v + lineText(list[0].line.v) +
-      ' appears for ' + [...new Set(list.map(a => a.slot.v))].map(s => 'slot ' + s + lineText(s)).join(' and for ') +
-      ', and its words can only describe one of them.</td><td>' +
-      where(list.map(a => a.line)) + '</td></tr>');
-    if (lib2) for (const d of lib2) for (const k of d.dangling)
-      rows.push('<tr><td>a thing pointing at nothing</td><td>Data1 ' + k + ' of ' + propWordHex(d.resid) + ', which has no such passage</td><td>' +
-        where(d.readers) + '</td></tr>');
+  /* The Loose Ends section stood here until 2 November 2026, when the
+     maintainer had it taken off the sheet. looseEnds() and the readers
+     behind it stay, for the Writings sheet, the quest flags and the checks. */
   // ---- the palette and its ramps ----
   {
     const pr = appImage() ? exePaletteRamps() : null;
@@ -4963,23 +4775,6 @@ function renderMechanicsSheet(value) {
       '');
   }
 
-    add('loose', 'Loose Ends', null, '',
-      rows.length ? 'Mistakes in the scenario’s scripts, each linked to the line that causes it.'
-                  : 'This file has nothing of this kind.',
-      rows.length ? [
-        never.length ? '<b>' + countLink(String(never.length), 'The ' + never.length + ' To Do lines nothing strikes off', never.map(n => srcNum(slots.get(n).adds[0].slot, slotWords(n)))) + '</b> To Do lines go on the list and never come off.' : '',
-        le.unreachable.length ? '<b>' + countLink(String(le.unreachable.length), 'The ' + le.unreachable.length + ' checks of a value nothing sets', le.unreachable.map(u => srcNum(u.testedValue, 'quest value ' + u.state + ' is ' + u.testedValue.v))) + '</b> check a value that nothing ever sets, so what they lead to can never happen.' : '',
-        wrongLine.length ? '<b>' + countLink(String(wrongLine.length), 'The ' + wrongLine.length + ' lines that show another line’s words', wrongLine.map(a => srcNum(a.line, slotWords(a.line.v) + ', for slot ' + a.slot.v))) + '</b> lines show another line’s words, usually on purpose, to give the errand in the words of whoever gave it to the hero.' : '',
-        twoErrands.length ? '<b>' + countLink(String(twoErrands.length), 'The ' + twoErrands.length + (twoErrands.length === 1 ? ' line' : ' lines') + ' shown for two errands', twoErrands.map(list => srcNum(list[0].line, slotWords(list[0].line.v)))) + '</b> of those ' + (twoErrands.length === 1 ? 'is' : 'are') + ' shown for two different errands, so for one of them it is wrong.' : '',
-        le.exactStrikes.length ? '<b>' + countLink(String(le.exactStrikes.length), 'The ' + le.exactStrikes.length + (le.exactStrikes.length === 1 ? ' line' : ' lines') + ' struck off only at an exact count', le.exactStrikes.map(x => srcNum(x.slot, slotWords(x.slot.v)))) + '</b> ' + (le.exactStrikes.length === 1 ? 'line is' : 'lines are') + ' struck off only at an exact count, which a visit can skip past.' : '',
-        le.flagReadNeverWritten.length ? '<b>' + countLink(String(le.flagReadNeverWritten.length), 'The ' + le.flagReadNeverWritten.length + ' quest flags checked and never set', le.flagReadNeverWritten.map(k => { const s0 = sitesOf(le.flagReads.get(k))[0]; return s0 ? srcNum(s0, 'quest flag ' + k) : svEsc('quest flag ' + k); })) + '</b> quest ' + (le.flagReadNeverWritten.length === 1 ? 'flag is' : 'flags are') + ' checked and never set.' : '',
-        skillOff ? 'The script that settles a blow reads the weapon’s skill from the wrong place, so no armed blow benefits from it.' : '',
-        le.spacedKeywords.length ? '<b>' + countLink(String(le.spacedKeywords.length), 'The ' + le.spacedKeywords.length + ' keyword lists with a space after a comma', le.spacedKeywords.map(k => srcNum(k, '“' + k.list + '”'))) + '</b> keyword ' + (le.spacedKeywords.length === 1 ? 'list has' : 'lists have') + ' a space after a comma, so the keyword after it only matches if the player types a space first.' : '',
-        le.charFlagNeverSet.length ? '<b>' + countLink(String(le.charFlagNeverSet.length), 'The ' + le.charFlagNeverSet.length + ' character flags checked and never set', le.charFlagNeverSet.map(f => { const nm = 'flag ' + f.bit + ' of ' + (characterName(f.character) || 'character ' + f.character); return f.sites && f.sites[0] ? srcNum(f.sites[0], nm) : svEsc(nm); })) + '</b> character ' + (le.charFlagNeverSet.length === 1 ? 'flag is' : 'flags are') + ' checked and never set, so the lines that depend on them are either never said or said every time.' : '',
-        le.unusedCast.length ? '<b>' + countLink(String(le.unusedCast.length), 'The ' + le.unusedCast.length + ' tasks that do nothing', le.unusedCast.map(u => srcNum(u, 'task ' + u.task))) + '</b> of the tasks the hero can give a character ' + (le.unusedCast.length === 1 ? 'does' : 'do') + ' nothing' + (le.unusedCast.some(u => u.queuedBy.some(q => q.resid === 0x1AD5)) ? ', and Lock Picking queues one of them, which is why a companion told to pick a lock never does.' : '.') : ''
-      ].filter(Boolean) : [],
-      table(['what', 'which', 'where'], rows));
-  }
 
   // ---- the three ways a patch reaches the game ----
   /* Magpie writes a patch into Cythera Data; the program itself also loads

@@ -90,7 +90,7 @@ function spellsMechSection() {
     sp.spells.length ? [
       'The game adds two random numbers below the caster’s Casting skill, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>, because the only number below 1 is 0. The caster spends the magic points even when the cast fails.',
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
-      sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The caster pays the cost.',
+      sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' + ' + srcNum(sp.rule.timeMult) + ' × level</b> clock units.' : 'The caster pays the cost.',
       'Spell damage works like a blow’s. The victim’s resistance applies, and the caster earns experience as usual.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.character)) ? '<b>Fireball hurts only the character on the square it targets</b>, although by its description it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Non-magical damage, whether fire, electric, blunt or edged, does <b>nothing at all</b> to monsters that resist non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike count as magical, which is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
@@ -298,8 +298,8 @@ const MECH_GROUPS = [
     note: 'What things cost, and what a wager pays.',
     ids: ['shops', 'dice'] },
   { value: 'HACKERY', title: 'Hackery', tile: 0x207,
-    note: 'Prop records, flags, eggs, the palette, built-in calls, what calls what, and mistakes in the scripts.',
-    ids: ['propword', 'charflags', 'classflags', 'eggs', 'palette', 'syscalls', 'leans', 'loose'] },
+    note: 'Prop records, flags, eggs, the palette, built-in calls, and what calls what.',
+    ids: ['propword', 'charflags', 'classflags', 'eggs', 'palette', 'syscalls', 'leans'] },
 ];
 /* The sections that write a file rather than read a rule: a patch opened
    and applied, a sprite made into one, and one file compared with another.

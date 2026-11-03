@@ -81,7 +81,7 @@ if (take()) try {
   const MARK = {
     MECH_PROGRESS: 'Experience and Levels', MECH_STATUS: 'Status Effects', MECH_INTERACT: 'Locks and Lockpicks',
     MECH_PUZZLES: 'The Riddles', MECH_COMBAT: 'Damage to Things', MECH_ECONOMY: 'The Dice Game',
-    HACKERY: 'Loose Ends',
+    HACKERY: 'What Calls What',
   };
   const strayTab = [];
   for (const g of groups) {
