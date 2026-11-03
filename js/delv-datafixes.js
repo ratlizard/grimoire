@@ -1337,7 +1337,7 @@ const DATA_FIXES = [
   // keyword, and are left alone.
   { id: 'misheard-topics', group: 'design', stage: 'further', title: 'A topic Polydamas or Alcestris mishears stays on the list, instead of disappearing',
     note: 'A word typed that was not on the list joins it when misheard.',
-    played: 'fork, PowerPC, 3 November 2026, Polydamas, alone and with every fix. A topic he mishears ("Eh?  Could you speak up a bit?") stays on the list until he answers it, where the stock game removes it. A misheard word that was never a topic joins the list',
+    played: 'fork, PowerPC, 3 November 2026, Polydamas and Alcestris, alone and with every fix. A topic either mishears ("Eh?  Could you speak up a bit?", "Could you speak up a bit?  It\'s rude to speak so I can\'t hear you...") stays on the list until it is answered, where the stock game removes it. Alcestris misheard Job in three runs of each. A misheard word that was never a topic joins the list',
     plan: (s) => ({ edits: [
       ['Polydamas', 0x185F, 'byte 0x04', '"\\"Eh?  Could you speak up'],
       ['Alcestris', 0x1855, 'byte 0x06', '"\\"Could you speak up'],

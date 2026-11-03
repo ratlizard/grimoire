@@ -1206,16 +1206,27 @@ const APP_FIXES = [
   // gives the second half-disk (0x1803). A body is made with flags 0x01, so
   // it is safe where it fell; only a drop after picking it up marks it.
   // Left out: eggs, which there are dozens of, and Omen's ring (Data1 3),
-  // which changes a line of his and nothing else (0x1CC3). Not covered: a
-  // quest thing inside a container that is dropped, which retains whatever
-  // flags it had.
+  // which changes a line of his and nothing else (0x1CC3).
+  //
+  // A CONTAINER with a quest thing anywhere inside it, a sack in a sack
+  // included, counts as a quest thing too. A
+  // thing inside another has flags 8 to 11 and its container's index in
+  // the low half of its first word (GetPropParent reads it so), and is
+  // never marked itself, so a sack cleared away with the level took the
+  // kelp in it out of reach. The test walks the level's records from 256,
+  // the first that is not a character's, up to the count at TOC -30276,
+  // and for each quest thing inside something follows its containers up
+  // while they are inside something too, as far as the thing dropped.
   //
   // The cave's test is a separate routine, called with the record in r3,
-  // and answers with cr0 not equal for a quest thing. It changes r0, r3,
-  // r4 and r5, which both routines write again before reading, and the
-  // link register, which both saved on entry, since both make calls.
+  // and answers with cr0 not equal for a quest thing. It changes r0 and r3
+  // to r12. Both routines write r0 and r3 to r6 again before reading them,
+  // and read none of r7 to r12 before their next call (AddToHood,
+  // FindSurface), read 3 November 2026. The link register goes to r12
+  // while the test calls the type test, and both routines saved theirs on
+  // entry, since both make calls.
   { id: 'quest-items-kept', kind: 'change', title: 'A quest item or a person’s body that the hero drops stays where the hero left it, instead of being cleared away with the level',
-    played: 'fork, PowerPC, 1 and 3 November 2026, alone and with every fix. Kelp dragged from the inventory to the floor of Omen’s Test, or slid a square west, is still there after a jump to Land King Hall and back, where the stock program removes it. A paper slid the same way goes back to its place on both programs. Aethon’s body slid a square in Omen’s Test is still there after the same jumps, and the amulet raises him from it (played alone). Kelp slid a square in Cademia is still there after a walk of 40 squares north and back, where the stock program deletes it',
+    played: 'fork, PowerPC, 1 and 3 November 2026, alone and with every fix. Kelp dragged from the inventory to the floor of Omen’s Test, or slid a square west, is still there after a jump to Land King Hall and back, where the stock program removes it. A paper slid the same way goes back to its place on both programs. Aethon’s body slid a square in Omen’s Test is still there after the same jumps, and the amulet raises him from it (played alone). Kelp slid a square in Cademia is still there after a walk of 40 squares north and back, where the stock program deletes it. A sack with kelp in it, dragged from the inventory to the floor of Omen’s Test, is still there with the kelp in it after the jumps, where the stock program and this fix without its container test remove the sack and leave the kelp inside a freed record',
     sites: [
       { at: 0x5502C, was: [0x40820010], asm: ['b @cave               ; was bne 0x5503C, DropCommand’s class flag'] },
       { at: 0x5308C, was: [0x40820010], asm: ['b @slide              ; was bne 0x5309C, SlideItemCommand’s class flag'] }],
@@ -1226,7 +1237,22 @@ const APP_FIXES = [
            'slide:', 'bne @slide0', 'mr 3, 27', 'bl @quest', 'bne @slide0',
            'lbz 0, 0(27)', 'ori 0, 0, 32', 'stb 0, 0(27)',
            'slide0:', 'b @0x5309C',
-           'quest:', 'lhz 4, 4(3)            ; the picture and the type',
+           'quest:', 'mflr 12', 'mr 11, 3                ; the thing dropped',
+           'bl @kind', 'bne @found              ; a quest thing itself',
+           'lwz 6, -30268(2)', 'lwz 6, 0(6)             ; the level’s records',
+           'lwz 7, -30276(2)', 'lha 7, 0(7)             ; how many',
+           'li 9, 256', 'addi 8, 6, 4096         ; record 256',
+           'scan:', 'cmpw 9, 7', 'bge @none',
+           'lbz 0, 0(8)', 'andi. 0, 0, 220', 'cmpwi 0, 8', 'bne @next              ; not inside anything',
+           'mr 3, 8', 'bl @kind', 'beq @next              ; not a quest thing',
+           'mr 10, 8',
+           'up:', 'lhz 0, 2(10)            ; its container', 'slwi 0, 0, 4', 'add 10, 6, 0',
+           'cmpw 10, 11', 'beq @found              ; inside the thing dropped',
+           'lbz 0, 0(10)', 'andi. 0, 0, 220', 'cmpwi 0, 8', 'beq @up                 ; that container is inside another',
+           'next:', 'addi 8, 8, 16', 'addi 9, 9, 1', 'b @scan',
+           'none:', 'mtlr 12', 'li 0, 0', 'cmpwi 0, 0', 'blr',
+           'found:', 'mtlr 12', 'li 0, 1', 'cmpwi 0, 0', 'blr',
+           'kind:', 'lhz 4, 4(3)            ; the picture and the type',
            'andi. 5, 4, 1023        ; the type',
            'rlwinm 4, 4, 0, 17, 31  ; the picture and the type, the rotation aside',
            'lbz 0, 6(3)             ; Data1',
