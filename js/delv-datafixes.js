@@ -1645,6 +1645,34 @@ const DATA_FIXES = [
         dataFixLocals(s, 'Deactivate Trap has two more locals', 0x1AF2, last(0x1AF2), 8, 10),
       ] };
     } },
+  // Detect Secrets (0x1AF3), the Do menu's command, passes over the same
+  // traps: its loop tests only a thing whose flags have no bit above 0x03,
+  // and a thing inside another has flag 0x08. It now looks one level inside
+  // each thing it passes, as `traps` does for Detect Traps, and reports a
+  // poison trap, a blast trap, type 0x163 or a fine wire with the command's
+  // usual line ("^poison trap detected!") and the glow on the chest or
+  // crate the trap is in. Item and iterator slot are two locals the
+  // function did not have, 7 and 8.
+  { id: 'secrets-traps', group: 'rules', stage: 'further', title: 'Detect Secrets now finds traps inside chests and crates, instead of missing them',
+    plan: (s) => {
+      const isTrap = ['short 0x0160', 'short 0x0161', 'short 0x0163', 'short 0x00E6']
+        .map((t, k) => ['local Var07', 'get_field obj_type (0x4)', t, 'eq'].concat(k ? ['or'] : [])).flat();
+      const edit = dataFixInsert(s, 'Detect Secrets looks inside', 0x1AF3,
+        ['sys NearbyIterator', 'word &Var3', 'byte 0x01', 'end', 'then ->', 'set_local 0x06'], 5, [
+          'set_local 0x07', 'sys ContainerIterator', 'word &Var7', 'byte 0x00', 'local Var03', 'end', 'end',
+          'test_inside:',
+          'if', 'sys ContainerIterator', 'word &Var7', 'byte 0x01', 'end', 'then -> done_inside',
+          'if_not'].concat(isTrap, ['then -> next_inside',
+          'sys MagicAuraEffect', 'local Var03', 'word 244', 'end',
+          'if_not', 'global CurrentCharacter (0x9)', 'global PlayerCharacter (0x5)', 'eq', 'then -> next_inside',
+          'string(implicit) "^"', 'print', 'local Var07', 'end', 'string(implicit) " detected!\\n"',
+          'set_local 0x01', 'word True', 'end',
+          'next_inside:',
+          'set_local 0x07', 'sys ContainerIterator', 'word &Var7', 'byte 0x02', 'end', 'end',
+          'branch test_inside',
+          'done_inside:']).join('\n'));
+      return { edits: [edit], dataEdits: [dataFixLocals(s, 'Detect Secrets has two more locals', 0x1AF3, edit.at, 7, 9)] };
+    } },
   // Magpie's west standing frame (tile 0x72D, sheet 0x8E72): every other west
   // frame of his is the north frame transposed, to the pixel, and this one
   // is the transposed north sitting frame; it becomes the transposed north
