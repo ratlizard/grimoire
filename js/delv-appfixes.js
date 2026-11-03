@@ -1506,7 +1506,7 @@ const APP_FIX_GROUP = {
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
-  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'ai-mods': 'rules', 'ai-pick': 'rules', 'conv-field': 'interface', 'automap-span': 'interface', 'more-button': 'interface',
+  'corpse-light': 'rules', 'worn-at-death': 'rules', 'party-at-death': 'hidden','spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'ai-mods': 'rules', 'ai-pick': 'rules', 'conv-field': 'interface', 'automap-span': 'interface', 'more-button': 'interface',
   'menu-scroll': 'talk', 'menu-items': 'talk', 'afternoon': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
   'halloween-colors': 'mods',
 };
