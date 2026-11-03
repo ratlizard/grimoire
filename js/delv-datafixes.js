@@ -2615,6 +2615,42 @@ const DATA_FIXES = [
     played: 'in part, SheepShaver, Mac OS 8.5, 31 October 2026, the same patched file, byte for byte, installed through Magpie. A new game shows the one slide, skeletons with skull portraits, the rattling opening scene, Magpie’s cracked face and his heap of bones, and the gray windows over the spiderwebs. Nobody has judged the waltz by ear in the game, and the rest of the game is unplayed with character 206 alive',
     title: 'Every person is a skeleton with a skull portrait, Alaric and Magpie rattle through the opening scene, Land King Hall plays a spooky waltz, and the windows are gray over a desktop of spiderwebs',
     plan: (s, ctx) => halloweenPlan(s, ctx) },
+
+  // Play after the ending, at the maintainer's request of 2 November 2026
+  // (the compendium: "there is no post-game play, which several players
+  // complained about", t1799). The ending is Alaric's Talk (0x1802) once his
+  // flag 1 is set: with quest value 0 at 2 it is the dark ending, and
+  // otherwise Magpie's vision, the slideshow and GameOver "You have saved the
+  // land of Cythera from darkness." Here the GameOver gives way to quest
+  // flag 100 and a jump into his ordinary conversation, which already has
+  // lines for after the cure ("keeper of the land of Cythera, thanks to
+  // you"). With the flag set, a later talk skips the vision and the
+  // slideshow and goes straight to that conversation. Flag 100 is free: the
+  // scripts use 0 to 4, 15 to 17, 64 to 66 and 253 to 255, the schedules 0,
+  // and the conditional eggs 64 to 66. The dark ending still ends the game.
+  { id: 'play-on', group: 'mods', stage: 'mods',
+    title: 'After Alaric is cured and the ending is shown, the game now goes on, instead of closing',
+    plan: (s) => {
+      // Both jumps go to the branch after the uncured greeting, which leads
+      // into the conversation. It lies above both edits, so no splice moves
+      // it. A jump straight to the conversation would land short, since the
+      // GameOver edit shrinks the code above the conversation first.
+      const conv = dataPatchPlace(s, 'Alaric’s talk before the cure', 0x1802,
+        ['string(implicit) ", but with a look of desperation."', 'branch']).at(1);
+      const seen = dataPatchPlace(s, 'the ending, once seen', 0x1802,
+        ['string(implicit) ", with a look of relief and calm."', 'sys PlayMusic', 'byte 0x00', 'end']);
+      const over = dataPatchPlace(s, 'the ending’s GameOver', 0x1802,
+        ['sys EndSlideshow', 'end', 'sys GameOver', 'string "You have saved the land', 'end', 'return']);
+      return { edits: [
+        { what: 'the ending, once seen', resid: 0x1802, at: seen.at(1), expect: seen.expect, code: [
+          'if_not', 'sys GetStateFlag', 'byte 0x64', 'end', 'then -> ending',
+          'branch ' + dataFixHex(conv),
+          'ending:'].join('\n') },
+        { what: 'the ending’s GameOver', resid: 0x1802, at: over.at(2), to: over.at(5), expect: over.expect, code: [
+          'sys SetStateFlag', 'byte 0x64', 'word True', 'end',
+          'branch ' + dataFixHex(conv)].join('\n') },
+      ] };
+    } },
 ];
 // The painting's class (0x1158) as a copy of the bell's (0x10C1), as the
 // session has it: the class table's far addresses, which name the resource
