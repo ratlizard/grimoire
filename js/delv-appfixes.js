@@ -1274,6 +1274,61 @@ const APP_FIXES = [
            'one:', 'cmpwi 0, 1', 'beq @yes',
            'no:', 'li 0, 0', 'cmpwi 0, 0', 'blr',
            'yes:', 'li 0, 1', 'cmpwi 0, 0', 'blr'] },
+  // What a character wore at death is worn again when they are raised.
+  // TActiveMonster::Die moves every thing in a character's inventory (kind
+  // 16), worn (24) or inside them (9) into the corpse as kind 9, so the
+  // corpse has no record of what was worn, and Resurrection (0x1A2F) and the
+  // Land King Amulet (0x10F4) give everything back with flags 16, in the
+  // inventory. Death runs no UnWear script either, so what a Wear script
+  // did stays done: the belt's Body +5 (0x1154), the gator boots' flags 31
+  // and 23 (0x1135), the ring's ability in its Data2 (0x1133). A raised
+  // character had such a thing in the inventory with its effect still on
+  // them, and wearing it again ran Wear a second time (Body +10). Worn
+  // again, the thing matches its effect, as before the death; Wear is not
+  // run again.
+  //
+  // THE MARK. Byte 1 of a thing in an inventory or inside something is not
+  // part of its holder: holders are read from the low 16 bits
+  // (GetPropParent) or the low 12 (WieldCommand's scan), and the byte
+  // retains what the thing's x left there (saves have 0 to 3 and 0x42).
+  // Die, as it moves a thing into the corpse, writes 255 there for a worn
+  // thing and 0 for the rest. SetField's write of a thing's flags (field
+  // 0), when a script writes 16 to a thing inside something (kind 9) whose
+  // byte 1 is 255, writes 24 and clears the byte. Both raise scripts write
+  // the container first and the flags second. SetField's write of the
+  // container (field 11) ORs the value's low 24 bits into the old byte 1,
+  // and a character's value has its class, 0x40, there, so the mark stays
+  // 255 and the 0 of a thing not worn becomes 0x40 (played: the kelp beside
+  // the worn belt). A script's x of a thing inside something
+  // reads its outermost container's square, so the scripts cannot read the
+  // mark themselves. TakeCommand writes the new holder into the low 16 bits
+  // at both its writes (a character, a container), and with this fix it
+  // clears byte 1 there as well, so a thing taken out of the corpse and
+  // put back is in the inventory when the person is raised. WieldCommand,
+  // DropCommand and SlideItemCommand write all 24 bits already.
+  //
+  // REGISTERS. At 0x46C98 Die has 9 in r0 and the prop table in r3; r4 and
+  // r0 are loaded again before they are read, and cr0 is set again before
+  // it is tested. At 0x92EB4 SetField has the value in r0 and ForceReset's
+  // argument in r3; r5 is free, and the call that follows ends r5 and cr0
+  // anyway.
+  { id: 'worn-at-death', kind: 'fix', title: 'A character raised by Resurrection or the Land King Amulet wears again what they wore when they died, instead of having it in the inventory',
+    played: 'fork, PowerPC, 3 November 2026, alone and with every fix. Aethon, wearing a belt and with kelp in his inventory, killed by the hero and raised with the Land King Amulet, wears the belt again and has the kelp in his inventory, where the stock program puts both in his inventory. The belt in his body has byte 1 at 255 and the kelp 0. The belt taken out of the body into the hero’s inventory has byte 1 at 0. A thing put back into the body is not played',
+    sites: [
+      { at: 0x46C98, was: [0x981C0000], asm: ['b @death               ; was stb 0, 0(28), the kind made 9'] },
+      { at: 0x54410, was: [0x5405021E], asm: ['li 5, 0                ; was rlwinm 5, 0, 0, 8, 15, byte 1 left as it was'] },
+      { at: 0x54438, was: [0x5405021E], asm: ['li 5, 0                ; was rlwinm 5, 0, 0, 8, 15, byte 1 left as it was'] },
+      { at: 0x92EB4, was: [0x981E0000], asm: ['b @flags               ; was stb 0, 0(30), a thing’s flags'] }],
+    cave: ['death:', 'lbz 4, 0(28)            ; the kind before: 16 inventory, 24 worn, 9 inside',
+           'stb 0, 0(28)            ; kind 9, inside the corpse',
+           'li 0, 0', 'cmpwi 4, 24', 'bne @mark', 'li 0, 255',
+           'mark:', 'stb 0, 1(28)            ; 255 for a worn thing, 0 for the rest',
+           'b @0x46C9C',
+           'flags:', 'cmpwi 0, 16', 'bne @plain             ; not to the inventory',
+           'lbz 5, 0(30)', 'cmpwi 5, 9', 'bne @plain             ; not inside something',
+           'lbz 5, 1(30)', 'cmpwi 5, 255', 'bne @plain             ; not worn at death',
+           'li 0, 24                ; worn', 'li 5, 0', 'stb 5, 1(30)            ; the mark cleared',
+           'plain:', 'stb 0, 0(30)', 'b @0x92EB8'] },
   // A start of play costs fifteen ticks. TDelverApp::BeginPlay, which a new
   // game, Open and a revert all come through, ends by handing 15 to
   // TGameSys::HeartBeat: the hero is busy for fifteen ticks, the clock goes

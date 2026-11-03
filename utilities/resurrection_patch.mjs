@@ -20,6 +20,6 @@
 import {buildFixes} from './patch_build.mjs';
 const [htmlPath = 'index.html', dataPath, outDir] = process.argv.slice(2);
 if (!dataPath || !outDir) { console.error('usage: resurrection_patch.mjs index.html <Cythera Data.data> <out dir>'); process.exit(2); }
-const DESCRIPTION = 'Resurrection brings the person back where the corpse lay, with their bags still packed, and a companion who died in the party back into it, built with Grimoire. A corpse of nobody is left alone.';
+const DESCRIPTION = 'Resurrection and the Land King Amulet revive the character with their containers’ contents in place, and a companion who died in the party back in it, built with Grimoire. A corpse of nobody is left alone.';
 const ok = buildFixes({ htmlPath, dataPath, outDir, name: 'Cythera Resurrection Fix', ids: ['nobody-corpse', 'resurrection'], description: DESCRIPTION });
 process.exit(ok ? 0 : 1);

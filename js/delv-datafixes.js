@@ -202,9 +202,14 @@ function dataFixLocals(s, what, resid, containing, from, to) {
 // A line that waits for a click: a `*` after it.
 function dataFixClick(what, resid, line) { return { what, resid, find: line, replace: line + '*', count: 1 }; }
 
-// The resurrection fix's edits, as the shipped file has them; the fix's
-// plan moves them to where an earlier stage left the code.
-const DATA_FIX_RESURRECTION = {
+// The resurrection fix's edits, as the shipped file has them, for one of
+// the two scripts that raise: the spell (0x1A2F, the walk at 0x0112) and
+// the Land King Amulet (0x10F4, the walk at 0x0200), whose code from the
+// walk to the corpse's Delete is the spell's, instruction for instruction.
+// The fix's plan moves them to where an earlier stage left the code, and
+// gives each UseOn its fifth local.
+function dataFixResurrection(resid, base) {
+  return {
   edits: (() => {
       // Hector, Meleager, Ariadne, Timon, Aethon, Dryas.
       const JOINERS = [0x06, 0x22, 0x35, 0x4A, 0x61, 0x62];
@@ -212,10 +217,10 @@ const DATA_FIX_RESURRECTION = {
       const setField = (field, target, value) => ['set_field ' + field, target, 'end'].concat(value, ['end']);
       return [{
         what: 'the raised stand where the corpse lay, sacks packed, companions back in the party',
-        resid: 0x1A2F, at: 0x0112, to: 0x014B,
-        expect: { 0x0112: 'set_local 0x01', 0x0114: 'sys RecursiveContainerIterator', 0x011C: 'arg Arg01',
-                  0x012C: 'set_field container', 0x0132: 'set_field flags', 0x0136: 'byte 0x10',
-                  0x0145: 'branch', 0x0148: 'sys Delete', 0x0149: 'arg Arg01', 0x014B: 'branch' },
+        resid, at: base, to: base + 0x39,
+        expect: { [base]: 'set_local 0x01', [base + 0x02]: 'sys RecursiveContainerIterator', [base + 0x0A]: 'arg Arg01',
+                  [base + 0x1A]: 'set_field container', [base + 0x20]: 'set_field flags', [base + 0x24]: 'byte 0x10',
+                  [base + 0x33]: 'branch', [base + 0x36]: 'sys Delete', [base + 0x37]: 'arg Arg01', [base + 0x39]: 'branch' },
         code: [
           // 1: one level of the corpse.
           'set_local 0x01', 'sys ContainerIterator', 'word &Var1', 'byte 0x00', 'arg Arg01', 'end', 'end',
@@ -244,10 +249,8 @@ const DATA_FIX_RESURRECTION = {
         ].join('\n'),
       }];
     })(),
-    dataEdits: [{ what: 'UseOn has a fifth local', resid: 0x1A2F, fn: (b) => {
-      if (b[0xA2] !== 4) throw new Error('UseOn has ' + b[0xA2] + ' locals, not 4');
-      b[0xA2] = 5; return 'locals 4 to 5';
-    } }] };
+  };
+}
 
 const DATA_FIXES = [
 
@@ -2068,18 +2071,24 @@ const DATA_FIXES = [
   // THE SHIPPED SPELL: on a corpse whose Data1 points at a character it sets the
   // alive bit, a quarter of full health plus one, gives the character every
   // record inside the corpse at any depth with flags 16, and deletes the
-  // corpse. Death (TActiveMonster::Die) had taken them out of the party and
-  // hidden their map record (flags 255), and the spell undoes neither, so a
-  // raised person is nowhere until the next hour's schedule (ScheduleOne,
-  // RepositionChar) puts them back at their post. And since death put only
+  // corpse. Death (TActiveMonster::Die) had taken them out of the party, and
+  // the spell does not put them back. The spell's write of the alive bit
+  // goes through SetField, which hatches the person (HatchEgg) on the square
+  // in their character record, in the hero's zone (bugs.md, the raise's
+  // correction of 3 November 2026). In play that square is the corpse's,
+  // since a creature's every step is written into its record
+  // (TActiveMonster::HandleMove); after a death staged by an edit it can be
+  // elsewhere. And since death put only
   // what they held directly into the corpse, a sack went in with its
   // contents inside it, and the walk to any depth brings the sack back empty
-  // and its contents loose. THE CHANGE, three parts, all in the spell's
-  // UseOn: 1. The corpse is walked one level (ContainerIterator for
+  // and its contents loose. THE CHANGE, three parts, all in UseOn: 1. The
+  // corpse is walked one level (ContainerIterator for
   // RecursiveContainerIterator), so a sack comes back with what is in it.
-  // 2. The person's map record, the prop of their own number, is put on the
+  // 2. The person's map record, the prop of their number, is put on the
   // corpse's square with flags 66, and their character record's square set
-  // to match. 66 is the state RepositionChar leaves a character in when it
+  // to match. In play that square is the corpse's already; after a staged
+  // death, or with the corpse moved, this puts the person by the corpse.
+  // 66 is the state RepositionChar leaves a character in when it
   // puts them at a post nobody is watching: the draw loop
   // (TGameViewer::DrawRoutine) hands any character below 256 whose record is
   // 66 and near the party straight to TActiveMonster::HatchEgg, which makes
@@ -2102,13 +2111,15 @@ const DATA_FIXES = [
   // killed in the party is. The one overlap: Dryas has a post at behaviour
   // 12, so Dryas killed while standing at it would rejoin. JoinParty rejects
   // a ninth member; then the person stands where the corpse lay, out of the
-  // party, until the hour sends them home. NOT CHANGED: the Land King Amulet
-  // used on a corpse (0x10F4), which runs the same code, and the hero's own
-  // return to Land King Hall when the amulet is worn at death (0x1801), both
-  // left as shipped at the maintainer's word, but for the corpse of nobody,
-  // which nobody-corpse turns away in both. The map record needs a fifth
-  // local; a function's locals are the third byte of its header, and UseOn's
-  // header is at 0xA0.
+  // party, until the hour sends them home. THE AMULET: the Land King Amulet
+  // used on a corpse (0x10F4) runs the same code, and has the same change,
+  // at the maintainer's word of 3 November 2026 that the two behave alike.
+  // NOT CHANGED: the hero's return to Land King Hall when the amulet is
+  // worn at death (0x1801), left as shipped at the maintainer's word. What
+  // was worn at death is worn again by the program fix worn-at-death, which
+  // both scripts reach as shipped. The map record needs a fifth local; a
+  // function's locals are the third byte of its header, and UseOn's header
+  // is at 0xA0 in the spell and 0x15A in the amulet.
   // The radio button (tile 0x1AC, sheet 0x8E1A, tile 12 of it): DrawCheck
   // in the program shows the tile's top-left quarter for a button not
   // chosen and its top-right for the chosen one, and the art has a dark,
@@ -2137,16 +2148,23 @@ const DATA_FIXES = [
           return out;
       } },
     ] },
-  { id: 'resurrection', group: 'design', stage: 'apart', title: 'Resurrection now brings the person back where the corpse lay, with their belongings and in the party, instead of nowhere until a later hour',
-    played: 'Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie over “All Fixes”: Hector, dead while in the party, raised from his corpse beside the hero; he is in the party again and stands beside the hero, against saved three squares off and out of the party unpatched. The hero was given Casting 15 by an edit: without it the cast failed about ten times in eleven. His belongings were not looked at; a dagger put inside his corpse is his after the raising, patched and unpatched alike',
+  { id: 'resurrection', group: 'design', stage: 'apart', title: 'Resurrection and the Land King Amulet now revive the character with their containers’ contents in place and their party membership, instead of taking everything out of their containers and removing them from the party',
+    played: 'Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie over “All Fixes”. Hector, dead while in the party (staged by an edit), raised from his corpse beside the hero, is in the party again and stands beside the hero, against saved three squares off and out of the party unpatched. The hero was given Casting 15 by an edit, without which the cast failed about ten times in eleven. Nobody looked at his belongings. A dagger put inside his corpse is his after the raising, patched and unpatched alike. Fork, PowerPC, 3 November 2026, the Land King Amulet with this fix alone. Aethon, not in the party, killed by the hero and raised from his body, stands on his body’s square with his inventory, as unpatched. He joins the party, since the hero’s attacks had set his behavior to 8, a party one by this fix’s test',
     // Its offsets are the shipped file's; nobody-corpse, an earlier stage,
-    // inserts before them, so the plan measures where the corpse's things
-    // are now walked and moves every offset by the difference.
+    // inserts before them in both scripts, so the plan measures where the
+    // corpse's things are walked in each and moves every offset by the
+    // difference.
     plan: (s) => {
-      const d = dataPatchPlace(s, 'the corpse\u2019s things', 0x1A2F, ['set_local 0x01', 'sys RecursiveContainerIterator', 'word &Var1', 'byte 0x00']).at(0) - 0x0112;
-      const move = e => Object.assign({}, e, { at: e.at + d, to: e.to + d,
-        expect: Object.fromEntries(Object.entries(e.expect).map(([k, v]) => [+k + d, v])) });
-      return { edits: DATA_FIX_RESURRECTION.edits.map(move), dataEdits: DATA_FIX_RESURRECTION.dataEdits };
+      const edits = [], dataEdits = [];
+      for (const [resid, base] of [[0x1A2F, 0x0112], [0x10F4, 0x0200]]) {
+        const walk = dataPatchPlace(s, 'the corpse\u2019s things', resid, ['set_local 0x01', 'sys RecursiveContainerIterator', 'word &Var1', 'byte 0x00']).at(0);
+        const d = walk - base;
+        const move = e => Object.assign({}, e, { at: e.at + d, to: e.to + d,
+          expect: Object.fromEntries(Object.entries(e.expect).map(([k, v]) => [+k + d, v])) });
+        edits.push(...dataFixResurrection(resid, base).edits.map(move));
+        dataEdits.push(dataFixLocals(s, 'UseOn has a fifth local', resid, walk, 4, 5));
+      }
+      return { edits, dataEdits };
     } },
   // Peirithous, Judge Sacas's majordomo, alive (0xF009; 28 September 2026,
   // "Cythera Peirithous Fix", a separate patch since it puts a person into
