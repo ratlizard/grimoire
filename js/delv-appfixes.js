@@ -1385,7 +1385,7 @@ const APP_FIX_KIND_GROUP = { hook: 'hidden', text: 'text', menu: 'interface', ch
 const APP_FIX_GROUP = {
   'option-p': 'interface', 'drag-northwest': 'interface', 'books-window': 'interface',
   'take-window': 'interface', 'roster-pose': 'interface', 'tab-pane': 'interface', 'gamepad-keys': 'interface',
-  'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'window-leak': 'interface', 'status-wrap': 'interface', 'widget-renumber': 'interface',
+  'right-click': 'interface', 'walk-to': 'interface', 'walk-path': 'interface', 'journal-rows': 'interface', 'window-leak': 'interface', 'status-wrap': 'interface', 'widget-renumber': 'interface',
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
