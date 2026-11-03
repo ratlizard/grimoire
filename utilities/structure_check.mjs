@@ -209,9 +209,9 @@ sandbox.__a = new Uint8Array(readFileSync(dataPath));
 
 /* Each control, what it does to the page, and the assertion it must fail. */
 const CONTROLS = {
-  region: {mustFail: 'exit', say: 'every region declared closed, so the recovery overreaches',
+  region: {mustFail: 'exit', description: 'every region declared closed, so the recovery overreaches',
     code: 'dvmRegionClosed = function () { return true; };'},
-  merge: {mustFail: 'edges', say: 'any two conditionals in a row merged, whatever they jump to',
+  merge: {mustFail: 'edges', description: 'any two conditionals in a row merged, whatever they jump to',
     code: `dvmMergeConditions = function (stmts) {
       const list = [], merged = new Map();
       for (let i = 0; i < stmts.length; i++) {
@@ -223,21 +223,21 @@ const CONTROLS = {
       }
       return {list, merged};
     };`},
-  or: {mustFail: 'truth', say: 'a merged condition joined with the wrong operator',
+  or: {mustFail: 'truth', description: 'a merged condition joined with the wrong operator',
     code: `(() => { const was = dvmCondJoined;
       dvmCondJoined = function (s, ctx) { const t = was(s, ctx);
         return s.parts ? t.split(' && ').join(' #OR# ').split(' || ').join(' && ').split(' #OR# ').join(' || ') : t; }; })();`},
-  exits: {mustFail: 'exits', say: 'break printed as continue and continue as break',
+  exits: {mustFail: 'exits', description: 'break printed as continue and continue as break',
     code: `(() => { const was = dvmLoopExits;
       dvmLoopExits = function (tree, ctx) { const r = was(tree, ctx);
         for (const [k, v] of r.exits) r.exits.set(k, v === 'break' ? 'continue' : 'break'); return r; }; })();`},
-  for: {mustFail: 'for', say: 'every for loop gives its variable one slot along',
+  for: {mustFail: 'for', description: 'every for loop gives its variable one slot along',
     code: `(() => { const was = dvmForEach;
       dvmForEach = function (p, w, ctx) { const f = was(p, w, ctx);
         if (f) f.variable = 'Var' + (parseInt(f.variable.slice(3), 16) + 1).toString(16).toUpperCase().padStart(2, '0');
         return f; }; })();`},
-  labels: {mustFail: 'labels', say: 'no label printed', code: 'dvmRemainingLabels = function () { return new Set(); };'},
-  entry: {mustFail: 'entry', say: 'the region test no longer rejects a region something jumps into the middle of',
+  labels: {mustFail: 'labels', description: 'no label printed', code: 'dvmRemainingLabels = function () { return new Set(); };'},
+  entry: {mustFail: 'entry', description: 'the region test no longer rejects a region something jumps into the middle of',
     code: `dvmRegionClosed = function (stmts, index, lo, hi, allowed) {
       if (hi <= lo) return false;
       const ok = new Set(allowed);
@@ -248,14 +248,14 @@ const CONTROLS = {
       }
       return true;
     };`},
-  ended: {mustFail: 'ended', say: 'a jump to a plain statement folded as if it were a jump to a return',
+  ended: {mustFail: 'ended', description: 'a jump to a plain statement folded as if it were a jump to a return',
     code: `(() => { const was = dvmEndJumps;
       dvmEndJumps = function (stmts, index, left) {
         const out = was(stmts, index, left);
         for (const i of left) { const s = stmts[i]; const j = s.kind === 'jump' && s.targets.length === 1 ? index.get(s.targets[0]) : undefined;
           if (j !== undefined && stmts[j].kind === 'plain' && !stmts[j].parts) { out.push(i); break; } }
         return out; }; })();`},
-  guard: {mustFail: 'edges', say: 'a pair of tests merged although something jumps to the second',
+  guard: {mustFail: 'edges', description: 'a pair of tests merged although something jumps to the second',
     code: `dvmMergeConditions = function (stmts) {
       const list = [], merged = new Map();
       for (let i = 0; i < stmts.length; i++) {
@@ -275,7 +275,7 @@ const CONTROLS = {
 if (control) {
   if (!CONTROLS[control]) { console.error(`no control called ${control}; there are ${Object.keys(CONTROLS).join(', ')}`); process.exit(2); }
   ev(CONTROLS[control].code);
-  console.log(`  (control: ${CONTROLS[control].say})`);
+  console.log(`  (control: ${CONTROLS[control].description})`);
 }
 
 // How much of the archive comes out structured. Not a target and not a ceiling:
@@ -460,9 +460,9 @@ const report = ev(`(() => {
         //     jump, in the flat list, to exactly the statement the recovery
         //     names, and that statement a return or an exit by its op. Its
         //     one edge is then contracted out, an end having no successor.
-        let want = flat.edges;
+        let expected = flat.edges;
         if (rec.ended && rec.ended.size) {
-          const next = new Set(want);
+          const next = new Set(expected);
           for (const [from, to] of rec.ended) {
             const j = flatAt.get(from), t = flatAt.get(to);
             // The jump's target, followed through any jumps folded
@@ -476,7 +476,7 @@ const report = ev(`(() => {
               out.endedBad.push(where + ': ' + hex(from) + ' is printed as the statement at ' + hex(to) + ', which is ' + (t ? t.node.mn : 'no statement'));
             else { next.delete(from + '>' + j.targets[0]); stats.ended++; }
           }
-          want = next;
+          expected = next;
         }
         // (1) the edge sets. First the merged tests: a part folded into the
         //     condition before it is not a node of the recovered graph, so its
@@ -485,7 +485,7 @@ const report = ev(`(() => {
         //     be a jump into the middle of one condition.
         if (rec.merged.size) {
           const next = new Set();
-          for (const k of want) {
+          for (const k of expected) {
             const [from, to] = k.split('>').map(Number);
             const head = rec.merged.has(from) ? rec.merged.get(from) : from;
             if (rec.merged.has(to)) {
@@ -495,31 +495,31 @@ const report = ev(`(() => {
             }
             next.add(head + '>' + to);
           }
-          want = next;
+          expected = next;
         }
         //     Then the absorbed jumps, contracted out of the flat graph.
         //     Iterated to a fixed point because a goto can reach a goto.
-        const got = dvmStructureEdges(rec.tree, null);
+        const actual = dvmStructureEdges(rec.tree, null);
         if (rec.absorbed.size) {
           const succ = new Map();
           for (const st2 of stmts) if (rec.absorbed.has(st2.abs)) succ.set(st2.abs, st2.targets[0]);
           for (let pass = 0; pass < 8; pass++) {
             let moved = false;
             const next = new Set();
-            for (const k of want) {
+            for (const k of expected) {
               const [from, to] = k.split('>').map(Number);
               if (rec.absorbed.has(from)) { moved = true; continue; }   // drop the jump's edge
               if (rec.absorbed.has(to)) { next.add(from + '>' + succ.get(to)); moved = true; continue; }
               next.add(k);
             }
-            want = next;
+            expected = next;
             if (!moved) break;
           }
         }
         let diff = null;
-        for (const k of want) if (!got.has(k)) { diff = 'lost ' + k; break; }
-        if (!diff) for (const k of got) if (!want.has(k)) { diff = 'invented ' + k; break; }
-        if (diff) out.edgeBad.push(where + ': ' + diff + ' (' + want.size + ' edges in, ' + got.size + ' out)');
+        for (const k of expected) if (!actual.has(k)) { diff = 'lost ' + k; break; }
+        if (!diff) for (const k of actual) if (!expected.has(k)) { diff = 'invented ' + k; break; }
+        if (diff) out.edgeBad.push(where + ': ' + diff + ' (' + expected.size + ' edges in, ' + actual.size + ' out)');
 
         // (2) every block is a region with ONE way in and one way out.
         //     Edge equality alone does not say this, and the control proved it:
@@ -544,7 +544,7 @@ const report = ev(`(() => {
           /* Against the CONTRACTED edge set, not the raw one: an edge to an
              absorbed jump points at a node that is no longer in the tree, and
              reading those as escapes reported 2,113 blocks that were all fine. */
-          for (const k of want) {
+          for (const k of expected) {
             const [from, to] = k.split('>').map(Number);
             if (inside.has(to) && !inside.has(from) && to !== head) {
               out.entryBad.push(where + ' ' + blk.kind + ' block at ' + hex(head) +
@@ -629,10 +629,10 @@ const report = ev(`(() => {
             if (n.type === 'stmt' && n.word && flatAt.has(n.at)) {
               stats[n.word === 'break' ? 'breaks' : 'continues']++;
               const s = flatAt.get(n.at);
-              const want2 = !n.loop ? undefined : n.word === 'break' ? n.loop.after : n.loop.round;
+              const expectedTarget = !n.loop ? undefined : n.word === 'break' ? n.loop.after : n.loop.round;
               const to = s.targets.length === 1 ? through(s.targets[0]) : null;
-              if (!n.loop || want2 === null || to !== want2)
-                out.exitWordBad.push(label + ' ' + at4(n.at) + ': ' + n.word + (n.loop ? ' in the ' + n.loop.type + ' at ' + at4(n.loop.at) + ' reads as ' + at4(want2) : ' outside any loop') +
+              if (!n.loop || expectedTarget === null || to !== expectedTarget)
+                out.exitWordBad.push(label + ' ' + at4(n.at) + ': ' + n.word + (n.loop ? ' in the ' + n.loop.type + ' at ' + at4(n.loop.at) + ' reads as ' + at4(expectedTarget) : ' outside any loop') +
                   ', the listing jumps to ' + at4(to));
             }
             // (6) a for line is the iterator protocol
@@ -781,9 +781,9 @@ else
 if (r.offEnd) console.log(`  note: ${r.offEnd} statement(s) fall off the end of a function with nowhere to go`);
 
 if (control) {
-  const want = CONTROLS[control].mustFail;
-  if (failed.has(want)) { console.log(`\nok — the control failed the ${want} assertion, as it must (${failures} failure(s) in all)`); process.exit(0); }
-  console.error(`\nFAIL — the control did not fail the ${want} assertion, so that assertion cannot see what it is for`);
+  const mustFail = CONTROLS[control].mustFail;
+  if (failed.has(mustFail)) { console.log(`\nok — the control failed the ${mustFail} assertion, as it must (${failures} failure(s) in all)`); process.exit(0); }
+  console.error(`\nFAIL — the control did not fail the ${mustFail} assertion, so that assertion cannot see what it is for`);
   process.exit(1);
 }
 console.log(failures ? `\nFAIL — ${failures} check(s) failed`

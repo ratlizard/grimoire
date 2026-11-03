@@ -41,7 +41,7 @@ async function exportGallery() {
   const resids = window.CUR_RESIDS;
   const btn = document.getElementById('exportBtn');
   const note = document.getElementById('exportNote');
-  const say = m => { if (note) note.textContent = m; };
+  const setNote = m => { if (note) note.textContent = m; };
   if (btn) { btn.disabled = true; }
   const isText = (subn === 0 || subn === 1 || subn === 128 || subn === 239 ||
                   (!CANONICAL_SIZE[subn] && !HAS_HEADER[subn] && !UNCOMPRESSED[subn] && !SOUND_CATEGORIES.has(subn)));
@@ -89,18 +89,18 @@ async function exportGallery() {
     }
     index.push(hex + '  ' + (lbl || '(no label)') + '  ' + rlen + ' bytes  [' + wrote.join(', ') + ']');
     if ((i & 7) === 0) {
-      say('Packing ' + (i + 1) + ' of ' + resids.length + '…');
+      setNote('Packing ' + (i + 1) + ' of ' + resids.length + '…');
       await new Promise(r => setTimeout(r, 0));   // keep the page responsive
     }
   }
 
-  index.push('', 'Written by index.html. Labels marked in the gallery with † are',
-             'supplied by the page and are not in the file.');
+  index.push('', 'Grimoire wrote this folder. The page supplies the labels marked † in the',
+             'gallery, and they are not in the file.');
   files.push({ name: folder + 'index.txt', bytes: utf8(index.join('\n')) });
 
   const blob = buildZip(files);
   dlBlob(blob, safeFileName('cythera ' + (CATEGORY_NAMES[subn] || ('subindex ' + subn))) + '.zip');
-  say(files.length + ' files, ' + fmtBytes(blob.size) + (failed ? ', ' + failed + ' undecodable' : ''));
+  setNote(files.length + ' files, ' + fmtBytes(blob.size) + (failed ? ', ' + failed + ' undecodable' : ''));
   if (btn) btn.disabled = false;
 }
 
@@ -363,7 +363,7 @@ function editStringAt(resid, approxOffset) {
   if (!raw) return;
   const data = smartDecrypt(raw, resid).data;
   const loc = locatePascalString(data, approxOffset);
-  if (!loc) { setStatus('There is no text string at that position, so you cannot edit it in place.', true); return; }
+  if (!loc) { setStatus('There is no text string at that position, so there is nothing to edit in place.', true); return; }
   const oldText = decodeMacRoman(data.subarray(loc.textOffset, loc.textOffset + loc.cap));
   let ov = document.getElementById('textEdit');
   if (ov) ov.remove();
@@ -373,10 +373,10 @@ function editStringAt(resid, approxOffset) {
     '<div class="dtHead">Edit text in 0x' + resid.toString(16).toUpperCase() +
       '<button class="linkbtn" onclick="document.getElementById(\'textEdit\').remove()">close</button></div>' +
     '<textarea id="teText" spellcheck="false"></textarea>' +
-    '<div class="inspDim"><span id="teCount"></span>, the stored space is fixed at ' + loc.cap +
-      ' bytes; the page pads shorter text with spaces, and longer text would move every ' +
+    '<div class="inspDim"><span id="teCount"></span>. The stored space is fixed at ' + loc.cap +
+      ' bytes. The page pads shorter text with spaces, and longer text would move every ' +
       'byte after it, which this editor does not do. * separates alternative ' +
-      'lines; @word marks a conversation keyword.</div>' +
+      'lines, and @word marks a conversation keyword.</div>' +
     '<div><button onclick="applyStringEdit(' + resid + ',' + loc.textOffset + ',' + loc.cap + ')">Apply and rebuild the file</button></div>' +
     '</div>';
   document.body.appendChild(ov);
@@ -397,7 +397,7 @@ function applyStringEdit(resid, textOffset, cap) {
   if (!ta) return;
   const enc = encodeMacRoman(ta.value);
   if (enc.length > cap) {
-    setStatus('That text is ' + enc.length + ' bytes; the slot has room for ' + cap + '. Shorten it.', true);
+    setStatus('That text is ' + enc.length + ' bytes, and the slot has room for ' + cap + '. Shorten it.', true);
     return;
   }
   const data = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data;
@@ -508,9 +508,9 @@ function openDitherTool() {
     '<label>into <select id="dtTarget"></select></label>' +
     '<button class="secondary" onclick="ditherReplace()">Replace in archive</button>' +
     '</div>' +
-    '<div class="inspDim">Each mode writes a real resource of its kind: a portrait, a landscape strip, an icon, a ' +
+    '<div class="inspDim">Each mode writes a real resource of its kind, such as a portrait, a landscape strip, an icon, a ' +
     'sixteen-tile sheet or a sized graphic. Transparent pixels stay transparent, the result avoids the colors ' +
-    'the game animates so nothing shimmers, and Replace rebuilds the file in this browser. To download it, go to Data › Cythera Data › Changes.</div>' +
+    'the game animates so nothing shimmers, and Replace rebuilds the file in this browser. To download it, use the Patch in Progress in Tools › Patch Generator.</div>' +
     '</div>';
   document.body.appendChild(ov);
   ditherFillTargets();
@@ -993,12 +993,12 @@ function showSquareOnMap(mapResid, x, y) {
     jumpToResource(mapResid);
   }
   whenMapSettled(mapResid, (cm, vp) => {
-    const need = 20 / cm.TS;   // at least 20 px a square, or the ring is a dot
-    if (mapView.scale < need) {
-      mapView.scale = need;
+    const minScale = 20 / cm.TS;   // at least 20 px a square, or the ring is a dot
+    if (mapView.scale < minScale) {
+      mapView.scale = minScale;
       const zs = document.getElementById('mapZoomSlider'), zl = document.getElementById('mapZoomLabel');
-      if (zs) zs.value = Math.round(need * 100);
-      if (zl) zl.textContent = Math.round(need * 100) + '%';
+      if (zs) zs.value = Math.round(minScale * 100);
+      if (zl) zl.textContent = Math.round(minScale * 100) + '%';
     }
     mapView.x = vp.clientWidth / 2 - (x + 0.5) * cm.TS * mapView.scale;
     mapView.y = vp.clientHeight / 2 - (y + 0.5) * cm.TS * mapView.scale;
@@ -1219,16 +1219,49 @@ function renderContactSheet() {
     return;
   }
 
+  // A tune's tile is its piano roll (drawPianoRoll), the size of a sound's
+  // waveform tile, so Music and SFX read alike.
+  if (subn === 143) {
+    for (const [resid, roff, rlen] of resids) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.style.justifyContent = 'center';
+      const roll = miniWaveCanvas();
+      lazyTile(cell, () => {
+        try { drawPianoRoll(roll, qtmaToMidi(ARCHIVE.bytes.slice(roff, roff + rlen)).events); } catch (e) { quiet(e, 'the piano roll of 0x' + resid.toString(16)); }
+      });
+      cell.appendChild(roll);
+      const lblDiv = document.createElement('div');
+      lblDiv.className = labelFor(resid) ? 'lbl' : 'lbl nolabel';
+      // With outside names off a tune is named by the places that play it
+      // (tunePlaces), and the theme is played by no script.
+      if (!applyLabel(lblDiv, resid)) { lblDiv.textContent = 'played by no script'; lblDiv.classList.remove('placeholder'); }
+      cell.appendChild(lblDiv);
+      const residDiv = document.createElement('div');
+      residDiv.className = 'resid'; residDiv.textContent = '0x' + resid.toString(16).toUpperCase();
+      cell.appendChild(residDiv);
+      const metaDiv = document.createElement('div');
+      metaDiv.className = 'listMeta'; metaDiv.textContent = fmtBytes(rlen);
+      cell.appendChild(metaDiv);
+      cell.title = 'Open this tune';
+      cell.onclick = () => openResource(resid);
+      grid.appendChild(cell);
+      okCount++;
+    }
+    refreshLabelLegend();
+    out.textContent = 'Gallery: ' + okCount + ' tunes. Click a tile to open one.';
+    return;
+  }
+
   if (SOUND_CATEGORIES.has(subn)) {
     for (const [resid, roff, rlen] of resids) {
       const cell = document.createElement('div');
       cell.className = 'cell';
       cell.style.justifyContent = 'center';
-      const miniWave = document.createElement('canvas');
-      miniWave.width=160; miniWave.height=46; miniWave.style.cssText='width:84px;height:38px;background:#090806;border:1px solid #9b8850;margin-bottom:4px';
+      const miniWave = miniWaveCanvas();
       // Decoding 46 sounds to draw 46 waveforms was the slowest gallery here.
       lazyTile(cell, () => {
-      try { const snd=decodeSound(ARCHIVE.bytes.slice(roff,roff+rlen)); const c=miniWave.getContext('2d'), s=snd.samples, w=miniWave.width,h=miniWave.height,mid=h/2, step=Math.max(1,Math.ceil(s.length/w)); c.strokeStyle='#f9f86f'; c.beginPath(); for(let x=0;x<w;x++){let lo=32767,hi=-32768;for(let j=x*step;j<Math.min(s.length,(x+1)*step);j++){if(s[j]<lo)lo=s[j];if(s[j]>hi)hi=s[j];}c.moveTo(x,mid-hi/32768*(mid-2));c.lineTo(x,mid-lo/32768*(mid-2));}c.stroke(); } catch (e) { quiet(e); }
+        try { drawMiniWave(miniWave, decodeSound(ARCHIVE.bytes.slice(roff, roff + rlen)).samples); } catch (e) { quiet(e); }
       });
       cell.appendChild(miniWave);
       const lbl = labelFor(resid);
@@ -1376,10 +1409,10 @@ function renderContactSheet() {
     if (subn === 131) {
       let zones = [];
       try { zones = landscapeZones(resid); } catch (e) { zones = []; }
-      const said = new Set(), names = [];
+      const listedNames = new Set(), names = [];
       for (const st of zones) {
         const nm = landscapeSetterName(st.resid);
-        if (!said.has(nm)) { said.add(nm); names.push(nm); }
+        if (!listedNames.has(nm)) { listedNames.add(nm); names.push(nm); }
       }
       lblDiv.className = names.length ? 'lbl' : 'lbl nolabel';
       lblDiv.textContent = names.length ? names.join(', ') : 'set by no script';
@@ -1418,7 +1451,7 @@ function renderContactSheet() {
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#500'; ctx.fillRect(0,0,32,32);
         canvas.style.width = '48px'; canvas.style.height = '48px';
-        cell.title = 'Decode error: ' + err.message;
+        cell.title = 'The page could not decode this: ' + err.message;
         sheetStats.err++;
       }
       updateSheetSummary();
@@ -1427,7 +1460,7 @@ function renderContactSheet() {
       if (ev.shiftKey) { downloadCanvasAsPNG(canvas, resid); return; }
       openResource(resid);
     };
-    cell.title = "Click to view full size; Shift-click to save a PNG";
+    cell.title = "Click to view full size, or Shift-click to save a PNG";
     grid.appendChild(cell);
   }
   // Blank resources are hidden on purpose, but the tally has to admit it: the

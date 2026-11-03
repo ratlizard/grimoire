@@ -16,7 +16,7 @@
      here. A cave is parts: 'hex' bytes, ':name' a label, 'bXX name' a short
      branch whose opcode byte is XX, 'bra.l 0x..' and 'bsr.l 0x..' a long one
      to an offset in the segment, 'pcrel 0x.. k' a long holding that offset
-     less its place plus k. `bodies` has one per choice of the fixes that
+     minus its place plus k. `bodies` has one per choice of the fixes that
      share the site, keyed by their names joined with '+' in this order;
    - values: a relocated long given another value (seg 0 is CODE 0's header,
      the size of the A5 world above A5, which is the largest any chosen fix
@@ -29,7 +29,6 @@
 const APP_FIXES_68K = {
   inPlace: [
     { fix: 'option-p', seg: 5, at: 0xC398, was: '7210c08156c044001d40ff4d1d6eff4dffef4a2effef6716', now: '0c4300a86600018e0240001067204e714e714e714e714e71' },  // cmpi.w #$a8, d3; bne.w $c52c; andi.w #$10, d0; beq.b $c3c6; nop; nop; nop; nop; nop
-    { fix: 'option-x', seg: 5, at: 0xBEF2, was: '70001030081a02800000008056c044001d40ff7f1d6eff7ffff34a2efff367104878001f', now: '223c00033c743235180048c12001eb884841323c001f2f0108300007081a67144e714e71' },  // move.l #$33c74, d1; move.w (a5, d1.l), d1; ext.l d1; move.l d1, d0; lsl.l #$5, d0; swap d1; move.w #$1f, d1; move.l d1, -(a7); btst.b #$7, $1a(a0, d0.l); beq.b $bf26; nop; nop
     { fix: 'drag-northwest', seg: 5, at: 0x76D8, was: '673c', now: '6702' },  // beq.b $76dc
     { fix: 'theft-moved', seg: 4, at: 0x8C40, was: '4a1267080c12000866000088', now: '1012020000d76600008a4e71' },  // move.b (a2), d0; andi.b #$d7, d0; bne.w $8cd2; nop
     { fix: 'theft-moved', seg: 4, at: 0x994A, was: '7201', now: '7211' },  // moveq #$11, d1
@@ -53,10 +52,20 @@ const APP_FIXES_68K = {
     { fix: 'right-click', seg: 1, at: 0xD7DE, was: '006a1000000e', now: '006a0100000e' },  // ori.w #$100, $e(a2)
     { fix: 'speech-clear', seg: 5, at: 0xFC9C, was: '2f3c000c0067', now: '2f3c000c0064' },  // move.l #$c0064, -(a7)
     { fix: 'speech-clear', seg: 5, at: 0xFCE2, was: '256efff80858256efffc085c357c0050085c', now: '257c000c00730858257c005001f4085c4e71' },  // move.l #$c0073, $858(a2); move.l #$5001f4, $85c(a2); nop
+    { fix: 'name-clear', seg: 5, at: 0xF56C, was: '357c00680002', now: '357c00710002' },  // move.w #$71, $2(a2)
+    { fix: 'name-clear', seg: 5, at: 0xFE0A, was: '48780067', now: '4878006f' },  // pea.l $6f.w
     { fix: 'menu-items', seg: 3, at: 0xA0B2, was: '48780014', now: '48780040' },  // pea.l $40.w
     { fix: 'menu-items', seg: 3, at: 0xA132, was: '0c430014', now: '0c430040' },  // cmpi.w #$40, d3
     { fix: 'corner-body', seg: 1, at: 0x4E02, was: '7400', now: '7401' },  // moveq #$1, d2
     { fix: 'corner-body', seg: 1, at: 0x4E1C, was: '670000b6', now: '670000a4' },  // beq.w $4ec2
+    { fix: 'ai-import', seg: 1, at: 0x1E3BC, was: '4a9467141f3c00012f142f1261fffffff59642944fef000a30040280000000ffe788d9c042ac0004', now: '30040280000000ffe788d9c04a9467141f3c00012f142f1261fffffff58a42944fef000a42ac0004' },  // move.w d4, d0; andi.l #$ff, d0; lsl.l #$3, d0; adda.l d0, a4; tst.l (a4); beq.b $1e3e0; move.b #$1, -(a7); move.l (a4), -(a7); move.l (a2), -(a7); bsr.l $1d960; clr.l (a4); lea.l $a(a7), a7; clr.l $4(a4)
+    { fix: 'ai-import', seg: 1, at: 0x1E416, was: '7000600270014a006706297234040004', now: '600e4e71297234040004600c4e714e71' },  // bra.b $1e426; nop; move.l $4(a2, d3.w), $4(a4); bra.b $1e42e; nop; nop
+    { fix: 'open-during-play', seg: 1, at: 0x1E52E, was: '4a926718', now: '42aa0004' },  // clr.l $4(a2)
+    { fix: 'afternoon', seg: 3, at: 0x7DE0, was: '7006', now: '7012' },  // moveq #$12, d0
+    { fix: 'automap-span', seg: 6, at: 0x4746, was: '302effdc', now: '302effd2' },  // move.w -$2e(a6), d0
+    { fix: 'more-button', seg: 5, at: 0xD862, was: '302efff648c0322efffa48c192807020b2805c4f6f0e302efff648c07220d0813d40fffa', now: '302efff606400020b06efffa6c043d40fffa302efffa044000203d40fff65c4f4e714e71' },  // move.w -$a(a6), d0; addi.w #$20, d0; cmp.w -$6(a6), d0; bge.b $d874; move.w d0, -$6(a6); move.w -$6(a6), d0; subi.w #$20, d0; move.w d0, -$a(a6); addq.w #$6, a7; nop; nop
+    { fix: 'spot-tune', seg: 1, at: 0x6A56, was: '6718', now: '6746' },  // beq.b $6a9e
+    { fix: 'ai-mods', seg: 1, at: 0x1F6DA, was: '0c440004', now: '0c440005' },  // cmpi.w #$5, d4
   ],
   caves: [
     { fixes: ['walk-to'], seg: 5, site: 0x663A, was: '4aaeff486700008e', bodies: {
@@ -117,18 +126,18 @@ const APP_FIXES_68K = {
         '52804a18',                                  // addq.l #$1, d0; tst.b (a0)+
         'b66 len',
         '554f486efef442673f00a886301f',              // subq.w #$2, a7; pea.l -$10c(a6); clr.w -(a7); move.w d0, -(a7); dc.w $a886; move.w (a7)+, d0
-        '0c400068',                                  // cmpi.w #$68, d0
+        '0c40005a',                                  // cmpi.w #$5a, d0
         'b6f fits',
         '205520503028004a0c400009',                  // movea.l (a5), a0; movea.l (a0), a0; move.w $4a(a0), d0; cmpi.w #$9, d0
         'b6f squeeze',
         '53403f00a88a',                              // subq.w #$1, d0; move.w d0, -(a7); dc.w $a88a
         'b60 measure',
         ':squeeze',
-        '3f3c0068486efef4',                          // move.w #$68, -(a7); pea.l -$10c(a6)
+        '3f3c005a486efef4',                          // move.w #$5a, -(a7); pea.l -$10c(a6)
         'bsr.l 0xeb76',
         'bra.l 0x103bc',
         ':fits',
-        '3f3c0068486efef4',                          // move.w #$68, -(a7); pea.l -$10c(a6)
+        '3f3c005a486efef4',                          // move.w #$5a, -(a7); pea.l -$10c(a6)
         'bra.l 0x103bc',
       ],
     } },
@@ -143,7 +152,18 @@ const APP_FIXES_68K = {
         '206a00042050',                              // movea.l $4(a2), a0; movea.l (a0), a0
         '0c680a80004c',                              // cmpi.w #$a80, $4c(a0)
         'b6d add',
-        '3f3c000142672f2a00043f3c0024a9e7',          // move.w #$1, -(a7); clr.w -(a7); move.l $4(a2), -(a7); move.w #$24, -(a7); dc.w $a9e7
+        '7201',                                      // moveq #$1, d1
+        ':count',
+        'b268004c',                                  // cmp.w $4c(a0), d1
+        'b6c del',
+        '3001d0403030005602407fff',                  // move.w d1, d0; add.w d0, d0; move.w $56(a0, d0.w), d0; andi.w #$7fff, d0
+        '226800502251',                              // movea.l $50(a0), a1; movea.l (a1), a1
+        '0c3100ff0001',                              // cmpi.b #$ff, $1(a1, d0.w)
+        'b66 del',
+        '5241',                                      // addq.w #$1, d1
+        'b60 count',
+        ':del',
+        '3f0142672f2a00043f3c0024a9e7',              // move.w d1, -(a7); clr.w -(a7); move.l $4(a2), -(a7); move.w #$24, -(a7); dc.w $a9e7
         '206a00042050',                              // movea.l $4(a2), a0; movea.l (a0), a0
         ':add',
         '3d68004cffec',                              // move.w $4c(a0), -$14(a6)
@@ -155,11 +175,86 @@ const APP_FIXES_68K = {
         '206a00042050',                              // movea.l $4(a2), a0; movea.l (a0), a0
         '0c680a80004c',                              // cmpi.w #$a80, $4c(a0)
         'b6d add',
-        '3f3c000142672f2a00043f3c0024a9e7',          // move.w #$1, -(a7); clr.w -(a7); move.l $4(a2), -(a7); move.w #$24, -(a7); dc.w $a9e7
+        '7201',                                      // moveq #$1, d1
+        ':count',
+        'b268004c',                                  // cmp.w $4c(a0), d1
+        'b6c del',
+        '3001d0403030005602407fff',                  // move.w d1, d0; add.w d0, d0; move.w $56(a0, d0.w), d0; andi.w #$7fff, d0
+        '226800502251',                              // movea.l $50(a0), a1; movea.l (a1), a1
+        '0c3100ff0001',                              // cmpi.b #$ff, $1(a1, d0.w)
+        'b66 del',
+        '5241',                                      // addq.w #$1, d1
+        'b60 count',
+        ':del',
+        '3f0142672f2a00043f3c0024a9e7',              // move.w d1, -(a7); clr.w -(a7); move.l $4(a2), -(a7); move.w #$24, -(a7); dc.w $a9e7
         '206a00042050',                              // movea.l $4(a2), a0; movea.l (a0), a0
         ':add',
         '3d68004cffec',                              // move.w $4c(a0), -$14(a6)
         'bra.l 0x19bc0',
+      ],
+    } },
+    { fixes: ['window-leak'], seg: 5, site: 0x96E0, was: '4a6e000c6f0a', bodies: {
+      'window-leak': [
+        '202b0014',                                  // move.l $14(a3), d0
+        'b67 skip',
+        '2f00203c00040004ab1d',                      // move.l d0, -(a7); move.l #$40004, d0; dc.w $ab1d
+        '42ab0014',                                  // clr.l $14(a3)
+        ':skip',
+        '4a6e000c',                                  // tst.w $c(a6)
+        'b6e del',
+        'bra.l 0x96f0',
+        ':del',
+        'bra.l 0x96e6',
+      ],
+    } },
+    { fixes: ['ai-weight'], seg: 1, site: 0x1F4C2, was: '70d0d2801481', bodies: {
+      'ai-weight': [
+        '70d0d280',                                  // moveq #$d0, d0; add.l d0, d1
+        '0c8100000064',                              // cmpi.l #$64, d1
+        'b6f ok',
+        '7265',                                      // moveq #$65, d1
+        ':ok',
+        '1481',                                      // move.b d1, (a2)
+        'bra.l 0x1f4c8',
+      ],
+    } },
+    { fixes: ['ai-token'], seg: 1, site: 0x1F164, was: '205216d05292', bodies: {
+      'ai-token': [
+        '2052200b90ae000c',                          // movea.l (a2), a0; move.l a3, d0; sub.l $c(a6), d0
+        '0c800000003f',                              // cmpi.l #$3f, d0
+        'b6c full',
+        '16d0',                                      // move.b (a0), (a3)+
+        ':full',
+        '5292',                                      // addq.l #$1, (a2)
+        'bra.l 0x1f16a',
+      ],
+    } },
+    { fixes: ['status-wrap'], seg: 5, site: 0xD6D4, was: '2d41fff842aefffc', bodies: {
+      'status-wrap': [
+        '2d41fff8',                                  // move.l d1, -$8(a6)
+        '70012d40fffc',                              // moveq #$1, d0; move.l d0, -$4(a6)
+        'bra.l 0xd6dc',
+      ],
+    } },
+    { fixes: ['conv-field'], seg: 5, site: 0x1105C, was: '302efffe48c0', bodies: {
+      'conv-field': [
+        ':check',
+        '302eff26d06eff20b06efffc',                  // move.w -$da(a6), d0; add.w -$e0(a6), d0; cmp.w -$4(a6), d0
+        'b6e drop',
+        '3004d06eff1e06400080b06efffe',              // move.w d4, d0; add.w -$e2(a6), d0; addi.w #$80, d0; cmp.w -$2(a6), d0
+        'b6f done',
+        '302eff26d06eff20d06eff20b06efffc',          // move.w -$da(a6), d0; add.w -$e0(a6), d0; add.w -$e0(a6), d0; cmp.w -$4(a6), d0
+        'b6f wrap',
+        ':drop',
+        '4a47',                                      // tst.w d7
+        'b6f done',
+        '5347300748c0e78841eeff50',                  // subq.w #$1, d7; move.w d7, d0; ext.l d0; lsl.l #$3, d0; lea.l -$b0(a6), a0
+        '3d700800ff2638300802',                      // move.w (a0, d0.l), -$da(a6); move.w $2(a0, d0.l), d4
+        'b60 check',
+        ':wrap',
+        '302eff20d16eff26382efffa',                  // move.w -$e0(a6), d0; add.w d0, -$da(a6); move.w -$6(a6), d4
+        ':done',
+        'bra.l 0x11084',
       ],
     } },
     { fixes: ['hook-load'], seg: 1, site: 0xEC52, was: '4fef00264cdf1cf8', bodies: {
@@ -241,6 +336,25 @@ const APP_FIXES_68K = {
         '206efff03084',                              // movea.l -$10(a6), a0; move.w d4, (a0)
         ':back',
         'bra.l 0xb456',
+      ],
+    } },
+    { fixes: ['hero-square'], seg: 6, site: 0x73AE, was: '378432005243', bodies: {
+      'hero-square': [
+        '48e7c00030333200223c00033c74b07518004cdf0003', // movem.l d0-d1, -(a7); move.w (a3, d3.w * 2), d0; move.l #$33c74, d1; cmp.w (a5, d1.l), d0; movem.l (a7)+, d0-d1
+        'b67 kept',
+        '37843200',                                  // move.w d4, (a3, d3.w * 2)
+        ':kept',
+        '5243',                                      // addq.w #$1, d3
+        'bra.l 0x73b4',
+      ],
+    } },
+    { fixes: ['hero-square'], seg: 6, site: 0x74D0, was: '206eff823084', bodies: {
+      'hero-square': [
+        '206eff8248e74000223c00033c7432351800b2504cdf0002', // movea.l -$7e(a6), a0; movem.l d1, -(a7); move.l #$33c74, d1; move.w (a5, d1.l), d1; cmp.w (a0), d1; movem.l (a7)+, d1
+        'b67 kept',
+        '3084',                                      // move.w d4, (a0)
+        ':kept',
+        'bra.l 0x74d6',
       ],
     } },
     { fixes: ['containers-weight'], seg: 4, site: 0x8C20, was: 'b2aeff64504f6f18', bodies: {
@@ -551,36 +665,47 @@ const APP_FIXES_68K = {
     { fix: 'text-compatible', at: 0x98EE, was: '74686973', now: '77697468' },
     { fix: 'text-compatible', at: 0x9A11, was: '74686973', now: '77697468' },
   ],
-  played: ['containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'option-p', 'option-x', 'roster-pose', 'sleeper-unit', 'spell-glow', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
+  played: ['afternoon', 'containers-weight', 'corner-body', 'corpse-light', 'drag-northwest', 'empty-zone-save', 'hood-size', 'hook-corpse', 'hook-load', 'hook-take', 'level-keep-made', 'level-keep-place', 'load-cost', 'menu-items', 'music-revert', 'name-clear', 'option-p', 'roster-pose', 'sleeper-unit', 'spell-glow', 'spot-tune', 'tab-pane', 'target-hunger', 'text-wieldable', 'text-yourself', 'theft-moved', 'unit-guard', 'walk-to', 'weight-contents', 'widget-renumber'],
   built: {
+    'afternoon': 'a5c5a679bca703b9537ce76a8ffbb979f6def95dd955ecb76af74594888c2234',
+    'ai-import': '0b6af25daf450d9a49038b07ee53254d29167f84921499a36828340d7f224743',
+    'ai-mods': 'e1d515c6ac36d14cf4003d55a7406734a94c645704c6747eac162fd3e3a37b8a',
+    'ai-token': '94a3609049098a79d2b9887911a7e3fb51f2ef1ba72c78fef1674e340ff0e40c',
+    'ai-weight': 'ccff1067f7fdac49d602e220d6ad0865e7b9d181f7e8205acb55db8c865126d2',
+    'automap-span': '01f6298c3671f13e197176d134b40566246f9ee0be58b51db4c992d40f25fd63',
     'books-window': '207b3c02cdf3210a790655b10b292f6af82a2758492771c8b8e1a0d9abc58840',
     'containers-weight': '75a358199feb783bfbc9dc5bfc27a3a330321f6bd0bacb341f4e03f13790c5db',
+    'conv-field': '3daaf130078a4c59013acaafb2ccfc1794172fdda89a28803ba4b2dddd3dd252',
     'corner-body': '4e6ea0577d046781bffd182dcdfa86ceaa54b5fb1864f7e08eced6cd2b9ec632',
     'corpse-light': 'eabb1d64b7d89e012b003bcf6905312d674f8c067367ffc68a71382ef6be204a',
     'drag-northwest': '240a4b91522a1322be41d61876e36cedfd74373fc29e436b55cf066a2bccee0d',
     'empty-zone-save': '5bb5c4a4b682cff534b3b09d333a20b3ae05b3ec32349dadd83de576bc5b65de',
-    'hero-square': 'f33d96b0e59630eccc9ff67dc97a867fec8e861902fb42537174da8f0a22c827',
+    'hero-square': 'ec318fa99f4d7d642ea536c9431064ee74e54dc408dbe9b732b90f7d712f72bf',
     'hood-size': '66f222eaf2f68f53d964f4f1a5ab5d18cb03d0f3abaf3704b28e957c81deb716',
     'hook-corpse': '80f6aa5d699c7cc96c1df9b109b3f855143f25d04a55cdeee5bd045c6bbba87e',
     'hook-load': '92bd330546b438b44acdaca5238d0d1101aebd5fcc1bc7f1cd3a136cacf8d0c8',
     'hook-take': '9b327973c69ee28340851b599c55cfa3f783b169a8b1ceea6d7dd4b4df8f08c0',
-    'journal-rows': 'e89f900e0ff7a62472aad58d5d752648e0a933265bf62447927131392703db58',
+    'journal-rows': '20ea0ba541ef2f68e13681d54075c02d6fe3a9506c89eb05c62737191de5f102',
     'level-keep-made': 'a1f289733b4867ab97bd255cfe35388e3001f4c15c248dfeaff4fb4cb2551780',
     'level-keep-place': 'ce22ba42197752bcdc59b9f9846b71f6fa3416716a74b83f2d4c0ffb93da3ac8',
     'load-cost': '3acf3f77d0c6c10de93e8c14f2fdbbbde9ecd7f39fd1a8e8846d0bf9cc2c64aa',
     'menu-items': 'f73a679d7a2eec07a20fe3b5cf2619e3c4f926f673148b00d459bc8a7075e9f6',
     'menu-scroll': '829f52f2fd98bded93a73cc37a16405eedb4efc9c3e9f176d4bbc3b839a221dc',
+    'more-button': '1c700213a8c15bd15c18fbb3745bd410924a43a8f5bc564e3087e00110a8d04a',
     'music-lock': '0be1695d786e5c8c2c855aa96421daabb83b59326ae52e03522d8a148e63ffe9',
     'music-revert': '50c306a8f80643d5467290ea5dbbba4a3e362e072cbaffaa144572ae54cbf5a4',
-    'name-fit': '768c4ab526dab1d96bbec2759fa91ae1631b4ce5493cf870dc01f0b10c55e9aa',
+    'name-clear': 'b1d85aad5ad95485b577f08c7e4273371af7b7ff120e0756553d1b2fe0395c42',
+    'name-fit': '4cb48e5fb56b289e879d5dcf7a6e1de0c7f246a7ee28174b02f8fa584b0ebc7f',
+    'open-during-play': '03047304dc2e787313bd27b1a24fef3e08377f3d9eda0b6bddacca54274fd65f',
     'option-p': '6917f679a8d9fac518babc87c16ab4112df7965b8313222a302109dc376e6225',
-    'option-x': 'bed7d91fc213c424f96f8c4a8bdff56831792e71698f8099595ed428d7c65215',
     'right-click': '0ea255ae9bbd6a6245a40cadc2c088d99adb7a6bf4a9abdbe2e985296a2994a6',
     'roster-pose': '1fd70d8d33466cceba59699538e7db789064f06c903d55d1fefdf4c5b502fc0a',
     'sleep-hidden': 'b69b37f742be25cc87c88d5981117fee40767a995763fdd8e5c83eb27ff5b7d1',
     'sleeper-unit': '2e0eb0000a1f94533d056a050d7e72bf6863eb1fd8d2b17a90b04c9bcc871dd6',
     'speech-clear': 'a7b91ddb66d51c5d86f21da10870af5878909ef0da2d0f97b7916bece17b285b',
     'spell-glow': '65733e09cc4bc606b1fbe63aef755b7851da0c05978df73a04a41117315b40d3',
+    'spot-tune': 'f4282e54cf9fed23384f888e205776324efba377f6c45d50c367dc7ef9340670',
+    'status-wrap': '5ee8cd36b5820d8bab69494c74b772c9c64c4f1a576396a72f405487cc188607',
     'tab-pane': '9c637c959a023318fbb2db00a6ae03a47c03aed66b7e3e28bad2289b39b73bb5',
     'take-window': '829d15a468584f4714bc3c92dda3d476cf20e0be34db4308bdd81ce8db75d3b9',
     'target-hunger': 'b6e0d502d9d61a44191634e73650cee8e140533210d5f9545baf7da233bc6422',
@@ -592,6 +717,7 @@ const APP_FIXES_68K = {
     'walk-to': 'e9dc95c294c067c41f836ef643962132e0d58e15fa366234b273f7189b25db2c',
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
-    '': 'bc9a43aac84babcd9e8f18562882ff3844dfccdaa7152182021aa0b311e0612d',   // every fix
+    'window-leak': 'dafe456d790ddd4a39e181449b5724a0e0e3c2c8a8d1e33e032659968fcfa214',
+    '': 'e128221f849f31440106347ceb556b1ecaca2bc2b12d5bc80a43333146919c6b',   // every fix
   },
 };

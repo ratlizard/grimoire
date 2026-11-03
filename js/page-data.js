@@ -223,7 +223,7 @@ function paintBackdrop(ctx, backdrop, TS, phase, x0, y0, x1, y1) {
    - THE ROLLING WORD. The key's low byte is shifted into a global word
      (`clrlwi 0, key, 24` then `rlwimi 0, word, 8, 0, 23`), and the word is
      tested against constants as an `addis`/`cmplwi` pair, the compiler's way
-     of comparing 32 bits: the constant is the `cmplwi` operand less the
+     of comparing 32 bits: the constant is the `cmplwi` operand minus the
      `addis` operand shifted up 16. The first such test is the cheat code,
      the others the CD words.
    - THE GATE. After the code's test the routine computes the address of a
@@ -475,8 +475,8 @@ function exePrefsAccess() {
     // builds several controls that way (a dialog), and nowhere else.
     let prev = -1;
     const named = [];
-    for (const { i, lab } of labels) { const got = reads.filter(x => x.i < i && x.i > prev && !x.label && i - x.i < 40); if (got.length) named.push({ lab, got }); prev = i; }
-    if (new Set(named.map(n => n.got[0].byte.v + ':' + n.got[0].bits.v.join())).size >= 3) for (const n of named) for (const x of n.got) x.label = n.lab;
+    for (const { i, lab } of labels) { const labelReads = reads.filter(x => x.i < i && x.i > prev && !x.label && i - x.i < 40); if (labelReads.length) named.push({ lab, labelReads }); prev = i; }
+    if (new Set(named.map(n => n.labelReads[0].byte.v + ':' + n.labelReads[0].bits.v.join())).size >= 3) for (const n of named) for (const x of n.labelReads) x.label = n.lab;
     out.reads.push(...reads);
   }
   return (pef.prefsAccess = out);
@@ -516,7 +516,7 @@ function exePrefFields() {
 /* What the game stores when there are no preferences: TDelverApp::PostInitMac
    writes the whole record once for each processor class, each word loaded
    from the data section (`addi r, 2, d`, `lwz 0, 0(r)`, `stw 0, 0(record)`),
-   and the compare tree above each write, over the answer Gestalt gave less
+   and the compare tree above each write, over the answer Gestalt gave minus
    one, shows which processors get it. The selectors are the `lis`/`addi`
    pairs handed to Gestalt. */
 function exePrefDefaults() {
@@ -812,7 +812,14 @@ function exePatchFiles() {
    with the player's position in hex.
 
    `myprintf` writes to the status window and `mygetnum` reads a number typed
-   there, in the base the call is handed. */
+   there, in the base the call is handed.
+
+   The lede quotes Glenn Andreas in the livestream's chat at 1:42:36, after
+   his "There was also a debug mode that let me create arbitrary objects,
+   teleport to any location, etc..." at 1:41:48 (the workbench's
+   livestream-2019-chat.md, read off the video; the note is the
+   maintainer's request of 22 October 2026). The code is still in both shipped builds, gated
+   rather than removed, as the sheet's first sentence has it. */
 // The option layer of a US keyboard, by Mac Roman code: which keys make the
 // characters the key routine tests. Layout knowledge, not the program's.
 const US_OPTION_KEYS = { 0xA9: 'option-g', 0xC6: 'option-j', 0xEF: 'option-shift-j', 0xA7: 'option-s', 0xB9: 'option-p',
@@ -823,29 +830,29 @@ const US_OPTION_KEYS = { 0xA9: 'option-g', 0xC6: 'option-j', 0xEF: 'option-shift
 // built from what the case was read to do (`x`, the helpers in
 // renderCheatsSheet). A key the program does not have is not listed.
 const CHEAT_KEY_WORDS = {
-  0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with where you are, prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then ' + x.via('GoToLocation', 'moves you there') + ': anywhere in the game.'],
-  0xEF: ['Take teleporter', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ', then ' + x.via('TeleportTo', 'sends you') + ' where that teleporter goes.'],
-  0xA7: ['Create a prop', x => 'Prompts for ' + x.asks() + ', then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
-    'The number is the type plus 1,024 times the aspect: 0x0064 is a spear, and 0x0864 a spear at aspect 2, which has the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
+  0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with the hero’s position, prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then ' + x.via('GoToLocation', 'moves the hero there') + ', anywhere in the game.'],
+  0xEF: ['Take teleporter', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ', then ' + x.via('TeleportTo', 'sends the hero') + ' where that teleporter goes.'],
+  0xA7: ['Create a prop', x => 'Prompts for ' + x.promptWords() + ', then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
+    'The number is type + 1,024 × aspect. So 0x0064 is a spear, and 0x0864 a spear at aspect 2, which has the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
   0xB9: ['What prop is this?', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ' and prints the record: class, state, position, Data1 and Data2.' +
     (x.fallsInto ? ' Then, because of a missing jump, it carries on into ' + x.fallsInto + '.' : '')],
-  0xC0: ['Where am I?', x => 'Prints your x and y as ' + x.q(0) + '.'],
+  0xC0: ['Where am I?', x => 'Prints the hero’s x and y as ' + x.q(0) + '.'],
   0xFF: ['What time is it?', x => 'Prints ' + x.q(0) + ', the clock and the day.'],
   0xA0: ['Pass the time', x => x.via('DoTicks', 'Passes') + ' ' + x.arg('DoTicks', 4) + ' clock units' + x.clockWords('DoTicks', 4) + '.'],
   0x3C: ['Darken', x => x.via('DarkenLight', 'Darkens') + ' the level’s light a step.'],
   0x3E: ['Brighten', x => x.via('BrightenLight', 'Brightens') + ' the level’s light a step.'],
-  0xC3: ['Magic map', x => 'Shows the ' + x.via('MagicMap', 'magic map') + ' around you until you click.'],
-  0xBD: ['Show the room you are in', x => x.via('CopyBits', 'Shows') + ' the ground you can reach from where you stand, until you click. The magic map starts from it.'],
+  0xC3: ['Magic map', x => 'Shows the ' + x.via('MagicMap', 'magic map') + ' around the hero until the next click.'],
+  0xBD: ['Show the hero’s room', x => x.via('CopyBits', 'Shows') + ' the ground the hero can reach from where they stand, until the next click. The magic map starts from it.'],
   0xB5: ['Show the walls', x => x.walls()],
-  0xB7: ['Walk through anything', x => 'Nothing blocks you while it is on (' + x.flip() + ').'],
+  0xB7: ['Walk through anything', x => 'Nothing blocks the hero while it is on (' + x.flip() + ').'],
   0xFA: ['Nobody is anybody’s enemy', x => x.peace()],
-  0xFE: ['See in the dark', x => 'Switches flag ' + x.flag() + ' on and off for you.'],
-  0xA8: ['Regenerate', x => 'Switches flag ' + x.flag() + ' on and off for you: the healing every six minutes that Omen’s ring gives.'],
-  0xC5: ['Swamp protection (broken)', x => x.broken()],
+  0xFE: ['See in the dark', x => 'Switches flag ' + x.flag() + ' on and off for the hero.'],
+  0xA8: ['Regenerate', x => 'Switches flag ' + x.flag() + ' on and off for the hero. It is the healing every six minutes that Omen’s ring gives.'],
+  0xC5: ['Look coordinates', x => x.look()],
   0xCA: ['Turn-based movement', x => 'Switches it on and off (' + x.flip() + ') and prints ' + x.q(1) + ' or ' + x.q(0) + '.'],
-  0xC2: ['Speed limiter', x => 'Switches the ' + x.via('SLEnable', 'speed limit') + ' on and off (' + x.flip() + ').'],
+  0xC2: ['Speed limiter', x => 'Flips a switch (' + x.flip() + ') and calls the ' + x.via('SLEnable', 'speed limit') + ', which is empty in this release, so the key has no effect.'],
   0x31: ['A party member’s window', x => 'Opens a party member’s window by number, 1 for the first, or ' + x.via('FindInventory', 'brings it to the front') + '.'],
-  0x5A: ['Z stats', x => 'Prints ' + x.zstats() + '.'],
+  0x5A: ['Z stats', x => 'Prints ' + x.zstats() + '. The time spent is the open game’s total time in play, kept in the save, not the time since launch.'],
   0x100: ['Macros', x => 'Keys that type no character run a ' + x.via('PerformMacro', 'macro') + '.']
 };
 
@@ -969,7 +976,8 @@ function renderCheatsSheet() {
   const kr = appImage() ? exeKeyRoutine() : null;
   const noApp = 'Open the game from its installer, under Settings, to read the program’s code here.';
   let h = '<h3 class="cheatH">Cheat Mode</h3>' +
-    '<div class="mechLede">Cythera has a cheat mode that no released copy can switch on; its code works only with a preference set that nothing in the game sets.' +
+    '<div class="mechLede">Cythera has a cheat mode that no released copy can switch on. Its code works only with a preference that nothing in the game sets.' +
+    ' Glenn Andreas wrote in the chat of Cythera Guides’ 2019 anniversary livestream that this debug mode “should have been removed” (1:42:36).' +
     (kr ? '' : ' ' + noApp) + '</div>';
 
   // The helpers a key's sentence is built with, over one case.
@@ -993,7 +1001,7 @@ function renderCheatsSheet() {
       base: () => bases[0] ? baseWord(bases[0]) : '',
       bases: () => bases.map(baseWord).join(', '),
       // Each prompt with the base of the number read after it.
-      asks: () => { const ps = c.strings.map((t, i) => ({ t, i })).filter(o => !/^[\n]*%[-#0-9.]*[a-z][\n]*$/.test(o.t.v)); const parts = ps.map((o, k) => q(o.i) + (bases[k] ? ' ' + baseWord(bases[k]) : '')); return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts.join(''); },
+      promptWords: () => { const ps = c.strings.map((t, i) => ({ t, i })).filter(o => !/^[\n]*%[-#0-9.]*[a-z][\n]*$/.test(o.t.v)); const parts = ps.map((o, k) => q(o.i) + (bases[k] ? ' ' + baseWord(bases[k]) : '')); return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts.join(''); },
       ori: () => { const f = opFact(d => d.mn === 'ori' && d.imm > 0, d => d.imm); return f ? srcNum(f) : '?'; },
       less: () => { const f = opFact(d => d.mn === 'addi' && d.ra === kr.keyReg && d.imm < 0, d => -d.imm); return f ? srcNum(f) : '?'; },
       flip: () => c.flips[0] ? srcNum(c.flips[0], 'here') : '',
@@ -1009,7 +1017,7 @@ function renderCheatsSheet() {
         const w = exeWallMask(); if (!w) return 'Marks each wall on every square of the level (MakeBitMap).';
         const attrs = getTileAttributes(ARCHIVE), names = new Set(); let n = 0;
         for (let t = 0; t <= w.tiles.v && t < attrs.length; t++) if ((attrs[t] & w.mask.v) === w.mask.v) { n++; const nm = terrainNameFor(t); if (nm) names.add(nm); }
-        return 'Shows the walls the room view stops at, until you click: every square of ' + srcNum(w.mask, n + ' kinds of terrain') + ', ' + [...names].map(svEsc).join(', ') + '.';
+        return 'Shows the walls the room view stops at, until the next click. They are every square of ' + srcNum(w.mask, n + ' kinds of terrain') + ', ' + [...names].map(svEsc).join(', ') + '.';
       },
       peace: () => {
         if (!enemy || !enemy.peace || !enemy.peaceKey) return 'Switches a byte that the enemy check reads first.';
@@ -1024,14 +1032,15 @@ function renderCheatsSheet() {
         const zero = callers.filter(k => { const n = exeFind(k.ops, k.i + 1, 3, d => d.mn === 'cmpwi' && d.ra === 3); return n >= 0 && k.ops[n].d.imm === 0; });
         return 'It makes ' + srcNum(enemy.peace, 'no pair enemies') + ', so monsters stop finding targets.';
       },
-      brokenShort: () => {
-        const k = callOf('AddAbility'), who = k && k.args[3], test = opFact(d => d.mn === 'lbz' && d.d > 0, d => d.d);
-        return 'It checks byte ' + (test ? srcNum(test) : '?') + ' of character ' + (who ? srcNum(who) : '?') + '’s record instead of the player’s, so it protects no one.';
-      },
-      broken: () => {
-        const k = callOf('AddAbility'), f = k && k.args[4], who = k && k.args[3];
-        const test = opFact(d => d.mn === 'lbz' && d.d > 0, d => d.d);
-        return 'Meant to switch flag ' + (f ? srcNum(f) + (dvmFlagName(f.v) ? ', ' + svEsc(dvmFlagName(f.v)) : '') : '?') + ' on and off, but it ' + (who ? srcNum(who, 'acts on an empty record') : 'acts on an empty record') + ' instead of yours, so it does nothing.';
+      // option-x switches flag 31 on character 0, the record no one uses, and that bit is
+      // the debug switch Look reads: with it on, Look prints a square's location in hex
+      // and a thing's record. It was read as a swamp-poison cheat aimed at nobody until a
+      // run on Mac OS 8.5 showed "Location 1c,1b,27:" (bugs.md, 28 October 2026).
+      lookShort: () => 'It switches a readout on and off. Look then shows a square’s location and a thing’s record.',
+      look: () => {
+        const k = callOf('AddAbility'), f = k && k.args[4], character = k && k.args[3];
+        return 'Turns on a readout for Look. Looking at a square then shows its location, in hexadecimal, and looking at a thing shows its record. ' +
+          'The switch is flag ' + (f ? srcNum(f) : '?') + ' on ' + (character ? srcNum(character, 'the empty record') : 'the empty record') + '.';
       },
       zstats: () => { const z = exeStringsOf('PrintZStats'); return z.length ? z.map(t => '“' + srcNum(t, t.v.replace(/\n+$/, '')) + '”').join(', ') : 'the build’s statistics'; }
     };
@@ -1063,14 +1072,14 @@ function renderCheatsSheet() {
     const distinct = defaults ? [...new Set(defaults.words.map(w => w.v))] : [];
     const clear = distinct.every(v => !((v >>> (24 - 8 * g.byte.v)) & (1 << g.bit.v)));
     const letters = chars(g.word.v);
-    h += '<div class="mechSec"><h4 class="cheatH4">The Gate (How It Switches On)</h4><ul class="ruleList">' +
+    h += '<div class="mechSec"><h4 class="cheatH4">The Cheat Mode Switch</h4><ul class="ruleList">' +
       '<li>Type <b>' + srcNum(g.word, g.word.v) + '</b> (' + letters.map(t => '<b>' + svEsc(t) + '</b>').join(', then ') + ' on a US layout) in the map window. With ' +
       srcNum(g.bit, 'the preference') + ' set, cheat mode ' + srcNum(g.flip, 'switches') + ' and the ' +
       'status window prints ' + (g.on ? '“' + srcNum(g.on, g.on.v.replace(/\n+$/, '')) + '”' : 'that it is on') + (g.on && /[.!?]\s*$/.test(g.on.v) ? '' : '.') + '</li>' +
       (setters.length ? '<li>Written by ' + setters.map(w => srcNum(w.bits, w.routine.name.replace(/\(.*$/, ''))).join(', ') + '.</li>'
         : '<li><b>Nothing in the game sets it</b>' + (defaults && !clear ? ', though a record the game stores at first run has it set' : '') + ', so on a copy as released typing the code does nothing.</li>') +
       (others.length && wait ? '<li>The preference also adds a ' + srcNum(wait.ticks, (wait.ticks.v / 60) + '-second') + ' pause at startup.</li>' : '') +
-      '<li>Typing the letters of the code also switches on targeting modes, so the tab reads ATTACK afterward until you press <b>M</b>.</li></ul>' +
+      '<li>Typing the letters of the code also switches on targeting modes, so the tab reads ATTACK afterward until the next press of <b>M</b>.</li></ul>' +
       '<div class="cheatNote">To set it, write the preferences file from ' +
       actionChip('Data › Preferences', "showCategory('PREFS')") +
       ', as a MacBinary for a real Mac or a disk image for an emulator.</div></div>';
@@ -1131,7 +1140,7 @@ function renderCheatsSheet() {
       const menuName = m => (m.title ? svEsc(m.title) : 'MENU ' + m.id);
       h += '<div class="cheatNote">' +
         (bars.unlisted.length
-          ? bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are menus that work' : ' is a menu that works') + ' but ' + (bars.unlisted.length > 1 ? 'are' : 'is') + ' in no menu bar, so you cannot reach the Preferences menu or the frame-rate limit. ' +
+          ? bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are menus that work' : ' is a menu that works') + ' but ' + (bars.unlisted.length > 1 ? 'are' : 'is') + ' in no menu bar, so the player cannot reach the Preferences menu or the frame-rate limit. ' +
             'Add-on 612, the Cythera menu patch, adds three of them; add-on 613 removes them again.'
           : 'Every menu the game defines is in its menu bar.') + '</div>';
     }
@@ -1148,16 +1157,16 @@ function renderCheatsSheet() {
       '<div class="cheatNote">These work in any copy of the game, cheat mode or not.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + open.map(caseRow).join('') +
       (vol.length >= 2 ? '<tr><td class="cheatCombo">' + key(vol.map(v => decodeMacRoman(new Uint8Array([v.key.v]))).join(' ')) + '<span class="cheatCode">' + vol.map(v => srcNum(v.key, '$' + v.key.v.toString(16).toUpperCase())).join(' ') + '</span></td>' +
-        '<td><b>CD volume</b><div class="cheatDoes">' + vol.map(v => (v.step.v < 0 ? 'down' : 'up') + ' by ' + srcNum(v.step, Math.abs(v.step.v)) + (v.bound ? ' and held at ' + srcNum(v.bound) : '')).join('; ') + '.</div></td></tr>' : '') +
+        '<td><b>CD volume</b><div class="cheatDoes">' + vol.map(v => (v.step.v < 0 ? 'down' : 'up') + ' by ' + srcNum(v.step, Math.abs(v.step.v)) + (v.bound ? ' and held at ' + srcNum(v.bound) : '')).join(', ') + '.</div></td></tr>' : '') +
       (cd.length ? '<tr><td class="cheatCombo">' + key(cd.map(w => w.v).join(' ')) + '</td>' +
-        '<td><b>CD controls</b><div class="cheatDoes">Typed like the cheat code, when a CD is present: ' + cd.map(w => '“' + srcNum(w, w.v) + '”').join(', ') + '. What each does is inferred from the word.</div></td></tr>' : '') +
+        '<td><b>CD controls</b><div class="cheatDoes">Typed like the cheat code, when a CD is present: ' + cd.map(w => '“' + srcNum(w, w.v) + '”').join(', ') + '. The page guesses what each does from the word.</div></td></tr>' : '') +
       '</tbody></table></div></div>';
   }
 
   // The numbers the keys prompt for, off the file.
   const levels = cheatLevels();
   if (levels.length) {
-    h += '<div class="mechSec"><h4 class="cheatH4">Levels, for Option-J</h4>' +
+    h += '<div class="mechSec"><h4 class="cheatH4">Levels for Option-J</h4>' +
       '<div class="cheatNote">Enter the level in hex, and X and Y in squares. Where the editor’s name for a map differs, its name is beside the game’s.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">hex</th><th class="num">dec</th><th>map</th></tr></thead><tbody>' +
       levels.map(l => '<tr><td class="num">' + l.n.toString(16).toUpperCase().padStart(2, '0') + '</td><td class="num">' + l.n + '</td><td>' +
@@ -1170,10 +1179,10 @@ function renderCheatsSheet() {
   if (tp.last) {
     const mapOrder = [...tp.byMap.keys()].sort((a, b) => a - b);
     const mapName = resid => { const l = levels.find(x => x.resid === resid); return l ? l.name : (labelFor(resid) || ('0x' + resid.toString(16).toUpperCase())); };
-    h += '<div class="mechSec"><h4 class="cheatH4">Teleporters, for Option-Shift-J</h4>' +
-      '<div class="cheatNote">' + tp.last + ' destinations, 1 to ' + tp.last + ' in decimal; any higher number leads to the nothing map. Click one to open the map there. ' +
+    h += '<div class="mechSec"><h4 class="cheatH4">Teleporters for Option-Shift-J</h4>' +
+      '<div class="cheatNote">' + tp.last + ' destinations, 1 to ' + tp.last + ' in decimal. Any higher number leads to the nothing map. Click one to open the map there. ' +
       'The community’s Zone list (add-on 620) calls Timon Ruins Headwater Ruins, Swamp Ruins Seldane Maayti Ruins, and Crypts Pnyx Upstairs.</div>' +
-      '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">level</th><th>map</th><th class="num">no.</th><th>teleporter, and the square it reaches</th></tr></thead><tbody>' +
+      '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">level</th><th>map</th><th class="num">no.</th><th>teleporter and the square it leads to</th></tr></thead><tbody>' +
       mapOrder.map(resid => {
         const list = tp.byMap.get(resid);
         return '<tr><td class="num">' + (resid & 0xFF).toString(16).toUpperCase().padStart(2, '0') + '</td><td>' + svEsc(mapName(resid)) + '</td><td class="num">' + list.length + '</td><td>' +
@@ -1184,27 +1193,13 @@ function renderCheatsSheet() {
   let heap = null;
   try { heap = refExists(0x8000) ? nothingMapHeap(0x8000) : null; } catch (e) { heap = null; }
   if (heap) {
-    h += '<div class="mechSec"><h4 class="cheatH4">Level 0, the Nothing Map</h4><ul class="ruleList">' +
+    h += '<div class="mechSec"><h4 class="cheatH4">The Nothing Map at Level 0</h4><ul class="ruleList">' +
       '<li>Map 0 is ' + heap.w + ' by ' + heap.h + ', with no roof, no exits, ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') + ' and no name. The map window’s title reads Untitled there.</li>' +
-      '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory; the program made the map and never filled it in.</li>' +
-      '<li>It can be reached by accident, from a bed in Cademia and from beneath Pnyx, ' +
-      'and has a figure with a guard’s sprite called Nothing, or Omen if killed twice. ' +
-      'That figure is character record 0, which is empty, and is the record option-x writes to. ' +
+      '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory. The program made the map and never filled it in.</li>' +
+      '<li>The hero can reach it by accident, from a bed in Cademia and from beneath Pnyx. ' +
+      'A character with a guard’s sprite stands there, called Nothing, or Omen if killed twice. ' +
+      'That character is character record 0, which is empty, and option-x writes to that record. ' +
       actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li></ul></div>';
-  }
-
-  const sprites = cheatSpriteClasses();
-  if (sprites.length) {
-    h += '<div class="mechSec"><h4 class="cheatH4">Be Somebody Else</h4>' +
-      '<div class="cheatNote">The classic Cythera cheat: use Pandora’s Box, a program that edits another program’s memory while it runs, to find ' +
-      'the number <b>32</b>, the hero’s sprite, in the running game and write another number over it. ' +
-      'The Saved Game page does the same with the <b>sprite class</b> field. ' +
-      'These are the ' + sprites.length + ' sprites someone in the game uses. ' +
-      actionChip('Saved Game', "showCategory('SAVEGAME')") + '</div>' +
-      '<div class="cheatSprites">' + sprites.map(s =>
-        '<span class="cheatSprite' + (s.kind === 'monster' ? ' isMonster' : '') + '"><b>' + s.pt +
-        '</b> ' + svEsc(s.name) + '</span>').join('') +
-      '</div></div>';
   }
 
   h += '<div class="mechSec"><h4 class="cheatH4">Cheats That Need No Cheat Mode</h4>' +
@@ -1213,18 +1208,18 @@ function renderCheatsSheet() {
     '<li><b>The party’s records.</b> Where they stand, how strong and how well fed they are, and how many training ' +
     'points they have. ' + actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li>' +
     '<li><b>Any resource, as hex</b>, through Edit Bytes on the resource itself.</li>' +
-    '<li><b>Where to download the changed file.</b> ' + actionChip('Your Patch', "showCategory('CHANGES')") + '</li></ul></div>';
+    '<li><b>Where to download the changed file.</b> ' + actionChip('Patch in Progress', "showCategory('CHANGES')") + '</li></ul></div>';
 
   if (kr && kr.cases.length) {
     const find = k => kr.cases.find(c => c.keys.some(x => x.v === k));
     const cx = find(0xC5), cp = find(0xB9), cl = find(0xC2), c1 = kr.cases.find(c => c.keys.some(x => x.v === 0xC1));
     const items = [];
-    if (cx) items.push('<li><b>option-x is broken.</b> ' + facts(cx).brokenShort() + '</li>');
-    if (cp && cp.fallsInto && caseAt(cp.fallsInto)) items.push('<li><b>option-p carries on</b> into ' + comboOf(caseAt(cp.fallsInto).keys[0].v) + '’s code (' + srcNum(exeVal({ at: cp.fallsInto }, null), 'here') + '): because of a missing jump, “What prop is this?” also switches that setting.</li>');
+    if (cx) items.push('<li><b>option-x is a Look readout.</b> ' + facts(cx).lookShort() + '</li>');
+    if (cp && cp.fallsInto && caseAt(cp.fallsInto)) items.push('<li><b>option-p carries on</b> into ' + comboOf(caseAt(cp.fallsInto).keys[0].v) + '’s code (' + srcNum(exeVal({ at: cp.fallsInto }, null), 'here') + '). Because of a missing jump, “What prop is this?” also switches that setting.</li>');
     const fh = find(0xFA);
     if (fh) items.push('<li><b>option-h empties the enemy list.</b> ' + facts(fh).peaceShort() + '</li>');
     if (cl && !c1) items.push('<li><b>The speed limiter is ' + srcNum(cl.keys[0], 'option-l') + '</b>, not option-1.</li>');
-    if (items.length) h += '<div class="mechSec"><h4 class="cheatH4">Things Read from the Code</h4><ul class="ruleList">' + items.join('') + '</ul></div>';
+    if (items.length) h += '<div class="mechSec"><h4 class="cheatH4">Numbers Read from the Program</h4><ul class="ruleList">' + items.join('') + '</ul></div>';
   }
 
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
@@ -1276,20 +1271,20 @@ function savedGameParts() {
   const out = [];
   const add = (rid, what) => { if (refExists(rid)) out.push({ rid, what }); };
   add(0xF009, 'the character records, everybody’s position, stats and condition (SaveGlobals)');
-  add(0xF00E, 'two bytes for each of 1,024 rooms; the game sets the first switch in them once the party enters a room and sees its description (SaveGlobals)');
+  add(0xF00E, 'two bytes for each of 1,024 rooms. The game sets the first switch in them once the party enters a room and sees its description (SaveGlobals)');
   const hero = loadCharacterTable()[1];
   if (hero && hero.zone) {
     add(0x8100 | hero.zone, 'the props of the zone the player stands in, from record 256 up (SaveLevelProps)');
-    add(0x8200 | hero.zone, 'what the player has seen of that zone, one switch for each square: width ÷ 8, rounded up, times the height, in bytes (SaveLevelProps)');
+    add(0x8200 | hero.zone, 'what the player has seen of that zone, one switch for each square, in (width ÷ 8, rounded up) × height bytes (SaveLevelProps)');
   }
   add(0xF306, 'the first 256 prop records, the characters as they stand on that zone (SaveLevelProps)');
-  add(0x8800, 'the player’s portrait, which the game writes when you make the character (CreatePlayer)');
+  add(0x8800, 'the player’s portrait, which the game writes when the player makes the character (CreatePlayer)');
   add(0x0400, 'the live game, five tagged chunks: the quest values and flags, the active monsters with their queued activities, the spell effects in flight, the open windows, and the 256 gremlin frames (SaveToFile)');
   add(0x0401, 'the To Do list (SaveToDo)');
-  add(0x0404, 'the twenty macro slots; 0xFF is unassigned (SaveMacros)');
-  add(0xF307, 'the store the scripts keep things in between sessions, 256 KB: each block starts with eight bytes giving its number and its kind, and an empty store is one free block (THeap::Save)');
+  add(0x0404, 'the twenty macro slots, with 0xFF for an unassigned one (SaveMacros)');
+  add(0xF307, 'the lists, tables and strings the scripts make, which last from one session to the next. Each block starts with eight bytes giving its size, its number and its kind, and an empty store is one free block (THeap::Save)');
   add(0xF308, '4,096 two-byte entries, one for each thing that has something in that store, each giving where in the store to find it (THeap::Save)');
-  for (let n = 0; n < 256; n++) add(0xE000 | n, 'a page of the journal, 8 KB; each entry is its length, the day, what kind of entry it is, who spoke and the text (TJournalSegment::Flush)');
+  for (let n = 0; n < 256; n++) add(0xE000 | n, 'a page of the journal, 8 KB. Each entry is its length, the day, what kind of entry it is, who spoke and the text (TJournalSegment::Flush)');
   return out;
 }
 
@@ -1395,18 +1390,18 @@ function byteMapCharRecord(p, at, name) {
 function byteMapPropRecord(p, at, name) {
   const b = p.bytes, rec = byteMapRecord(p, at, 16, name, { empty: byteMapAllZero(b, at, 16) });
   const flags = b[at], loc = (b[at + 1] << 16) | u16be(b, at + 2), aw = u16be(b, at + 4);
-  rec.f(0, 1, 'flags: 0x01 may be taken, 0x08 inside another prop, 0x10 carried by a character, 0xFF deleted; an egg is 0x42 armed and 0xC2 tried', { value: '0x' + flags.toString(16).toUpperCase().padStart(2, '0') });
+  rec.f(0, 1, 'flags: 0x01 may be taken, 0x08 inside another prop, 0x10 carried by a character, 0xFF deleted, and an egg is 0x42 armed and 0xC2 tried', { value: '0x' + flags.toString(16).toUpperCase().padStart(2, '0') });
   rec.f(1, 3, (flags & 0x18) ? 'who or what has it: the low 16 bits are the holder' : 'where it lies: x in the top twelve bits, y in the bottom twelve',
         { value: (flags & 0x18) ? 'holder ' + (loc & 0xFFFF) : '(' + (loc >> 12) + ', ' + (loc & 0xFFF) + ')' });
   rec.f(4, 2, 'its class and frame: the class in the low ten bits, the aspect above', { value: 'class ' + (aw & 0x3FF) + ', aspect ' + ((aw >> 10) & 0x3F) });
   rec.f(6, 1, 'Data1', { value: String(b[at + 6]) });
   rec.f(7, 1, 'Data2', { value: String(b[at + 7]) });
   const s6 = ((b[at + 14] & 0x3F) << 26) >> 26;
-  rec.f(8, 2, 'its slot in the frame table (0xF308), where AllocateFrame copies its frame’s reference; field 14', { value: String(u16be(b, at + 8)) });
-  rec.f(10, 2, 'field 15, a spare field a script could read and set; none does, and nothing else found in the program uses it', { value: String(u16be(b, at + 10)) });
+  rec.f(8, 2, 'its slot in the frame table (0xF308), where AllocateFrame copies its frame’s reference (field 14)', { value: String(u16be(b, at + 8)) });
+  rec.f(10, 2, 'field 15, a spare field a script could read and set. None does, and nothing else found in the program uses it', { value: String(u16be(b, at + 10)) });
   rec.f(12, 2, 'the heap reference of its frame, a dict AllocateFrame makes the first time a script stores something on it (has_storage, storage)', { value: String(u16be(b, at + 12)) });
-  rec.f(14, 1, 'how far the game shifts it along the diagonal when drawing it, four pixels a step: the low six bits, signed, which TViewer::Render adds to both draw offsets (field 16); every reader masks off the top two', { value: String(s6) + (b[at + 14] & 0xC0 ? ', top bits ' + (b[at + 14] >> 6) : '') });
-  rec.f(15, 1, 'a spare byte; nothing found in the program reads or writes it', { value: String(b[at + 15]) });
+  rec.f(14, 1, 'how far the game shifts it along the diagonal when drawing it, four pixels a step: the low six bits, signed, which TViewer::Render adds to both draw offsets (field 16). Every reader masks off the top two', { value: String(s6) + (b[at + 14] & 0xC0 ? ', top bits ' + (b[at + 14] >> 6) : '') });
+  rec.f(15, 1, 'a spare byte that nothing found in the program reads or writes', { value: String(b[at + 15]) });
   return rec;
 }
 
@@ -1423,8 +1418,8 @@ function byteMapDataFork(arc) {
   // Halfwords, not the bytes delvmod stores: OpenScenFile, CheckPlayerFile,
   // NewGame and InitWorld read them (save-format.md, the header).
   const ver = v => (v >> 8) + '.' + (v & 0xFF);
-  p.f(0x40, 2, 'the Delver file format’s version, major and minor; the program opens a file whose major version matches the program’s and whose minor is no higher (SegFileHeader::CompatibleVersions, against 0x1300)', { value: ver(u16be(b, 0x40)) });
-  p.f(0x42, 2, 'the scenario’s version; a save copies it from its scenario when the game begins, and the program opens the save only with a scenario it is compatible with', { value: ver(u16be(b, 0x42)) });
+  p.f(0x40, 2, 'the Delver file format’s version, major and minor. The program opens a file whose major version matches the program’s and whose minor is no higher (SegFileHeader::CompatibleVersions, against 0x1300)', { value: ver(u16be(b, 0x40)) });
+  p.f(0x42, 2, 'the scenario’s version. A save copies it from its scenario when the game begins, and the program opens the save only with a scenario it is compatible with', { value: ver(u16be(b, 0x42)) });
   p.f(0x48, 2, 'the side, in squares, of the map buffer the program sets aside for a level (CreateGlobals; 1,024 when 0)', { value: String(u16be(b, 0x48)) });
   const mi = delverMasterIndexExtent(b);
   if (mi) {
@@ -1445,7 +1440,7 @@ function byteMapDataFork(arc) {
   // What lies between: the header's other bytes and any space between
   // resources. None of it is read by delvmod.
   byteMapFillGaps(p, 0, 0x80, 'zero, and nothing found reads it');
-  byteMapFillGaps(p, 0x80, b.length, 'free space; no index entry points here');
+  byteMapFillGaps(p, 0x80, b.length, 'free space, with no index entry pointing here');
   p.fields.sort((x, y) => x.at - y.at);
   return p;
 }
@@ -1472,7 +1467,7 @@ function byteMapStream(p) {
       leaf(pos + 80, 4, 'the game clock, 4,096 units an hour', { value: String(u32be(b, pos + 80)) });
       leaf(pos + 84, 2, 'the day (the scripts’ GameDay)', { value: String(u16be(b, pos + 84)) });
       leaf(pos + 86, 1, 'whether the automap is on: the byte the scripts’ SetAutomapping call sets (cbEnableAutoMap)', { value: String(b[pos + 86]) });
-      leaf(pos + 87, 4, 'real time played, in seconds; each save adds the time since the last look at the Mac’s clock (SaveToFile, GetDateTime)', { value: String(u32be(b, pos + 87)) });
+      leaf(pos + 87, 4, 'real time played, in seconds. Each save adds the time since the last look at the Mac’s clock (SaveToFile, GetDateTime)', { value: String(u32be(b, pos + 87)) });
       if (end > pos + 91) leaf(pos + 91, end - (pos + 91), 'zeros that fill the block (SaveToFile)', { value: byteMapAllZero(b, pos + 91, end - pos - 91) ? 'all zero' : byteMapHex(b, pos + 91, end - pos - 91) });
       q = end;
     } else if (tag === 'Mons') {
@@ -1494,21 +1489,21 @@ function byteMapStream(p) {
         const extra = kind === 9 || kind === 10 ? (q + n + 2 <= end ? 2 + 2 * u16be(b, q + n) : 0) : kind === 11 ? 8 : kind === 12 ? 16 : 0;
         n += extra;
         if (q + n > end) break;
-        const who = id < 256 ? characterName(id) || ('character ' + id) : 'prop ' + id;
-        const rec = byteMapRecord({ fields: chunk.kids, bytes: b }, q, n, 'monster ' + m + ': ' + who);
+        const character = id < 256 ? characterName(id) || ('character ' + id) : 'prop ' + id;
+        const rec = byteMapRecord({ fields: chunk.kids, bytes: b }, q, n, 'monster ' + m + ': ' + character);
         rec.f(0, 1, 'property 55 of its class: 9 or 10 make it a crawling monster, 11 a dragon, 12 an octo, anything else an ordinary one (0xFF when the class has none)', { value: String(kind) });
         rec.f(1, 2, 'the monster’s object: a character below 256, a prop of the level from 256', { value: String(id) });
         rec.f(3, 2, 'the frame it is showing, which changes as it turns and walks (AdjustAspect)', { value: String(u16be(b, q + 3)) });
         rec.f(5, 2, 'the way it faces, set from the direction of each step (HandleMove, DxDyToFace)', { value: String(u16be(b, q + 5)) });
         let o = 7;
         if (id >= 256) {
-          rec.f(o, 2, 'its index in the level’s list', { value: String(u16be(b, q + o)) }); o += 2;
+          rec.f(o, 2, 'the record it hatched from, by its index in the level’s list (HatchEgg)', { value: String(u16be(b, q + o)) }); o += 2;
           const cr = byteMapRecord({ fields: rec.kids, bytes: b }, q + o, 32, 'a separate character-shaped record, since it has no 0xF009 row');
           for (const l of charRecordLayout()) cr.f(l.off, l.w, l.name, { value: byteMapHex(b, q + o + l.off, l.w) });
           o += 32;
         }
         rec.f(o, 1, '1 while it has a waypoint to walk to (SetWaypoint)', { value: String(b[q + o]) }); o += 1;
-        rec.f(o, 4, 'where it is going: x and y (SetWaypoint; 0xA5A5 when nothing has ever sent it anywhere)', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')' }); o += 4;
+        rec.f(o, 4, 'where it is going: x and y (SetWaypoint, and 0xA5A5 when nothing has ever sent it anywhere)', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')' }); o += 4;
         rec.f(o, 4, 'the next waypoint on the way there: x and y (TPathFinder::FindWaypoint)', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')' }); o += 4;
         rec.f(o, 2, 'how many activities it has queued', { value: String(cnt) }); o += 2;
         for (let a = 0; a < cnt; a++) {
@@ -1517,8 +1512,8 @@ function byteMapStream(p) {
           // the character's behaviour (byte 22), so a code is a
           // behaviour; scripts queue them (cbQueueAction, the one caller).
           const beh = b[q + o];
-          const said = String(behaviourWordHTML(beh)).replace(/<[^>]+>/g, '');
-          ar.f(0, 1, 'the behavior it performs first, in place of the one in the character’s byte 22 (TActiveMonster::DoMove)', { value: String(beh) + (said ? ', ' + said : '') });
+          const behaviorWord = String(behaviorWordHTML(beh)).replace(/<[^>]+>/g, '');
+          ar.f(0, 1, 'the behavior it performs first, in place of the one in the character’s byte 22 (TActiveMonster::DoMove)', { value: String(beh) + (behaviorWord ? ', ' + behaviorWord : '') });
           ar.f(1, 2, 'the behavior’s first argument', { value: String(u16be(b, q + o + 1)) });
           ar.f(3, 2, 'its second argument', { value: String(u16be(b, q + o + 3)) });
           ar.f(5, 4, 'what it is about: a reference in the scripts’ form (0x5000FFFF is none)', { value: '0x' + u32be(b, q + o + 5).toString(16).toUpperCase().padStart(8, '0') });
@@ -1538,11 +1533,11 @@ function byteMapStream(p) {
       // TSpellFX::WriteFXQueue: each entry of the effects map, a character
       // and a flag and when it wears off, which TSpellFX::PassTime reads.
       for (let e = 0; body + 6 * (e + 1) <= end; e++, q += 6) {
-        const who = u16be(b, q), flag = u16be(b, q + 2), until = u16be(b, q + 4);
-        const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 6, 'spell effect ' + e + ': ' + (characterName(who) || 'character ' + who) + ', flag ' + flag);
-        r.f(0, 2, 'the character it is on', { value: String(who) });
-        r.f(2, 2, 'the character flag it applies; flags below 8 are in byte 8, flags below 24 in the status flags, and the rest in byte 26', { value: String(flag) });
-        r.f(4, 2, 'when it wears off; the effect ends once the time passes this, and at 0xF000 or more it never ends (PassTime)', { value: until >= 0xF000 ? 'never (' + until + ')' : String(until) });
+        const character = u16be(b, q), flag = u16be(b, q + 2), until = u16be(b, q + 4);
+        const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 6, 'spell effect ' + e + ': ' + (characterName(character) || 'character ' + character) + ', flag ' + flag);
+        r.f(0, 2, 'the character it is on', { value: String(character) });
+        r.f(2, 2, 'the character flag it applies. Flags below 8 are in byte 8, flags below 24 in the status flags, and the rest in byte 26', { value: String(flag) });
+        r.f(4, 2, 'when it wears off. The effect ends once the time passes this, and at 0xF000 or more it never ends (PassTime)', { value: until >= 0xF000 ? 'never (' + until + ')' : String(until) });
       }
     } else if (tag === 'Grem') {
       // TGremlin::SaveGremlins: 256 frames of a state and a heap reference.
@@ -1580,7 +1575,7 @@ function byteMapToDo(p) {
     const at = s * 8, ref = u32be(b, at + 4);
     const r = byteMapRecord(p, at, 8, 'slot ' + s, { empty: ref === 0x5000FFFF && !b[at] && !b[at + 1] && !u16be(b, at + 2) });
     r.f(0, 1, '1 once a script strikes the line off (DoneToDo)', { value: String(b[at]) });
-    r.f(1, 1, 'padding; nothing in the program writes it (AddToDo and DoneToDo write byte 0)', { value: String(b[at + 1]) });
+    r.f(1, 1, 'padding that nothing in the program writes (AddToDo and DoneToDo write byte 0)', { value: String(b[at + 1]) });
     r.f(2, 2, 'the day the line went on the list', { value: String(u16be(b, at + 2)) });
     r.f(4, 4, 'the line: the To Do text resource in the low half and the line’s number in the high twelve bits, 0x5000FFFF for none', { value: ref === 0x5000FFFF ? 'none' : 'line ' + ((ref >>> 16) & 0xFFF) + ' of 0x' + (ref & 0xFFFF).toString(16).toUpperCase().padStart(4, '0') });
   }
@@ -1602,7 +1597,7 @@ function byteMapRooms(p) {
   const b = p.bytes;
   for (let n = 0; n * 2 + 2 <= b.length; n++) {
     const v = u16be(b, n * 2);
-    p.f(n * 2, 2, 'room ' + n + ': the game sets bit 0 the first time the party enters it, when its description runs (TGameSys::HeartBeat); nothing in the program or the scripts sets another bit', { value: '0x' + v.toString(16).toUpperCase().padStart(4, '0'), empty: !v, unread: !!(v & 0xFFFE) });
+    p.f(n * 2, 2, 'room ' + n + ': the game sets bit 0 the first time the party enters it, when its description runs (TGameSys::HeartBeat). Nothing in the program or the scripts sets another bit', { value: '0x' + v.toString(16).toUpperCase().padStart(4, '0'), empty: !v, unread: !!(v & 0xFFFE) });
   }
 }
 // A zone's map memory (SaveLevelProps): one bit a square, LSB first, rows of
@@ -1734,11 +1729,11 @@ function byteMapResourceFork(raw) {
   p.f(map + 22, 2, 'the fork’s attributes', { value: byteMapHex(b, map + 22, 2) });
   p.f(map + 24, 2, 'where the type list is, from the map', { value: String(tl - map) });
   p.f(map + 26, 2, 'where the name list is, from the map', { value: String(nl - map) });
-  p.f(tl, 2, 'the number of types, less one', { value: String(u16be(b, tl)) });
+  p.f(tl, 2, 'the number of types minus one', { value: String(u16be(b, tl)) });
   fork.typeList.forEach((t, i) => {
     const e = tl + 2 + i * 8;
     p.f(e, 4, 'a type', { value: t.type });
-    p.f(e + 4, 2, 'how many ' + t.type + ' resources, less one', { value: String(t.count - 1) });
+    p.f(e + 4, 2, 'how many ' + t.type + ' resources minus one', { value: String(t.count - 1) });
     p.f(e + 6, 2, 'where its reference list is, from the type list', { value: String(t.refListOff) });
     (fork.resourcesByType[t.type] || []).forEach((r, k) => {
       const rp = tl + t.refListOff + k * 12, d = fork.dataOff + r.dataOffRel, len = u32be(b, d);
@@ -1770,7 +1765,7 @@ function byteMapForkResource(p, type, id, at, len) {
   } else if (type === 'SCEN' && len >= 6) {
     p.f(at, 4, nm + ': the alias’s user type', { value: byteMapHex(b, at, 4) });
     p.f(at + 4, 2, nm + ': the alias’s length', { value: String(u16be(b, at + 4)) });
-    if (len > 6) p.f(at + 6, len - 6, nm + ': the rest of the alias record, which Apple left undocumented; it has the names of the scenario file and its folder', { value: len - 6 + ' bytes' });
+    if (len > 6) p.f(at + 6, len - 6, nm + ': the rest of the alias record, which Apple left undocumented. It has the names of the scenario file and its folder', { value: len - 6 + ' bytes' });
   } else if (len) {
     p.f(at, len, nm + ': a resource no save here has shown', { value: byteMapHex(b, at, len), unread: true });
   }
@@ -1835,7 +1830,7 @@ function saveByteMapHTML() {
   const gaps = m.parts.reduce((n, p) => n + saveByteMapGaps(p).length, 0);
   return '<h4 class="saveH4">Every Byte</h4><div class="saveNote">' + m.files.toLocaleString('en-US') + ' bytes in ' + m.parts.length + ' parts, every byte in a labeled field' +
     (gaps ? ' except for ' + gaps + ' stretches (a fault in this page’s reading)' : '') +
-    (m.unread ? '; ' + m.unread.toLocaleString('en-US') + ' of them in fields nobody has worked out yet, marked <span class="byteUnread">not read</span>.'
+    (m.unread ? '. ' + m.unread.toLocaleString('en-US') + ' of them are in fields that nobody has worked out yet, marked <span class="byteUnread">not read</span>.'
               : ', and every field’s meaning is known.') + '</div>' +
     m.parts.map(p => '<details class="byteMapPart" ontoggle="openSaveBytePart(this, ' + JSON.stringify(String(p.key)).replace(/"/g, '&quot;') + ')"><summary>' +
       svEsc(p.title) + ' <span class="byteMapSize">' + fmtBytes(p.size) + '</span></summary><div class="byteMapBody"></div></details>').join('');
@@ -1907,7 +1902,7 @@ function renderSaveSheet() {
           ? svEsc(characterName(1)) + ' is in ' + svEsc(zoneDisplayName(hero.zone)) +
             ' at (' + hero.x + ', ' + hero.y + '), with ' + hero.health + ' of ' + hero.healthMax + ' health.'
           : 'The hero is in no zone.')
-      : 'This is Cythera Data, not a saved game; these are the characters as a new game starts.') +
+      : 'This is Cythera Data, not a saved game. These are the characters as a new game starts.') +
     '</div></div></div>';
 
   if (namesAreBorrowed())
@@ -1938,13 +1933,13 @@ function renderSaveSheet() {
   h += '<h4 class="saveH4">The Records</h4>' +
     '<div class="saveNote">' + inUse.length + ' of the 512 character slots are in use' +
     (marked ? ', and ' + marked + ' more hold only a zone' : '') +
-    '. Slot 0 is the figure called Nothing on the nothing map. ' + actionChip('Cheats', "showCategory('CHEATS')") + ' ' +
+    '. Slot 0 is the character called Nothing on the nothing map. ' + actionChip('Cheats', "showCategory('CHEATS')") + ' ' +
     actionChip(window.SAVE_SHOW_ALL ? 'Only the ones in use' : 'Show every marked slot',
                'toggleSaveShowAll()') + '</div>';
   h += '<div class="tableScroll"><table class="forkTable"><thead><tr>' +
     '<th class="num">no.</th><th>who</th><th>where</th><th class="num">lv</th><th class="num">xp</th>' +
     '<th class="num">health</th><th class="num">magic</th>' +
-    '<th class="num">food</th><th class="num">train</th><th></th></tr></thead><tbody>';
+    '<th class="num">food</th><th class="num">training</th><th></th></tr></thead><tbody>';
   for (const r of shown) {
     const i = r.index;
     h += '<tr' + (i === 1 ? ' class="saveHero"' : '') + '>' +
@@ -1965,7 +1960,7 @@ function renderSaveSheet() {
   if (isSave) h += saveByteMapHTML();
   h += '<div class="saveNote">Edit shows all 32 bytes of a record and what each one is. ' +
     'Edits change only the copy in this browser. They go into ' +
-    actionChip('Your Patch', "showCategory('CHANGES')") + ' to download.</div>';
+    actionChip('Patch in Progress', "showCategory('CHANGES')") + ' to download.</div>';
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
   out.textContent = (isSave ? 'Saved game' : 'Character records') + ': ' +
     inUse.length + ' of 512 slots in use' + (hero && hero.zone ? ', the player in ' + zoneDisplayName(hero.zone) : '') + '.';
@@ -2072,7 +2067,7 @@ const CHAR_GROUPS = [
       what: (r, v) => { const n = propDisplayName(v, (getPropTileList()[v] || 0)); return (n ? svEsc(n) + ', ' : '') + 'the prop class the game draws them as'; } },
     { id: 'aspect', key: 'aspect', label: 'aspect', off: 4, width: 2, fieldNo: 36, max: 0x3F, what: () => 'the frame of that sprite' },
     { id: 'look2', raw: [20, 2], label: 'second look', base: 16, max: 0xFFFF, fieldNo: 37,
-      what: r => 'a second sprite and frame, ' + (u16raw(r, 20) === u16raw(r, 4) ? 'the same as the first here' : 'different from the first here') + '; no script uses it' },
+      what: r => 'a second sprite and frame, ' + (u16raw(r, 20) === u16raw(r, 4) ? 'the same as the first here' : 'different from the first here') + ', and no script uses it' },
   ]},
   { head: 'Stats', items: [
     { id: 'body', key: 'body', label: 'body', off: 9, max: 0xFF },
@@ -2088,15 +2083,15 @@ const CHAR_GROUPS = [
     { id: 'nutrition', key: 'nutrition', label: 'food', off: 27, max: 0xFF, what: () => {
       const clk = appImage() ? exeClockRules() : null, full = fullStomach();
       return [clk && clk.model ? clk.fall.v + ' comes off each time the clock passes ' + exeClockWords(clk.table.v[clk.model.hungerIndex], clk.unitsPerHour.v) : '',
-              full ? 'the ' + svEsc(full.potion) + ' sets it to ' + full.v : ''].filter(Boolean).join('; ');
+              full ? 'the ' + svEsc(full.potion) + ' sets it to ' + full.v : ''].filter(Boolean).join(', and ');
     } },
     { id: 'training', key: 'training', label: 'training points', off: 28, max: 0xFF,
       what: () => { const t = trainingRules().points; return t && t.perLessonVal && t.masteryVal ? 'a lesson costs ' + t.perLessonVal.v + ', a mastery ' + t.masteryVal.v : ''; } },
   ]},
   { head: 'Behavior', items: [
     { id: 'behaviour', raw: [22, 1], label: 'behavior', fieldNo: 21, max: 0xFF,
-      what: (r, v) => { const w = behaviourWordHTML(v);
-        return (w ? '<b>' + w + '</b>, ' : '') + 'what they do each turn; 112 is waiting where they stand'; } },
+      what: (r, v) => { const w = behaviorWordHTML(v);
+        return (w ? '<b>' + w + '</b>, ' : '') + 'what they do each turn (112 is waiting where they stand)'; } },
     { id: 'behaviour2', raw: [30, 1], label: 'second behavior', max: 0xFF, what: () => 'a second behavior the scripts read and set' },
     { id: 'timing', key: 'party', label: 'move countdown', off: 18, max: 0xFF,
       what: () => 'ticks before their next move, so it changes on every step' },
@@ -2110,11 +2105,11 @@ const CHAR_GROUPS = [
     { id: 'b23', raw: [23, 1], label: 'price', max: 0xFF,
       what: () => { const p = shopPriceRule();
         return 'a merchant’s price, in tenths of a thing’s worth' +
-               (p ? ': shops start at ' + srcNum(p.buy, String(p.buy.v)) + ' to sell to you and ' + srcNum(p.sell, String(p.sell.v)) + ' to buy from you, and keep what haggling leaves' : ''); } },
+               (p ? ', with prices starting at ' + srcNum(p.buy, String(p.buy.v)) + ' when the hero buys and ' + srcNum(p.sell, String(p.sell.v)) + ' when the hero sells, and staying where haggling leaves them' : ''); } },
     { id: 'b31', raw: [31, 1], label: 'size', max: 0xFF,
       what: () => { const c = exeCreatureSize();
         return 'for a creature made from a map’s list, the percentage of its kind’s stats it was ' + (c ? srcNum({ exe: c.exe }, 'made at') : 'made at') +
-               '; named characters ignore it'; } },
+               '. Named characters ignore it'; } },
   ]},
 ];
 // Flags 0 to 7 are byte 8, 8 to 23 the halfword at 6, 24 to 31 byte 26:
@@ -2160,16 +2155,16 @@ function charFlagUses(index, f) {
   if (!cf) return '';
   // A link when the open file has the script, and its name alone otherwise.
   const linked = refExists(0x1802);
-  const mine = s => f >= 24 || s.resid === 0x1800 + index || s.who === index;
-  const say = (list, verb) => {
+  const belongsToCharacter = s => f >= 24 || s.resid === 0x1800 + index || s.character === index;
+  const listPhrase = (list, verb) => {
     const seen = new Map();
-    for (const s of list) if (mine(s) && !seen.has(s.resid)) seen.set(s.resid, s);
+    for (const s of list) if (belongsToCharacter(s) && !seen.has(s.resid)) seen.set(s.resid, s);
     const u = [...seen.values()];
     if (!u.length) return '';
     const link = s => linked ? srcNum({ resid: s.resid, at: s.at }, s.name) : svEsc(s.name);
     return verb + ' ' + u.slice(0, 4).map(link).join(', ') + (u.length > 4 ? ' and ' + countLink((u.length - 4) + ' more', 'The ' + u.length + ' scripts where character flag ' + f + ' is ' + verb.replace(/ (by|in)$/, ''), u.map(link)) : '');
   };
-  return [say(cf.set, 'set in'), say(cf.clear, 'cleared in'), say(cf.test, 'tested in'), say(cf.effect, 'the effect of')].filter(Boolean).join('; ');
+  return [listPhrase(cf.set, 'set in'), listPhrase(cf.clear, 'cleared in'), listPhrase(cf.test, 'tested in'), listPhrase(cf.effect, 'the effect of')].filter(Boolean).join(' · ');
 }
 // The form's markup, apart from where it is put, so the smoke can read it.
 function charEditHTML(index) {
@@ -2223,7 +2218,7 @@ function applyCharEditForm(index) {
     const el = document.getElementById('ce-' + index + '-' + it.id);
     if (!el) return;
     const v = parseInt(el.value, it.base || 10);
-    if (!Number.isInteger(v) || v < 0 || v > it.max) { setStatus('Bad value for ' + it.label + ', nothing changed.', true); return; }
+    if (!Number.isInteger(v) || v < 0 || v > it.max) { setStatus('The page cannot use that value for ' + it.label + ', so nothing changed.', true); return; }
     if (it.key) fields[it.key] = v;
     else if (it.raw[1] === 2) { raw[it.raw[0]] = v >> 8; raw[it.raw[0] + 1] = v & 0xFF; }
     else raw[it.raw[0]] = v;
@@ -2380,7 +2375,7 @@ function kingsWelcomeRules() {
       const quest = dvmSeqFirst(talk, [/^sys AddQuest$/, DVM_NUM, /^word 0x[0-9A-F]+\[0\]$/i, DVM_NUM, /^add$/], from);
       const gift = dvmSeqFirst(talk, [/^sys Create$/, DVM_NUM, DVM_NUM, DVM_NUM, DVM_NUM], from);
       if (flag && own && quest && gift && dvmNum(gift[1]) === 1)
-        out = { flag: dvmVal(0x1802, flag[1]), who: 2, charFlag: dvmVal(0x1802, own[2]),
+        out = { flag: dvmVal(0x1802, flag[1]), character: 2, charFlag: dvmVal(0x1802, own[2]),
           todo: { slot: dvmNum(quest[1]), resid: parseInt(/0x([0-9A-F]+)/i.exec(quest[2].text)[1], 16), line: dvmNum(quest[3]), at: quest[0].at },
           gift: { type: dvmNum(gift[2]), d3: ((dvmNum(gift[3]) & 0xFF) << 8) | (dvmNum(gift[4]) & 0xFF), at: gift[0].at } };
     }
@@ -2505,11 +2500,11 @@ function newGameSaveBytes(c) {
     day: Math.max(1, Math.min(0x7FFF, num(c.day, NEW_GAME_SHIPPED.day))), header4: NEW_GAME_SHIPPED.header4 };
   const kw = c.welcomed && d.welcome ? d.welcome : null;
   return buildNewGameSave(ARCHIVE, Object.assign({ zone, x, y, party, values: story ? story.values : null, name: c.name, portrait: c.portrait || d.portrait,
-    flags: kw ? [kw.flag.v] : null, charFlags: kw ? [{ index: kw.who, flag: kw.charFlag.v }] : null, things: kw ? [kw.gift] : null,
+    flags: kw ? [kw.flag.v] : null, charFlags: kw ? [{ index: kw.character, flag: kw.charFlag.v }] : null, things: kw ? [kw.gift] : null,
     // The lines asked for, each one the form offers; the king's own first
     // line where his slot was not asked for otherwise.
-    todo: (() => { const asked = (c.todo || []).map(t => d.todo.find(k => k.slot === +t.slot && k.line === +t.line) ? { slot: +t.slot, line: +t.line, resid: d.todo[0].resid, done: !!t.done } : null).filter(Boolean);
-      return kw && !asked.some(t => t.slot === kw.todo.slot) ? asked.concat([kw.todo]) : asked; })(),
+    todo: (() => { const todoLines = (c.todo || []).map(t => d.todo.find(k => k.slot === +t.slot && k.line === +t.line) ? { slot: +t.slot, line: +t.line, resid: d.todo[0].resid, done: !!t.done } : null).filter(Boolean);
+      return kw && !todoLines.some(t => t.slot === kw.todo.slot) ? todoLines.concat([kw.todo]) : todoLines; })(),
     skills: arch ? arch.skills.map(k => ({ type: k.type, aspect: k.level | d.archetypes.bit.v })) : null, skillFlags: arch ? d.archetypes.flags.v : 0,
     proptype: sprite & 0x3FF, aspect: (sprite >> 10) & 0x3F, body, reflex, mind, level, xp: 0,
     health, healthMax: health, magic: 0, magicMax: 0, training: d.cr.training.v, nutrition: d.cr.nutrition.v,
@@ -2521,7 +2516,7 @@ function saveMakerHTML() {
   const num = (id, label, v) => '<label class="mkField">' + svEsc(label) + ' <input type="number" id="' + id + '" min="1" max="255" value="' + v + '"></label>';
   const spriteName = v => propDisplayName(v.v & 0x3FF) || ('sprite ' + propWordHex(v.v & 0x3FF));
   return '<div class="saveMaker" id="saveMaker"><h3>Save File Generator</h3>' +
-    '<div class="mechLede">' + svEsc('Make a saved game: the hero, the place, the hour, a point in the story and who is with you. Make the Save opens it here, where the forms set the rest.') + '</div>' +
+    '<div class="mechLede">' + svEsc('Make a saved game with the hero, the place, the hour, a point in the story and the party. Make the Save opens it here, where the forms set the rest.') + '</div>' +
     '<div class="mkRow"><label class="mkField">Name <input type="text" id="mkName" maxlength="31" value="NewGame01"></label>' +
     '<label class="mkField">Sprite <select id="mkSprite">' + d.cr.sprites.map((s, i) => '<option value="' + i + '">' + svEsc(spriteName(s)) + '</option>').join('') + '</select></label>' +
     '<label class="mkField">Portrait <select id="mkPortrait">' + d.portraits.map(r => '<option value="' + r + '"' + (r === d.portrait ? ' selected' : '') + '>' + svEsc(labelFor(r) || propWordHex(r)) + '</option>').join('') + '</select></label></div>' +
@@ -2537,7 +2532,7 @@ function saveMakerHTML() {
     '<label class="mkField">Day <input type="number" id="mkDay" min="1" value="' + NEW_GAME_SHIPPED.day + '"></label>' +
     (d.stories.length ? '<label class="mkField">Story <select id="mkStory">' + d.stories.map(t => '<option value="' + svEsc(t.name) + '">' + svEsc(t.name) + '</option>').join('') + '</select></label>' : '') + '</div>' +
     (d.welcome ? '<div class="mkRow"><label class="mkField"><input type="checkbox" class="mkWith" id="mkWelcomed" checked> The king has spoken</label>' +
-      '<span class="mechSub" style="display:inline">' + svEsc('His welcome is done, you carry the ' + (propDisplayName(d.welcome.gift.type) || 'thing he gives') + ', and the To Do list has its first line.') + '</span></div>' : '') +
+      '<span class="mechSub" style="display:inline">' + svEsc('After his welcome the hero has the ' + (propDisplayName(d.welcome.gift.type) || 'thing he gives') + ' and the To Do list has its first line.') + '</span></div>' : '') +
     (d.todo.length ? '<details class="mkTodo"><summary class="mechSub">' + svEsc('To Do list: ' + d.todo.length + ' lines to choose from') + '</summary>' +
       d.todo.map(t => '<label class="mkField mkTodoRow"><select class="mkTodoPick" data-slot="' + t.slot + '" data-line="' + t.line + '"><option value="">Off</option><option value="on">To do</option><option value="done">Done</option></select> ' + svEsc(t.text) + '</label>').join('') +
       '<div class="mechSub">' + svEsc('This sets the list the player reads, not the quests behind it.') + '</div></details>' : '') +
@@ -2570,10 +2565,10 @@ function makeSaveFromForm(download) {
   const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
   const name = String(val('mkName')).trim() || 'NewGame01';
   const party = [...document.querySelectorAll('.mkWith')].filter(b => b.checked && b.id !== 'mkWelcomed').map(b => parseInt(b.value, 10));
-  const said = document.getElementById('mkWelcomed');
+  const behaviorWord = document.getElementById('mkWelcomed');
   const todo = [...document.querySelectorAll('.mkTodoPick')].filter(p => p.value).map(p => ({ slot: +p.dataset.slot, line: +p.dataset.line, done: p.value === 'done' }));
   const bytes = newGameSaveBytes({ name, sprite: val('mkSprite'), portrait: parseInt(val('mkPortrait'), 10), archetype: val('mkArch'), body: val('mkBody'), reflex: val('mkReflex'), mind: val('mkMind'), level: val('mkLevel'),
-    zone: val('mkZone'), x: val('mkX'), y: val('mkY'), hour: val('mkHour'), day: val('mkDay'), story: val('mkStory'), welcomed: !!(said && said.checked), todo, party });
+    zone: val('mkZone'), x: val('mkX'), y: val('mkY'), hour: val('mkHour'), day: val('mkDay'), story: val('mkStory'), welcomed: !!(behaviorWord && behaviorWord.checked), todo, party });
   if (!bytes) { setStatus('The page could not make that save. The square has to be on the zone’s map, with room beside it for each companion.', true); return false; }
   if (download) {
     // As a save leaves a Mac: MacBinary, the game's type and creator.
@@ -2645,13 +2640,13 @@ function scenarioMakerDefaults() {
 function scenarioOpeningCut() {
   const e = dvmScriptEntry(0x1801), raw = getResourceBytes(ARCHIVE, 0x1801);
   if (!e || !raw) return null;
-  const ops = dvmOpsOf(e), first = ops.length ? ops[0].obj : 0, mine = ops.filter(o => o.obj === first);
-  const from = mine.findIndex(o => /^sys SpecialView\b/.test(o.text));
+  const ops = dvmOpsOf(e), first = ops.length ? ops[0].obj : 0, belongsToCharacter = ops.filter(o => o.obj === first);
+  const from = belongsToCharacter.findIndex(o => /^sys SpecialView\b/.test(o.text));
   let to = -1;
-  for (let i = mine.length - 1; i > from && to < 0; i--) if (/^sys EndSlideshow\b/.test(mine[i].text)) to = i;
-  if (from < 0 || to < 0 || !mine[to + 2] || !/^end$/.test(mine[to + 1].text) || !/^return\b/.test(mine[to + 2].text)) return null;
+  for (let i = belongsToCharacter.length - 1; i > from && to < 0; i--) if (/^sys EndSlideshow\b/.test(belongsToCharacter[i].text)) to = i;
+  if (from < 0 || to < 0 || !belongsToCharacter[to + 2] || !/^end$/.test(belongsToCharacter[to + 1].text) || !/^return\b/.test(belongsToCharacter[to + 2].text)) return null;
   const plain = smartDecrypt(raw, 0x1801).data;
-  return dvmRelink(plain, 0x1801, mine[from].at, mine[to + 2].at - mine[from].at, new Uint8Array(0)).bytes;
+  return dvmRelink(plain, 0x1801, belongsToCharacter[from].at, belongsToCharacter[to + 2].at - belongsToCharacter[from].at, new Uint8Array(0)).bytes;
 }
 /* A BATTLE AT THE START (8 October 2026, the maintainer's ask). Two lines
    of creatures stand a square apart, three squares north of the hero (or
@@ -2683,7 +2678,7 @@ function scenarioBattleEggs(c, width, height, x, y) {
   const n = Math.max(1, Math.min(8, parseInt(c.armyCount, 10) || 4)), dir = y - 2 - n >= 0 ? -1 : 1, eggs = [];
   for (let i = 0; i < n; i++) {
     const ey = y + dir * (3 + i);
-    eggs.push({ x: x - 1, y: ey, type: a.type, behaviour: SCENARIO_ATTACK_NEAREST }, { x: x + 1, y: ey, type: b.type, behaviour: SCENARIO_ATTACK_NEAREST });
+    eggs.push({ x: x - 1, y: ey, type: a.type, behavior: SCENARIO_ATTACK_NEAREST }, { x: x + 1, y: ey, type: b.type, behavior: SCENARIO_ATTACK_NEAREST });
   }
   if (eggs.some(e => e.x < 0 || e.y < 0 || e.x >= width || e.y >= height)) throw new Error('The zone has no room for the battle beside the hero');
   return eggs;
@@ -2730,11 +2725,11 @@ function manboroughMap(bytes) {
     const zip = parseZipArchive(bytes), entries = zip.entries || zip;
     const read = e => new TextDecoder().decode(zipFork(bytes, e, 'data'));
     const levels = entries.find(e => /(^|\/)levels\.json$/.test(e.path));
-    let want = null;
-    try { const first = levels && JSON.parse(read(levels)).levels[0]; if (first && first.map) want = entries.find(e => e.path.endsWith(first.map)); } catch (e) { quiet(e, 'the export\'s list of levels'); }
-    want = want || entries.find(e => /(^|\/)maps\/[^/]+\.json$/.test(e.path) && !/_objects\.json$/.test(e.path));
-    if (!want) throw new Error('This zip has no map in it. An export from Manborough’s editor has one under maps/.');
-    text = read(want);
+    let mapEntry = null;
+    try { const first = levels && JSON.parse(read(levels)).levels[0]; if (first && first.map) mapEntry = entries.find(e => e.path.endsWith(first.map)); } catch (e) { quiet(e, 'the export\'s list of levels'); }
+    mapEntry = mapEntry || entries.find(e => /(^|\/)maps\/[^/]+\.json$/.test(e.path) && !/_objects\.json$/.test(e.path));
+    if (!mapEntry) throw new Error('This zip has no map in it. An export from Manborough’s editor has one under maps/.');
+    text = read(mapEntry);
   } else text = new TextDecoder().decode(bytes);
   let m;
   try { m = JSON.parse(text); } catch (e) { throw new Error('The map is not JSON: ' + e.message); }
@@ -2744,10 +2739,10 @@ function manboroughMap(bytes) {
   for (const c of m.cells) if (c && c.xy && c.t && c.xy[0] >= 0 && c.xy[1] >= 0 && c.xy[0] < width && c.xy[1] < height) tiles[c.xy[1] * width + c.xy[0]] = c.t[0] & 0xFFFF;
   // The game's names for its things and creatures, as his defs spell them.
   const slug = t => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-  const byName = new Map(), known = getPropTileList();
-  for (let pt = 1; pt < known.length; pt++) { const n = known[pt] !== undefined ? slug(propDisplayName(pt)) : ''; if (n && !byName.has(n)) byName.set(n, pt); }
+  const byName = new Map(), propTiles = getPropTileList();
+  for (let pt = 1; pt < propTiles.length; pt++) { const n = propTiles[pt] !== undefined ? slug(propDisplayName(pt)) : ''; if (n && !byName.has(n)) byName.set(n, pt); }
   const units = parseMonsterStats();
-  const eggBehaviour = type => {
+  const eggBehavior = type => {
     for (let k = 0; k < subindexCount(ARCHIVE, 128); k++) { const b = getResourceBytes(ARCHIVE, 0x8100 + k); if (!b) continue;
       for (const r of parseDelverPropList(b)) if (r.flags === 0x08 && r.proptype === type) return (r.d3 >> 8) & 0xFF; }
     return 0;
@@ -2762,7 +2757,7 @@ function manboroughMap(bytes) {
     let g;
     if ((g = /^cythera_npc_(\d+)/.exec(def))) out.cast.push({ index: +g[1], x, y });
     else if ((g = /^cythera_prop_(\d+)_(.*)$/.exec(def))) { const a = /_a(\d+)$/.exec(g[2]); out.props.push({ x, y, type: +g[1], aspect: a ? +a[1] : 0, rotated: !!o.rotated }); }
-    else if ((g = /^cythera_spawn_(\d+)_.*?_x(\d+)_p(\d+)/.exec(def)) && units[+g[1]] && !units[+g[1]].blank && units[+g[1]].proptype) { const type = units[+g[1]].proptype; out.eggs.push({ x, y, type, behaviour: eggBehaviour(type), count: Math.min(255, +g[2]), chance: Math.min(100, +g[3]) }); }
+    else if ((g = /^cythera_spawn_(\d+)_.*?_x(\d+)_p(\d+)/.exec(def)) && units[+g[1]] && !units[+g[1]].blank && units[+g[1]].proptype) { const type = units[+g[1]].proptype; out.eggs.push({ x, y, type, behavior: eggBehavior(type), count: Math.min(255, +g[2]), chance: Math.min(100, +g[3]) }); }
     else if (byName.has(def) || byName.has(def.replace(/s$/, ''))) out.props.push({ x, y, type: byName.get(def) || byName.get(def.replace(/s$/, '')), aspect: 0, rotated: !!o.rotated });
     else out.skipped.push(def);
   }
@@ -3053,7 +3048,7 @@ function scenarioSaveWords() {
            rooms, gremlins: Array.from({ length: 256 }, (_, n) => n).filter(n => refExists(0x1F00 + n)),
            // Where the scripts use each character flag (charFlagUses), each
            // place with its script's name for a save, which has no scripts.
-           charFlags: characterFlagSites().flags.map(x => { const nm = l => l.map(q => ({ resid: q.resid, at: q.at, who: q.who, name: labelFor(q.resid) || propWordHex(q.resid) })); return { flag: x.flag, set: nm(x.set), clear: nm(x.clear), test: nm(x.test), effect: nm(x.effect) }; }) };
+           charFlags: characterFlagSites().flags.map(x => { const nm = l => l.map(q => ({ resid: q.resid, at: q.at, character: q.character, name: labelFor(q.resid) || propWordHex(q.resid) })); return { flag: x.flag, set: nm(x.set), clear: nm(x.clear), test: nm(x.test), effect: nm(x.effect) }; }) };
 }
 // Called by parseArchiveBytes while the scenario is still the open file and
 // a save is about to replace it.
@@ -3120,7 +3115,7 @@ function questStateHTML(words) {
   const head = '<thead><tr><th class="num">no.</th><th>value</th><th>set by</th><th>tested by</th></tr></thead>';
   let h = '<h4 class="saveH4">Quest Values and Flags</h4>' +
     '<div class="saveNote">The 32 quest values and 256 quest flags in which the scripts record the story, from the start of 0x0400. ' +
-    (words ? 'The list has the ones a script sets or checks, and any that this save has set; it leaves out the rest, which no script uses and this save has not changed. The files do not say what each one means, so they appear as numbers.'
+    (words ? 'The list has the ones a script sets or checks, and any that this save has set. It leaves out the rest, which no script uses and this save has not changed. The files do not say what each one means, so they appear as numbers.'
            : 'No scenario was open before this save, so the page cannot find which scripts use each one, and shows every value.') + '</div>' +
     '<div class="tableScroll"><table class="forkTable">' + head + '<tbody>' + valueRows.join('') + '</tbody></table></div>' +
     '<div class="tableScroll"><table class="forkTable">' + head.replace('<th>value</th>', '<th>set</th>') + '<tbody>' + flagRows.join('') + '</tbody></table></div>' +
@@ -3138,7 +3133,7 @@ function writeQuestState(values, flags) {
     b[s.byte] = on ? (b[s.byte] | (1 << s.bit)) : (b[s.byte] & ~(1 << s.bit));
   }
   const ok = applyResourceEdit(0x0400, b);
-  if (ok) setStatus('The quest values and flags rewritten.');
+  if (ok) setStatus('Rewrote the quest values and flags.');
   return ok;
 }
 function applyQuestStateForm() {
@@ -3147,7 +3142,7 @@ function applyQuestStateForm() {
     const el = document.getElementById('qv-' + n);
     if (!el) continue;
     const v = parseInt(el.value, 10);
-    if (!Number.isInteger(v) || v < 0 || v > 255) { setStatus('Bad value for quest value ' + n + ', nothing changed.', true); return; }
+    if (!Number.isInteger(v) || v < 0 || v > 255) { setStatus('The page cannot use that value for quest value ' + n + ', so nothing changed.', true); return; }
     values[n] = v;
   }
   for (let n = 0; n < 256; n++) { const el = document.getElementById('qf-' + n); if (el) flags[n] = !!el.checked; }
@@ -3156,7 +3151,7 @@ function applyQuestStateForm() {
 function setQuestFlagByNumber(on) {
   const el = document.getElementById('qf-other');
   const n = el ? parseInt(el.value, 10) : NaN;
-  if (!Number.isInteger(n) || n < 0 || n > 255) { setStatus('A quest flag is a number from 0 to 255; nothing changed.', true); return; }
+  if (!Number.isInteger(n) || n < 0 || n > 255) { setStatus('A quest flag is a number from 0 to 255, so nothing changed.', true); return; }
   writeQuestState({}, { [n]: on });
 }
 
@@ -3164,10 +3159,10 @@ function setQuestFlagByNumber(on) {
 function roomsEnteredHTML(words) {
   const b = saveSegment(0xF00E);
   if (!b) return '';
-  const known = new Map((words ? words.rooms : []).map(r => [r.n, r]));
+  const propTiles = new Map((words ? words.rooms : []).map(r => [r.n, r]));
   const count = b.length >> 1;
-  for (let n = 0; n < count; n++) if ((b[2 * n + 1] & 1) && !known.has(n)) known.set(n, { n, zones: [], text: '' });
-  const rows = [...known.values()].sort((a, c) => a.n - c.n);
+  for (let n = 0; n < count; n++) if ((b[2 * n + 1] & 1) && !propTiles.has(n)) propTiles.set(n, { n, zones: [], text: '' });
+  const rows = [...propTiles.values()].sort((a, c) => a.n - c.n);
   const entered = rows.filter(r => b[2 * r.n + 1] & 1).length;
   return '<h4 class="saveH4">Rooms Entered</h4>' +
     '<div class="saveNote">0xF00E has a switch for each room, set the first time the player walks in. A room whose switch is clear shows its description when the player enters it. ' +
@@ -3201,8 +3196,8 @@ function saveGremlinBlock(b) {
 const SAVE_GREMLIN_STATES = [[0, 'on'], [1, 'off'], [2, 'none']];
 // A state's options, the one it has selected; a state the three do not name is kept as its number.
 function gremlinStateOptions(state) {
-  const known = SAVE_GREMLIN_STATES.some(([v]) => v === state);
-  return (known ? '' : '<option value="' + state + '" selected>' + state + '</option>') +
+  const propTiles = SAVE_GREMLIN_STATES.some(([v]) => v === state);
+  return (propTiles ? '' : '<option value="' + state + '" selected>' + state + '</option>') +
     SAVE_GREMLIN_STATES.map(([v, t]) => '<option value="' + v + '"' + (v === state ? ' selected' : '') + '>' + t + '</option>').join('');
 }
 function gremlinsHTML(words) {
@@ -3216,7 +3211,7 @@ function gremlinsHTML(words) {
   }
   return '<h4 class="saveH4">Gremlins</h4>' +
     '<div class="saveNote">A gremlin is a script the game runs when the party enters a room or a zone, and when a script sends a signal. ' +
-    'A save records each gremlin as on, off or none, as it was at the moment of saving, so a gremlin added to Cythera Data later shows as none here until you switch it on. ' +
+    'A save records each gremlin as on, off or none, as it was at the moment of saving, so a gremlin added to Cythera Data later shows as none here until switched on. ' +
     (words ? (scripted.size ? 'The scenario opened before this save has ' + scripted.size + ' gremlin' + (scripted.size === 1 ? '' : 's') + '.' : 'The scenario opened before this save has no gremlins.')
            : 'No scenario was open before this save, so the list has only the gremlins the save has on or off.') + '</div>' +
     '<div class="tableScroll"><table class="forkTable"><thead><tr><th class="num">gremlin</th><th>state</th><th>in the scenario</th></tr></thead><tbody>' +
@@ -3226,26 +3221,26 @@ function gremlinsHTML(words) {
     '</tbody></table></div><div class="propEdit"><button class="sv-chip" onclick="applyGremlinsForm()">Apply</button></div>';
 }
 function applyGremlinsForm() {
-  const want = new Map();
+  const stateChanges = new Map();
   for (let n = 0; n < 256; n++) {
     const sel = document.getElementById('grem-' + n);
-    if (sel) want.set(n, +sel.value);
+    if (sel) stateChanges.set(n, +sel.value);
   }
   const add = document.getElementById('gremAddN'), addState = document.getElementById('gremAddState');
   if (add && add.value.trim() !== '') {
     const t = add.value.trim();
     if (!/^\d+$/.test(t) || +t > 255) { setStatus('A gremlin is numbered 0 to 255.', true); return false; }
-    want.set(+t, addState ? +addState.value : 0);
+    stateChanges.set(+t, addState ? +addState.value : 0);
   }
-  return writeGremlinStates(want);
+  return writeGremlinStates(stateChanges);
 }
 // Each gremlin named, set to the state given, in the save's Grem block.
 function writeGremlinStates(changes) {
   const b = saveSegment(0x0400), g = saveGremlinBlock(b);
   if (!g) { setStatus('This file has no gremlins block.', true); return false; }
-  const want = changes instanceof Map ? changes : new Map(Object.entries(changes).map(([n, v]) => [+n, +v]));
+  const changeMap = changes instanceof Map ? changes : new Map(Object.entries(changes).map(([n, v]) => [+n, +v]));
   let changed = 0;
-  for (const [n, v] of want) {
+  for (const [n, v] of changeMap) {
     const p = g.at + 4 * n;
     if (p + 2 > g.end || ((u16be(b, p) << 16) >> 16) === v) continue;
     b[p] = (v >> 8) & 0xFF; b[p + 1] = v & 0xFF; changed++;
@@ -3264,7 +3259,7 @@ function writeRoomsEntered(changes) {
     b[p] = on ? (b[p] | 1) : (b[p] & ~1);
   }
   const ok = applyResourceEdit(0xF00E, b);
-  if (ok) setStatus('The rooms entered rewritten.');
+  if (ok) setStatus('Rewrote the rooms entered.');
   return ok;
 }
 function applyRoomsForm() {
@@ -3342,30 +3337,30 @@ function giveListFor(index) {
 }
 function giveFormHTML(index) {
   const rid = giveListFor(index);
-  if (!rid) return '<div class="inspDim">Nothing can be given here; the character is not in a zone whose prop list is in this file.</div>';
+  if (!rid) return '<div class="inspDim">The page cannot give anything here, because the character is not in a zone whose prop list is in this file.</div>';
   const f = (id, label, val, size) => '<label>' + label + ' <input id="gv-' + index + '-' + id + '" value="' + val + '" size="' + size + '" spellcheck="false"></label>';
   return '<div class="propEdit"><b>Give</b> ' + f('pt', 'prop type', '', 5) + f('aspect', 'aspect', 0, 3) + f('d3', 'data 0x', '0000', 5) +
     '<label>as <select id="gv-' + index + '-kind"><option value="16">a thing carried</option><option value="28">a skill or spell</option></select></label>' +
     '<button class="sv-chip" onclick="applyGiveForm(' + index + ')">Give</button>' +
-    '<div class="inspDim">A record is added to the end of 0x' + rid.toString(16).toUpperCase() + ', the prop list of the zone they are in, as something they hold. ' +
+    '<div class="inspDim">Give adds a record to the end of 0x' + rid.toString(16).toUpperCase() + ', the prop list of the zone they are in, as something they hold. ' +
     'A skill or spell is a record of the same kind, whose prop type is the skill’s number and whose aspect is its level.</div></div>';
 }
 function giveToCharacter(index, fields) {
   const rid = giveListFor(index);
-  if (!rid) { setStatus('Nothing can be given; the character is not in a zone whose prop list is in this file.', true); return false; }
+  if (!rid) { setStatus('The page cannot give anything, because the character is not in a zone whose prop list is in this file.', true); return false; }
   const records = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, rid), rid).data);
   records.push({ flags: fields.flags, x: 0, y: index, aspect: fields.aspect & 0x1F, rotated: 0, proptype: fields.proptype,
                  d3: fields.d3 || 0, storeref: 0, tail: '000000000000' });
   const ok = applyResourceEdit(rid, writeDelverPropList(records));
-  if (ok) setStatus('Prop type ' + fields.proptype + ' given to ' + characterName(index) + ', record ' + (records.length - 1) + ' of 0x' + rid.toString(16).toUpperCase() + '.');
+  if (ok) setStatus('Gave prop type ' + fields.proptype + ' to ' + characterName(index) + ', as record ' + (records.length - 1) + ' of 0x' + rid.toString(16).toUpperCase() + '.');
   return ok;
 }
 function applyGiveForm(index) {
   const get = id => document.getElementById('gv-' + index + '-' + id);
   const pt = parseInt(get('pt').value, 10), aspect = parseInt(get('aspect').value, 10), d3 = parseInt(get('d3').value, 16), flags = parseInt(get('kind').value, 10);
-  if (!Number.isInteger(pt) || pt < 1 || pt > 0x3FF) { setStatus('A prop type is a number from 1 to 1023; nothing given.', true); return; }
-  if (!Number.isInteger(aspect) || aspect < 0 || aspect > 31) { setStatus('An aspect is a number from 0 to 31; nothing given.', true); return; }
-  if (!Number.isInteger(d3) || d3 < 0 || d3 > 0xFFFF) { setStatus('Bad data word; nothing given.', true); return; }
+  if (!Number.isInteger(pt) || pt < 1 || pt > 0x3FF) { setStatus('A prop type is a number from 1 to 1023, so the page gave nothing.', true); return; }
+  if (!Number.isInteger(aspect) || aspect < 0 || aspect > 31) { setStatus('An aspect is a number from 0 to 31, so the page gave nothing.', true); return; }
+  if (!Number.isInteger(d3) || d3 < 0 || d3 > 0xFFFF) { setStatus('The page cannot use that data word, so it gave nothing.', true); return; }
   window.SAVE_EDIT_OPEN = index;
   giveToCharacter(index, { proptype: pt, aspect, d3, flags });
 }
@@ -3419,6 +3414,19 @@ function renderDataForkSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   document.getElementById('singleControls').style.display = 'none';
+  // The scenario's name, the archive's first string. The page printed it
+  // only in the line under the tabs as the file opened, which the first tab
+  // replaces (the maintainer, 28 October 2026: "where is Scenario name
+  // shown").
+  {
+    const name = pstring(ARCHIVE.bytes, 0);
+    if (name) {
+      const head = document.createElement('div');
+      head.className = 'sv-note';
+      head.innerHTML = 'Scenario name: <b>' + svEsc(name) + '</b>';
+      grid.appendChild(head);
+    }
+  }
   const at = window.FORK_AT;
   const fe = at !== null && at !== undefined ? forkEntryOf(at) : null;
   if (fe) {
@@ -3476,8 +3484,8 @@ function renderDataForkSheet() {
   const rsrc = window.CYTHERA_RSRC_RAW;
   out.textContent = (window.ARCHIVE_SOURCE_NAME || 'The data fork') + ': ' + fmtBytes(ARCHIVE.bytes.length) +
     ', ' + rows.length + ' subindexes, ' + total + ' resources (' + fmtBytes(totalBytes) + ' of payload)' +
-    (rsrc && rsrc.length ? '; a resource fork of ' + fmtBytes(rsrc.length) + ' beside it'
-                         : '; no resource fork came with it') + '.';
+    (rsrc && rsrc.length ? ', with a resource fork of ' + fmtBytes(rsrc.length) + ' beside it'
+                         : ', and no resource fork came with it') + '.';
 }
 
 /* ---- Data > Installer -----------------------------------------------------
@@ -3492,8 +3500,8 @@ function renderDataForkSheet() {
    are not kept: the installer itself is what the page stores (see
    adoptArchive), and a decoded stream is cached on it for the session. */
 function installerTextOf(entry) {
-  const got = viseExtract(window.INSTALLER.archive, entry);
-  return decodeMacRoman(got.data);
+  const extracted = viseExtract(window.INSTALLER.archive, entry);
+  return decodeMacRoman(extracted.data);
 }
 function installerIsText(entry) {
   return entry.dataLen > 0 && (entry.type === 'TEXT' || entry.type === 'URL ' || entry.type === 'LINK');
@@ -3503,9 +3511,9 @@ function downloadInstallerFile(index) {
   if (!inst) return;
   const entry = inst.archive.entries[index];
   if (!entry) return;
-  const got = viseExtract(inst.archive, entry);
-  if (!got.crcOk) setStatus('Warning: the installer’s checksum for ' + entry.name + ' does not match what came out.', true);
-  downloadBlob(writeMacBinary({ name: entry.name, type: entry.type, creator: entry.creator, data: got.data, rsrc: got.rsrc }),
+  const extracted = viseExtract(inst.archive, entry);
+  if (!extracted.crcOk) setStatus('Warning: the installer’s checksum for ' + entry.name + ' does not match what came out.', true);
+  downloadBlob(writeMacBinary({ name: entry.name, type: entry.type, creator: entry.creator, finderFlags: entry.finderFlags, data: extracted.data, rsrc: extracted.rsrc }),
                safeFileName(entry.name) + '.bin');
 }
 function showInstallerText(index) {
@@ -3700,8 +3708,8 @@ function installerIcon(which) {
       const tail = '/' + which + '/Icon\r';
       const e = inst.archive.entries.find(x => x.path.slice(-tail.length) === tail);
       if (e) {
-        const got = viseExtract(inst.archive, e);
-        if (got.rsrc && got.rsrc.length) art = iconFromFork(openResourceFork(got.rsrc), -16455);
+        const extracted = viseExtract(inst.archive, e);
+        if (extracted.rsrc && extracted.rsrc.length) art = iconFromFork(openResourceFork(extracted.rsrc), -16455);
       }
     }
   } catch (e) { art = null; }
@@ -3727,15 +3735,15 @@ function installerEntryIcon(e) {
   let art = null;
   // A folder's Icon file has the folder's icon, at -16455.
   if (/\/Icon\r$/.test(e.path)) {
-    try { const got = viseExtract(inst.archive, e); if (got.rsrc && got.rsrc.length) art = iconFromFork(openResourceFork(got.rsrc), -16455); } catch (err) { quiet(err, 'a folder\u2019s icon'); }
+    try { const extracted = viseExtract(inst.archive, e); if (extracted.rsrc && extracted.rsrc.length) art = iconFromFork(openResourceFork(extracted.rsrc), -16455); } catch (err) { quiet(err, 'a folder\u2019s icon'); }
     return art;
   }
   try {
     const owner = inst.archive.entries.find(x => x.type === 'APPL' && x.creator === e.creator && x.rsrcLen);
     if (owner) {
-      const got = viseExtract(inst.archive, owner);
-      if (got.rsrc && got.rsrc.length) {
-        const fork = openResourceFork(got.rsrc);
+      const extracted = viseExtract(inst.archive, owner);
+      if (extracted.rsrc && extracted.rsrc.length) {
+        const fork = openResourceFork(extracted.rsrc);
         const id = bundleIconMap(fork, 'installer:' + e.creator)[e.type];
         if (id !== undefined) art = iconFromFork(fork, id);
       }
@@ -3770,7 +3778,7 @@ function renderInstallerSheet() {
     line.className = 'amNote';
     line.style.cssText = 'grid-column:1/-1;text-align:left;margin:0 0 6px';
     line.textContent = (v ? 'Cythera ' + v + ' is the release this page is reading. ' : '') +
-      (inst.installers && inst.installers.length > 1 ? 'The file also contains ' + inst.installers.filter(it => it.name !== inst.picked).map(it => it.name.replace(/ Installer$/, '')).join(', ') + '; choose one below to read it instead.' : 'It is the only release in this file.');
+      (inst.installers && inst.installers.length > 1 ? 'The file also contains ' + inst.installers.filter(it => it.name !== inst.picked).map(it => it.name.replace(/ Installer$/, '')).join(', ') + '. Choose one below to read it instead.' : 'It is the only release in this file.');
     grid.appendChild(line);
   }
   if (inst.installers && inst.installers.length > 1) {
@@ -3778,7 +3786,7 @@ function renderInstallerSheet() {
     row.className = 'sv-chips installerVersions';
     const label = document.createElement('span');
     label.className = 'amNote';
-    label.textContent = 'This file contains ' + inst.installers.length + ' releases, the open one marked:';
+    label.textContent = 'This file contains ' + inst.installers.length + ' releases, with the open one marked.';
     row.appendChild(label);
     for (const it of inst.installers) {
       const b = document.createElement('button');
@@ -3829,7 +3837,7 @@ function renderInstallerSheet() {
     ', ' + arc.entries.length + ' files in ' + arc.dirs.length + ' folders, ' + fmtBytes(total) +
     ' once unpacked' + (c ? ', from a ' + c.kind + ' file (' + fmtBytes(arc.bytes.length) + ' of it the installer)' : '') +
     '. A .bin here is the file itself with both forks, the form a real Mac needs' +
-    (inst.crcOk ? '' : '. The checksum the installer gives for the file did NOT match, so treat the data with suspicion') + '.';
+    (inst.crcOk ? '' : '. The checksum the installer gives for the file did not match, so the data may be damaged') + '.';
 }
 
 /* ---- Data > Combat AI > Scripts / Rules ----------------------------------
@@ -3876,17 +3884,17 @@ function renderCombatAISheet(which) {
         '. Calling <code class="aiWord">CastSpell</code> with a spell the character does not know casts nothing, and <code class="aiWord">Debug(#)</code> only prints its number.</div>'
       : '';
     box.innerHTML = '<div class="propHead">The Vocabulary' +
-      (rows.length ? '' : (app ? '; none of the lists is in this resource fork' :
+      (rows.length ? '' : (app ? ' (none of the lists is in this resource fork)' :
         (window.APP_RSRC_STATE === 'loading' ? ', loading the program…' :
          ', ' + (window.APP_RSRC_STATE || 'the program’s fork is not open')))) + '</div>' +
       (rows.length ? '<div class="tableScroll"><table class="vocabTable">' + rows.join('') + '</table></div>' : '') + split;
     grid.appendChild(box);
   }
   const arc = window.INSTALLER ? window.INSTALLER.archive : null;
-  const want = which === 'AIRULES'
+  const isWantedKind = which === 'AIRULES'
     ? e => /AI Scripting Document/i.test(e.name)
     : e => /\.ai$/i.test(e.name);
-  const files = arc ? arc.entries.filter(e => e.type === 'TEXT' && want(e)) : [];
+  const files = arc ? arc.entries.filter(e => e.type === 'TEXT' && isWantedKind(e)) : [];
   for (const e of files) {
     const pre = document.createElement('pre');
     pre.className = 'installerText';
@@ -4022,7 +4030,7 @@ function renderRecordsSheet() {
   }
   out.textContent = shown + ' of the tables that make up the scenario' +
     (q ? ' matching “' + q + '”' : '') +
-    '. A figure on a Scenario page opens its record here, and every record links on to its bytes in the file.';
+    '. A number on a Scenario page opens its record here, and every record links on to its bytes in the file.';
 }
 
 /* One record, field by field, with the byte a jump requested ringed. The

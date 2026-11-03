@@ -84,7 +84,7 @@ const inBody = new Uint8Array(code.totalSize >>> 2);
 for (const r of routines) for (let a = r.offset; a < r.tableOffset; a += 4) inBody[a >>> 2] = 1;
 const isFloat = mn => /^(f|lf|stf)/.test(mn);
 function roundTrip(shift, mutate) {
-  const out = { read: 0, written: 0, differ: 0, bodyRefused: new Map(), outsideRefused: 0, rel: 0, lwz: 0, firstDiffer: null };
+  const out = { read: 0, written: 0, differ: 0, bodyRejected: new Map(), outsideRejected: 0, rel: 0, lwz: 0, firstDiffer: null };
   for (let a = 0; a < code.totalSize; a += 4) {
     const w = u32(data, code.containerOffset + a), d = ctx.ppcDecode(w);
     if (!d) continue;
@@ -93,7 +93,7 @@ function roundTrip(shift, mutate) {
     if (mutate) text = mutate(text);
     let x;
     try { x = ctx.ppcAssemble(text, a + shift); }
-    catch (e) { if (inBody[a >>> 2]) out.bodyRefused.set(d.mn, (out.bodyRefused.get(d.mn) || 0) + 1); else out.outsideRefused++; continue; }
+    catch (e) { if (inBody[a >>> 2]) out.bodyRejected.set(d.mn, (out.bodyRejected.get(d.mn) || 0) + 1); else out.outsideRejected++; continue; }
     out.written++;
     if (d.branch && !d.indirect && !d.aa && typeof d.disp === 'number') out.rel++;
     if (d.mn === 'lwz') out.lwz++;
@@ -103,9 +103,9 @@ function roundTrip(shift, mutate) {
 }
 const rt = roundTrip(0, null);
 if (rt.differ) fail(rt.differ + ' words written differently from how they read, first ' + rt.firstDiffer);
-const notFloat = [...rt.bodyRefused].filter(([mn]) => !isFloat(mn));
+const notFloat = [...rt.bodyRejected].filter(([mn]) => !isFloat(mn));
 if (notFloat.length) fail('rejected inside a routine: ' + notFloat.map(([m, n]) => m + ' ' + n).join(', '));
-const floats = [...rt.bodyRefused].reduce((s, [, n]) => s + n, 0);
+const floats = [...rt.bodyRejected].reduce((s, [, n]) => s + n, 0);
 // The controls.
 const moved = roundTrip(4, null);
 if (moved.differ !== moved.rel) fail('assembled four bytes along, ' + moved.differ + ' words changed where ' + moved.rel + ' relative branches should');
@@ -235,15 +235,15 @@ if (all && llvmMc && existsSync(llvmMc)) {
       // The target the line names, found the way the applier found it.
       const name = m[3];
       const fix = FIXES.find(f => f.id === a.id);
-      let want = /^0x/i.test(name) ? parseInt(name, 16) : null;
-      if (want === null) {
+      let expected = /^0x/i.test(name) ? parseInt(name, 16) : null;
+      if (expected === null) {
         const lab = new Map(); let at = all.applied.find(x => x.id === a.id).caveAt;
         for (const raw of fix.cave || []) { const s = raw.replace(/;.*$/, '').trim(); if (!s) continue; const L = /^(\w+):$/.exec(s); if (L) lab.set(L[1], at); else at += 4; }
         if (all.applied.find(x => x.id === a.id).caveAt !== null) lab.set('cave', all.applied.find(x => x.id === a.id).caveAt);
-        want = lab.has(name) ? lab.get(name) : ctx.appRoutineAddresses(pef, data).get(name);
+        expected = lab.has(name) ? lab.get(name) : ctx.appRoutineAddresses(pef, data).get(name);
       }
-      if (target !== want) fail(a.id + ': "' + t + '" at ' + hex(w.at) + ' reaches ' + (target === null ? 'nothing' : hex(target)) + ', not ' + (want === undefined ? name : hex(want)));
-      llvm = m[1] + ' ' + (m[2] ? m[2] + ' ' : '') + '.+' + (((want >>> 0) - w.at) | 0);
+      if (target !== expected) fail(a.id + ': "' + t + '" at ' + hex(w.at) + ' reaches ' + (target === null ? 'nothing' : hex(target)) + ', not ' + (expected === undefined ? name : hex(expected)));
+      llvm = m[1] + ' ' + (m[2] ? m[2] + ' ' : '') + '.+' + (((expected >>> 0) - w.at) | 0);
     }
     lines.push({ fix: a.id, at: w.at, word: w.now, text: t, llvm, branch: !!m });
   }
@@ -288,28 +288,28 @@ if (all && llvmMc && existsSync(llvmMc)) {
 }
 
 // ---- 4. the rejections --------------------------------------------------------------
-const refuses = (label, fn, want) => {
+const expectThrows = (label, fn, expected) => {
   try { fn(); fail(label + ' was not rejected'); }
-  catch (e) { if (want && !want.test(e.message)) fail(label + ' was rejected for another reason: ' + e.message); }
+  catch (e) { if (expected && !expected.test(e.message)) fail(label + ' was rejected for another reason: ' + e.message); }
 };
-if (all) refuses('a program patched already', () => ctx.applyAppFixes({ data: all.data, rsrc: all.rsrc }, FIXES), /code section/);
+if (all) expectThrows('a program patched already', () => ctx.applyAppFixes({ data: all.data, rsrc: all.rsrc }, FIXES), /code section/);
 // The 68K half rejects by itself: its program patched already, and a byte
 // of a site that is not the one a fix expects, each naming the fix.
 const spec68 = rf => ctx.resourceForkSpec(ctx.openResourceFork(rf));
-if (all) refuses('a 68K program patched already', () => ctx.applyApp68kFixes(spec68(all.rsrc), names68), /not what the fix expects|gives an A5 world/);
+if (all) expectThrows('a 68K program patched already', () => ctx.applyApp68kFixes(spec68(all.rsrc), names68), /not what the fix expects|gives an A5 world/);
 const site68 = T68.caves[0], bentR = spec68(rsrc);
 const segR = bentR.resources.find(r => r.type === 'CODE' && r.id === site68.seg);
 segR.data = Uint8Array.from(segR.data); segR.data[site68.site] ^= 1;
-refuses('a 68K site whose byte is not the expected one', () => ctx.applyApp68kFixes(bentR, [site68.fixes[0]]), new RegExp('^' + site68.fixes[0] + ': CODE'));
+expectThrows('a 68K site whose byte is not the expected one', () => ctx.applyApp68kFixes(bentR, [site68.fixes[0]]), new RegExp('^' + site68.fixes[0] + ': CODE'));
 const withSite = FIXES.find(f => (f.sites || []).length);
 const bent = Uint8Array.from(data);
 bent[code.containerOffset + withSite.sites[0].at + 3] ^= 1;
-refuses('a site whose word is not the expected one', () => ctx.applyAppFixes({ data: bent, rsrc }, [withSite]), new RegExp('^' + withSite.id + ': expected'));
-refuses('two fixes that change one word', () => ctx.applyAppFixes({ data, rsrc }, [withSite, Object.assign({}, withSite, { id: 'twin' })]), /twin: changes the word/);
-refuses('a fix chosen twice', () => ctx.applyAppFixes({ data, rsrc }, [withSite, withSite]), /chosen twice/);
+expectThrows('a site whose word is not the expected one', () => ctx.applyAppFixes({ data: bent, rsrc }, [withSite]), new RegExp('^' + withSite.id + ': expected'));
+expectThrows('two fixes that change one word', () => ctx.applyAppFixes({ data, rsrc }, [withSite, Object.assign({}, withSite, { id: 'twin' })]), /twin: changes the word/);
+expectThrows('a fix chosen twice', () => ctx.applyAppFixes({ data, rsrc }, [withSite, withSite]), /chosen twice/);
 
 const hooks = FIXES.filter(f => f.kind === 'hook').map(f => f.method);
-console.log(`${rt.written.toLocaleString()} of ${rt.read.toLocaleString()} code words written back the same (${floats} floating-point words inside routines, and ${rt.outsideRefused} outside, not written); ` +
+console.log(`${rt.written.toLocaleString()} of ${rt.read.toLocaleString()} code words written back the same (${floats} floating-point words inside routines, and ${rt.outsideRejected} outside, not written); ` +
   `${FIXES.length} fixes applied together and alone${all ? ', the code grown by ' + all.grownBy + ' bytes' : ''}; ${llvmNote}; hooks on methods ${hooks.join(', ')}; ` +
   `68K: ${held68} programs the workbench's byte for byte; ` +
   `controls: ${moved.differ} branches moved, ${lwzShift.differ} lwz changed, six rejections`);

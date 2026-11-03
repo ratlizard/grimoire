@@ -12,6 +12,20 @@
    one such statement that needed a later file, the brand line, stayed in
    the page after the last of these. File 4 of 14. */
 
+/* The page as the search's hidden reader (searchCrawlInFrame in
+   js/page-search.js): index.html?searchcrawl=1 inside a frame of the page
+   the visitor sees. It opens the file from IndexedDB alone, lands on the
+   Data Fork tab rather than the World's map, reads every page for the
+   search and posts a message to its parent when the pages are stored. A
+   history entry it pushed would land in the visitor's back button, since a
+   frame shares its parent's history, so in the frame a push replaces the
+   current entry instead. */
+const SEARCH_CRAWL = (() => {
+  try { return window.parent !== window && new URLSearchParams(location.search).get('searchcrawl') === '1'; }
+  catch (e) { return false; }
+})();
+if (SEARCH_CRAWL) history.pushState = (state, title, url) => history.replaceState(state, title, url);
+
 /* ---------------------------------------------------------------------------
    Getting the archive open
    ---------------------------------------------------------------------------
@@ -41,7 +55,7 @@
    beside the tables that hang off it, and assigned in parseArchiveBytes below
    and nowhere else. */
 
-function resetDerivedCaches() {
+function resetDerivedCaches(keepProgram) {
   // The tables live on the archive now (DERIVED, js/page-labels.js) and
   // went with the old object; one of them is read as a list before anything
   // fills it, so it starts as one.
@@ -49,12 +63,21 @@ function resetDerivedCaches() {
   // The decoded-resource cache and the application's fork are both keyed to
   // the file that is open, so a different archive has to drop them too.
   if (typeof _rsrcArtifactCache !== 'undefined') _rsrcArtifactCache.clear();
-  window.APP_RSRC = null;
-  window.APP_RSRC_RAW = null;
-  window.APP_DATA = null;
-  window.APP_PEF = null;
-  window.APP_PRISTINE = null;
-  window.APP_RSRC_STATE = '';
+  /* An edit rebuilds the same file (via:'edit'), so the program that came
+     with it stays. Until 21 October 2026 it was dropped here too: a visitor
+     who opened the installer, replaced a tune and chose a program fix got
+     "No program is open." from Download, because the program is extracted
+     from the installer in openArchive alone and an edit never reaches
+     openArchive. */
+  if (!keepProgram) {
+    window.APP_RSRC = null;
+    window.APP_RSRC_RAW = null;
+    window.APP_DATA = null;
+    window.APP_PEF = null;
+    window.APP_PRISTINE = null;
+    window.APP_RSRC_STATE = '';
+    window.APP_RSRC_EDITS = new Map();   // the images replaced in the program dropped
+  }
   window.RSRC_SOURCE = 'data';
   window.MAP_VIEW_MEMORY = Object.create(null);
   window.MAP_SEL_MEMORY = Object.create(null);
@@ -158,6 +181,8 @@ function idbTx(mode, fn, store) {
 function archiveCacheGet() { return idbTx('readonly', s => s.get(ARCHIVE_KEY)); }
 function archiveCachePut(rec) { return idbTx('readwrite', s => s.put(rec, ARCHIVE_KEY)); }
 function archiveCacheClear() {
+  // The search's pages read from that copy go with it (js/page-search.js).
+  try { indexedDB.deleteDatabase(SEARCH_DB); } catch (e) { quiet(e); }
   return idbTx('readwrite', s => s.delete(ARCHIVE_KEY))
     .then(() => { setStatus('Remembered copy cleared. Reloading…'); location.reload(); })
     .catch(() => setStatus('There was nothing remembered to clear.'));
@@ -170,19 +195,19 @@ async function fetchWithProgress(url, label) {
   if (!res.body || !res.body.getReader) return new Uint8Array(await res.arrayBuffer());
   const reader = res.body.getReader();
   const chunks = [];
-  let got = 0, painted = 0;
+  let receivedBytes = 0, painted = 0;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
-    chunks.push(value); got += value.length;
+    chunks.push(value); receivedBytes += value.length;
     const now = performance.now();
     if (now - painted > 120) {
       painted = now;
-      setStatus(label + ', ' + fmtBytes(got) +
-        (total ? ' of ' + fmtBytes(total) + ' (' + Math.round(got/total*100) + '%)' : ''));
+      setStatus(label + ', ' + fmtBytes(receivedBytes) +
+        (total ? ' of ' + fmtBytes(total) + ' (' + Math.round(receivedBytes/total*100) + '%)' : ''));
     }
   }
-  const out = new Uint8Array(got);
+  const out = new Uint8Array(receivedBytes);
   let at = 0;
   for (const c of chunks) { out.set(c, at); at += c.length; }
   return out;
@@ -363,7 +388,7 @@ function adoptArchive(raw, sourceName, opts) {
   if (ARCHIVE && delverArchivePatchPeek(found.bytes) &&
       patchesOpenBytes(found.bytes, (found.forks && found.forks.name) || sourceName)) {
     setStatus('That is a Magpie patch, not a game file, so the page compared it with the open file instead of replacing it. ' +
-              'Data \u203a Patches shows what it changes and can apply it.');
+              'Tools \u203a Patch Generator shows what it changes and can apply it.');
     return true;
   }
   applyNamesDefault(opts.cached ? opts.source === 'local file' : !opts.url);
@@ -401,7 +426,7 @@ function adoptArchive(raw, sourceName, opts) {
 function archiveLoadFailed(failures) {
   setStatus('No file loaded. Choose or drop the Cythera installer (.sit or .bin) or a "Cythera Data" file (.hqx is fine).', true);
   const mb = document.getElementById('archiveMenuBtn');
-  if (mb) { mb.classList.add('urgent'); mb.textContent = 'Select Cythera Data file'; }
+  if (mb) { mb.classList.add('urgent'); mb.textContent = 'Choose a Cythera Data file'; }
   openArchiveMenu(true);
   const out = document.getElementById('output');
   if (out) out.textContent = 'Tried, in order:\n  ' + failures.join('\n  ') +
@@ -479,6 +504,8 @@ async function loadDefaultArchive() {
       }
     } catch (e) { /* no IndexedDB here; go on to the network */ }
   }
+  // The search's hidden reader opens only the copy its parent left.
+  if (SEARCH_CRAWL) { searchCrawlTell({ failed: 'no remembered file' }); return; }
 
   // No remembered copy and no file of the visitor's: before the network,
   // the gate. It shows what is about to be downloaded and how big it is,
@@ -623,6 +650,10 @@ function syncDeepLink() {
   if (d && DETAIL_OPENERS[d.kind]) h += '&d=' + d.kind + ':' + d.id;
   const r = currentMode === 'single' ? currentSelectedResid() : null;
   if (r != null) h += '&r=' + r.toString(16).toUpperCase();
+  // The program's routine open on its Data Fork sheet. Without it every
+  // routine was one address, so back skipped the routines followed and a
+  // return to the sheet showed whichever routine was open last.
+  if (cat.value === 'APPPEF' && window.PEF_VIEW) h += '&x=' + window.PEF_VIEW.at.toString(16).toUpperCase();
   if (h === location.hash) return;
   // The view being left is the one to come back to -- every view, a gallery
   // included. Galleries were once left out ("the gallery button already
@@ -700,10 +731,10 @@ function viewScrollOnNav(from, to, back) {
   }
   const part = (h, k) => { const m = new RegExp('[#&]' + k + '=([^&]*)').exec(h || ''); return m ? m[1] : null; };
   const sameCat = part(from, 'c') === part(to, 'c');
-  let want = 0;
-  if (back) want = VIEW_SCROLL.get(to) || 0;
+  let scrollTarget = 0;
+  if (back) scrollTarget = VIEW_SCROLL.get(to) || 0;
   else if (sameCat && part(from, 'r') !== null && part(to, 'r') !== null && part(from, 'd') === part(to, 'd')) return;
-  else if (sameCat && part(to, 'r') === null && part(to, 'd') === null && (part(from, 'r') !== null || part(from, 'd') !== null)) want = VIEW_SCROLL.get(to) || 0;
+  else if (sameCat && part(to, 'r') === null && part(to, 'd') === null && (part(from, 'r') !== null || part(from, 'd') !== null)) scrollTarget = VIEW_SCROLL.get(to) || 0;
   /* After the view has drawn. A gallery is not its full height until its
      cells have been laid out, and a scroll past the end stops short, so a
      return to an offset is tried again for up to a second, until it
@@ -711,8 +742,8 @@ function viewScrollOnNav(from, to, back) {
   const nav = ++_viewScrollNav;
   const go = tries => {
     if (nav !== _viewScrollNav) return;
-    try { window.scrollTo(0, want); } catch (e) { quiet(e); return; }
-    if (want && tries > 0 && Math.abs((window.scrollY || 0) - want) > 2) setTimeout(() => go(tries - 1), 60);
+    try { window.scrollTo(0, scrollTarget); } catch (e) { quiet(e); return; }
+    if (scrollTarget && tries > 0 && Math.abs((window.scrollY || 0) - scrollTarget) > 2) setTimeout(() => go(tries - 1), 60);
   };
   setTimeout(() => go(16), 0);
 }
@@ -766,6 +797,12 @@ function applyDeepLink(q) {
     if (open && showCategory(q.c)) { open(STRING_DETAIL_IDS.has(kind) ? id : parseInt(id, 10)); return true; }
   }
   if (q.c === 'WORLD' && showCategory('WORLD')) return true;
+  if (q.c === 'APPPEF') {
+    const at = q.x ? parseInt(q.x, 16) : NaN;
+    window.PEF_VIEW = Number.isFinite(at) ? { at, why: '' } : null;
+    if (window.CUR_SUBN === 'APPPEF') { renderAppPefSheet(); return true; }
+    return showCategory('APPPEF');
+  }
   if (q.r) {
     const resid = parseInt(q.r, 16);
     if (Number.isFinite(resid) && jumpToResource(resid)) return true;
@@ -804,7 +841,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   window.ARCHIVE_SOURCE_NAME = sourceName;
   window.CYTHERA_RSRC_RAW = (meta.rsrc && meta.rsrc.length) ? meta.rsrc : null;
   // Kept so a font swap can be undone without re-opening the archive.
-  if (meta.via !== 'edit') { window.ARCHIVE_ORIGINAL_RSRC = window.CYTHERA_RSRC_RAW; window.FONT_SWAP = null; }
+  if (meta.via !== 'edit') { window.ARCHIVE_ORIGINAL_RSRC = window.CYTHERA_RSRC_RAW; window.FONT_SWAP = null; window.RSRC_PICTURES = new Map(); }
   // The pstring at 0x20 is what delvmod calls `player_name`; the scenario
   // leaves it empty and every saved game in the community's add-ons has
   // the name the file was saved under. It is what distinguishes a saved game from
@@ -843,7 +880,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   try {
     const title = pstring(bytes, 0);
     const arc = openDelverArchive(bytes);
-    if (!arc) throw new Error('no master index; the (offset,length) pair at 0x80 does not describe one');
+    if (!arc) throw new Error('no master index, since the (offset, length) pair at 0x80 does not point to one');
     // The file that was open stays open, whole, until the new one has parsed:
     // a failure above leaves the page on the archive it had. A save replacing
     // the scenario uses the scenario's words for its forms first, while the
@@ -853,7 +890,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     ARCHIVE = arc;
     const masterIndex = arc.index;
     dvmSetResourceSymbols(loadResourceSymbols(arc));
-    resetDerivedCaches();
+    resetDerivedCaches(meta.via === 'edit');
     openCytheraResourceFork(meta.rsrc);
     installGameFont();
     try { installDialogueBox(); } catch (e) { quiet(e); }
@@ -864,11 +901,6 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     syncInstallerTabs();
     buildTabShell();
     document.getElementById('searchWrap').style.display = 'none';
-    document.getElementById('searchPresets').innerHTML =
-      Object.keys(SEARCH_PRESETS).map(k =>
-        '<button class="sv-chip" onclick="searchPreset(\'' + k + '\')">' + k + '</button>').join('') +
-      '<span class="partsTitle" style="flex-basis:100%;margin-top:6px">Or ask</span>' +
-      ASK_EXAMPLES.map(q => '<button class="sv-chip" onclick="searchPreset(\'' + q.replace(/'/g, '\\\'') + '\')">' + svEsc(q) + '</button>').join('');
     document.getElementById('searchResults').innerHTML = '';
     document.getElementById('searchBox').value = '';
     const ss = document.getElementById('sourceStatus');
@@ -893,7 +925,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
       if (row && window.CONTAINED) {
         const label = document.createElement('span');
         label.className = 'amNote';
-        label.textContent = 'This file contains ' + window.CONTAINED.entries.length + ' archives, the open one marked:';
+        label.textContent = 'This file contains ' + window.CONTAINED.entries.length + ' archives, with the open one marked.';
         row.appendChild(label);
         for (const it of window.CONTAINED.entries) {
           const b = document.createElement('button');
@@ -910,8 +942,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     const btn = document.getElementById('archiveMenuBtn');
     if (btn) { btn.classList.remove('urgent'); btn.textContent = 'Settings'; }
     openArchiveMenu(false);
-    const cbl = document.getElementById('chkBuiltinLabels');
-    if (cbl) cbl.checked = !!window.SHOW_BUILTIN_LABELS;
+    renderLabelPrecedence();
     // Where a visit starts, when the link it arrived on does not say
     // otherwise -- applyDeepLink below overrides this whenever there is a
     // hash. Without the explicit pick this would open on whatever option
@@ -939,9 +970,13 @@ function parseArchiveBytes(bytes, sourceName, meta) {
        where such a file landed until now -- shows six subindexes and states
        nothing about any of them. The Saved Game sheet reads the one that
        matters. */
-    const landOn = hasWorld ? 'WORLD' : (savedAs && getResourceBytes(ARCHIVE, 0xF009) ? 'SAVEGAME' : 'DATAFORK');
+    const landOn = SEARCH_CRAWL ? 'DATAFORK' : hasWorld ? 'WORLD' : (savedAs && getResourceBytes(ARCHIVE, 0xF009) ? 'SAVEGAME' : 'DATAFORK');
     if (!restoring && !showCategory(landOn)) onCategoryChange();
     out.textContent = 'Title: ' + title + (savedAs ? ', saved game “' + savedAs + '”' : '') + ', ' + sourceName;
+    // Kept for the search: the next tab replaces this line, and it is the
+    // one place the page shows the scenario's name.
+    DERIVED.OPENED_LINE = out.textContent;
+    setTimeout(SEARCH_CRAWL ? searchCrawlStart : searchWarmUp, SEARCH_CRAWL ? 0 : 2000);
     // A link to the world -- or the World tab carried across a swap, which
     // is the same hash -- names nothing in a file that has no world.
     let landed = false;
@@ -1078,8 +1113,8 @@ function onCategoryChangeImpl() {
   // are STR# 128 in the resource fork, and the game supplies them.
   if (subn === 23) {
     const kw = forkStringList(window.CYTHERA_RSRC, 128);
-    if (kw && kw.length) out.textContent += ' Every conversation also answers ' +
-      kw.map(w => '“' + w + '”').join(', ') + ', the default keywords, string list 128 in the resource fork.';
+    if (kw && kw.length) out.textContent += ' Every conversation also answers the default keywords ' +
+      kw.map(w => '“' + w + '”').join(', ') + ', from string list 128 in the resource fork.';
   }
   document.getElementById('singlePreview').style.display = 'none';
   document.getElementById('zoomControls').style.display = 'none';
@@ -1222,12 +1257,16 @@ function applyZoom() {
   const w = canvas.width * z, h = canvas.height * z;
   canvas.style.width = w + 'px';
   canvas.style.height = h + 'px';
-  // A landscape's box is as tall as the strip, not half the screen, and the
-  // strip over the sky below it is given the same zoom.
+  // A landscape's box is as tall as the strip at its opening zoom, not half
+  // the screen, and stays that tall. A zoom in scrolls inside it, and a
+  // zoom out leaves room round the strip. The box once took each zoom's
+  // height and the strip over the sky below it took the zoom too, so
+  // everything under the picture moved with the slider (the maintainer,
+  // 28 October 2026). The strip over the sky stays at its opening width.
   const strip = window.CUR_SUBN === 131;
-  vp.style.height = strip ? Math.min(h + 4, Math.round((window.innerHeight || 800) * 0.52)) + 'px' : '';
-  const sky = strip ? document.querySelector('#stripSky canvas') : null;
-  if (sky) sky.style.width = (sky.width * z) + 'px';
+  if (strip && !vp._stripH) vp._stripH = Math.min(h + 4, Math.round((window.innerHeight || 800) * 0.52));
+  if (!strip) vp._stripH = 0;
+  vp.style.height = strip ? vp._stripH + 'px' : '';
   vp.scrollLeft = Math.max(0, cx * w - vp.clientWidth / 2);
   vp.scrollTop  = Math.max(0, cy * h - vp.clientHeight / 2);
   // A gold frame shows the picture runs past the edges.

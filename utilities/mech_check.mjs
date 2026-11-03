@@ -68,9 +68,9 @@ function near(what, exact, sampled, tol) {
   if (!(Math.abs(exact - sampled) <= t))
     fail(what, `closed form ${exact.toFixed(5)}, sampled ${sampled.toFixed(5)}, apart by ${Math.abs(exact - sampled).toFixed(5)} > ${t}`);
 }
-function exactly(what, got, want) {
+function exactly(what, actual, expected) {
   compared++;
-  if (got !== want) fail(what, `${JSON.stringify(got)} is not ${JSON.stringify(want)}`);
+  if (actual !== expected) fail(what, `${JSON.stringify(actual)} is not ${JSON.stringify(expected)}`);
 }
 
 // The shipped file's numbers, as the page reads them off the scripts. The
@@ -121,19 +121,19 @@ exactly('dice: 216 cells in the matrix', ctx.mechDiceExact(SHIPPED.dice).cells.r
 
 // ---- 2. combat -------------------------------------------------------------
 const FIGHTS = [
-  { name: 'an even match, no shield', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 10, attackSkill: 0, defenceSkill: 0, shieldBlock: null, shieldSkill: 0, damage: 30, enchant: 0 } },
-  { name: 'an even match behind a shield', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 10, attackSkill: 0, defenceSkill: 0, shieldBlock: 20, shieldSkill: 0, damage: 30, enchant: 0 } },
-  { name: 'outmatched', p: { attackerReflex: 8, defenderReflex: 30, weaponSkill: 0, attackSkill: 0, defenceSkill: 8, shieldBlock: 10, shieldSkill: 4, damage: 15, enchant: 0 } },
-  { name: 'a hero with an enchanted blade', p: { attackerReflex: 30, defenderReflex: 14, weaponSkill: 12, attackSkill: 6, defenceSkill: 2, shieldBlock: null, shieldSkill: 0, damage: 30, enchant: 5 } },
+  { name: 'an even match, no shield', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 10, attackSkill: 0, defenseSkill: 0, shieldBlock: null, shieldSkill: 0, damage: 30, enchant: 0 } },
+  { name: 'an even match behind a shield', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 10, attackSkill: 0, defenseSkill: 0, shieldBlock: 20, shieldSkill: 0, damage: 30, enchant: 0 } },
+  { name: 'outmatched', p: { attackerReflex: 8, defenderReflex: 30, weaponSkill: 0, attackSkill: 0, defenseSkill: 8, shieldBlock: 10, shieldSkill: 4, damage: 15, enchant: 0 } },
+  { name: 'a hero with an enchanted blade', p: { attackerReflex: 30, defenderReflex: 14, weaponSkill: 12, attackSkill: 6, defenseSkill: 2, shieldBlock: null, shieldSkill: 0, damage: 30, enchant: 5 } },
   // The body roll of the attack routine. The first is the matchup counted in
   // the fork on 27 September 2026 (a fighter's short sword, body for reflex,
   // on the hero): the model and the reference have to match on the words a
   // body of 25 adds, "crushed" among them, which a figure of 15 alone never
   // names. The second is under a body of 16, where the roll is always 0 and
   // the words have to be the weapon's.
-  { name: 'a short sword and a body of 25', p: { attackerReflex: 25, defenderReflex: 18, weaponSkill: 0, attackSkill: 6, defenceSkill: 0, shieldBlock: null, shieldSkill: 0, damage: 15, enchant: 0, body: 25 } },
-  { name: 'a strong arm behind a shield', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 4, attackSkill: 0, defenceSkill: 0, shieldBlock: 20, shieldSkill: 2, damage: 20, enchant: 2, body: 40 } },
-  { name: 'a body too weak to add anything', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 0, attackSkill: 0, defenceSkill: 0, shieldBlock: null, shieldSkill: 0, damage: 15, enchant: 0, body: 9 } }
+  { name: 'a short sword and a body of 25', p: { attackerReflex: 25, defenderReflex: 18, weaponSkill: 0, attackSkill: 6, defenseSkill: 0, shieldBlock: null, shieldSkill: 0, damage: 15, enchant: 0, body: 25 } },
+  { name: 'a strong arm behind a shield', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 4, attackSkill: 0, defenseSkill: 0, shieldBlock: 20, shieldSkill: 2, damage: 20, enchant: 2, body: 40 } },
+  { name: 'a body too weak to add anything', p: { attackerReflex: 20, defenderReflex: 20, weaponSkill: 0, attackSkill: 0, defenseSkill: 0, shieldBlock: null, shieldSkill: 0, damage: 15, enchant: 0, body: 9 } }
 ];
 // What the page hands the model for a body: how many values the roll can give,
 // worked out here from the shipped figures, while the reference works the
@@ -229,11 +229,11 @@ const BEDS = [
   ['the Titan’s Head', { quality: 3 }, 10],
   ['the Titan’s Head with the ring', { quality: 3, regenerating: true }, 35]
 ];
-for (const [name, opts, want] of BEDS) {
+for (const [name, opts, expected] of BEDS) {
   const p = Object.assign({ level: 6, hours: 1, nutrition: 100, health: 0, fullHealth: 1000, clock: SHIPPED.clock }, opts, SHIPPED.sleep);
-  exactly(`the 2012 measurement, ${name}`, ctx.mechSleepGain(p).gained, want);
+  exactly(`the 2012 measurement, ${name}`, ctx.mechSleepGain(p).gained, expected);
   exactly(`the 2012 measurement as a rate, ${name}`,
-    ctx.mechBedRate(6, p.quality, { fed: p.nutrition !== 0, regenerating: !!p.regenerating, div: SHIPPED.sleep.div, clock: SHIPPED.clock }), want);
+    ctx.mechBedRate(6, p.quality, { fed: p.nutrition !== 0, regenerating: !!p.regenerating, div: SHIPPED.sleep.div, clock: SHIPPED.clock }), expected);
 }
 
 // ---- 6. the arithmetic with no roll in it ----------------------------------

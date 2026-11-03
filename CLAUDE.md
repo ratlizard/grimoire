@@ -9,8 +9,8 @@ workspace searches it with every other guide and log. The reasoning behind
 each feature, by version, is `cythera-workbench/doc/GRIMOIRE-NOTES.md`, and
 the handoff is `cythera-workbench/doc/GRIMOIRE-NEXT.md`: both live in the
 private workbench, because this repository is public and serves every file it
-commits while they name routines and print disassembly. This file is tracked
-since 19 September 2026 and names routines too, as the checks beside it do.
+commits while they name routines and print disassembly. This file names
+routines too, as the checks beside it do.
 
 ## What this is
 
@@ -23,8 +23,8 @@ files generally, at <https://ratlizard.github.io/grimoire/>. The whole of it is
 the one workflow runs the checks and builds nothing.
 
 **Pushing to `main` deploys the site**, live within a minute or two, with no
-staging: run the checks below before pushing. The maintainer's rule is to push
-without asking while nobody uses the site; that rests on archive.org's download
+staging, so run the checks below before pushing. Push without waiting for
+approval while nobody uses the site. That rule rests on archive.org's download
 count for the installer item staying where it was (`REFERENCE.md`, *What this
 is, in full*, has the figures and how to re-check them). Re-check it before
 assuming it still holds.
@@ -119,7 +119,7 @@ nothing of Cythera, the PowerPC decoder and assembler among them;
 `~/e-z-g-cythera/mac-files`, which is changed first and copied here), **Cythera's own formats** (`delv-*.js`: the archive,
 graphics, the Delver VM, the assembler, the rule models, the game's fixes and
 the program's, each with the code that writes them in), and **the page's own furniture** (`delv-sheets.js`,
-`delv-mapview.js`, then the fourteen `page-*.js` files in their load order).
+`delv-mapview.js`, then the fifteen `page-*.js` files in their load order).
 `REFERENCE.md`, *The classic scripts and the js/ files, tier by tier*, has a
 line for every file. Two rules from it that every change meets:
 
@@ -214,15 +214,9 @@ Already paid for; do not rediscover them.
   decoded nothing.
 - `history.replaceState` must rewrite `location.hash`, as it does in a browser.
   Stubbing it as a no-op hid a real deep-link bug.
-- **A fake clock must not start at zero**, and this cost two debugging sessions
-  in one afternoon. `mobile_input_check.mjs` drives `pumpButtons`, which
-  compares `Date.now()` against `lastButtonAt`, initialised to `0`; from a
-  clock at 0 every transition looks like it arrived before the gap expired, so
-  the outbox deferred for ever and the check hung with no output. Starting the
-  clock at a real timestamp fixed that and immediately broke the other half:
-  `asTheMacSeesIt` counted sync windows from zero, so a 2026 timestamp meant
-  billions of empty windows. Anchor derived time to the first message's own
-  timestamp, and start the clock where a browser's would be.
+- **A fake clock must not start at zero.** Start it where a browser's would
+  be, and anchor derived time to the first message's timestamp.
+  `REFERENCE.md`, *The checks*, has the account.
 
 ## delvmod is the correctness oracle
 
@@ -330,51 +324,41 @@ down why, in that voice. Do not strip these comments.
 history in the interface, nothing shaped for effect, no asides in dashes,
 and no text that adds nothing. Text derived from the game's data — its own
 strings, names, descriptions and barks, and the figures read out of the
-file — is reproduced exactly and is never rewritten for style. Set by the
-maintainer on 7 September 2026; the pass that applied it is v1.24.1 in
-`cythera-workbench/doc/GRIMOIRE-NOTES.md`. Comments are the opposite and stay
-long, as below.
+file — is reproduced exactly and is never rewritten for style. Comments are
+the opposite and stay long, as below.
 
 **A section opens by saying what it is for and what to do there, and
-headings are in Title Case.** The maintainer's rule of 1 October 2026, set
-by his own rewrite of Compare Patches: speak to the reader ("Open a patch
-here to see what it changes"), and cut background on formats, on which
-routine or table a figure was read from, and on how the page works, even
-when it is true. A tool's section is headed by its name, as on Tools
-("Gremlin Maker", "File Comparison"). A short grey hint beside a control is
-welcome; a long prelude is not. The pass that applied it is logged under
-`grimoire/prose-pass-he47ij`.
+headings are in Title Case.** Speak to the reader ("Open a patch here to
+see what it changes") and cut background on formats, on which routine or
+table a figure was read from, and on how the page works, even when it is
+true. A tool's section is headed by its name, as on Tools ("Gremlin Maker",
+"File Comparison"). A short gray hint beside a control is fine, and a long
+introduction is cut.
 
-**A colon does not join two sentences.** The maintainer's rule of
-3 October 2026: "no released copy can switch on: its code works only..."
-takes a semicolon or a full stop. A colon stays where it introduces a
-list or names a field ("Melee: damage, reach..."). The pass that applied
-it is in the log under that date.
+**A colon does not join two sentences.** In `no released copy can switch
+on: its code works only...` the colon becomes a semicolon or a full stop.
+A colon stays where it introduces a list or a field label, as in
+`Melee: damage, reach...`.
 
-**No em dashes anywhere on the site, and never a `#` in Argos.** The
-maintainer's rule of 9 September 2026: an em dash in UI text becomes a
-comma, a colon, a full stop or parentheses, whichever the sentence wants;
-`#` is a special glyph in Argos A Nouveau, so a resource is "PICT 128" and
-a count column is headed "no.". Both pages were swept on that day (v1.35.0)
-and a new string must not bring either back. Comments are not the site and
-may punctuate as they like.
+**No em dashes anywhere on the site, and never a `#` in Argos.** An em dash
+in UI text becomes a comma, a colon, a full stop or parentheses, whichever
+fits the sentence. Argos A Nouveau draws `#` as a special glyph, so a
+resource is "PICT 128" and a count column is headed "no.". Comments are not
+the site and may punctuate as they like.
 
 **Text you read is white, text you can click is gold, and nothing is set in
-capitals.** The game's own rule, and the maintainer's on 8 September 2026
-(v1.30.0): `--gold` goes on what responds to a click — buttons, chips, the
-crumb, the keyword pills — and on nothing else; headings, ids, prices, stat
-figures and code panes are white; the quiet labels (`.partsTitle`,
-`.skillKey`, `.mechSub`, the chips' second lines) are a pale near-white,
-`#f0ede4` or `#dcd8cc`, never a mid grey: quiet by size, not by colour
-(`REFERENCE.md`, *Per-page notes, in full*, has why).
-Every `text-transform:uppercase` in the sheet went the same day — Argos in
-capitals is hard to read — save the two-letter `.guessTag`, which is in a
-system font. Keep to it when adding a rule: a new colour is one of white,
-`--gold` or the two pale tones.
+capitals.** As in the game, `--gold` goes on what responds to a click
+(buttons, chips, the crumb, the keyword pills) and on nothing else.
+Headings, ids, prices, stat figures and code panes are white. The quiet
+labels (`.partsTitle`, `.skillKey`, `.mechSub`, the chips' second lines)
+are a pale near-white, `#f0ede4` or `#dcd8cc`, never a mid gray, so they
+are quiet by size and not by color (`REFERENCE.md`, *Per-page notes, in
+full*, has why). No rule sets `text-transform:uppercase`, because Argos in
+capitals is hard to read, except the two-letter `.guessTag`, which is in a
+system font. A new color is one of white, `--gold` or the two pale tones.
 
 **A number read off a script is a link to its line, and the code keeps no
-copy of the file.** The maintainer's rule of 11 September 2026 (v1.50.0): a
-figure a sheet states from a script is read with the offset of the
+copy of the file.** A figure a sheet states from a script is read with the offset of the
 instruction that holds it (`dvmOpsOf`, `dvmSeqFirst`, `dvmVal`, or
 `dvmValAtLine` for a reader that walks lines) and printed with `srcNum`,
 which opens the script ringed at that line (`jumpToScriptAt`). Never type
@@ -384,21 +368,21 @@ file's value: a figure that is not read drops its sentence. A built-in
 name table keeps only what the file does not say; measure an entry against
 the file before adding one.
 
-A figure the application's code decides is held to the same rule (v1.51.0,
-after the maintainer asked why nothing was read from the program): read out
-of its PowerPC code with the address of the instruction (`exeOpsNamed`,
-`exeFind`, `exeVal`), printed with `srcNum`, which then opens the routine
-listed with that instruction ringed (`jumpToExeAt`); a reader matches the
-shape of the instructions, never an address. With no application open the
-section says where its figures come from and states none. **A count of things
-links to the things** (the maintainer, 2 October 2026): `searchFor(q)` when
-a search finds exactly them ("49 spells" is `call_resource CastSpell`),
-`countLink(label, title, chips)` otherwise, checked in a browser to list as
-many as it says. A count printed beside the list it counts (a table's
-caption, a fold's gist) needs no link. A listing
-line's offset counts from its object's start, not the resource's, which
-`dvmOpsOf` corrects. The smoke's `file figures` block pins the scripts'
-half and its `program figures` and `program keys` blocks the program's.
+A figure set by the application's code follows the same rule. It is read
+out of the PowerPC code with the address of the instruction (`exeOpsNamed`,
+`exeFind`, `exeVal`) and printed with `srcNum`, which opens the routine's
+listing with that instruction ringed (`jumpToExeAt`). A reader matches the
+shape of the instructions, never an address. With no application open, the
+section gives the source of its figures and no figures.
+
+**A count of things links to the things.** Use `searchFor(q)` when a search
+finds exactly them ("49 spells" is `call_resource CastSpell`) and
+`countLink(label, title, chips)` otherwise, and check in a browser that the
+list has as many entries as the count. A count printed beside the list it
+counts (a table's caption, a fold's gist) needs no link. A listing line's
+offset counts from its object's start, not the resource's, and `dvmOpsOf`
+corrects it. The smoke's `file figures` block pins the scripts' half, and
+its `program figures` and `program keys` blocks pin the program's.
 
 **Commit messages are prose, not conventional-commits.** They read like a
 sentence describing the change from the user's side:
@@ -429,7 +413,14 @@ them*, says which, and what `utilities/addons_check.mjs` proves with them.
   his server sends the header — see the per-page notes), both tried after
   the relative paths under `reference/` and before giving up. The rest is
   the path that always worked: an IndexedDB copy of whatever last opened, a
-  file dropped or picked anywhere on the page, or `?src=<url>`.
+  file dropped or picked anywhere on the page, or `?src=<url>`. Two more
+  fetches happen only when the visitor turns them on. Search by meaning
+  loads its library (jsDelivr) and model (Hugging Face) with `import()`
+  when its switch is turned on (`MEANING_LIB` in `js/page-search.js`), with
+  `js/meaning-prebuilt.js` from the repository beside them (made by
+  `utilities/meaning_prebuild.mjs`, numbers and text hashes only), and
+  File Comparison downloads the releases when none is open
+  (`compareFetchReleases`).
 - The archives are `reference/game/Cythera Data.hqx` and `Cythera.hqx`, both BinHex,
   both carrying two forks. There is no bare data fork in the repository any
   more; `check_all.mjs` extracts one into `$TMPDIR` because the harnesses want
@@ -444,14 +435,10 @@ them*, says which, and what `utilities/addons_check.mjs` proves with them.
   17 September 2026 and no check noticed. Put the colour on an inner span,
   use `outline` for a ring, and take padding back with a selector that
   outranks `#sheetGrid button`.
-- **There are no empty `catch` blocks.** Every optional decode that fails
-  reports to `quiet(e)` in `js/mac-bytes.js`, which keeps each distinct
-  failure with a count and the line it came from; the Tools sheet lists them
-  under *Fell back quietly*, uncaught errors and unhandled rejections arrive
-  there too from the listeners installed at boot and reach the status line,
-  and `?loud=1` prints each to the console for the browser check. Write
-  `catch (e) { quiet(e); }` for a fallback, with a second argument naming
-  what was being tried when the message alone would not say.
+- **There are no empty `catch` blocks.** Write `catch (e) { quiet(e); }`
+  for a fallback (`js/mac-bytes.js`), with a second argument naming what
+  was being tried when the message alone would not say. `REFERENCE.md`,
+  *The checks*, has where the failures go.
 
 ## `REFERENCE.md`, by section
 

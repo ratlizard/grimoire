@@ -85,8 +85,8 @@ for (const ref of REF) {
                      ctx.tileSheetIsSized(arc, resid, raw);
   if (sizedSheet) { divergedByDesign.push(resid); continue; }
 
-  let got;
-  try { got = ctx.decodeResource(arc, raw, subindex, resid); }
+  let actual;
+  try { actual = ctx.decodeResource(arc, raw, subindex, resid); }
   catch (e) {
     viewerFailed++;
     problems.push(`0x${resid.toString(16).toUpperCase()} (sub ${subindex}) the viewer threw: ${e.message}`);
@@ -99,19 +99,19 @@ for (const ref of REF) {
   // get_image(), the viewer's decodeResource(). Both crop the decompression
   // buffer from logical_width down to the width the engine draws, which for
   // the 8Fxx "sized" resources differs by up to three pixels.
-  if (got.W !== ref.width || got.H !== ref.height) {
+  if (actual.W !== ref.width || actual.H !== ref.height) {
     sized++;
     problems.push(`0x${resid.toString(16).toUpperCase()} (sub ${subindex}) size: viewer ` +
-                  `${got.W}x${got.H}, delvmod ${ref.width}x${ref.height} ` +
+                  `${actual.W}x${actual.H}, delvmod ${ref.width}x${ref.height} ` +
                   `(buffer ${ref.logical_width}x${ref.logical_height})`);
     continue;
   }
-  const mine = sha(got.image);
-  if (mine === ref.sha256) same++;
+  const actualHash = sha(actual.image);
+  if (actualHash === ref.sha256) same++;
   else {
     differed++;
     problems.push(`0x${resid.toString(16).toUpperCase()} (sub ${subindex}) pixels differ: ` +
-                  `viewer ${mine}, delvmod ${ref.sha256} (${got.image.length} bytes). ` +
+                  `viewer ${actualHash}, delvmod ${ref.sha256} (${actual.image.length} bytes). ` +
                   `Dump both with delv_graphics_ref.py and diff them to find the differing pixels.`);
   }
 }

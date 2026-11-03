@@ -89,7 +89,7 @@ function verdicts(bytes, withTables) {
           if (!roff || !rlen || roff + rlen > __a.length) continue;
           const resid = (subn + 1) * 0x100 + n;
           const d = smartDecrypt(__a.slice(roff, roff + rlen), resid);
-          out.push([resid, !!d.wasDecrypted, !!d.known, d.allZero ? 'zero' :
+          out.push([resid, !!d.wasDecrypted, !!d.inTables, d.allZero ? 'zero' :
                     d.byStructure ? d.shape : d.exempt ? 'exempt' :
                     d.constantKeystream ? 'constant key' : 'entropy']);
         }
@@ -108,27 +108,27 @@ function scoreHeuristic(label, bytes) {
   const guess = verdicts(bytes, false);
   if (!truth.length) return null;
   const byId = new Map(guess.map(g => [g[0], g]));
-  let known = 0, agree = 0;
+  let checkedCount = 0, agree = 0;
   // One row per path the fallback took: the two all-zero certainties, each
   // shape in DELV_SHAPES that decided anything, and the entropy comparison.
   // The names come from the code rather than being listed here, so a shape
   // added to the bank appears in this table without the check being edited.
   const byWay = {};
   const wrong = [];
-  for (const [resid, wasDec, isKnown] of truth) {
-    if (!isKnown) continue;
+  for (const [resid, wasDec, inTables] of truth) {
+    if (!inTables) continue;
     const g = byId.get(resid);
     if (!g) continue;
-    known++;
+    checkedCount++;
     const w = byWay[g[3]] || (byWay[g[3]] = {n: 0, agree: 0, ids: []});
     w.n++; w.ids.push(resid);
     if (g[1] === wasDec) { agree++; w.agree++; } else wrong.push(resid);
   }
-  const pct = known ? (100 * agree / known) : 0;
+  const pct = checkedCount ? (100 * agree / checkedCount) : 0;
   const paths = Object.keys(byWay).sort((a, b) => byWay[b].n - byWay[a].n);
-  console.log(`  ${label}: ${agree}/${known} match (${pct.toFixed(1)}%)`);
+  console.log(`  ${label}: ${agree}/${checkedCount} match (${pct.toFixed(1)}%)`);
   console.log(`      by path: ` + paths.map(k => `${k} ${byWay[k].agree}/${byWay[k].n}`).join(', '));
-  return {known, agree, pct, wrong, byWay,
+  return {inTables: checkedCount, agree, pct, wrong, byWay,
           structure: paths.filter(k => k !== 'zero' && k !== 'entropy')
             .filter(k => k !== 'constant key')
             .reduce((a, k) => ({n: a.n + byWay[k].n, agree: a.agree + byWay[k].agree}), {n: 0, agree: 0}),
@@ -204,7 +204,7 @@ if (shipped) {
          `first disagreements: ${shipped.wrong.slice(0, 8).map(r => '0x' + r.toString(16).padStart(4, '0')).join(', ')}`);
   if (shipped.structure.agree === shipped.structure.n)
     ok('every verdict the shape bank reached is the one the tables give',
-       `${shipped.structure.n} of ${shipped.known} resources decided by shape`);
+       `${shipped.structure.n} of ${shipped.inTables} resources decided by shape`);
   else
     fail('the shape bank',
          `${shipped.structure.n - shipped.structure.agree} of ${shipped.structure.n} shape verdicts ` +
@@ -309,7 +309,7 @@ const files = unpackAddons();
   }
 }
 
-let archives = 0, roundTripped = 0, bytewise = 0, refused = 0;
+let archives = 0, roundTripped = 0, bytewise = 0, rejectedCount = 0;
 const saves = [];
 for (const p of files) {
   const bytes = new Uint8Array(readFileSync(p));
@@ -325,7 +325,7 @@ for (const p of files) {
   })()`);
   if (!info.ok) {
     if (info.looksLikeOne) fail('recognising ' + label, info.reason);
-    else refused++;                              // most files in an add-on are not archives
+    else rejectedCount++;                              // most files in an add-on are not archives
     continue;
   }
   archives++;
@@ -369,7 +369,7 @@ if (files.length) {
   if (archives > 0) ok(`${archives} third-party archive(s) opened`, `${roundTripped} kept every resource through a rewrite, ${bytewise} byte-identical; ` +
      `${saves.length} saved game(s): ${saves.map(n => '“' + n + '”').join(', ')}`);
   else fail('the add-ons', `unpacked ${files.length} files and none was a Delver archive`);
-  if (refused > 0) ok(`${refused} other file(s) in the add-ons rejected`);
+  if (rejectedCount > 0) ok(`${rejectedCount} other file(s) in the add-ons rejected`);
   else fail('the negative corpus', 'nothing in the add-ons was rejected, so the gate was not tested against a non-archive');
 }
 

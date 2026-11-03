@@ -204,7 +204,7 @@ function ownSpan(code, name) {
   return [start, code.length];
 }
 
-function analyse(pieces) {
+function analyze(pieces) {
   // Declared: top-level function declarations in the page's scripts.
   const declared = new Map();          // name -> piece it is declared in
   for (const p of pieces) {
@@ -266,13 +266,13 @@ function analyse(pieces) {
       'function __user(){ return __liveControl(1); }\n' },
     { name: 'other.mjs', harness: true, code: 'G.__user();\n' },
   ];
-  const { unreached, harnessOnly } = analyse(control);
-  const got = new Set(unreached.map(u => u.name));
+  const { unreached, harnessOnly } = analyze(control);
+  const reported = new Set(unreached.map(u => u.name));
   const only = new Set(harnessOnly.map(u => u.name));
-  const want = ['__deadControl', '__recursiveDeadControl'];
+  const expected = ['__deadControl', '__recursiveDeadControl'];
   const mustNot = ['__liveControl', '__user'];
-  const bad = want.filter(n => !got.has(n)).map(n => n + ' was not reported')
-    .concat(mustNot.filter(n => got.has(n)).map(n => n + ' was reported and is reached'))
+  const bad = expected.filter(n => !reported.has(n)).map(n => n + ' was not reported')
+    .concat(mustNot.filter(n => reported.has(n)).map(n => n + ' was reported and is reached'))
     // The harness-only class has to be found, or xrefReport slips through again.
     .concat(only.has('__user') ? [] : ['__user was not reported as reached only by a harness'])
     .concat(only.has('__liveControl') ? ['__liveControl is reached in the page and was called harness-only'] : []);
@@ -287,7 +287,7 @@ let pieces;
 try { ({ pieces } = buildCorpus(htmlPath)); }
 catch (e) { console.error('reach: ' + e.message); process.exit(2); }
 
-const { declared, unreached, harnessOnly } = analyse(pieces);
+const { declared, unreached, harnessOnly } = analyze(pieces);
 const unexpected = unreached.filter(u => !ALLOWED.has(u.name));
 const allowedButReached = [...ALLOWED.keys()].filter(n => declared.has(n) && !unreached.some(u => u.name === n));
 const allowedButGone = [...ALLOWED.keys()].filter(n => !declared.has(n));

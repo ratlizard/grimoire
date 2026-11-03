@@ -168,6 +168,9 @@ function labelForResource(subn, n, resid) {
     if (d) return d;
   }
   if (subn === 137) { const sk = skillNameForIcon(n); if (sk) return sk; }
+  // A sub-zone script is named by the title it sets, as a zone is by its
+  // entry script's: 0x1500 "Underground City", 0x1501 "Crypts", 0x1502 "Cave".
+  if (subn === 20) return firstScriptString(resid);
   return null;
 }
 
@@ -208,7 +211,7 @@ const RSRC_KINDS = [
     note: 'The dialog boxes, alerts, windows and controls, with their colors, backdrop patterns and palettes.',
     view: null },
   { id: 'editor', label: 'Editor', types: ['eSTM', 'eBRS', 'MSta', 'FILT', 'LINF', 'DATA', 'PORT', 'RMAP', 'TMPL'],
-    note: 'What the map editor kept in the data file: stamps and brushes (under Composites), three saved game states (MSta), its tile names, the color cycles and the ResEdit templates. The displacement filters (FILT) belong to the game and have separate cards. The game reads none of the rest, so these readings are inferred: MSta has quest states (Plague Cured is quest value 2 at 10), DATA 260 is an earlier list of tile names, DATA 261 is the color-cycling ramps, and PORT 0 and 1 have no structure this page could find.',
+    note: 'What the map editor kept in the data file: stamps and brushes (under Composites), three saved game states (MSta), its tile names, the color cycles and the ResEdit templates. The displacement filters (FILT) belong to the game and have separate cards. The game reads none of the rest, so these readings are guesses. MSta has quest states (Plague Cured is quest value 2 at 10), DATA 260 is an earlier list of tile names, DATA 261 is the color-cycling ramps, and PORT 0 and 1 have no structure this page could find.',
     view: 'RSRC' },
   { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
     note: 'What the program reads about itself: the light cones, the Delver engine’s help pages, the preference defaults, the version records and the program’s code. How much memory it requests is in SIZE.',
@@ -277,6 +280,48 @@ const RESHINTS = {
   0xF00C:"Zoneports", 0xF010:"Faux Prop Information", 0xF011:"Prop-aspect X offsets",
   0xF012:"Prop-aspect Y offsets", 0xF015:"Persistence Store Symbols"
 };
+// The archive's sounds (subindex 144) by delvmod's wiki, page "Cythera Data
+// Subindex 144": a listener wrote them, question marks included. No file of
+// the game has names for these sounds, so they show only with the names from
+// outside the game's text, and a sound's page lists what plays it either way.
+// The names went on 23 September 2026 (v1.163.0) with the other typed labels
+// and came back behind the switch on 25 October 2026, at the maintainer's
+// word. Copied as the wiki has them, without its "*" marks (delv's trouble
+// decoding a sound) and its bracketed notes, the wiki's "?" and "??" entries
+// among them, which the maintainer chose to show over a bare "Sound n".
+// utilities/delv_crosscheck.mjs compares this table with the wiki page on
+// every run. Several are wrong by what plays them: 41 "Arrow hits" plays only
+// for the gavel and 42 "Fire?" only for the dice.
+const DELVMOD_SOUND_NAMES = {
+  0x9101:'Door opens', 0x9102:'Water/fountain loop', 0x9103:'Swamp loop',
+  0x9104:'Water drip with echo (e.g. cave ambient)', 0x9105:'Chicken cluck',
+  0x9106:'Waves/seashore loop', 0x9107:'Goat bleats', 0x9108:'Bell ring',
+  0x9109:'Secret door opens', 0x910A:'Portcullis opens', 0x910B:'Arrow fired',
+  0x910F:'??', 0x9110:'Combat swing - miss', 0x9111:'Clang', 0x9112:'Damaging hit',
+  0x9113:'Male cry of pain', 0x9114:'Male cry of pain (fatal?)', 0x9115:'Same as 9115 [sic]',
+  0x9116:'Male death?', 0x9117:'Gator roar', 0x9118:'Cave in / earthquake?',
+  0x9119:'Locked (metal?) door', 0x911A:'Locked (wood?) door?', 0x911B:'??', 0x911C:'Bird cry',
+  0x911D:'Another bird', 0x911E:'Eating', 0x911F:'Buzz (?)', 0x9120:'?', 0x9121:'Fire?',
+  0x9122:'?', 0x9123:'Snoring', 0x9124:'Frogs / swamp', 0x9125:'Frog croak', 0x9126:'Cricket',
+  0x9127:'Bomb explosion', 0x9129:'Arrow hits', 0x912A:'Fire?', 0x912B:'Gong',
+  0x912C:'Terrorization, etc', 0x912D:'Mystic arrow, etc', 0x912E:'Magic sound',
+  0x912F:'Vision of the night, etc', 0x9130:'Directed nexus (really annoying magic sound)',
+  0x9131:'Quenching blacksmith sound', 0x9132:'Hammering blacksmith sound'
+};
+// The program's 'snd ' resources with no name in the file, by the names
+// Cythera Guides' sounds page gives its recordings of them, each recording
+// found byte for byte in the resource (work/sfx-guides/compare.py in the
+// workbench, 25 October 2026). The six the file names (get, use, look,
+// attack2, talk.snd, Scribble.snd) keep the file's names. Shown, like the
+// sounds' names above, only with the names from outside the game's text.
+const GUIDES_PROGRAM_SOUND_NAMES = {
+  128:'Error', 129:'Window Open', 130:'Window Close', 133:'Select',
+  134:'Button Down', 135:'Button Up', 256:'Explosion'
+};
+function outsideResourceName(src, type, id) {
+  if (!labelSourceOn('community')) return null;
+  return src === 'app' && type === 'snd ' ? GUIDES_PROGRAM_SOUND_NAMES[id] || null : null;
+}
 // Zone names are the map's entry script's (loadZoneNames) and the editor's
 // list in the resource fork (loadEditorZoneNames). The community's
 // descriptive names for eighteen maps stood here behind the names switch
@@ -368,24 +413,30 @@ function zoneportInfo(idx) {
            name: (labelFor(z.map) || ('0x' + z.map.toString(16).toUpperCase())) };
 }
 
+// The first string a script pushes, which for a zone's entry script and a
+// sub-zone script is the title it gives SetTitle ("Crypts" for 0x1501).
+function firstScriptString(resid) {
+  let raw;
+  try { raw = getResourceBytes(ARCHIVE, resid); } catch (e) { raw = null; }
+  if (!raw) return null;
+  let data;
+  try { data = smartDecrypt(raw, resid).data; } catch (e) { return null; }
+  for (let i = 0; i < data.length - 2; i++) {
+    if (data[i] !== 0x44) continue;
+    let j = i + 1, str = '';
+    while (j < data.length && data[j] >= 0x20 && data[j] < 0x7F && str.length < 40) {
+      str += String.fromCharCode(data[j]); j++;
+    }
+    if (data[j] === 0x00 && str.length >= 2) return str;
+  }
+  return null;
+}
 function loadZoneNames() {
   if (DERIVED.ZONE_NAMES) return DERIVED.ZONE_NAMES;
   const names = {};
   for (let n = 0; n < 0x100; n++) {
-    const resid = 0x1400 | n;
-    let raw;
-    try { raw = getResourceBytes(ARCHIVE, resid); } catch (e) { raw = null; }
-    if (!raw) continue;
-    let data;
-    try { data = smartDecrypt(raw, resid).data; } catch (e) { continue; }
-    for (let i = 0; i < data.length - 2; i++) {
-      if (data[i] !== 0x44) continue;
-      let j = i + 1, str = '';
-      while (j < data.length && data[j] >= 0x20 && data[j] < 0x7F && str.length < 40) {
-        str += String.fromCharCode(data[j]); j++;
-      }
-      if (data[j] === 0x00 && str.length >= 2) { names[n] = str; break; }
-    }
+    const str = firstScriptString(0x1400 | n);
+    if (str) names[n] = str;
   }
   if (Object.keys(names).length) window.SCENARIO_ZONE_NAMES = names;
   return (DERIVED.ZONE_NAMES = names);
@@ -418,6 +469,8 @@ function labelSource(resid) {
   if (subn === 25 && selfNameFor(resid)) return 'data';
   if (zoneNameFor(resid)) return 'data';
   if (editorZoneName(resid)) return 'data';
+  if (subn === 20 && firstScriptString(resid)) return 'data';
+  if (subn === 143) return tuneTrackName(resid) ? 'builtin' : (tunePlaces(resid) ? 'data' : null);
   return labelFor(resid) ? 'builtin' : null;
 }
 function applyLabel(el, resid) {
@@ -484,37 +537,145 @@ window.ARCHIVE_OWN = false;
 function applyNamesDefault(own) {
   window.ARCHIVE_OWN = !!own;
   let stored = null;
-  try { stored = localStorage.getItem('cythera.builtinLabels'); } catch (e) { stored = null; }
+  try { stored = localStorage.getItem('cythera.builtinLabels') || localStorage.getItem('cythera.labelPrecedence'); } catch (e) { stored = null; }
   if (stored !== null) return;
-  window.SHOW_BUILTIN_LABELS = !own;
+  for (const s of LABEL_SOURCES) if (s.id !== 'game') LABEL_PREC.on[s.id] = !own;
+  syncBuiltinFlag();
   try { DERIVED.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) { quiet(e); }
 }
 function setBuiltinLabels(on) {
   window.SHOW_BUILTIN_LABELS = !!on;
+  for (const k of LABEL_SOURCES) if (k.id !== 'game') LABEL_PREC.on[k.id] = !!on;
   try { localStorage.setItem('cythera.builtinLabels', on ? '1' : '0'); } catch (e) { quiet(e); }
+  saveLabelPrecedence();
+  labelsChanged();
+}
+function labelsChanged() {
   // The atlas labels its places once, when the scene is built.
   try { DERIVED.ATLAS_SCENE = null; belowScenes.clear(); } catch (e) { quiet(e); }
+  try { renderLabelPrecedence(); } catch (e) { quiet(e); }
   if (ARCHIVE) {
     try { onCategoryChange(); } catch (e) { quiet(e); }
   }
 }
 
-function labelForUnnormalized(resid) {
+/* Data Label Precedence (the maintainer, 28 October 2026, in place of the
+   one switch for names from outside the game's text). A resource can have
+   a name from up to four sources, and the visitor orders them and turns
+   any but the game's files off:
+
+   - the game's files: zone names, the editor's list, the resource symbols,
+     the helpers' names read off their bytecode, and the page's labels
+     built from what a resource is ("Tile Sheet 4", a tune's places);
+   - delvmod: the sounds' names from its wiki, written by ear;
+   - the community: the soundtrack's track names for the tunes, and Cythera
+     Guides' names for the program's unnamed sounds;
+   - the maintainer: the short descriptions of the data file's tables
+     (RESHINTS).
+
+   The name shown is the first in the order from a source that is on.
+   SHOW_BUILTIN_LABELS stays, true while any source but the game's files is
+   on, for the readers that test only whether outside names are on. */
+const LABEL_SOURCES = [
+  { id: 'game', name: 'The game’s files' },
+  { id: 'maintainer', name: 'The maintainer’s descriptions' },
+  { id: 'community', name: 'The community’s names' },
+  { id: 'delvmod', name: 'delvmod’s wiki' },
+];
+const LABEL_PREC = { order: LABEL_SOURCES.map(s => s.id), on: { game: true, maintainer: true, community: true, delvmod: true } };
+try {
+  const st = JSON.parse(localStorage.getItem('cythera.labelPrecedence') || 'null');
+  if (st && Array.isArray(st.order) && st.order.length === LABEL_SOURCES.length && LABEL_SOURCES.every(s => st.order.includes(s.id))) LABEL_PREC.order = st.order;
+  if (st && st.on) for (const s of LABEL_SOURCES) if (s.id !== 'game' && typeof st.on[s.id] === 'boolean') LABEL_PREC.on[s.id] = st.on[s.id];
+  else if (!st) for (const s of LABEL_SOURCES) if (s.id !== 'game') LABEL_PREC.on[s.id] = !!window.SHOW_BUILTIN_LABELS;
+} catch (e) { quiet(e); }
+function syncBuiltinFlag() { window.SHOW_BUILTIN_LABELS = LABEL_SOURCES.some(s => s.id !== 'game' && LABEL_PREC.on[s.id]); }
+syncBuiltinFlag();
+function saveLabelPrecedence() {
+  syncBuiltinFlag();
+  try { localStorage.setItem('cythera.labelPrecedence', JSON.stringify(LABEL_PREC)); } catch (e) { quiet(e); }
+}
+function labelSourceOn(id) { return id === 'game' || !!LABEL_PREC.on[id]; }
+// The first name from `cands` ({ game, maintainer, community, delvmod }) in
+// the visitor's order, among the sources turned on.
+function labelByPrecedence(cands) {
+  for (const id of LABEL_PREC.order) if (labelSourceOn(id) && cands[id]) return cands[id];
+  return null;
+}
+function setLabelSourceOn(id, on) {
+  if (id === 'game') return;
+  LABEL_PREC.on[id] = !!on;
+  saveLabelPrecedence();
+  labelsChanged();
+}
+function moveLabelSource(id, by) {
+  const o = LABEL_PREC.order, i = o.indexOf(id), j = i + by;
+  if (i < 0 || j < 0 || j >= o.length) return;
+  o.splice(i, 1); o.splice(j, 0, id);
+  saveLabelPrecedence();
+  labelsChanged();
+}
+function renderLabelPrecedence() {
+  const host = document.getElementById('labelPrecList');
+  if (!host) return;
+  host.innerHTML = LABEL_PREC.order.map((id, i) => {
+    const s = LABEL_SOURCES.find(x => x.id === id);
+    return '<li>' +
+      '<button class="secondary lpMove" aria-label="Earlier"' + (i === 0 ? ' disabled' : '') + ' onclick="moveLabelSource(\'' + id + '\', -1)">↑</button>' +
+      '<button class="secondary lpMove" aria-label="Later"' + (i === LABEL_PREC.order.length - 1 ? ' disabled' : '') + ' onclick="moveLabelSource(\'' + id + '\', 1)">↓</button>' +
+      '<label><input type="checkbox"' + (labelSourceOn(id) ? ' checked' : '') + (id === 'game' ? ' disabled' : '') +
+      ' onchange="setLabelSourceOn(\'' + id + '\', this.checked)"> ' + svEsc(s.name) + '</label></li>';
+  }).join('');
+}
+
+/* A tune's name. No tune has a name in the file, so with outside names on
+   a tune reads as its track on the 20th Anniversary Soundtrack, whose liner
+   notes list all eleven; the workbench matched each to its tune by length,
+   and every length matches to within a few seconds. With outside names
+   off, a tune is named, as a landscape strip is, by where it plays: the
+   places whose scripts start it with PlayMusic (tune 0x9000 + n for
+   PlayMusic n), named by landscapeSetterName. The program starts the
+   theme, 0x9000, and no script does, so it has no name from the file. */
+const TUNE_TRACK_NAMES = {
+  0x9000: 'Cythera Theme', 0x9001: 'Land King Hall', 0x9002: 'Underground', 0x9003: 'Overworld',
+  0x9004: 'Odemia', 0x9005: 'Danger', 0x9006: 'Seldane', 0x9007: 'Pnyx', 0x9008: 'Catamarca',
+  0x9009: 'Cademia', 0x900A: 'Kosha'
+};
+function tuneTrackName(resid) {
+  return labelSourceOn('community') && TUNE_TRACK_NAMES[resid] || null;
+}
+function tunePlaces(resid) {
+  let scripts = null;
+  try { scripts = buildSoundUsage().music.get(resid - 0x9000); } catch (e) { quiet(e, 'the places tune 0x' + resid.toString(16) + ' plays in'); }
+  if (!scripts) return null;
+  const names = [...new Set([...scripts.keys()].map(landscapeSetterName))];
+  return names.join(', ') || null;
+}
+
+/* A resource's name from the files: the zone's name from its entry script,
+   the editor's name for a map whose script names nothing, the archive's
+   symbol for it, or the helper's name read off its bytecode. The symbols
+   are code identifiers ("LKH_Guard", "Od_Trough1"), so the underscores
+   become spaces for display; the symbol itself is untouched. */
+function fileNameFor(resid) {
   const zn = zoneNameFor(resid);
   if (zn) return zn;
-  // A map whose entry script names nothing still has the editor's name.
   const ez = editorZoneName(resid);
   if (ez) return ez;
-  // The archive has names for many of its resources; prefer that over our tables.
-  // They are code identifiers -- "LKH_Guard", "Od_Trough1" -- so the
-  // underscores become spaces for display. The symbol itself is untouched.
   try { const sy = resourceSymbol(resid); if (sy) return sy.replace(/_/g, ' '); } catch (e) { quiet(e); }
-  // The AI vocabulary out of the application's lists, and the helpers read
-  // off their bytecode (dvmScriptName in js/delv-script.js).
   try { const sn = dvmScriptName(resid); if (sn) return sn; } catch (e) { quiet(e); }
+  return null;
+}
+function labelForUnnormalized(resid) {
   const subn = Math.floor(resid / 0x100) - 1;
   const n = resid % 0x100;
-  if (window.SHOW_BUILTIN_LABELS && RESHINTS[resid]) return RESHINTS[resid];
+  // A name from a source, in the visitor's order (labelByPrecedence). The
+  // page's description of a resource ("Tile Sheet 4", a tune's places)
+  // stands only where no source that is on has a name.
+  const named = labelByPrecedence({ game: fileNameFor(resid), maintainer: RESHINTS[resid],
+    community: subn === 143 ? TUNE_TRACK_NAMES[resid] : null });
+  if (named) return named;
+  if (subn === 143) return tunePlaces(resid);
   const structural = labelForResource(subn, n, resid);
   if (structural) return structural;
   // 0x8EFF is IN the tile-sheet subindex but is not a tile sheet: it is the
@@ -523,7 +684,7 @@ function labelForUnnormalized(resid) {
   if (resid === 0x8EFF) return 'Tombstone Slab, a sized image, not a tile sheet';
   if (subn === 141) { const w = tileSheetWords(n); return 'Tile Sheet ' + n + (w ? ': ' + w : ''); }
   if (subn === 142) { const w = pictureWords(resid); return 'General Graphic ' + n + (w ? ': ' + w : ''); }
-  if (subn === 144) return 'Sound ' + n;
+  if (subn === 144) return 'Sound ' + n + (labelSourceOn('delvmod') && DELVMOD_SOUND_NAMES[resid] ? ': ' + DELVMOD_SOUND_NAMES[resid] : '');
   return null;
 }
 
@@ -532,7 +693,7 @@ const SOUND_CATEGORIES = new Set([144]);
 function decodeSound(resData) {
   let p = 0;
   const magic = fourcc(resData, 0); p += 4;
-  if (magic !== 'asnd') throw new Error("Bad magic: expected 'asnd', got '" + magic + "'");
+  if (magic !== 'asnd') throw new Error("it starts with '" + magic + "', not 'asnd'");
   const duration = u32be(resData, p); p+=4;
   const rate = u16be(resData, p); p+=2;
   const flags = u16be(resData, p); p+=2;
@@ -558,8 +719,9 @@ const samplesToWav = (rate, samples) => wavFromInt16(samples, rate);
 
 let currentWavBlob = null, currentSoundResid = null;
 
-function drawWaveform(samples) {
-  const canvas = document.getElementById('waveform'), ctx = canvas.getContext('2d');
+function drawWaveform(samples, canvas = document.getElementById('waveform')) {
+  if (canvas.id === 'waveform') stopTuneRoll();   // a tune's roll was on this canvas
+  const ctx = canvas.getContext('2d');
   const w = canvas.width, h = canvas.height, mid = h / 2;
   ctx.fillStyle = '#090806'; ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = '#786c43'; ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(w, mid); ctx.stroke();
@@ -574,6 +736,46 @@ function drawWaveform(samples) {
   ctx.stroke();
 }
 
+// A resource fork's 'snd ' reaches the page as the WAV decodeSndToWav wrote
+// (js/mac-rsrc-types.js), 8-bit unsigned or 16-bit signed, mono or stereo, so
+// its waveform is read back out of that file. The first channel is drawn,
+// scaled to the 16-bit range drawWaveform expects.
+function wavFirstChannel(view) {
+  const channels = view.getUint16(22, true), bits = view.getUint16(34, true);
+  const step = channels * bits / 8, n = Math.floor((view.byteLength - 44) / step);
+  const out = new Int16Array(n);
+  for (let i = 0, p = 44; i < n; i++, p += step)
+    out[i] = bits === 8 ? (view.getUint8(p) - 128) << 8 : view.getInt16(p, true);
+  return out;
+}
+
+// The sound panel's audio element and Save as WAV, hidden while a tune's
+// roll is up and its audio not yet rendered (showTuneRoll).
+function setSoundControls(on) {
+  for (const el of document.querySelectorAll('#audioPlayer, #soundPreview > button')) el.style.display = on ? '' : 'none';
+}
+
+// A sound's tile in a gallery: the waveform at thumbnail size. The SFX tab
+// shows the data file's sounds and the program's side by side, so both
+// galleries draw their tiles here and the two look the same.
+function miniWaveCanvas() {
+  const c = document.createElement('canvas');
+  c.width = 160; c.height = 46;
+  c.style.cssText = 'width:84px;height:38px;background:#090806;border:1px solid #9b8850;margin-bottom:4px';
+  return c;
+}
+function drawMiniWave(canvas, s) {
+  const c = canvas.getContext('2d'), w = canvas.width, h = canvas.height, mid = h / 2;
+  const step = Math.max(1, Math.ceil(s.length / w));
+  c.strokeStyle = '#f9f86f'; c.beginPath();
+  for (let x = 0; x < w; x++) {
+    let lo = 32767, hi = -32768;
+    for (let j = x * step; j < Math.min(s.length, (x + 1) * step); j++) { if (s[j] < lo) lo = s[j]; if (s[j] > hi) hi = s[j]; }
+    c.moveTo(x, mid - hi / 32768 * (mid - 2)); c.lineTo(x, mid - lo / 32768 * (mid - 2));
+  }
+  c.stroke();
+}
+
 function renderSound() {
   const out = document.getElementById('output');
   const sel = document.getElementById('residSelect');
@@ -585,6 +787,7 @@ function renderSound() {
     currentWavBlob = samplesToWavBlob(rate, samples);
     currentSoundResid = resid;
     drawWaveform(samples);
+    setSoundControls(true);
     if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
     const url = currentObjectUrl = URL.createObjectURL(currentWavBlob);
     const audio = document.getElementById('audioPlayer');
@@ -598,7 +801,7 @@ function renderSound() {
     out.textContent = "Decoded sound 0x" + resid.toString(16).toUpperCase() + " (" + rate + " Hz, " + durSec + "s)";
   } catch(err) {
     document.getElementById('soundPreview').style.display = 'none';
-    out.textContent = "Sound decode error: " + err.message;
+    out.textContent = "The page could not decode this sound: " + err.message;
   }
 }
 
@@ -652,8 +855,8 @@ function setUnditherScope(v) {
 }
 function refreshUnditherControls() {
   try {
-    const want = !window.UNDITHER ? 'off' : window.UNDITHER_ALL ? 'all' : 'portraits';
-    for (const r of document.querySelectorAll('input[name="unditherScope"]')) r.checked = r.value === want;
+    const scope = !window.UNDITHER ? 'off' : window.UNDITHER_ALL ? 'all' : 'portraits';
+    for (const r of document.querySelectorAll('input[name="unditherScope"]')) r.checked = r.value === scope;
   } catch (e) { quiet(e); }
 }
 

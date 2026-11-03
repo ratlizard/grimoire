@@ -17,36 +17,63 @@ on:
   workflow_dispatch:
 
 jobs:
+  # The suite runs as four shares on four machines at the same time, which
+  # cut a run from about six minutes to the longest check plus the setup
+  # (check_all.mjs, CHECK_SHARD and check_weights.json). A share that fails
+  # leaves the others running, so one run reports every failure.
   check_all:
+    name: check_all (share ${{ matrix.share }} of 4)
+    strategy:
+      fail-fast: false
+      matrix:
+        share: [1, 2, 3, 4]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
       TMPDIR: ${{ github.workspace }}/tmp
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: grimoire
           submodules: true
           fetch-depth: 0   # version_check.mjs compares against origin/main
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: ratlizard/wolflizard
           ref: cythera-detailed
           path: wolflizard
 
-      - uses: actions/checkout@v4
+      # A front that changes a mac-files reader copies it into js/ before
+      # mac-files' main has it, since mac-files lands a change only once these
+      # checks pass with the copy (its README). So a front's run checks out
+      # mac-files' branch of the same name when there is one, which
+      # tools/front.sh land pushes before it waits for this run, and every
+      # other run mac-files' main.
+      - name: Choose the mac-files branch
+        id: macfiles
+        run: |
+          ref=""
+          if [[ "$GITHUB_REF_NAME" == front/* ]] &&
+             git ls-remote --exit-code --heads https://github.com/ratlizard/mac-files "$GITHUB_REF_NAME" >/dev/null; then
+            ref="$GITHUB_REF_NAME"
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "mac-files at ${ref:-main}"
+
+      - uses: actions/checkout@v5
         with:
           repository: ratlizard/mac-files
+          ref: ${{ steps.macfiles.outputs.ref }}
           path: mac-files
 
       # The player calls functions nothing in grimoire does (reach_check.mjs).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: ratlizard/ratlizard.github.io
           path: ratlizard.github.io
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: latest
 
@@ -55,6 +82,20 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: wolflizard
+
+      # `disk image in the fork` builds systemless's hfs_dump example unless
+      # the binary is already there (hfs_check.mjs), and the Rust cache drops
+      # the fork's own crate, so each run built it, about 85 seconds and the
+      # longest check of a run. The binary is kept by the fork's commit, so a
+      # run on a fork commit that an earlier run built skips the build.
+      - name: The fork's commit
+        id: fork
+        run: echo "sha=$(git -C wolflizard rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v5
+        with:
+          path: wolflizard/target/debug/examples/hfs_dump
+          key: hfs-dump-${{ steps.fork.outputs.sha }}
 
       # ppc_check.mjs needs llvm-mc 22 or later (21 reads the code section
       # differently); Ubuntu's own llvm is older, so apt.llvm.org's.
@@ -65,7 +106,7 @@ jobs:
           echo "LLVM_MC=$(command -v llvm-mc-22)" >> "$GITHUB_ENV"
 
       # The installer fetch_game.mjs downloads and the art pack, kept between runs.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: tmp
           key: grimoire-inputs-v1
@@ -88,11 +129,11 @@ jobs:
         shell: bash
         run: |
           set +e
-          node utilities/check_all.mjs | tee "$TMPDIR/table.txt"
+          CHECK_SHARD=${{ matrix.share }}/4 node utilities/check_all.mjs | tee "$TMPDIR/table.txt"
           status=${PIPESTATUS[0]}
           grep -E '^  FAIL  ' "$TMPDIR/table.txt" | sed -E 's/^  FAIL  (.*)  \([0-9.]+s\)$/\1/' | while read -r name; do
             echo "::group::$name, run alone"
-            node utilities/check_all.mjs "$name" | tail -80
+            CHECK_SHARD= node utilities/check_all.mjs "$name" | tail -80
             echo "::endgroup::"
           done
           exit $status

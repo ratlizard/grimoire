@@ -84,7 +84,7 @@ function source(kind, W, H) {
    Overall RMSE, and split by where the error falls: a filter can win overall
    by smoothing everything, and that shows as a good flat score and a bad edge
    one. Both are reported so a trade is visible rather than averaged away. */
-function score(orig, got, W, H) {
+function score(orig, actual, W, H) {
   let flat = 0, nf = 0, edge = 0, ne = 0, all = 0;
   const lum = (a, i) => 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2];
   for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
@@ -92,7 +92,7 @@ function score(orig, got, W, H) {
     const gx = Math.abs(lum(orig, i + 4) - lum(orig, i - 4));
     const gy = Math.abs(lum(orig, i + W * 4) - lum(orig, i - W * 4));
     let e = 0;
-    for (let c = 0; c < 3; c++) { const d = got[i + c] - orig[i + c]; e += d * d; }
+    for (let c = 0; c < 3; c++) { const d = actual[i + c] - orig[i + c]; e += d * d; }
     e /= 3;
     all += e;
     if (gx + gy > 24) { edge += e; ne++; } else { flat += e; nf++; }

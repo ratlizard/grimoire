@@ -42,7 +42,7 @@
  *
  * Chrome is found through $CHROME, then the PATH, then the Mac's
  * Applications folder; without one the check skips and states it, which
- * check_all.mjs also arranges by naming the binary under `want`. */
+ * check_all.mjs also arranges by naming the binary under `requiredInputs`. */
 
 import {spawn, execFileSync} from 'node:child_process';
 import {createServer} from 'node:http';
@@ -252,6 +252,49 @@ const SELDANE_ROUND_TRIP = `(async () => { try {
   }
   return { strikes: out };
 } catch (e) { return { error: e.message }; } })()`;
+/* The search reads every page by drawing it (js/page-search.js), which only
+   a real browser can check: the node:vm stub has no text nodes and no
+   gallery cells. The panel is opened and left until the crawl is done, then
+   a sentence each from a static panel (Credits), a tab (Mechanics, Status)
+   and a detail page the Characters gallery opened is searched for, a
+   phrase with its words out of order must match nothing, and the view the
+   crawl drew over must be back with the tabs shown. */
+const SITE_SEARCH_RUN = `(async () => { try {
+  const before = document.getElementById('categorySelect').value;
+  const t0 = performance.now();
+  // Closed before the reading is done, the page must come back at once
+  // (it stayed hidden under its still copy until 28 October 2026).
+  openSearch();
+  await new Promise(r => setTimeout(r, 400));
+  closeSearch();
+  const early = { back: document.getElementById('categorySelect').value === before,
+    shown: !document.getElementById('tabShell').classList.contains('siteHidden') && !document.querySelector('[data-site-cover]') };
+  openSearch();
+  for (let i = 0; i < 1200 && !(DERIVED.SITE_SEARCH && DERIVED.SITE_SEARCH.done); i++) await new Promise(r => setTimeout(r, 100));
+  const S = DERIVED.SITE_SEARCH;
+  const ms = Math.round(performance.now() - t0);
+  const titles = q => S.pages.filter(p => searchMatches(parseSearchQuery(q), p.hay)).map(p => p.title + (p.trail ? ' | ' + p.trail : ''));
+  const charPage = S.pages.find(p => p.open.d && /^char:/.test(p.open.d) && p.lines.length > 4);
+  const word = charPage ? charPage.lines.find(l => l.length > 30) : '';
+  const res = { done: S.done, ms, pages: S.pages.length, details: S.pages.filter(p => p.open.d).length,
+    credits: titles('"Susan Kare"'), opened: titles('"Fate of Alaric"'), status: titles('"each food fills by a different amount"'),
+    character: word ? titles('"' + word.replace(/"/g, '') + '"').length : 0, backwards: titles('"amount different a by"').length,
+    open: document.getElementById('searchWrap').style.display, early };
+  closeSearch();
+  res.back = document.getElementById('categorySelect').value === before;
+  res.shown = !document.getElementById('tabShell').classList.contains('siteHidden') && !document.querySelector('[data-site-cover]');
+  // Opened again on the same file, the pages come from the copy kept in
+  // IndexedDB rather than being read again.
+  const n = S.pages.length;
+  await new Promise(r => setTimeout(r, 1500));
+  DERIVED.SITE_SEARCH = null;
+  const t1 = performance.now();
+  openSearch();
+  for (let i = 0; i < 600 && !(DERIVED.SITE_SEARCH && DERIVED.SITE_SEARCH.done); i++) await new Promise(r => setTimeout(r, 50));
+  res.again = { cache: DERIVED.SITE_SEARCH && DERIVED.SITE_SEARCH.cache, pages: DERIVED.SITE_SEARCH ? DERIVED.SITE_SEARCH.pages.length : 0, of: n, ms: Math.round(performance.now() - t1) };
+  closeSearch();
+  return res;
+} catch (e) { return { error: e.message }; } })()`;
 /* The Spanish table is not among the page's scripts: the Patches section
    adds it as a script element when it is first needed (spanishTable in
    js/page-mechanics.js), which only a browser does. So here it is loaded
@@ -263,11 +306,65 @@ const SPANISH_BUILD = `(async () => { try {
   if (!r) return { error: document.getElementById('spanishNote') ? document.getElementById('spanishNote').textContent : 'nothing built' };
   return { done: r.report.done, missing: r.report.missing.length, keys: r.report.keys };
 } catch (e) { return { error: e.message }; } })()`;
-let opened = 'no archive given', seldane = 'not run', spanish = 'not run';
+/* The start screen's buttons carved in a real browser, the one place a word
+   can be drawn in the game's font (plaque_check.mjs has the rest). The word
+   carved on each button is drawn again in the shipped face and must sit
+   where the old word sat, the middle of its ink's box within two pixels
+   of the old one's either way; cut in, it must darken the old word's box by three
+   levels or more against the lifted stone, and an empty word, the negative
+   control, must leave the box as lifted. Then the eight pictures are
+   written into the fork, Your Patch has them as one edit, and Restore the
+   Buttons puts the shipped bytes back. And the cut itself, measured on
+   Onward by the workbench's tools/plaques/ and written into
+   START_PLAQUES.cut: Onward cut in the shipped face onto the two Onward
+   buttons must match the shipped carving, both taken as a difference from
+   the lifted stone and smoothed over three pixels, at a correlation of 0.7
+   or more (0.84 and 0.89 on 22 October 2026), and the control, the same
+   cut with its light and shade reversed, at least 0.4 below that (-0.32
+   and 0.20). */
+const START_BUTTONS_RUN = `(async () => { try {
+  await gameFontReady();
+  const orig = openResourceFork(window.ARCHIVE_ORIGINAL_RSRC), { W, H } = START_PLAQUES, out = { buttons: [] };
+  const boxLight = (rgba, k) => { let s = 0, n = 0; for (let y = k.y0; y <= k.y1; y++) for (let x = k.x0; x <= k.x1; x++) { const i = (y * W + x) * 4; s += plaqueLum(rgba[i], rgba[i + 1], rgba[i + 2]); n++; } return s / n; };
+  for (const b of START_PLAQUES.buttons.filter(b => !b.grayed)) {
+    const L = plaqueLift(forkPictureRGBA(orig, b.id).rgba, W, H, b.id), k = L.ink;
+    const cover = plaqueCover(b.word, 'ArgosGame', k, START_PLAQUES.cut.lit.place);
+    let x0 = W, x1 = -1, y0 = H, y1 = -1;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (cover[y * W + x] > 0.3) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const empty = plaqueCarve(L, new Float32Array(W * H), W, H, 'lit');
+    out.buttons.push({ id: b.id, dx: (x0 + x1) / 2 - (k.x0 + k.x1) / 2, dy: (y0 + y1) / 2 - (k.y0 + k.y1) / 2,
+      darker: boxLight(L.rgba, k) - boxLight(plaqueCarve(L, cover, W, H, 'lit'), k), emptyMoved: boxLight(L.rgba, k) - boxLight(empty, k) });
+  }
+  // Onward cut in the shipped face onto the Onward buttons, against the
+  // shipped carving: both as a difference from the lifted stone, smoothed
+  // over three pixels (the speckle differs), correlated over the old word's
+  // box. The control reverses the cut's light and shade.
+  const smooth3 = (a, w, h) => { const o = new Float32Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let s = 0, n = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const yy = y + j, xx = x + i; if (yy >= 0 && yy < h && xx >= 0 && xx < w) { s += a[yy * w + xx]; n++; } } o[y * w + x] = s / n; } return o; };
+  const corrOf = (a, b) => { let ma = 0, mb = 0; for (let i = 0; i < a.length; i++) { ma += a[i]; mb += b[i]; } ma /= a.length; mb /= b.length; let ab = 0, aa = 0, bb = 0; for (let i = 0; i < a.length; i++) { const x = a[i] - ma, y = b[i] - mb; ab += x * y; aa += x * x; bb += y * y; } return ab / Math.sqrt(aa * bb); };
+  const onward = START_PLAQUES.buttons.find(b => b.word === 'Onward' && !b.grayed), board = forkPictureRGBA(orig, START_PLAQUES.board);
+  out.match = [];
+  for (const [lighting, px] of [['lit', forkPictureRGBA(orig, onward.id).rgba], ['board', plaqueCrop(board.rgba, board.W, onward.x, onward.y, W, H)]]) {
+    const L = plaqueLift(px, W, H, onward.id), k = L.ink, cover = plaqueCover('Onward', 'ArgosGame', k, START_PLAQUES.cut[lighting].place);
+    const diff = rgba => { const d = new Float32Array(W * H); for (let i = 0; i < W * H; i++) d[i] = plaqueLum(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]) - plaqueLum(L.rgba[i * 4], L.rgba[i * 4 + 1], L.rgba[i * 4 + 2]); return smooth3(d, W, H); };
+    const inBox = d => { const v = []; for (let y = k.y0 - 2; y <= k.y1 + 2; y++) for (let x = k.x0 - 2; x <= k.x1 + 2; x++) v.push(d[y * W + x]); return v; };
+    const shipped = inBox(diff(px)), cut = inBox(diff(plaqueCarve(L, cover, W, H, lighting)));
+    const wts = START_PLAQUES.cut[lighting].weights, kept = wts.slice();
+    wts[1] = -kept[1]; wts[2] = -kept[2];
+    let reversed; try { reversed = inBox(diff(plaqueCarve(L, cover, W, H, lighting))); } finally { wts[1] = kept[1]; wts[2] = kept[2]; }
+    out.match.push({ lighting, corr: corrOf(cut, shipped), control: corrOf(reversed, shipped) });
+  }
+  out.written = await carveStartButtons();
+  out.patch = basketEdits().fork;
+  restoreStartButtons();
+  const same = id => { const a = forkPictureRGBA(window.CYTHERA_RSRC, id).data, e = orig.resourcesByType.PICT.find(x => x.id === id), b = orig.dataOf('PICT', e); return a.length === b.length && a.every((v, i) => v === b[i]); };
+  out.restored = [START_PLAQUES.board].concat(START_PLAQUES.buttons.map(b => b.id)).every(same) && !startButtonsCarved();
+  return out;
+} catch (e) { return { error: e.message }; } })()`;
+let opened = 'no archive given', seldane = 'not run', spanish = 'not run', plaques = 'not run';
 if (archive && existsSync(resolve(ROOT, archive))) {
   const r = await load(base + indexPage + '?cache=skip&loud=1&src=' + encodeURIComponent(archive),
     '/^(Title: |Archive error)/.test(document.getElementById("output").textContent) || document.getElementById("sourceStatus").classList.contains("failed")', 90000,
-    { then: async ({evaluate}) => Object.assign({}, await evaluate(SELDANE_ROUND_TRIP), { spanish: await evaluate(SPANISH_BUILD) }) });
+    { then: async ({evaluate}) => Object.assign({}, await evaluate(SELDANE_ROUND_TRIP), { spanish: await evaluate(SPANISH_BUILD), plaques: await evaluate(START_BUTTONS_RUN), search: await evaluate(SITE_SEARCH_RUN) }) });
   const errs = errors(r.console), quiet = quietOnes(r.console);
   const title = text((/id="output"[^>]*>([\s\S]*?)<\/pre>/.exec(r.dom) || ['', ''])[1]).trim();
   const status = text((/id="sourceStatus"[^>]*>([\s\S]*?)<\/(?:pre|div|span)>/.exec(r.dom) || ['', ''])[1]).trim();
@@ -286,6 +383,33 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     if (!es || es.error) fail('spanish', 'the Spanish file was not written in the browser: ' + (es ? es.error : 'no result'));
     else if (es.missing) fail('spanish', es.missing + ' pieces of the shipped file have no Spanish');
     else { spanish = `the Spanish table loads on demand and writes ${es.done} pieces and ${es.keys} keyword lists`; console.log('  ' + spanish); }
+    const ss = r.more.search;
+    if (!ss || ss.error) fail('search', 'the pages were not read (' + (ss ? ss.error : 'no result') + ')');
+    else if (!ss.done) fail('search', 'reading the pages had not finished after ' + ss.ms + ' ms, at ' + ss.pages + ' pages');
+    else if (!ss.credits.some(t => /^Credits/.test(t))) fail('search', 'a name in the Credits panel finds ' + JSON.stringify(ss.credits));
+    else if (!ss.opened.includes('Open File')) fail('search', 'the scenario’s name, in the line shown as the file opened, finds ' + JSON.stringify(ss.opened));
+    else if (!ss.status.some(t => /Status/.test(t))) fail('search', 'a sentence of Mechanics, Status finds ' + JSON.stringify(ss.status));
+    else if (ss.details < 500 || !ss.character) fail('search', ss.details + ' detail pages read, and a line of a character’s page finds ' + ss.character + ' pages');
+    else if (ss.backwards) fail('search', 'a phrase with its words out of order matched ' + ss.backwards + ' pages');
+    else if (ss.again.cache !== 'hit' || ss.again.pages !== ss.again.of) fail('search', 'opened again, the pages were not taken from the kept copy (' + JSON.stringify(ss.again) + ')');
+    else if (!ss.early.back || !ss.early.shown) fail('search', 'closed before the pages were all read, the page is ' + (ss.early.shown ? 'shown' : 'still hidden under its copy') + (ss.early.back ? '' : ', on another view'));
+    else if (!ss.back || !ss.shown || ss.open !== 'block') fail('search', 'after reading the pages the view is ' + (ss.back ? '' : 'not ') + 'back, the tabs are ' + (ss.shown ? 'shown' : 'hidden') + ' and the panel is ' + ss.open);
+    else console.log('  search: ' + ss.pages + ' pages read in ' + ss.ms + ' ms, ' + ss.details + ' of them detail pages, the Credits, a Mechanics sentence and a character’s line found, the view put back, and the kept copy opened in ' + ss.again.ms + ' ms the second time');
+    const sb = r.more.plaques;
+    if (!sb || sb.error) fail('start buttons', 'they were not carved in the browser: ' + (sb ? sb.error : 'no result'));
+    else {
+      const off = sb.buttons.filter(b => Math.abs(b.dx) > 2 || Math.abs(b.dy) > 2), faint = sb.buttons.filter(b => b.darker < 3), moved = sb.buttons.filter(b => Math.abs(b.emptyMoved) > 0.01);
+      if (sb.buttons.length !== 6) fail('start buttons', sb.buttons.length + ' buttons were tried, not 6');
+      else if (off.length) fail('start buttons', 'a word is drawn away from the old one: ' + off.map(b => 'PICT ' + b.id + ' by ' + b.dx.toFixed(1) + ', ' + b.dy.toFixed(1)).join('; '));
+      else if (faint.length) fail('start buttons', 'a word cut in darkens its box by less than three levels: ' + faint.map(b => 'PICT ' + b.id + ' ' + b.darker.toFixed(1)).join('; '));
+      else if (moved.length) fail('start buttons', 'the negative control, an empty word, changed the stone: ' + moved.map(b => 'PICT ' + b.id).join(', '));
+      else if (sb.written !== 8) fail('start buttons', sb.written + ' pictures were written, not 8');
+      else if (!(sb.patch || []).includes('the carved start screen buttons') || (sb.patch || []).some(k => /^PICT /.test(k))) fail('start buttons', 'Your Patch does not have them as one edit: ' + (sb.patch || []).join(', '));
+      else if (!sb.restored) fail('start buttons', 'Restore the Buttons did not put the shipped pictures back');
+      else if (!sb.match || sb.match.some(m => !(m.corr >= 0.7) || !(m.control <= m.corr - 0.4))) fail('start buttons', 'Onward cut in the shipped face does not match the shipped carving: ' + JSON.stringify(sb.match));
+      else { console.log('  start buttons, Onward against the shipped carving: ' + sb.match.map(m => m.lighting + ' ' + m.corr.toFixed(2) + ' (reversed ' + m.control.toFixed(2) + ')').join(', '));
+        plaques = 'the start screen\u2019s six words drawn in the game\u2019s font sit where the old ones did and darken their boxes by ' + Math.min(...sb.buttons.map(b => b.darker)).toFixed(0) + ' levels or more, an empty word changes nothing, and the eight pictures are written and put back'; console.log('  ' + plaques); }
+    }
     opened = `the archive opens over http in ${r.ms} ms (${title.slice(0, 60)}), ${quiet.length} quiet failures on the way`;
     console.log('  ' + opened);
     for (const l of quiet.slice(0, 8)) console.log('    ' + l.text.slice(0, 140));
@@ -312,10 +436,18 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     ['hero', "showCategory('CHARACTERS'); showCharacterDetail(1)"],
     ['prop', "showCategory('PROPS'); showPropTypeDetail(76)"],
     ['mechanics', "showCategory('MECHANICS')"],
+    // Mechanics, at Combat open: the rules set as equations (mechEq, 2 November
+    // 2026), whose long lines must wrap inside the phone's width.
+    ['mechCombat', "showCategory('MECHANICS'); const d = document.getElementById('mech-combat'); d.open = true; d.scrollIntoView()"],
+    // Sleeping, whose caption and bonus set a division as a stacked fraction
+    // (mechFrac), which must stay inside the phone's width.
+    ['mechSleep', "showCategory('MECHANICS'); const d = document.getElementById('mech-sleep'); d.open = true; d.scrollIntoView()"],
     ['skills', "showCategory('SKILLS')"],
     // Data > Patches, at the scenario in Spanish.
     ['spanish', "showCategory('PATCHES'); const d = document.getElementById('spanishMaker').closest('details'); if (d) d.open = true; document.getElementById('spanishMaker').scrollIntoView()"],
     ['tools', "showCategory('TOOLS')"],
+    // Components > Fonts, at the start screen's buttons, carved in the game's font.
+    ['buttons', "showCategory('FONTS'); await carveStartButtons(); renderMacRsrcSheet(); await new Promise(r => setTimeout(r, 300)); const sb = document.getElementById('startButtons'); if (sb) sb.scrollIntoView()"],
     // Data > License, a stub: two short sections, a picker and one link out.
     ['license', "showCategory('LICENSE')"],
     // Data > Saved Game with the scenario open: Make a Save, under the records.
@@ -382,7 +514,8 @@ if (archive && existsSync(resolve(ROOT, archive))) {
       for (const [name, drive] of VIEWS) {
         // A drive that throws leaves the page where it was, and the shot is
         // then of the wrong place with nothing shown; so it is shown.
-        if (drive) { const went = await page.evaluate(`(() => { try { ${drive}; } catch (e) { return String(e); } return 'ok'; })()`); if (went !== 'ok') console.log(`  view ${name}: its drive did not run: ${went}`); }
+        // A drive may await (the carved buttons); the evaluation waits for it.
+        if (drive) { const went = await page.evaluate(`(async () => { try { ${drive}; } catch (e) { return String(e); } return 'ok'; })()`); if (went !== 'ok') console.log(`  view ${name}: its drive did not run: ${went}`); }
         await page.evaluate('new Promise(r => setTimeout(r, 400))');
         const m = await page.evaluate(MEASURE);
         const path = await page.shot(join(SHOTS, name + '.png'));

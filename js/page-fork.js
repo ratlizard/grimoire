@@ -66,6 +66,66 @@ function swapGameFont(bytes, filename) {
   try { installDialogueBox(); } catch (e) { quiet(e); }
   return window.FONT_SWAP;
 }
+/* Text Styles, the first section of Components > Fonts: the styles the game
+   draws its text in and the codes a line of its text can hold, every figure
+   read out of the program (exeTextStyles in js/page-rules.js has what is read
+   and from where) and each style out of the forks. A style is looked up in
+   Cythera Data's fork first, as the Resource Manager looks in the newest open
+   file first, then in the program's; one in neither is the fallback the
+   program gives it. With no program open the section gives the source of its
+   figures and states none (the rule of v1.51.0). */
+function textStylesPanel() {
+  const box = document.createElement('div');
+  box.className = 'mechView';
+  box.id = 'textStyles';
+  const ts = (typeof exeTextStyles === 'function') ? exeTextStyles() : null;
+  const head = '<section class="mechSec"><div class="mechHead"><h3>Text Styles</h3></div>';
+  if (!ts) {
+    box.innerHTML = head + '<p class="mechLede">The game draws its text in the text styles below. How many there are, what a missing one falls back to and the codes a line of text can hold come from the program, and the program is not open.</p></section>';
+    return box;
+  }
+  const styleOf = id => {
+    for (const [fork, from] of [[window.CYTHERA_RSRC, 'Cythera Data'], [window.APP_RSRC, 'Cythera']]) {
+      const e = fork && fork.resourcesByType && (fork.resourcesByType['TxSt'] || []).find(x => x.id === id);
+      if (!e) continue;
+      let s = null;
+      try { s = decodeTxSt(fork.dataOf('TxSt', e)); } catch (err) { quiet(err, 'a text style'); }
+      if (s) return { from, name: e.name || '', text: s.text };
+    }
+    return null;
+  };
+  const n = ts.count.v, first = ts.first.v, b = ts.convBase.v;
+  const fall = 'font ' + srcNum(ts.fallFont) + ' at ' + srcNum(ts.fallSize) + ' points, plain';
+  const rows = [], have = new Set();
+  for (let k = 0; k < n; k++) {
+    const s = styleOf(first + k);
+    if (s) have.add(k);
+    rows.push('<tr><td class="num">' + k + '</td><td class="num">TxSt ' + (first + k) + '</td><td>' + svEsc(s ? s.name : '') + '</td><td>' +
+      svEsc(s ? s.text : 'font ' + ts.fallFont.v + ', ' + ts.fallSize.v + ' pt, plain') + '</td><td>' + (s ? s.from : 'neither file') + '</td></tr>');
+  }
+  const plain = b + ts.plain.v, lang = d => b + ts.shift.v + ts.step.v * d;
+  const missing = [];
+  for (let d = 0; d <= 9; d++) if (lang(d) >= n || !have.has(lang(d))) missing.push(d);
+  const lt = srcNum(ts.open, '<'), gt = srcNum(ts.close, '>');
+  const codes = [];
+  if (ts.keyword) codes.push(srcNum(ts.keyword, '@') + ' before a word draws the word as a keyword.');
+  codes.push(lt + ' and a digit d switch to style s + ' + srcNum(ts.shift) + ' + ' + srcNum(ts.step) + ' × d, where s is the base style of the text. ' +
+    lt + ' with no digit switches to s + ' + srcNum(ts.bare) + ', and ' + gt + ' back to s + ' + srcNum(ts.back) + '.');
+  codes.push('Every line starts in style s + ' + srcNum(ts.plain) + '. A conversation has base style ' + srcNum(ts.convBase) + ', so its text is style ' + plain +
+    ', ' + svEsc('<1') + ' is style ' + lang(1) + (have.has(lang(1)) ? ' (' + svEsc(styleOf(first + lang(1)).text) + ')' : '') +
+    (missing.length ? ', and ' + svEsc('<' + missing[0]) + ' and higher are styles no file has' : '') + '.');
+  if (ts.hide) codes.push(srcNum(ts.hide, '&') + ' hides the text after it.');
+  if (ts.pause) codes.push(srcNum(ts.pause, '*') + ' waits for a click in a conversation. The game leaves out the character just before it.');
+  codes.push('In a conversation, text between double quotes is speech, in the box at the top, and the rest is narration, below it.');
+  box.innerHTML = head +
+    '<p class="mechLede">The game draws each piece of its text in one of its ' + srcNum(ts.count) + ' text styles, a font, a size and a face. Style n is TxSt ' +
+    srcNum(ts.first) + ' + n. The game uses Cythera Data’s styles over the program’s, and a style neither file has is ' + fall + '.</p>' +
+    '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">style</th><th class="num">resource</th><th>name</th><th>font</th><th>from</th></tr></thead><tbody>' +
+    rows.join('') + '</tbody></table></div>' +
+    '<h4>Codes in the Text</h4><p class="mechLede">A line of the game’s text can hold these codes. The game draws none of them, and no code lets a line show one of these characters.</p>' +
+    '<ul class="ruleList">' + codes.map(c => '<li>' + c + '</li>').join('') + '</ul></section>';
+  return box;
+}
 function fontSwapPanel() {
   const box = document.createElement('div');
   box.className = 'mechView';
@@ -75,7 +135,7 @@ function fontSwapPanel() {
   box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Font Replacer</h3></div>' +
     (target
       ? '<p class="mechLede">Choose a TrueType font (<b>.ttf</b>) to replace the game’s font, ' + svEsc(target.name || 'ArgosANouveau') + ' (<b>sfnt ' + target.id + '</b>), in the copy of the file in this browser.</p>' +
-        '<ul class="ruleList"><li>To play with it, download <b>Your Patch</b> in the ' + actionChip('Patch Generator', "showCategory('CHANGES')") + ' as a disk image, and run the game from it in an emulator.</li>' +
+        '<ul class="ruleList"><li>To play with it, download the <b>Patch in Progress</b> in the ' + actionChip('Patch Generator', "showCategory('CHANGES')") + ' as a disk image, and run the game from it in an emulator.</li>' +
         '<li>An <b>.otf</b> font cannot be used, because a classic Mac cannot draw it.</li></ul>' +
         '<div class="mechStats"><input type="file" id="fontSwapFile" accept=".ttf,font/ttf,application/font-sfnt,application/x-font-ttf">' +
         (sw ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="undoFontSwap()">Restore the game’s font</button>' : '') +
@@ -84,7 +144,7 @@ function fontSwapPanel() {
               sw.mapped + ' of the characters the game uses are in it, in a format ' + sw.format + ' character map, ' +
               (sw.bytes / 1024).toFixed(0) + ' KB of outlines.</blockquote>' : '') +
         '<div id="fontSwapNote" class="mechSub"></div>'
-      : '<p class="mechLede">No font resource is open. Open Cythera Data from a file that includes its resource fork: a .hqx, MacBinary or AppleSingle file.</p>') +
+      : '<p class="mechLede">No font resource is open. Open Cythera Data from a file that includes its resource fork, such as a .hqx, MacBinary or AppleSingle file.</p>') +
     '</section>';
   setTimeout(() => {
     const f = document.getElementById('fontSwapFile');
@@ -96,13 +156,18 @@ function fontSwapPanel() {
       const note = document.getElementById('fontSwapNote');
       if (!file) return;
       const fail = e => {
-        if (note) note.textContent = 'That font could not be used: ' + e.message;
-        setStatus('That font could not be used: ' + e.message, true);
+        if (note) note.textContent = 'The page could not use that font: ' + e.message;
+        setStatus('The page could not use that font: ' + e.message, true);
       };
       file.arrayBuffer().then(buf => {
         const r = swapGameFont(new Uint8Array(buf), file.name);
         setStatus(file.name + ' is the game’s font in this copy. ' + r.mapped + ' characters mapped.');
-        renderMacRsrcSheet();
+        // Buttons already carved follow the font.
+        if (!startButtonsCarved()) { renderMacRsrcSheet(); return; }
+        return carveStartButtons().then(() => {
+          setStatus(file.name + ' is the game’s font in this copy, and the start screen’s buttons are carved in it.');
+          renderMacRsrcSheet();
+        });
       }).catch(fail);
     };
   }, 0);
@@ -110,10 +175,11 @@ function fontSwapPanel() {
 }
 function undoFontSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The original resource fork is no longer in the page; open the file again to get it back.', true); return; }
+  if (!rec) { setStatus('The original resource fork is no longer in the page. Open the file again to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.FONT_SWAP = null;
+  window.RSRC_PICTURES = new Map();   // the whole fork is put back, the pictures with it
   DERIVED.EDITOR_ZONE_NAMES = null;
   try { installGameFont(); } catch (e) { quiet(e); }
   try { installDialogueBox(); } catch (e) { quiet(e); }
@@ -158,7 +224,7 @@ function seldaneStrikes() {
 // One glyph, drawn from the loaded family into a column of `height` rows and
 // returned as the set bits of each row. Threshold on alpha: the rasteriser is
 // antialiasing and a bitmap strike has no grey.
-function rasteriseGlyph(ch, family, px, height, ascent) {
+function rasterizeGlyph(ch, family, px, height, ascent) {
   // Room on both sides of the pen for ink that overhangs it: the image is
   // the ink from the leftmost of the pen and its first inked column to its
   // last inked column, and `left` is where that starts against the pen,
@@ -191,7 +257,7 @@ function rasteriseGlyph(ch, family, px, height, ascent) {
   }
   return { rows, width: x1 - x0, left: x0 - pad, advance: adv };
 }
-// One glyph out of the strike as it stands, in the same shape rasteriseGlyph
+// One glyph out of the strike as it stands, in the same shape rasterizeGlyph
 // returns, so a slot can be carried through a rewrite untouched.
 function copyStrikeGlyph(spec, i) {
   const rowBytes = spec.rowWords * 2, w = spec.loc[i + 1] - spec.loc[i], rows = [];
@@ -207,7 +273,7 @@ function copyStrikeGlyph(spec, i) {
 }
 /* How big to draw the chosen face, and where its baseline goes, read off the
    strike's letters and the face's capital. Until 26 September 2026
-   the face was drawn with its em at the cell less the descent (12 and 18
+   the face was drawn with its em at the cell minus the descent (12 and 18
    px) on the strike's nominal baseline, and that is wrong twice over for
    Seldane: its letters fill the whole cell, descent rows included (14 and
    21 rows, feet on the last row), and a face's capitals are some 0.7 of its
@@ -268,7 +334,7 @@ function rebuildStrike(spec, family) {
     // strikes, whose box was being replaced by whatever the chosen face draws
     // for a lowercase c. It is carried through as it stands.
     if (!had[i] || i === n - 1) { entries.push({ keep: spec.ow[i], img: had[i] ? copyStrikeGlyph(spec, i) : null }); continue; }
-    const g = rasteriseGlyph(String.fromCharCode(spec.firstChar + i), family, fit.px, spec.fRectHeight, fit.base);
+    const g = rasterizeGlyph(String.fromCharCode(spec.firstChar + i), family, fit.px, spec.fRectHeight, fit.base);
     entries.push(g && g.width > 0 ? { g, img: g } : { keep: spec.ow[i], img: copyStrikeGlyph(spec, i) });
   }
   /* The offset is counted from kernMax: an image starts at the pen plus
@@ -340,10 +406,11 @@ function swapSeldane(bytes, filename) {
 }
 function undoStrikeSwap() {
   const rec = window.ARCHIVE_ORIGINAL_RSRC;
-  if (!rec) { setStatus('The original resource fork is no longer in the page; open the file again to get it back.', true); return; }
+  if (!rec) { setStatus('The original resource fork is no longer in the page. Open the file again to get it back.', true); return; }
   window.CYTHERA_RSRC_RAW = rec;
   window.CYTHERA_RSRC = openResourceFork(rec);
   window.STRIKE_SWAP = null;
+  window.RSRC_PICTURES = new Map();   // the whole fork is put back, the pictures with it
   setStatus('Restored the file’s Seldane script.');
   renderMacRsrcSheet();
 }
@@ -382,7 +449,7 @@ function exportStrikeTrueType(id) {
       note: 'Drawn from NFNT ' + id + ', a bitmap strike in a Delver archive. ' +
             'Cythera is copyright Ambrosia Software, Inc. and Glenn Andreas.' });
     downloadBlob(ttf, family + '.ttf');
-    setStatus(family + '.ttf written: ' + (spec.ascent + spec.descent) + ' pixels to the em, ' +
+    setStatus('Wrote ' + family + '.ttf at ' + (spec.ascent + spec.descent) + ' pixels to the em, ' +
               'so it draws these pixels at ' + (spec.ascent + spec.descent) + 'px and at every multiple of it.');
   } catch (err) {
     setStatus('The page could not save that size as a TrueType font: ' + err.message, true);
@@ -420,8 +487,8 @@ function strikeSwapPanel() {
       const note = document.getElementById('strikeSwapNote');
       if (!file) return;
       const fail = e => {
-        if (note) note.textContent = 'That font could not be used: ' + e.message;
-        setStatus('That font could not be used: ' + e.message, true);
+        if (note) note.textContent = 'The page could not use that font: ' + e.message;
+        setStatus('The page could not use that font: ' + e.message, true);
       };
       file.arrayBuffer().then(buf => swapSeldane(new Uint8Array(buf), file.name)).then(r => {
         setStatus(file.name + ' is the Seldane script in this copy, in ' + r.strikes + ' sizes.');
@@ -430,6 +497,243 @@ function strikeSwapPanel() {
     };
   }, 0);
   return box;
+}
+
+/* ---------------------------------------------------------------------------
+   The start screen's buttons, carved in the game's font.
+
+   js/delv-plaques.js lifts the carved words off the start screen's buttons
+   and cuts new ones in. This part draws the words, in the game's font as it
+   is in this copy: ArgosGame, which installGameFont makes from sfnt 7289,
+   swapped or not, so the Font Replacer's font is the one carved. It then
+   writes the eight pictures into Cythera Data's fork in a single write.
+
+   The carving always starts from the pictures as the file was opened
+   (ARCHIVE_ORIGINAL_RSRC), so carving again after a font swap lifts
+   Ambrosia's words and not the last carving. The pictures are entered in
+   RSRC_PICTURES under START_BUTTONS, and that entry is the only record that
+   they are carved: every path that puts the fork back (opening a file,
+   Restore the game's font) empties the map, and in the Patch in Progress the eight
+   are one edit (basketEdits). A font swapped after the buttons were carved
+   is carved into them again (fontSwapPanel).
+--------------------------------------------------------------------------- */
+const START_BUTTONS = 'Start Screen Buttons';
+window.START_WORDS = {};        // a word typed on the panel, by picture id
+function startButtonsCarved() {
+  return [...(window.RSRC_PICTURES || new Map()).values()].includes(START_BUTTONS);
+}
+// The word for each picture: the panel's, or the one Ambrosia carved; the
+// greyed Onward has Onward's.
+function startWords() {
+  const w = {};
+  for (const b of START_PLAQUES.buttons) if (!b.grayed) w[b.id] = b.id in window.START_WORDS ? window.START_WORDS[b.id] : b.word;
+  for (const b of START_PLAQUES.buttons) if (b.grayed) {
+    const twin = START_PLAQUES.buttons.find(o => !o.grayed && o.x === b.x && o.y === b.y);
+    w[b.id] = twin ? w[twin.id] : b.word;
+  }
+  return w;
+}
+/* A word's coverage on a button, W*H numbers from 0 to 1: drawn eight times
+   over on a canvas and averaged down, where `place` (START_PLAQUES.cut's,
+   measured on Onward) puts it against `ink`, the old word's shadows' box:
+   its ascenders `ink_h` pixels tall with their top `dy` from the box's top,
+   its ink's middle `dx` from the box's middle, `track` pixels between its
+   letters beyond the face's spacing, and each stroke `bold` pixels wider (a
+   stroke round the fill). A word wider than the stone's straight part is
+   drawn smaller to fit it, its top where it was. */
+function plaqueCover(word, family, ink, place) {
+  const { W, H, room } = START_PLAQUES, S = 8;
+  const c = document.createElement('canvas');
+  c.width = W * S; c.height = H * S;
+  const ctx = c.getContext('2d');
+  if (!ctx || !ctx.measureText) return null;
+  const face = px => (px * S) + 'px "' + family + '"';
+  ctx.font = '100px "' + family + '"';
+  const m = ctx.measureText('Hdlbk');
+  const up = m && m.actualBoundingBoxAscent, down = (m && m.actualBoundingBoxDescent) || 0;
+  if (!(up > 0)) return null;
+  const chars = [...word], track = place.track, weight = place.bold;
+  const wide = px => { ctx.font = face(px); let w = 0; for (const ch of chars) w += ctx.measureText(ch).width; return w / S + track * (chars.length - 1) + weight; };
+  let px = place.ink_h * 100 / (up + down);
+  let w = wide(px);
+  if (w > room) { px *= room / w; w = wide(px); }
+  const cx = (ink.x0 + ink.x1 + 1) / 2 + place.dx;
+  const base = ink.y0 + place.dy + up * px / 100;
+  const draw = from => {
+    ctx.clearRect(0, 0, W * S, H * S);
+    ctx.font = face(px);
+    ctx.fillStyle = ctx.strokeStyle = '#fff';
+    ctx.lineWidth = weight * S; ctx.lineJoin = 'round';
+    ctx.textBaseline = 'alphabetic';
+    let x = from;
+    for (const ch of chars) {
+      ctx.fillText(ch, x, base * S);
+      if (weight > 0) ctx.strokeText(ch, x, base * S);
+      x += ctx.measureText(ch).width + track * S;
+    }
+    return ctx.getImageData(0, 0, W * S, H * S).data;
+  };
+  // Drawn once to find where its ink falls, and again with the ink, not the
+  // advances, centred on the old word's middle: a face's side bearings put
+  // a word a pixel or more off centre otherwise.
+  let from = (cx - w / 2 + weight / 2) * S, a = draw(from);
+  let lo = W * S, hi = -1;
+  for (let x = 0; x < W * S; x++) for (let y = 0; y < H * S; y++) if (a[(y * W * S + x) * 4 + 3] > 64) { if (x < lo) lo = x; hi = x; break; }
+  if (hi >= 0) { from += cx * S - (lo + hi + 1) / 2; a = draw(from); }
+  const out = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x0 = 0; x0 < W; x0++) {
+    let s = 0;
+    for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) s += a[((y * S + j) * W * S + x0 * S + i) * 4 + 3];
+    out[y * W + x0] = s / (S * S * 255);
+  }
+  return out;
+}
+// A picture of a fork as RGBA, with its size and its bytes.
+function forkPictureRGBA(fork, id) {
+  const e = ((fork && fork.resourcesByType.PICT) || []).find(x => x.id === id);
+  if (!e) throw new Error('PICT ' + id + ' is not in the file.');
+  const data = fork.dataOf('PICT', e), d = decodePict(data);
+  if (!d || d.kind !== 'canvas') throw new Error('The page could not draw PICT ' + id + '.');
+  const px = d.canvas.getContext('2d').getImageData(0, 0, d.width, d.height).data;
+  return { rgba: new Uint8ClampedArray(px), W: d.width, H: d.height, data };
+}
+// The eight pictures carved: a Map from picture id to {rgba, W, H, data},
+// `data` the picture as the file has it, which the pixels are written into.
+function startButtonPictures(orig, words, family) {
+  const { W, H, board, buttons } = START_PLAQUES, out = new Map();
+  // `lighting` is 'lit' for a picture of a button alone, 'board' for one on PICT 132.
+  const cut = (rgba, word, seed, lighting) => {
+    const L = plaqueLift(rgba, W, H, seed), w = (word || '').trim();
+    if (!w) return L.rgba;
+    const cover = plaqueCover(w, family, L.ink || START_PLAQUES.ink, START_PLAQUES.cut[lighting].place);
+    if (!cover) throw new Error('this browser could not draw the font');
+    return plaqueCarve(L, cover, W, H, lighting);
+  };
+  for (const b of buttons) {
+    const p = forkPictureRGBA(orig, b.id);
+    if (p.W !== W || p.H !== H) throw new Error('PICT ' + b.id + ' is ' + p.W + '×' + p.H + ', not a button.');
+    out.set(b.id, Object.assign(p, { rgba: cut(p.rgba, words[b.id], b.id, 'lit') }));
+  }
+  const s = forkPictureRGBA(orig, board);
+  for (const b of buttons) {
+    if (b.grayed) continue;
+    plaquePaste(s.rgba, s.W, cut(plaqueCrop(s.rgba, s.W, b.x, b.y, W, H), words[b.id], 1000 + b.id, 'board'), b.x, b.y, W, H);
+  }
+  out.set(board, s);
+  return out;
+}
+// Several pictures of Cythera Data's fork replaced in one write.
+function setForkPictures(bytes) {
+  const spec = resourceForkSpec(window.CYTHERA_RSRC);
+  for (const [id, data] of bytes) {
+    const r = spec.resources.find(x => x.type === 'PICT' && x.id === id);
+    if (!r) throw new Error('PICT ' + id + ' is not in the fork.');
+    r.data = data;
+  }
+  const raw = writeResourceFork(spec);
+  const reopened = openResourceFork(raw);     // it must read back, or it is not written
+  window.CYTHERA_RSRC_RAW = raw;
+  window.CYTHERA_RSRC = reopened;
+  _rsrcArtifactCache.clear();
+}
+// The game's font as a face the canvas can draw. It is loaded when the
+// fork opens, and loaded again a moment after a swap.
+function gameFontReady() {
+  return new Promise((resolve, reject) => {
+    let n = 0;
+    const look = () => {
+      if (window.GAME_FONT_FACE && !window.GAME_FONT_STATE) { resolve(); return; }
+      if (++n > 100 || (window.GAME_FONT_STATE && window.GAME_FONT_STATE !== 'loading')) {
+        reject(new Error('the game’s font is not loaded (' + (window.GAME_FONT_STATE || 'no font') + ')'));
+        return;
+      }
+      setTimeout(look, 50);
+    };
+    look();
+  });
+}
+function carveStartButtons() {
+  if (!window.CYTHERA_RSRC) return Promise.reject(new Error('no resource fork is open'));
+  if (!window.ARCHIVE_ORIGINAL_RSRC) return Promise.reject(new Error('the file as it was opened is no longer in the page. Open it again'));
+  return gameFontReady().then(() => {
+    const orig = openResourceFork(window.ARCHIVE_ORIGINAL_RSRC);
+    const made = startButtonPictures(orig, startWords(), 'ArgosGame');
+    const bytes = new Map();
+    for (const [id, p] of made) bytes.set(id, rsrcReplaceImage('PICT', p.data, p.rgba, p.W, p.H));
+    setForkPictures(bytes);
+    for (const id of bytes.keys()) window.RSRC_PICTURES.set(forkImageKey('PICT', id), START_BUTTONS);
+    return bytes.size;
+  });
+}
+function restoreStartButtons() {
+  const orig = window.ARCHIVE_ORIGINAL_RSRC && openResourceFork(window.ARCHIVE_ORIGINAL_RSRC);
+  if (!orig) { setStatus('The original pictures are no longer in the page. Open the file again to get them back.', true); return; }
+  const bytes = new Map();
+  for (const [k, v] of window.RSRC_PICTURES) if (v === START_BUTTONS) {
+    const id = +k.split(' ')[1], e = (orig.resourcesByType.PICT || []).find(x => x.id === id);
+    if (e) bytes.set(id, orig.dataOf('PICT', e));
+  }
+  try { setForkPictures(bytes); }
+  catch (e) { setStatus('The page could not put the buttons back. ' + e.message, true); return; }
+  for (const id of bytes.keys()) window.RSRC_PICTURES.delete(forkImageKey('PICT', id));
+  setStatus('Put back the start screen’s buttons.');
+  renderMacRsrcSheet();
+}
+function startButtonsCarve() {
+  const note = document.getElementById('startButtonsNote');
+  if (note) note.textContent = 'Carving…';
+  carveStartButtons().then(() => {
+    setStatus('Carved the start screen’s buttons in ' + (window.FONT_SWAP ? window.FONT_SWAP.name : 'the game’s font') + '. To download them, use the Patch in Progress in Tools › Patch Generator.');
+    renderMacRsrcSheet();
+  }).catch(e => {
+    if (note) note.textContent = 'The page could not carve the buttons: ' + e.message;
+    setStatus('The page could not carve the buttons: ' + e.message, true);
+  });
+}
+function startButtonsPanel() {
+  const box = document.createElement('div');
+  box.className = 'mechView';
+  box.id = 'startButtons';
+  const fork = window.CYTHERA_RSRC;
+  const pics = fork && (fork.resourcesByType.PICT || []);
+  const have = pics && [START_PLAQUES.board].concat(START_PLAQUES.buttons.map(b => b.id)).every(id => pics.some(e => e.id === id));
+  const words = startWords(), carved = startButtonsCarved();
+  box.innerHTML = '<section class="mechSec"><div class="mechHead"><h3>Start Screen Buttons</h3></div>' +
+    (have
+      ? '<p class="mechLede">Carve the words on the start screen’s buttons in the game’s font as it is in this copy. To carve them in another font, choose it in Font Replacer first.</p>' +
+        '<ul class="ruleList"><li>To see them in the game, download the <b>Patch in Progress</b> in the ' + actionChip('Patch Generator', "showCategory('CHANGES')") + ' as a disk image.</li></ul>' +
+        '<div class="mkRow">' + START_PLAQUES.buttons.filter(b => !b.grayed).map(b =>
+          '<label class="mkField">' + svEsc(b.word) + ' <input type="text" maxlength="24" value="' + svEsc(words[b.id]) + '" oninput="window.START_WORDS[' + b.id + '] = this.value"></label>').join('') + '</div>' +
+        '<div class="mechStats"><button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="startButtonsCarve()">Carve the Buttons</button>' +
+        (carved ? '<button class="secondary" style="width:auto;margin:0;padding:6px 12px" onclick="restoreStartButtons()">Restore the Buttons</button>' : '') +
+        '</div><div id="startButtonsNote" class="mechSub"></div>' +
+        '<canvas id="startButtonsBoard"></canvas><canvas id="startButtonsLit"></canvas>'
+      : '<p class="mechLede">The start screen’s pictures are not open. Open Cythera Data from a file that includes its resource fork.</p>') +
+    '</section>';
+  if (have) setTimeout(() => {
+    try { drawStartButtons(); } catch (e) { quiet(e, 'the start screen’s buttons'); }
+  }, 0);
+  return box;
+}
+// The buttons as they are in the fork: the screen around them, and under
+// it the seven pictures of the buttons alone, two to a row.
+function drawStartButtons() {
+  const fork = window.CYTHERA_RSRC, { W, H, buttons } = START_PLAQUES;
+  const put = (id, rgba, w, h) => {
+    const cv = document.getElementById(id);
+    if (!cv) return;
+    cv.width = w; cv.height = h;
+    const im = cv.getContext('2d').createImageData(w, h);
+    im.data.set(rgba); cv.getContext('2d').putImageData(im, 0, 0);
+  };
+  const s = forkPictureRGBA(fork, START_PLAQUES.board);
+  const x0 = Math.max(0, Math.min(...buttons.map(b => b.x)) - 8), y0 = Math.max(0, Math.min(...buttons.map(b => b.y)) - 8);
+  const x1 = Math.min(s.W, Math.max(...buttons.map(b => b.x)) + W + 8), y1 = Math.min(s.H, Math.max(...buttons.map(b => b.y)) + H + 8);
+  put('startButtonsBoard', plaqueCrop(s.rgba, s.W, x0, y0, x1 - x0, y1 - y0), x1 - x0, y1 - y0);
+  const gap = 4, cols = 2, rows = Math.ceil(buttons.length / cols), PW = cols * W + gap, PH = rows * (H + gap) - gap;
+  const sheet = new Uint8ClampedArray(PW * PH * 4);
+  buttons.forEach((b, k) => plaquePaste(sheet, PW, forkPictureRGBA(fork, b.id).rgba, (k % cols) * (W + gap), Math.floor(k / cols) * (H + gap), W, H));
+  put('startButtonsLit', sheet, PW, PH);
 }
 
 /* THE DIALOGUE BOX, from the file (10 September 2026) and, since 11
@@ -639,7 +943,7 @@ function installGameFont() {
   if (!entry) { window.GAME_FONT_STATE = 'the resource fork has no sfnt'; return; }
   let ttf;
   try { ttf = sfntToTrueType(fork.dataOf('sfnt', entry)); }
-  catch (e) { window.GAME_FONT_STATE = 'sfnt ' + entry.id + ': could not make a TrueType file of it: ' + e.message; return; }
+  catch (e) { window.GAME_FONT_STATE = 'the page could not make a TrueType file of sfnt ' + entry.id + ': ' + e.message; return; }
   window.GAME_FONT_TTF = ttf;
   if (typeof FontFace === 'undefined' || !document.fonts) { window.GAME_FONT_STATE = 'this browser cannot load a font from bytes'; return; }
   try {
@@ -825,9 +1129,9 @@ function renderRsrcSheet() {
 
   const inv = rsrcInventory();
   if (!inv) {
-    out.textContent = 'No resource fork. It comes from the file you opened Cythera Data from: ' +
-      'a .hqx, MacBinary or AppleSingle file includes both forks, but a bare data fork leaves it out. ' +
-      'Open the file again from "Cythera Data.hqx" to get it.';
+    out.textContent = 'No resource fork. Only some kinds of file carry one. ' +
+      'A .hqx, MacBinary or AppleSingle file includes both forks, but a bare data fork leaves the resource fork out. ' +
+      'Open "Cythera Data.hqx" again to get it.';
     return;
   }
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
@@ -951,8 +1255,8 @@ function showRsrcDetail(type, id) {
     type + ' ' + entry.id + ': ' + RSRC_DELVER_TYPES[type] + ', ' + data.length + ' bytes' +
     (pat ? ', ' + pat.tiles.length + ' tiles in a ' + pat.cols + '×' + pat.rows + ' grid' : '') +
     (pat && pat.extraBytes ? '\n' + pat.extraBytes + ' bytes past the end of the grid, unaccounted for' : '') +
-    (pat && pat.guessedShape ? '\nThe grid shape is inferred; the file has only a list of tiles.' : '') +
-    '\nUsed only by the editor; according to the wiki, changing or deleting these has no effect on the game.';
+    (pat && pat.guessedShape ? '\nThe file has only a list of tiles, so the grid shape is a guess.' : '') +
+    '\nOnly the editor uses these. According to the wiki, changing or deleting them has no effect on the game.';
   head.appendChild(cap);
   grid.appendChild(head);
 
@@ -1036,7 +1340,7 @@ async function loadApplicationFork() {
       // The RAW fork as well as the parsed one. The comparison section needs
       // bytes: describeApplicationDiff opens both sides itself so that it can
       // say the same things about an application this page never opened.
-      window.APP_RSRC_RAW = c.rsrc;
+      window.APP_RSRC_RAW = c.rsrc; window.APP_RSRC_EDITS = new Map();
       window.APP_DATA = c.data && c.data.length ? c.data : null; window.APP_PEF = null;
       window.APP_RSRC_STATE = ''; window.APP_PRISTINE = null;
       try { installDialogueBox(); } catch (e) { quiet(e); }
@@ -1119,7 +1423,7 @@ function renderMacRsrcSheet() {
   grid.style.display = '';
   grid.innerHTML = '';
   const view = FORK_VIEWS[window.CUR_SUBN] || null;
-  if (window.CUR_SUBN === 'FONTS') { grid.appendChild(fontSwapPanel()); grid.appendChild(strikeSwapPanel()); }
+  if (window.CUR_SUBN === 'FONTS') { grid.appendChild(textStylesPanel()); grid.appendChild(fontSwapPanel()); grid.appendChild(strikeSwapPanel()); grid.appendChild(startButtonsPanel()); }
   const kinds = view ? view.kinds.map(id => RSRC_KINDS.find(k => k.id === id)) : null;
   const sources = view ? (view.source === 'both' ? ['data', 'app'] : [view.source]) : [window.RSRC_SOURCE === 'app' ? 'app' : 'data'];
   const q = (window.PROP_FILTER || '').trim().toLowerCase();
@@ -1133,8 +1437,8 @@ function renderMacRsrcSheet() {
     if (!fork) {
       missing.push(src === 'app'
         ? (window.APP_RSRC_STATE === 'loading' ? 'Loading the program…'
-           : window.APP_RSRC_STATE || 'The program’s fork has not been opened.')
-        : 'No resource fork came with the file. It comes from the file you opened Cythera Data from: a .hqx, MacBinary or AppleSingle file includes both forks, but a bare data fork leaves it out.');
+           : window.APP_RSRC_STATE || 'The program’s fork is not open.')
+        : 'No resource fork came with the file. A .hqx, MacBinary or AppleSingle file includes both forks, but a bare data fork leaves the resource fork out.');
       continue;
     }
     total += fork.total();
@@ -1187,13 +1491,34 @@ function renderMacRsrcSheet() {
         imgwrap.appendChild(canvas);
         cell.appendChild(imgwrap);
         const lbl = document.createElement('div');
-        lbl.className = it.entry.name ? 'lbl' : 'lbl nolabel';
-        lbl.textContent = it.entry.name || rsrcTypeLabel(it.type) || '(unnamed)';
+        const outside = it.entry.name ? null : outsideResourceName(src, it.type, it.entry.id);
+        lbl.className = it.entry.name || outside ? 'lbl' : 'lbl nolabel';
+        lbl.textContent = it.entry.name || outside || rsrcTypeLabel(it.type) || '(unnamed)';
         cell.appendChild(lbl);
         const rid = document.createElement('div');
         rid.className = 'resid';
         rid.textContent = it.type + ' ' + it.entry.id;
         cell.appendChild(rid);
+        if (it.type === 'snd ') {
+          // The archive's sound tile (miniWaveCanvas), so the SFX tab's two
+          // halves look the same: the waveform, the name, the id, the size.
+          const wave = miniWaveCanvas();
+          cell.style.justifyContent = 'center';
+          cell.replaceChild(wave, imgwrap);
+          const meta = document.createElement('div');
+          meta.className = 'listMeta';
+          meta.textContent = fmtBytes(fork.sizeOf(it.type, it.entry));
+          cell.appendChild(meta);
+          lazyTile(cell, () => {
+            const a = rsrcArtifacts(fork, it.type, it.entry).find(x => x.ext === 'wav');
+            if (a) a.blob.arrayBuffer().then(buf => drawMiniWave(wave, wavFirstChannel(new DataView(buf))))
+              .catch(e => quiet(e, 'drawing a sound resource’s waveform'));
+          });
+          cell.title = 'Open ' + it.type + ' ' + it.entry.id;
+          cell.onclick = () => showMacRsrcDetail(it.type, it.entry.id, src);
+          grid.appendChild(cell);
+          continue;
+        }
         lazyTile(cell, () => {
           const arts = rsrcArtifacts(fork, it.type, it.entry);
           const pic = arts.find(a => a.canvas && a.canvas.width);
@@ -1233,6 +1558,133 @@ function renderMacRsrcSheet() {
       typesSeen.size + ' types' + (q ? ', ' + shown + ' shown' : '') +
       ', grouped by purpose. A kind of resource shown elsewhere on the site points there.';
   }
+}
+
+/* ---------------------------------------------------------------------------
+   An image in a resource fork, replaced from a PNG.
+
+   The maintainer's request of 21 October 2026, to edit the forks' images as
+   the tunes are edited: save the image as a PNG, change it anywhere, and put
+   it back with Replace with a PNG on the image's page. The PNG is read by
+   pngDecode (js/delv-artpack.js), which needs no canvas, and packed into the
+   resource by rsrcReplaceImage (js/mac-rsrc-types.js): a PICT, an icon of
+   any of the six kinds, a cursor, a colour icon or a pattern, in the form
+   it had, with a PNG of another size rejected. utilities/image_write_check.mjs
+   compares the result with the decoders over every image of both forks.
+
+   Cythera Data's fork is replaced in window.CYTHERA_RSRC_RAW, as the font
+   swap's is, so it is in Replacement Files and the disk image with no more
+   work, and RSRC_PICTURES names what changed for the Patch in Progress. The program's
+   fork is the program's, which leaves the page only as the program: an
+   edit there is kept in APP_RSRC_EDITS with the bytes it replaced, and
+   basketProgram writes the edits into whichever program it builds, so the
+   program is in Replacement Files when its images changed even with no
+   program fix chosen. A Magpie patch has no room for either fork, and the
+   disk image has Cythera Data alone, so basketLeftOut names what each
+   leaves out.
+--------------------------------------------------------------------------- */
+window.RSRC_PICTURES = new Map();   // 'PICT 130' -> the PNG's file name: Cythera Data's fork
+window.APP_RSRC_EDITS = new Map();  // 'icl8 128' -> {type, id, name, was, now}: the program's fork
+function forkImageSide(fork) {
+  return !fork ? null : fork === window.CYTHERA_RSRC ? 'data' : fork === window.APP_RSRC ? 'app' : null;
+}
+function forkPictureEditable(type, fork) {
+  return rsrcImageWritable(type) && !!forkImageSide(fork);
+}
+function forkImageKey(type, id) { return type + ' ' + id; }
+function forkImageReplaced(side, type, id) {
+  const k = forkImageKey(type, id);
+  return side === 'app' ? (window.APP_RSRC_EDITS.get(k) || {}).name : window.RSRC_PICTURES.get(k);
+}
+function setForkImage(side, type, id, bytes) {
+  const fork = side === 'app' ? window.APP_RSRC : window.CYTHERA_RSRC;
+  const spec = resourceForkSpec(fork);
+  const r = spec.resources.find(x => x.type === type && x.id === id);
+  if (!r) throw new Error(type + ' ' + id + ' is not in the fork.');
+  r.data = bytes;
+  const raw = writeResourceFork(spec);
+  const reopened = openResourceFork(raw);     // it must read back, or it is not written
+  if (side === 'app') { window.APP_RSRC_RAW = raw; window.APP_RSRC = reopened; }
+  else { window.CYTHERA_RSRC_RAW = raw; window.CYTHERA_RSRC = reopened; }
+  // After Apply to Site Data the program as it arrived is APP_PRISTINE, and
+  // the fixes are built from it; the image is written there too, so that a
+  // restored image does not come back in the next program built.
+  const p = side === 'app' && window.APP_PRISTINE;
+  if (p && p.rsrc) {
+    const ps = resourceForkSpec(openResourceFork(p.rsrc));
+    const pr = ps.resources.find(x => x.type === type && x.id === id);
+    if (pr) { pr.data = bytes; window.APP_PRISTINE = Object.assign({}, p, { rsrc: writeResourceFork(ps) }); }
+  }
+  _rsrcArtifactCache.clear();
+}
+function replaceForkImage(side, type, id, png, name) {
+  const fork = side === 'app' ? window.APP_RSRC : window.CYTHERA_RSRC;
+  const entry = fork && (fork.resourcesByType[type] || []).find(e => e.id === id);
+  if (!entry) throw new Error(type + ' ' + id + ' is not in the fork.');
+  const was = fork.dataOf(type, entry), img = pngDecode(png);
+  const now = rsrcReplaceImage(type, was, img.rgba, img.W, img.H);
+  setForkImage(side, type, id, now);
+  const k = forkImageKey(type, id);
+  if (side === 'app') {
+    const rec = window.APP_RSRC_EDITS.get(k) || { type, id, was };
+    window.APP_RSRC_EDITS.set(k, Object.assign(rec, { name: name || 'a PNG', now }));
+  } else window.RSRC_PICTURES.set(k, name || 'a PNG');
+}
+function restoreForkImage(side, type, id) {
+  const k = forkImageKey(type, id);
+  if (side === 'app') {
+    const rec = window.APP_RSRC_EDITS.get(k);
+    if (!rec) throw new Error('The page could not replace ' + type + ' ' + id + '.');
+    setForkImage(side, type, id, rec.was);
+    window.APP_RSRC_EDITS.delete(k);
+    return;
+  }
+  const orig = window.ARCHIVE_ORIGINAL_RSRC && openResourceFork(window.ARCHIVE_ORIGINAL_RSRC);
+  const entry = orig && (orig.resourcesByType[type] || []).find(e => e.id === id);
+  if (!entry) throw new Error('The original image is no longer in the page. Open the file again to get it back.');
+  setForkImage(side, type, id, orig.dataOf(type, entry));
+  window.RSRC_PICTURES.delete(k);
+}
+// The program's fork with the images replaced on the page written into it:
+// basketProgram's, for the program it builds with or without the fixes.
+function programWithImages(rsrc) {
+  const edits = window.APP_RSRC_EDITS;
+  if (!edits || !edits.size) return rsrc;
+  const spec = resourceForkSpec(openResourceFork(rsrc));
+  for (const rec of edits.values()) {
+    const r = spec.resources.find(x => x.type === rec.type && x.id === rec.id);
+    if (!r) throw new Error('This program has no ' + rec.type + ' ' + rec.id + ' to replace.');
+    r.data = rec.now;
+  }
+  return writeResourceFork(spec);
+}
+/* The Finder flags a program is written with: hasBundle (0x2000) when its
+   fork has a BNDL, as the shipped Cythera has. Without the bit the Finder
+   never reads the BNDL, and the program and its documents have blank icons,
+   which is how every program Grimoire wrote came out until 21 October 2026.
+   Read from the fork rather than carried from wherever the program came
+   from, because a program chosen in MacBinary or BinHex and one taken out
+   of the installer come with different records of their flags. */
+function programFinderFlags(rsrc) {
+  try { return (openResourceFork(rsrc).resourcesByType.BNDL || []).length ? 0x2000 : 0; }
+  catch (e) { quiet(e, 'the program\u2019s Finder flags'); return 0; }
+}
+function forkPicturePicked(input, side, type, id) {
+  const f = input && input.files && input.files[0];
+  if (!f) return;
+  f.arrayBuffer().then(buf => {
+    input.value = '';
+    try { replaceForkImage(side, type, id, new Uint8Array(buf), f.name); }
+    catch (e) { setStatus('The page could not replace ' + type + ' ' + id + '. ' + e.message, true); return; }
+    showMacRsrcDetail(type, id, side);
+    setStatus('Replaced ' + type + ' ' + id + ' with ' + f.name + '. To download it, use the Patch in Progress in Tools › Patch Generator.');
+  }).catch(e => setStatus('The page could not read ' + f.name + ': ' + e.message, true));
+}
+function forkPictureRestore(side, type, id) {
+  try { restoreForkImage(side, type, id); }
+  catch (e) { setStatus(e.message, true); return; }
+  showMacRsrcDetail(type, id, side);
+  setStatus('Put back the original ' + type + ' ' + id + '.');
 }
 
 function showMacRsrcDetail(type, id, source) {
@@ -1294,6 +1746,32 @@ function showMacRsrcDetail(type, id, source) {
       dl.onclick = () => triggerPNGDownload(cv, base + (a.tag ? '_' + safeFileName(a.tag) : '') + '.png');
       box.appendChild(document.createElement('br'));
       box.appendChild(dl);
+      if (forkPictureEditable(type, fork) && a === arts.find(x => x.canvas)) {
+        const side = forkImageSide(fork), replaced = forkImageReplaced(side, type, id);
+        const pick = document.createElement('input');
+        pick.type = 'file'; pick.accept = '.png,image/png'; pick.style.display = 'none';
+        pick.onchange = () => forkPicturePicked(pick, side, type, id);
+        const rep = document.createElement('button');
+        rep.className = 'secondary';
+        rep.style.cssText = 'margin-top:6px;margin-left:6px';
+        rep.textContent = 'Replace with a PNG';
+        rep.title = 'Puts a PNG of the same size in this image’s place';
+        rep.onclick = () => pick.click();
+        box.appendChild(rep);
+        box.appendChild(pick);
+        if (replaced) {
+          const back = document.createElement('button');
+          back.className = 'secondary';
+          back.style.cssText = 'margin-top:6px;margin-left:6px';
+          back.textContent = 'Put the Original Back';
+          back.onclick = () => forkPictureRestore(side, type, id);
+          box.appendChild(back);
+          const noteElement = document.createElement('div');
+          noteElement.style.cssText = 'font-size:0.75rem;color:#f0ede4;margin-top:4px';
+          noteElement.textContent = 'Replaced with ' + replaced + '. It is in the Patch in Progress' + (side === 'app' ? ', with the program.' : '.');
+          box.appendChild(noteElement);
+        }
+      }
     } else if (a.text) {
       const pre = document.createElement('pre');
       pre.style.cssText = 'text-align:left;max-width:820px;margin:0 auto;white-space:pre-wrap;' +
@@ -1301,6 +1779,14 @@ function showMacRsrcDetail(type, id, source) {
       pre.textContent = a.text;
       box.appendChild(pre);
     } else if (a.blob || a.wav) {
+      if (a.ext === 'wav') {
+        const wave = document.createElement('canvas');
+        wave.className = 'waveform';
+        wave.width = 900; wave.height = 160;
+        box.appendChild(wave);
+        (a.blob || a.wav).arrayBuffer().then(buf => drawWaveform(wavFirstChannel(new DataView(buf)), wave))
+          .catch(e => quiet(e, 'drawing a sound resource’s waveform'));
+      }
       const audio = document.createElement('audio');
       audio.controls = true;
       audio.src = URL.createObjectURL(a.blob || a.wav);
@@ -1326,7 +1812,7 @@ function showMacRsrcDetail(type, id, source) {
 
   out.textContent = arts.length
     ? type + ' ' + entry.id + ': ' + arts.length + ' decoded view' + (arts.length === 1 ? '' : 's') + '.'
-    : type + ' ' + entry.id + ': this page cannot decode this type; the bytes are below.';
+    : type + ' ' + entry.id + ': the page cannot decode this type, so the bytes are below.';
 }
 
 
@@ -1424,8 +1910,8 @@ function showCharacterOnMap(i) {
   window.MAP_SETTLED = null;
   renderImage();
   whenMapSettled(resid, (cm, vp) => {
-    const who = charactersOnLevel(cm.level, window.MAP_HOUR).find(p => p.index === i);
-    const tx = who ? who.x : c.x, ty = who ? who.y : c.y;
+    const character = charactersOnLevel(cm.level, window.MAP_HOUR).find(p => p.index === i);
+    const tx = character ? character.x : c.x, ty = character ? character.y : c.y;
     mapView.x = vp.clientWidth / 2 - tx * cm.TS * mapView.scale;
     mapView.y = vp.clientHeight / 2 - ty * cm.TS * mapView.scale;
     clampMapPan(); applyMapTransform(); drawCharacterLayer();
@@ -1562,6 +2048,9 @@ function showCharacterDetail(i) {
       ' \u00b7 proptype ' + srcNum(cSrc(4, 'the aspect and prop type, two bytes'), '0x' + r.proptype.toString(16).toUpperCase()) +
       (r.aspect ? ' \u00b7 aspect ' + srcNum(cSrc(4, 'the aspect and prop type, two bytes'), String(r.aspect)) : '');
   panel.appendChild(info);
+  // Where they live, their job, and their goods and lessons, as sentences
+  // for the search alone (searchSentences).
+  try { panel.insertAdjacentHTML('beforeend', searchSentences(searchPersonSentences(i, d))); } catch (e) { quiet(e, 'writing a person\u2019s sentences for the search'); }
   // What this person is assembled from, each chip a jump to the component
   // under Components. The dossier used to draw the portrait and the sprite
   // sheet without ever showing which resources they were.
@@ -1592,10 +2081,10 @@ function showCharacterDetail(i) {
                ' (' + srcNum(sSrc(5, 'the packed level, x and y'), String(e.x)) + ', ' +
                srcNum(sSrc(5, 'the packed level, x and y'), String(e.y)) + ')' +
                ' <span style="color:#dcd8cc">behavior ' + srcNum(sSrc(1, 'the mode'), String(e.mode)) +
-               (behaviourWordHTML(e.mode) ? ', ' + behaviourWordHTML(e.mode) : '') + '</span></div>';
+               (behaviorWordHTML(e.mode) ? ', ' + behaviorWordHTML(e.mode) : '') + '</span></div>';
       }).join('');
   } else {
-    sh.innerHTML = '<div style="color:#dcd8cc;font-size:0.8125rem">No schedule entries; this character stands in a map\u2019s prop list rather than moving by the clock.</div>';
+    sh.innerHTML = '<div style="color:#dcd8cc;font-size:0.8125rem">No schedule entries. This character stands in a map\u2019s prop list instead of moving by the clock.</div>';
   }
   // Jump to where this character currently stands.
   if (r.zone) {
@@ -1628,9 +2117,9 @@ function heroPortraitCard() {
   const head = '<b style="color:#f0ede4">Portrait</b> ';
   if (!pc) {
     card.innerHTML = head + (isSave
-      ? 'The portrait above is this file\u2019s 0x8800, chosen when you made the character. '
-      : 'The portrait above is the scenario\u2019s 0x8800 and is never shown in play. ') +
-      'Which portraits the game offers when you make a character, and where it writes the chosen one, are in the program, and the program is not open.';
+      ? 'The portrait above is this file\u2019s 0x8800, which the player chose when making the character. '
+      : 'The portrait above is the scenario\u2019s 0x8800, which the game never shows in play. ') +
+      'Which portraits the game offers at character creation, and where it writes the chosen one, are in the program, and the program is not open.';
     return card;
   }
   const hex = v => '0x' + v.toString(16).toUpperCase();
@@ -1638,8 +2127,8 @@ function heroPortraitCard() {
   const slots = [];
   for (let r = first; r < first + 64 && getResourceBytes(ARCHIVE, r); r++) slots.push(r);
   let text = head + (isSave
-    ? 'The portrait above is the one chosen when you made this character, ' + srcNum(pc.writes, 'saved') + ' in this file. '
-    : 'The portrait above is never shown in play; the game uses the one you choose when you make the character, which is ' + srcNum(pc.writes, 'saved') + ' in the saved game file. ');
+    ? 'The portrait above is the one the player chose when making this character, ' + srcNum(pc.writes, 'saved') + ' in this file. '
+    : 'The game never shows the portrait above in play. It uses the one the player chooses at character creation, and ' + srcNum(pc.writes, 'saves') + ' it in the saved game file. ');
   const choices = 'The ' + srcNum(pc.first, 'choices') + ' at character creation';
   if (!slots.length) { card.innerHTML = text + choices + ' are not in this file.'; return card; }
   // Which of the run the list draws: column c, row r is the first plus the
@@ -1806,7 +2295,7 @@ function setModeImpl(m) {
   if (window.CUR_SUBN === 'CHEATS') { renderCheatsSheet(); return; }
   if (window.CUR_SUBN === 'DATAFORK') { renderDataForkSheet(); return; }
   // A link to the Changes tab, which was a section of the Patch Generator
-  // from 17 to 19 October 2026, opens Your Patch, which has the edits.
+  // from 17 to 19 October 2026, opens the Patch in Progress, which has the edits.
   if (window.CUR_SUBN === 'CHANGES') { renderPatchesSheet(); setTimeout(() => { const pb = document.getElementById('patchBar'); if (pb && pb.scrollIntoView) pb.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); return; }
   if (window.CUR_SUBN === 'TOOLS') { renderToolsSheet(); return; }
   // One tab per group of the rules sheet, and Hackery, all one renderer.

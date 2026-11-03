@@ -56,8 +56,8 @@ const check = (cond, what, detail) => cond ? ok() : fail(what, detail);
 // job -- its check 4b fails on a name the JS calls and nothing declares, and
 // downloadEditedDiskImage calls writeHfsImage.
 const {sources} = collectPageScripts(pagePath);
-const needed = ['js/mac-bytes.js', 'js/mac-hfs.js'];
-for (const src of needed) {
+const requiredFiles = ['js/mac-bytes.js', 'js/mac-hfs.js'];
+for (const src of requiredFiles) {
   if (!sources.some(s => s.name === src)) {
     console.error(`${pagePath} does not load ${src}`);
     process.exit(2);
@@ -67,7 +67,7 @@ const sandbox = {console, TextDecoder, TextEncoder, Date, Math, Uint8Array, Erro
                  String, Number, Set, Map, Array, JSON, isNaN, parseInt};
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const src of needed) {
+for (const src of requiredFiles) {
   const s = sources.find(x => x.name === src);
   vm.runInContext(s.code, sandbox, {filename: src});
 }
@@ -106,40 +106,40 @@ function catalogKey(rec) {
 }
 
 function audit(label, image, expected) {
-  const say = (cond, what, detail) => check(cond, `${label}: ${what}`, detail);
+  const checkWithLabel = (cond, what, detail) => check(cond, `${label}: ${what}`, detail);
   const mdb = image.subarray(1024, 1024 + 162);
-  say(u16(mdb, 0) === 0x4244, 'HFS signature');
+  checkWithLabel(u16(mdb, 0) === 0x4244, 'HFS signature');
   const alBlkSize = u32(mdb, 20), blockCount = u16(mdb, 18), alBlSt = u16(mdb, 28);
   const freeBks = u16(mdb, 34), bitmapStart = u16(mdb, 14);
-  say(alBlkSize % SECTOR === 0 && alBlkSize > 0, 'allocation block size', alBlkSize + ' bytes');
-  say(bitmapStart === 3, 'volume bitmap starts at sector 3');
+  checkWithLabel(alBlkSize % SECTOR === 0 && alBlkSize > 0, 'allocation block size', alBlkSize + ' bytes');
+  checkWithLabel(bitmapStart === 3, 'volume bitmap starts at sector 3');
   const areaEnd = alBlSt * SECTOR + blockCount * alBlkSize;
-  say(areaEnd + 2 * SECTOR <= image.length,
+  checkWithLabel(areaEnd + 2 * SECTOR <= image.length,
       'allocation area fits, with room for the alternate MDB',
       `${areaEnd} + 1024 <= ${image.length}`);
-  say(pstr(mdb, 36) === expected.volumeName, 'volume name', pstr(mdb, 36));
+  checkWithLabel(pstr(mdb, 36) === expected.volumeName, 'volume name', pstr(mdb, 36));
 
   // The alternate MDB at the end must be the same block.
   const alt = image.subarray(image.length - 2 * SECTOR, image.length - 2 * SECTOR + 162);
-  say(alt.every((b, i) => b === mdb[i]), 'alternate MDB matches the real one');
+  checkWithLabel(alt.every((b, i) => b === mdb[i]), 'alternate MDB matches the real one');
 
   const blockAt = n => alBlSt * SECTOR + n * alBlkSize;
   const catStart = u16(mdb, 150), catBlocks = u16(mdb, 152), catSize = u32(mdb, 146);
   const extStart = u16(mdb, 134), extBlocks = u16(mdb, 136), extSize = u32(mdb, 130);
   const catalog = image.subarray(blockAt(catStart), blockAt(catStart) + catSize);
-  say(catSize % NODE === 0 && catSize > 0, 'catalog is a whole number of nodes', catSize + ' bytes');
-  say(Math.ceil(catSize / alBlkSize) === catBlocks, 'catalog extent covers the catalog file');
-  say(Math.ceil(extSize / alBlkSize) === extBlocks, 'extents extent covers the extents file');
+  checkWithLabel(catSize % NODE === 0 && catSize > 0, 'catalog is a whole number of nodes', catSize + ' bytes');
+  checkWithLabel(Math.ceil(catSize / alBlkSize) === catBlocks, 'catalog extent covers the catalog file');
+  checkWithLabel(Math.ceil(extSize / alBlkSize) === extBlocks, 'extents extent covers the extents file');
   // A tree file's logical size is its whole allocation, or fsck_hfs stops at
   // "Invalid extent file PEOF".
-  say(catSize === catBlocks * alBlkSize && extSize === extBlocks * alBlkSize,
+  checkWithLabel(catSize === catBlocks * alBlkSize && extSize === extBlocks * alBlkSize,
       'each B-tree file fills its allocation blocks', `${catSize}, ${extSize} bytes in ${alBlkSize}-byte blocks`);
 
   // Every allocated block marked once, and nothing else marked.
   const used = new Set();
-  const claim = (from, blocks, who) => {
+  const claim = (from, blocks, owner) => {
     for (let i = 0; i < blocks; i++) {
-      if (used.has(from + i)) { fail(`${label}: block ${from + i} claimed twice`, who); return; }
+      if (used.has(from + i)) { fail(`${label}: block ${from + i} claimed twice`, owner); return; }
       used.add(from + i);
     }
   };
@@ -148,15 +148,15 @@ function audit(label, image, expected) {
 
   // Walk the catalog: leaves via the chain, index nodes checked against them.
   const header = nodeRecords(catalog, 0);
-  say(header && header.kind === 1, 'catalog node 0 is a header node');
+  checkWithLabel(header && header.kind === 1, 'catalog node 0 is a header node');
   const h = catalog.subarray(14, 14 + 106);
   const nodeSize = u16(h, 18), nodeCount = u32(h, 22), freeNodes = u32(h, 26);
   const depth = u16(h, 0), root = u32(h, 2), nRecs = u32(h, 6);
   const firstLeaf = u32(h, 10), lastLeaf = u32(h, 14);
-  say(nodeSize === NODE, 'catalog node size is 512', String(nodeSize));
-  say(nodeCount === catSize / NODE, 'bthNNodes matches the file length',
+  checkWithLabel(nodeSize === NODE, 'catalog node size is 512', String(nodeSize));
+  checkWithLabel(nodeCount === catSize / NODE, 'bthNNodes matches the file length',
       `${nodeCount} nodes, ${catSize / NODE} in the file`);
-  say(u16(h, 20) === 37, 'catalog key length is 37');
+  checkWithLabel(u16(h, 20) === 37, 'catalog key length is 37');
 
   const leafKeys = [], leafNumbers = [];
   const files = new Map(), dirs = new Map();
@@ -184,9 +184,9 @@ function audit(label, image, expected) {
     }
     n = node.fLink;
   }
-  say(leafNumbers.length > 0 && leafNumbers[leafNumbers.length - 1] === lastLeaf,
+  checkWithLabel(leafNumbers.length > 0 && leafNumbers[leafNumbers.length - 1] === lastLeaf,
       'the leaf chain ends at bthLNode', leafNumbers.join('->'));
-  say(leafKeys.length === nRecs, 'bthNRecs matches the records found',
+  checkWithLabel(leafKeys.length === nRecs, 'bthNRecs matches the records found',
       `${nRecs} declared, ${leafKeys.length} walked`);
 
   let sorted = true;
@@ -245,11 +245,11 @@ function audit(label, image, expected) {
     }
   }
   if (indexOk) ok();
-  say(depth === (indexNodes ? 2 : 1) || depth >= 1, 'bthDepth is set', String(depth));
-  say(root >= 1 && root < nodeCount, 'bthRoot is a node in the file', String(root));
-  say(freeNodes > 0, 'the catalog has spare nodes', freeNodes + ' free');
+  checkWithLabel(depth === (indexNodes ? 2 : 1) || depth >= 1, 'bthDepth is set', String(depth));
+  checkWithLabel(root >= 1 && root < nodeCount, 'bthRoot is a node in the file', String(root));
+  checkWithLabel(freeNodes > 0, 'the catalog has spare nodes', freeNodes + ' free');
 
-  say([...files.values()].every(f => f.startBlocks === 0),
+  checkWithLabel([...files.values()].every(f => f.startBlocks === 0),
       'filStBlk and filRStBlk are 0 in every file record');
 
   // Forks: claim their blocks, and read the bytes back out of the image.
@@ -268,34 +268,34 @@ function audit(label, image, expected) {
     }
   }
   if (bitmapOk) ok();
-  say(freeBks === blockCount - used.size, 'drFreeBks matches the bitmap',
+  checkWithLabel(freeBks === blockCount - used.size, 'drFreeBks matches the bitmap',
       `${freeBks} vs ${blockCount - used.size}`);
 
   // What went in must be readable at the extents the catalog gives.
   let forksOk = true;
-  for (const want of expected.files) {
-    const got = files.get(want.name);
-    if (!got) { forksOk = false; fail(`${label}: ${want.name} is not in the catalog`); continue; }
-    if (got.type !== want.type) { forksOk = false; fail(`${label}: ${want.name} type ${got.type}`); }
-    for (const [fork, len, start] of [['data', got.dataLen, got.dataStart],
-                                      ['rsrc', got.rsrcLen, got.rsrcStart]]) {
-      const source = fork === 'data' ? want.data : (want.rsrc || new Uint8Array(0));
+  for (const expectedFile of expected.files) {
+    const actual = files.get(expectedFile.name);
+    if (!actual) { forksOk = false; fail(`${label}: ${expectedFile.name} is not in the catalog`); continue; }
+    if (actual.type !== expectedFile.type) { forksOk = false; fail(`${label}: ${expectedFile.name} type ${actual.type}`); }
+    for (const [fork, len, start] of [['data', actual.dataLen, actual.dataStart],
+                                      ['rsrc', actual.rsrcLen, actual.rsrcStart]]) {
+      const source = fork === 'data' ? expectedFile.data : (expectedFile.rsrc || new Uint8Array(0));
       if (len !== source.length) {
-        forksOk = false; fail(`${label}: ${want.name} ${fork} length ${len}, expected ${source.length}`); continue;
+        forksOk = false; fail(`${label}: ${expectedFile.name} ${fork} length ${len}, expected ${source.length}`); continue;
       }
       if (!len) continue;
       const at = blockAt(start);
       for (let i = 0; i < source.length; i++) {
         if (image[at + i] !== source[i]) {
           forksOk = false;
-          fail(`${label}: ${want.name} ${fork} differs at byte ${i}`);
+          fail(`${label}: ${expectedFile.name} ${fork} differs at byte ${i}`);
           break;
         }
       }
     }
   }
   if (forksOk) ok();
-  say(dirs.size === 1 + expected.dirCount, 'directory records',
+  checkWithLabel(dirs.size === 1 + expected.dirCount, 'directory records',
       `${dirs.size - 1} folder(s) plus the root`);
   console.log(`  ok   ${label} — ${(image.length / 1024).toFixed(0)}K volume, ` +
     `${files.size} file(s), ${dirs.size - 1} folder(s), ${nodeCount} catalog nodes ` +
@@ -420,10 +420,10 @@ if (!SYSTEMLESS) {
         if (same) {
           for (const f of dump.files) {
             const leaf = f.path.split('/').pop();
-            const want = c.flat.find(e => e.name === leaf);
-            if (!want) { same = false; break; }
-            if (f.type !== want.type || f.creator !== want.creator) { same = false; break; }
-            if (f.data !== hex(want.data) || f.rsrc !== hex(want.rsrc || new Uint8Array(0))) { same = false; break; }
+            const expectedFile = c.flat.find(e => e.name === leaf);
+            if (!expectedFile) { same = false; break; }
+            if (f.type !== expectedFile.type || f.creator !== expectedFile.creator) { same = false; break; }
+            if (f.data !== hex(expectedFile.data) || f.rsrc !== hex(expectedFile.rsrc || new Uint8Array(0))) { same = false; break; }
           }
         }
         check(same, `${c.label}: systemless reads back what went in`,

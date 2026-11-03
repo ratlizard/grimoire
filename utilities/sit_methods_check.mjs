@@ -104,17 +104,17 @@ for (const p of files) {
       forks++;
       byMethod.set(method, (byMethod.get(method) || 0) + 1);
       sandbox.__name = e.name; sandbox.__which = which;
-      let got;
-      try { got = Uint8Array.from(ev(`Array.from(stuffItFork(__sit, parseStuffItArchive(__sit).entries.find(x => x.name === __name), __which))`)); }
+      let actual;
+      try { actual = Uint8Array.from(ev(`Array.from(stuffItFork(__sit, parseStuffItArchive(__sit).entries.find(x => x.name === __name), __which))`)); }
       catch (err) { misses.push(`${e.name} ${which}: ${err.message}`); continue; }
-      if (got.length !== len) { misses.push(`${e.name} ${which}: ${got.length} bytes for a stated ${len}`); continue; }
+      if (actual.length !== len) { misses.push(`${e.name} ${which}: ${actual.length} bytes for a stated ${len}`); continue; }
       const f = findFile(e.name);
       if (!f) continue;                       // no oracle for this one
       let truth;
       try { truth = new Uint8Array(readFileSync(which === 'data' ? f : f + '/..namedfork/rsrc')); }
       catch { continue; }
-      if (truth.length === got.length && truth.every((v, i) => v === got[i])) matched++;
-      else misses.push(`${e.name} ${which}: differs from unar (${fnv(got)} against ${fnv(truth)})`);
+      if (truth.length === actual.length && truth.every((v, i) => v === actual[i])) matched++;
+      else misses.push(`${e.name} ${which}: differs from unar (${fnv(actual)} against ${fnv(truth)})`);
     }
   }
 }
@@ -214,13 +214,13 @@ else {
     const arc = parseStuffItArchive(__bundle);
     const e = arc.entries.find(x => /1\\.0\\.4/.test(x.name) && x.rsrcLen);
     if (!e) return {why: 'the bundle has no 1.0.4 entry with a resource fork'};
-    const mine = stuffItFork(__bundle, e, 'rsrc');
+    const forkBytes = stuffItFork(__bundle, e, 'rsrc');
     const mb = sniffMacContainer(__macbin);
     if (!mb || !mb.rsrc || !mb.rsrc.length) return {why: 'the MacBinary copy has no resource fork'};
     let at = -1;
-    const n = Math.max(mine.length, mb.rsrc.length);
-    for (let i = 0; i < n; i++) if (mine[i] !== mb.rsrc[i]) { at = i; break; }
-    return {method: e.rsrcMethod, len: mine.length, other: mb.rsrc.length, at};
+    const n = Math.max(forkBytes.length, mb.rsrc.length);
+    for (let i = 0; i < n; i++) if (forkBytes[i] !== mb.rsrc[i]) { at = i; break; }
+    return {method: e.rsrcMethod, len: forkBytes.length, other: mb.rsrc.length, at};
   })()`);
   if (r.why) console.log('  skip  ' + r.why);
   else if (r.at >= 0 || r.len !== r.other)

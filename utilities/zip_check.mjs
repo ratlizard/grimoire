@@ -131,16 +131,16 @@ function readAll(zipBytes) {
     } catch (err) { return {error: err.message}; }
   })()`);
 }
-function expectFiles(label, zipBytes, want) {
-  const got = readAll(zipBytes);
-  if (got.error) { fail(label, 'rejected: ' + got.error); return false; }
-  const paths = got.map(g => g.path).sort(), wantPaths = want.map(w => w.path).sort();
-  if (JSON.stringify(paths) !== JSON.stringify(wantPaths)) {
-    fail(label, `entries ${JSON.stringify(paths)} where ${JSON.stringify(wantPaths)} were zipped`); return false;
+function expectFiles(label, zipBytes, expected) {
+  const actual = readAll(zipBytes);
+  if (actual.error) { fail(label, 'rejected: ' + actual.error); return false; }
+  const paths = actual.map(g => g.path).sort(), expectedPaths = expected.map(w => w.path).sort();
+  if (JSON.stringify(paths) !== JSON.stringify(expectedPaths)) {
+    fail(label, `entries ${JSON.stringify(paths)} where ${JSON.stringify(expectedPaths)} were zipped`); return false;
   }
   let good = true;
-  for (const w of want) {
-    const g = got.find(x => x.path === w.path);
+  for (const w of expected) {
+    const g = actual.find(x => x.path === w.path);
     entriesChecked++;
     if (!same(g.data, w.data)) { fail(label, `"${w.path}" data fork differs at byte ${firstDiff(g.data, w.data)} (${g.data.length} against ${w.data.length})`); good = false; }
     if (w.rsrc && !same(g.rsrc, w.rsrc)) { fail(label, `"${w.path}" resource fork is ${g.rsrc.length} bytes, not the ${w.rsrc.length} zipped`); good = false; }
@@ -220,10 +220,10 @@ function expectFiles(label, zipBytes, want) {
     ['a zip cut off inside its only entry', writeZip([stored('cut', a)]).subarray(0, 40), /end-of-central-directory/],
   ];
   const missed = [];
-  for (const [what, bytes, want] of refusals) {
-    const got = readAll(bytes);
-    if (!got.error) missed.push(what + ' was read');
-    else if (!want.test(got.error)) missed.push(what + ' was rejected for the wrong reason: ' + got.error);
+  for (const [what, bytes, expected] of refusals) {
+    const actual = readAll(bytes);
+    if (!actual.error) missed.push(what + ' was read');
+    else if (!expected.test(actual.error)) missed.push(what + ' was rejected for the wrong reason: ' + actual.error);
   }
   if (missed.length) fail('the negative controls', missed.join('; '));
   else ok('the negative controls', refusals.map(r => r[0]).join(', ') + ': each rejected, and for its reason');
@@ -249,10 +249,10 @@ function expectFiles(label, zipBytes, want) {
   const at = name => marked.indexOf(Buffer.from(name)) + name.length;
   const c1 = at('two.rez') + (files[1].deflated.length >> 1), c2 = at('three.rez') + (files[2].deflated.length >> 1);
   const parts = [marked.subarray(0, c1), marked.subarray(c1, c2), marked.subarray(c2)];
-  const want = files.map(f => ({path: f.name.toString(), data: f.data}));
-  const good = expectFiles('a zip in parts, joined', marked, want) &&
-    expectFiles('its first part alone', parts[0], want.slice(0, 1)) &&
-    expectFiles('its last part alone', parts[2], want.slice(3));
+  const expected = files.map(f => ({path: f.name.toString(), data: f.data}));
+  const good = expectFiles('a zip in parts, joined', marked, expected) &&
+    expectFiles('its first part alone', parts[0], expected.slice(0, 1)) &&
+    expectFiles('its last part alone', parts[2], expected.slice(3));
   if (good) ok('a zip in parts', 'joined, every entry and a data descriptor\'s; each part alone, the entries it contains whole');
 }
 
@@ -277,10 +277,10 @@ function expectFiles(label, zipBytes, want) {
   const sea = Buffer.concat([program, zip, tail]);
   const other = Buffer.concat([Buffer.from('Fun!'), sea.subarray(4)]);
   sandbox.__s = new Uint8Array(sea); sandbox.__o = new Uint8Array(other);
-  const want = files.filter(f => f.data.length || !f.name.toString().endsWith('/')).map(f => ({path: f.name.toString(), data: f.data}));
+  const expected = files.filter(f => f.data.length || !f.name.toString().endsWith('/')).map(f => ({path: f.name.toString(), data: f.data}));
   if (!ev('looksLikeZip(__s)')) fail('a ZipIt self-extractor', 'not recognised as a zip');
   else if (ev('looksLikeZip(__o)')) fail('a ZipIt self-extractor', 'the same bytes after something other than a PEF taken for a zip all the same');
-  else if (expectFiles('a ZipIt self-extractor', sea, want)) ok('a ZipIt self-extractor', 'its zip read after the program, every entry; the same zip after anything else, not taken');
+  else if (expectFiles('a ZipIt self-extractor', sea, expected)) ok('a ZipIt self-extractor', 'its zip read after the program, every entry; the same zip after anything else, not taken');
 }
 
 // ---- 3. Info-ZIP and ditto --------------------------------------------------
@@ -315,8 +315,8 @@ function expectFiles(label, zipBytes, want) {
     execFileSync('xattr', ['-wx', 'com.apple.FinderInfo', '44656C50 44656C76' + ' 0000'.repeat(12), join(folder, 'Café save')]);
     const out = join(TMP, 'ditto.zip');
     execFileSync('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', folder, out]);
-    const want = base.map(w => w.path === 'Folder ƒ/Café save' ? {...w, rsrc, type: 'DelP', creator: 'Delv'} : w);
-    if (expectFiles('ditto', readFileSync(out), want))
+    const expected = base.map(w => w.path === 'Folder ƒ/Café save' ? {...w, rsrc, type: 'DelP', creator: 'Delv'} : w);
+    if (expectFiles('ditto', readFileSync(out), expected))
       ok('ditto', 'the Finder’s container, a resource fork and a Finder type out of __MACOSX, UTF-8 names without the flag');
   }
 }
@@ -338,16 +338,16 @@ function expectFiles(label, zipBytes, want) {
     else {
       const out = join(TMP, 'unar');
       execFileSync('unar', ['-q', '-f', '-o', out, addon], {stdio: 'ignore'});
-      const got = readAll(bytes).filter(g => g.path.startsWith('Rocky the Flying Chicken!/Rocky'));
-      const want = got.map(g => {
+      const saves = readAll(bytes).filter(g => g.path.startsWith('Rocky the Flying Chicken!/Rocky'));
+      const expected = saves.map(g => {
         const f = join(out, g.path);
         return {path: g.path, data: readFileSync(f), rsrc: readFileSync(join(f, '..namedfork', 'rsrc')), type: 'DelP', creator: 'Delv'};
       });
-      const openedOne = want.find(w => w.path.endsWith('/' + opened.name));
-      if (want.length !== 2) fail('the add-on', `found ${want.length} saves in it, not two`);
+      const openedOne = expected.find(w => w.path.endsWith('/' + opened.name));
+      if (expected.length !== 2) fail('the add-on', `found ${expected.length} saves in it, not two`);
       else if (!openedOne || !same(opened.data, openedOne.data) || !same(opened.rsrc, openedOne.rsrc))
         fail('the add-on', 'what extractDelverArchive handed back is not what unar extracts');
-      else if (expectFiles('the add-on', bytes, [...want, ...readAll(bytes).filter(g => !want.some(w => w.path === g.path)).map(g => ({path: g.path, data: readFileSync(join(out, g.path))}))]))
+      else if (expectFiles('the add-on', bytes, [...expected, ...readAll(bytes).filter(g => !expected.some(w => w.path === g.path)).map(g => ({path: g.path, data: readFileSync(join(out, g.path))}))]))
         ok('the add-on', `both saves in ${addon.split('/').pop()}, data and resource fork, byte identical to unar, and "${opened.name}" opens as ${opened.player}`);
     }
   }
@@ -361,10 +361,10 @@ function expectFiles(label, zipBytes, want) {
   if (!present.length) skip('the formats named instead of opened', 'the add-ons are not here');
   else {
     const wrong = [];
-    for (const [f, want] of present) {
+    for (const [f, expected] of present) {
       sandbox.__z = new Uint8Array(readFileSync(join(addons, f)));
       const msg = ev(`(() => { try { extractDelverArchive(__z); return 'opened'; } catch (e) { return e.message; } })()`);
-      if (!want.test(msg) || /Cythera application/.test(msg)) wrong.push(f + ': ' + msg);
+      if (!expected.test(msg) || /Cythera application/.test(msg)) wrong.push(f + ': ' + msg);
     }
     if (wrong.length) fail('the formats named instead of opened', wrong.join('; '));
     else ok('the format named instead of opened', present.map(([f]) => f).join(' and '));

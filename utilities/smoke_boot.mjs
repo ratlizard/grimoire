@@ -342,6 +342,40 @@ const A = () => ctx.__peek('ARCHIVE');
 /* The end of a run, whichever parts it drove: the deferred frame callbacks
    run, what fell back quietly is printed (not pinned: the stub throws where
    a browser would not, and the list is for reading), and the verdict. */
+/* A part that is a run of top-level try blocks (smoke_rules, smoke_edits) can be
+   cut into slices. It defines `const take = blockTaker(import.meta.url)` and
+   starts each block `if (take()) try {`. With no slice in the module's query
+   string every block runs. With `?slice=i-n` a part runs the blocks dealt to its
+   slice i of n, heaviest block first to the slice with the least milliseconds so
+   far, by the milliseconds in smoke_weights.json (from a run on 28 October
+   2026). A block past the end of the part's list is dealt in turn. Whatever the
+   weights say, every block goes to exactly one slice, because the deal depends
+   on the block's number alone, so a stale list costs balance and never a block.
+   The blocks share no variables, so a slice needs only what each block sets up
+   itself. The page state that blocks leave for one another is what a slice can
+   miss, and that shows as a failure in the slice that lacks it. SMOKE_TIMES=1
+   prints how long each block took, on stderr, for refreshing the weights. */
+export function blockTaker(url) {
+  const slice = /^(\d+)-(\d+)$/.exec(new URL(url).searchParams.get('slice') || '');
+  const index = slice ? Number(slice[1]) - 1 : 0, count = slice ? Number(slice[2]) : 1;
+  const part = /smoke_(\w+)\.mjs$/.exec(new URL(url).pathname)?.[1];
+  let weights = [];
+  try { weights = JSON.parse(readFileSync(new URL('./smoke_weights.json', import.meta.url), 'utf8'))[part] || []; } catch (e) { /* no weights, so blocks are dealt in turn */ }
+  const load = new Array(count).fill(0), dealt = new Array(weights.length);
+  for (const block of weights.map((w, i) => i).sort((a, b) => weights[b] - weights[a] || a - b)) {
+    let lightest = 0;
+    for (let j = 1; j < count; j++) if (load[j] < load[lightest]) lightest = j;
+    dealt[block] = lightest; load[lightest] += weights[block];
+  }
+  let block = -1, last = Date.now();
+  return () => {
+    if (process.env.SMOKE_TIMES && block >= 0) console.error(`BLOCK ${String(block).padStart(3)} ${String(Date.now() - last).padStart(6)} ms`);
+    last = Date.now();
+    block++;
+    return (block < dealt.length ? dealt[block] : block % count) === index;
+  };
+}
+
 export function finish(parts) {
   while (rafQueue.length) { const cb = rafQueue.shift(); try { cb(0); } catch (e) { fail('rAF callback', e); } }
   const qf = peek('QUIET_FAILURES');

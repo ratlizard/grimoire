@@ -12,14 +12,14 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const M = process.env.MAC_FILES || [path.join(ROOT, '..', 'mac-files'), path.join(os.homedir(), 'e-z-g-cythera', 'mac-files')]
   .find(p => fs.existsSync(path.join(p, 'js')));
 if (!M) { console.log('FAIL: no mac-files checkout beside this one or at ~/e-z-g-cythera/mac-files (set MAC_FILES)'); process.exit(1); }
-const theirs = path.join(M, 'js');
+const sourceDir = path.join(M, 'js');
 
-const ours = fs.readdirSync(path.join(ROOT, 'js')).filter(f => /^mac-.*\.js$/.test(f)).sort();
+const copyFiles = fs.readdirSync(path.join(ROOT, 'js')).filter(f => /^mac-.*\.js$/.test(f)).sort();
 let bad = 0;
-for (const f of ours) {
-  const bPath = path.join(theirs, f);
+for (const f of copyFiles) {
+  const bPath = path.join(sourceDir, f);
   if (!fs.existsSync(bPath)) { console.log(`FAIL ${f}: mac-files has no such file`); bad++; continue; }
   if (!fs.readFileSync(path.join(ROOT, 'js', f)).equals(fs.readFileSync(bPath))) { console.log(`FAIL ${f}: differs from ${bPath}`); bad++; }
 }
-console.log(`${ours.length} mac-* files, ${ours.length - bad} identical to mac-files'`);
+console.log(`${copyFiles.length} mac-* files, ${copyFiles.length - bad} identical to mac-files'`);
 process.exit(bad ? 1 : 0);

@@ -101,5 +101,8 @@ export function buildFixes({htmlPath = 'index.html', dataPath, outDir, name, des
 // named: what the builders that write the whole of a stage choose.
 export function everyFix(htmlPath = 'index.html', spelling = 'us') {
   const {ctx} = pageContext(htmlPath);
-  return JSON.parse(vm.runInContext(`JSON.stringify(DATA_FIXES.filter(f => f.choice !== 'spelling' || f.id === ${JSON.stringify('spelling-' + spelling)}).map(f => f.id))`, ctx));
+  // A choice that starts unpicked on the page (the Oxford commas) is left as
+  // the game has it here too.
+  return JSON.parse(vm.runInContext(`JSON.stringify(DATA_FIXES.filter(f => (f.choice !== 'spelling' || f.id === ${JSON.stringify('spelling-' + spelling)})
+    && !(DATA_FIX_CHOICES.find(c => c.id === f.choice) || {}).unpicked).map(f => f.id))`, ctx));
 }

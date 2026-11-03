@@ -110,13 +110,16 @@ function describe(type, entry, data) {
     case 'styl': return text(() => G.decodeStyl(data));
     case 'FOND': return text(() => G.decodeFOND(data).text);
     case 'pltt': { const r = G.decodePltt(data); return `pltt:${r.count}:${r.usage}:${canvasSig(r.canvas)}`; }
+    // An mctb was read as a color table, under COLOR_TABLE_TYPES below, until
+    // 25 October 2026; it is menu color entries, read by decodeMctb.
+    case 'mctb': { const m = G.decodeMctb(data); return `mctb:${m.entries.length}:${canvasSig(m.canvas)}:${hash(m.text)}`; }
     case 'NFNT': case 'FONT': { const f = G.decodeNFNT(data);
       return `font:${f.info}:${canvasSig(f.canvas)}:glyphs${f.glyphs.length}:${hash(f.glyphs.map(g => g.code + 'x' + g.width).join(','))}`; }
     case 'cfrg': return G.decodeCfrg ? text(() => G.decodeCfrg(data)) : 'n/a';
     // The engine's types, and Cythera's. Lite arrived with the light cones
     // and was never added here, so twenty-five resources were being drawn by a
     // decoder nothing guarded; the rest landed together on 7 September 2026.
-    case 'Lite': { const l = G.decodeLite(data); return l ? `lite:${l.side}:${l.max}:${l.centre}:${canvasSig(l.canvas)}:${hash(l.text)}` : null; }
+    case 'Lite': { const l = G.decodeLite(data); return l ? `lite:${l.side}:${l.max}:${l.center}:${canvasSig(l.canvas)}:${hash(l.text)}` : null; }
     case 'TILE': { const t = G.decodeTileSheetResource(data); return t ? `tile:${canvasSig(t.canvas)}:${hash(t.text)}` : null; }
     case 'TxSt': { const s = G.decodeTxSt(data);
       if (s) return `txst:${s.size}:${s.face}:${s.font}`;

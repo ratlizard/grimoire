@@ -335,14 +335,14 @@ function cytheraPrefsRecord(opts, layout) {
   // A choice is named by the game's item text; every field that item
   // writes is written, so a stop spread over two bits lands whole.
   for (const c of L.choices) {
-    const want = o[c.opt];
-    const picked = want ? c.options.find(x => x.text === want) : null;
+    const chosenText = o[c.opt];
+    const picked = chosenText ? c.options.find(x => x.text === chosenText) : null;
     if (picked) for (const x of picked.sets) put(x.byte, x.lo, x.hi, x.value);
     // A value the menu does not offer, for a choice that is one numeric
     // field (the frame-rate cap: every value from 0 up is a number of ticks
     // between frames, and the menu's three are only three of them).
-    const f = !picked && typeof want === 'string' && /^raw:\d+$/.test(want) ? cytheraChoiceField(c) : null;
-    if (f) put(f.byte, f.lo, f.hi, Math.min(parseInt(want.slice(4), 10), (1 << (f.hi - f.lo + 1)) - 1));
+    const f = !picked && typeof chosenText === 'string' && /^raw:\d+$/.test(chosenText) ? cytheraChoiceField(c) : null;
+    if (f) put(f.byte, f.lo, f.hi, Math.min(parseInt(chosenText.slice(4), 10), (1 << (f.hi - f.lo + 1)) - 1));
   }
   // The startup question's two bits together (switch256), or each on its
   // own by the dialog's text (startup), so that every pairing can be
@@ -457,8 +457,8 @@ function prefsInstallScript(opts) {
     '-- Puts "' + PREFS_FILE_NAME + '" into the System Folder’s Preferences',
     '-- folder, replacing whatever is there. Press Run, or Command-R.',
     '--',
-    '-- It replaces the file, so you lose any settings already stored.',
-    '-- Move the old one somewhere else first if you want to keep them.',
+    '-- Replacing the file loses any settings already in it.',
+    '-- To keep them, move the old one somewhere else first.',
     '--',
     '-- Cheat keys allowed: ' + (o.cheats ? 'ON: type ' + ((cytheraPrefsLayout() || { gate: {} }).gate.word || 'the code') + ' in the map window' : 'off') + '.',
     '-- Settings in the file: ' + prefsSummary(o) + '.',
@@ -517,7 +517,7 @@ function downloadCytheraPrefs(kind) {
     const image = buildPrefsDiskImage(opts);
     dlBlob(new Blob([image], { type: 'application/octet-stream' }), PREFS_VOLUME_NAME + '.dsk');
     setStatus('Wrote a ' + fmtBytes(image.length) + ' disk image with ' + how + '. Drop it on an ' +
-      'emulated Mac; it mounts as “' + PREFS_VOLUME_NAME + '” and has an ' +
+      'emulated Mac. It mounts as “' + PREFS_VOLUME_NAME + '” and has an ' +
       PREFS_SCRIPT_NAME + ' script.');
     return;
   }
@@ -535,10 +535,10 @@ function buildInstallScript(archiveName, note) {
     '--',
     '-- Finds the folder holding the Cythera application on any mounted disk,',
     '-- replaces the "' + archiveName + '" in it with the edited one on this',
-    '-- disk, and starts the game. Press Run, or Command-R -- or press Install',
-    '-- from the disk itself, so you need not select anything inside the Mac.',
+    '-- disk, and starts the game. Press Run or Command-R, or open Install',
+    '-- on the disk itself, with nothing to select inside the Mac.',
     '--',
-    '-- Keep a backup of the original first; the replacement cannot be undone.',
+    '-- Keep a backup of the original first. Nothing undoes the replacement.',
     '-- By hand instead: drag "' + archiveName + '" into the game\u2019s folder.',
     '--'].concat((note || []).map(line => '-- ' + line)).concat([
     '',
@@ -591,7 +591,7 @@ function buildInstallScript(archiveName, note) {
    have to be the same bytes, so the build is here and the callers are thin.
 
    `file` is what goes on the disk, { data, rsrc }: since 19 October 2026
-   Your Patch's Cythera Data, the open file with the fixes and the other
+   the Patch in Progress's Cythera Data, the open file with the fixes and the other
    parts merged in (basketDisk), where until then it was always the open
    file as edited, offered by the Patch Generator's section of that name.
    `edited` is the count the script's comment gives. */
@@ -646,14 +646,14 @@ function buildEditedDiskImage(file, edited) {
            forkWarning: forkWarning };
 }
 
-// The disk saved; what to say about it is returned, for Your Patch's note.
+// The disk saved; what to say about it is returned, for the note of the Patch in Progress.
 function downloadEditedDiskImage(file, edited) {
   const built = buildEditedDiskImage(file, edited);
   if (!built) return null;
   dlBlob(new Blob([built.image], { type: 'application/octet-stream' }), built.fileName);
-  if (built.forkWarning) return { built, said: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image, but ' + built.forkWarning, bad: true };
-  return { built, said: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac: ' +
-    'it mounts as \u201c' + DISK_VOLUME_NAME + '\u201d and contains an Install and Play script that replaces the ' +
+  if (built.forkWarning) return { built, message: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image, but ' + built.forkWarning, bad: true };
+  return { built, message: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac. ' +
+    'It mounts as \u201c' + DISK_VOLUME_NAME + '\u201d and contains an Install and Play script that replaces the ' +
     'file in the game\u2019s folder and starts Cythera.' };
 }
 
@@ -807,7 +807,7 @@ function downloadCurrentMidi(){
   } catch(e) {
     // An alert() is a modal interruption for something the page can simply
     // say; every other failure in this file reports through #output.
-    document.getElementById('output').textContent = 'MIDI conversion failed: ' + e.message;
+    document.getElementById('output').textContent = 'The page could not make a MIDI file of this tune: ' + e.message;
   }
 }
 
@@ -860,19 +860,107 @@ function qtAdoptInstruments(lib) {
   qtCache('readwrite', s => s.put(lib.forkBytes, QT_KEY)).catch(e => quiet(e, 'remembering the instruments'));
 }
 
+/* A tune drawn as a piano roll: time left to right, pitch bottom to top, a
+   bar per note, one color per part. A waveform of a whole tune is a solid
+   block, alike from one tune to the next, and needs a render first; the
+   notes are in the tune's events already, so the Music gallery's tiles
+   draw as quickly as the sound tiles beside them (the maintainer,
+   28 October 2026). The colors step round the hue circle in part order and
+   stop short of red's return, and a tune of one part is drawn in the
+   waveform's yellow. Returns the color of each part and the span in tune
+   units. */
+function drawPianoRoll(canvas, events) {
+  const c = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
+  c.fillStyle = '#090806'; c.fillRect(0, 0, w, h);
+  const notes = events.filter(e => e.k === 'note');
+  const parts = [...new Set(notes.map(e => e.part))].sort((a, b) => a - b);
+  const colors = new Map(parts.map((p, i) => [p, parts.length === 1 ? '#f9f86f'
+    : 'hsl(' + Math.round(i * 300 / (parts.length - 1)) + ',85%,62%)']));
+  if (!notes.length) return { colors, span: 0 };
+  const span = Math.max(...notes.map(e => e.t + (e.dur || 0))) || 1;
+  let lo = 127, hi = 0;
+  for (const e of notes) { if (e.pitch < lo) lo = e.pitch; if (e.pitch > hi) hi = e.pitch; }
+  const row = h / (hi - lo + 1);
+  for (const e of notes) {
+    c.fillStyle = colors.get(e.part);
+    c.fillRect(Math.floor(e.t / span * w), Math.floor((hi - e.pitch) * row),
+               Math.max(1, Math.round((e.dur || 0) / span * w)), Math.max(1, Math.floor(row)));
+  }
+  return { colors, span };
+}
+
+/* On a tune's page the roll stands where a sound's waveform does, with a
+   line at the moment the audio element has reached, and a click on the
+   roll moves the audio there. tuneRoll is the roll being followed; a
+   waveform drawn on the canvas (drawWaveform) or the panel hidden ends it. */
+let tuneRoll = null;
+function followTuneRoll(canvas, audio, span) {
+  const base = document.createElement('canvas');
+  base.width = canvas.width; base.height = canvas.height;
+  base.getContext('2d').drawImage(canvas, 0, 0);
+  const me = tuneRoll = { canvas };
+  const secs = span / QTMA_UNITS_PER_SECOND;
+  canvas.onclick = ev => {
+    const r = canvas.getBoundingClientRect();
+    audio.currentTime = Math.max(0, (ev.clientX - r.left) / r.width) * secs;
+  };
+  canvas.style.cursor = 'pointer';
+  const tick = () => {
+    if (tuneRoll !== me) return;
+    if (document.getElementById('soundPreview').style.display === 'none') { stopTuneRoll(); return; }
+    const c = canvas.getContext('2d');
+    c.drawImage(base, 0, 0);
+    const x = Math.min(canvas.width - 1, audio.currentTime / secs * canvas.width);
+    c.strokeStyle = '#ffffff'; c.beginPath(); c.moveTo(x + 0.5, 0); c.lineTo(x + 0.5, canvas.height); c.stroke();
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+function stopTuneRoll() {
+  if (!tuneRoll) return;
+  tuneRoll.canvas.onclick = null;
+  tuneRoll.canvas.style.cursor = '';
+  tuneRoll = null;
+  const legend = document.getElementById('rollLegend');
+  if (legend) { legend.style.display = 'none'; legend.textContent = ''; }
+}
+// The key to the roll: a swatch per part and the part's instrument.
+function showRollLegend(colors, info) {
+  const legend = document.getElementById('rollLegend');
+  legend.textContent = '';
+  for (const [p, color] of colors) {
+    const item = document.createElement('span');
+    item.className = 'rollKey';
+    const sw = document.createElement('span');
+    sw.className = 'rollSwatch';
+    sw.style.background = color;
+    item.appendChild(sw);
+    const prog = info.noteRequests[p];
+    item.appendChild(document.createTextNode('Part ' + p + (prog ? ', ' + (GM_NAMES[prog - 1] || 'program ' + prog) : '')));
+    legend.appendChild(item);
+  }
+  legend.style.display = colors.size ? '' : 'none';
+}
+
 async function playCurrentTune() {
   const resid = currentResid, raw = window.CUR_RAW_BYTES;
   const pick = document.getElementById('qtPickBtn');
+  // The first Play fetches 7 MB of instruments, and every Play renders for
+  // seconds, so the line above the roll shows which of the two is under way.
+  const label = document.getElementById('soundLabel'), was = label.textContent;
   try {
     setStatus("Loading QuickTime 3's instruments");
+    label.textContent = "Loading QuickTime 3's instruments…";
     await qtLoadInstruments();
   } catch (e) {
+    label.textContent = was;
     setStatus("Could not fetch QuickTime 3's instruments (" + e.message + '). Choose QUICKTIM.EXE or QuickTimeMusicalInstruments.qtx instead.', true);
     if (pick) pick.style.display = '';
     return;
   }
   if (pick) pick.style.display = 'none';
   setStatus('Playing 0x' + resid.toString(16).toUpperCase() + " through QuickTime 3's instruments");
+  label.textContent = 'Rendering the tune…';
   await new Promise(r => setTimeout(r, 30));   // let the status paint before the render blocks the page
   try {
     const info = qtmaToMidi(raw);
@@ -880,19 +968,33 @@ async function playCurrentTune() {
     const wav = qtmaWav(r);
     currentWavBlob = new Blob([wav], {type: 'audio/wav'});
     currentSoundResid = resid;
-    drawWaveform(new Int16Array(wav.buffer, 44, r.left.length * 2).filter((_, i) => !(i & 1)));
-    if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
     const audio = document.getElementById('audioPlayer');
+    if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
     audio.src = currentObjectUrl = URL.createObjectURL(currentWavBlob);
-    document.getElementById('soundPreview').style.display = 'block';
-    document.getElementById('soundLabel').textContent = '0x' + resid.toString(16).toUpperCase() +
-      " through QuickTime 3's instruments  |  " + (r.left.length / r.rate).toFixed(1) + 's' +
+    const drawn = showTuneRoll(resid, info);
+    setSoundControls(true);
+    if (drawn.span) followTuneRoll(document.getElementById('waveform'), audio, drawn.span);
+    label.textContent = tuneHeading(resid) + " through QuickTime 3's instruments  |  " + (r.left.length / r.rate).toFixed(1) + 's' +
       (r.missing.length ? '  |  no instrument for part ' + r.missing.join(', ') : '');
     setStatus('');
     audio.play().catch(e => quiet(e, 'starting the tune'));
   } catch (e) {
+    label.textContent = was;
     setStatus('Could not play the tune: ' + e.message, true);
   }
+}
+const tuneHeading = resid => '0x' + resid.toString(16).toUpperCase() + (labelFor(resid) ? ' - ' + labelFor(resid) : '');
+/* A tune's roll and key, drawn as soon as the tune opens: the notes need no
+   render, so the picture is there before the instruments load. The audio
+   element and Save as WAV stay hidden until Play has made the audio. */
+function showTuneRoll(resid, info) {
+  stopTuneRoll();
+  const drawn = drawPianoRoll(document.getElementById('waveform'), info.events);
+  showRollLegend(drawn.colors, info);
+  setSoundControls(false);
+  document.getElementById('soundLabel').textContent = tuneHeading(resid) + '  |  ' + info.durationSec.toFixed(1) + "s. Play with QuickTime's Instruments to hear it.";
+  document.getElementById('soundPreview').style.display = 'block';
+  return drawn;
 }
 /* A MIDI file in a tune's place (the maintainer, 6 October 2026: "importing
    MIDI to be playable as QTMA"). The file is made into a tune by midiToQtma
@@ -921,7 +1023,43 @@ function midiFilePicked(input) {
       const left = Object.entries(made.dropped).map(([why, n]) => n + ' ' + why).join(', ');
       setStatus('Replaced 0x' + resid.toString(16).toUpperCase() + ' with ' + f.name + ': ' + made.parts.length + (made.parts.length === 1 ? ' part, ' : ' parts, ') +
         made.notes + ' notes, ' + made.seconds.toFixed(1) + ' seconds' + (left ? '. Left out: ' + left : '') +
-        '. To download the edited file, go to Data › Cythera Data › Changes.');
+        '. To download the edited file, use the Patch in Progress in Tools › Patch Generator.');
+    } catch (e) {
+      setStatus('The page could not make ' + f.name + ' into a tune: ' + e.message + '.', true);
+    }
+  };
+  reader.onerror = () => setStatus('The page could not read ' + f.name + '.', true);
+  reader.readAsArrayBuffer(f);
+}
+/* A MIDI file as a new tune, under the first tune number the file does not
+   use (the maintainer, 24 October 2026: the import above only replaces).
+   The tune open is the model midiToQtma copies its header from, as in a
+   replacement. A script plays tune n from resource 0x9000 + n, and no
+   script plays the new number until one is changed, as the status line
+   reminds the visitor. */
+function midiFileAdded(input) {
+  const f = input && input.files && input.files[0];
+  if (!f) return;
+  const like = currentResid;
+  const spec = delverArchiveSpec(ARCHIVE.bytes);
+  const used = new Set(spec ? spec.resources.map(r => r.resid) : []);
+  let resid = 0x9000;
+  while (resid <= 0x90FF && used.has(resid)) resid++;
+  if (resid > 0x90FF) { setStatus('The file uses every tune number, 0 to 255.', true); input.value = ''; return; }
+  const model = spec && spec.resources.find(r => r.resid === like);
+  const reader = new FileReader();
+  reader.onload = () => {
+    input.value = '';
+    try {
+      const made = midiToQtma(new Uint8Array(reader.result), {
+        like: getResourceBytes(ARCHIVE, like), unitsPerSecond: QTMA_UNITS_PER_SECOND,
+        name: QT_LIB ? (n => { try { return QT_LIB.has(n) ? QT_LIB.get(n).name : ''; } catch (e) { quiet(e); return ''; } }) : null });
+      if (!addResource(resid, made.data, model && model.encrypted)) return;
+      jumpToResource(resid);
+      const left = Object.entries(made.dropped).map(([why, n]) => n + ' ' + why).join(', ');
+      setStatus('Added ' + f.name + ' as tune ' + (resid - 0x9000) + ' (0x' + resid.toString(16).toUpperCase() + '): ' + made.parts.length + (made.parts.length === 1 ? ' part, ' : ' parts, ') +
+        made.notes + ' notes, ' + made.seconds.toFixed(1) + ' seconds' + (left ? '. Left out: ' + left : '') +
+        '. A script plays it with PlayMusic(' + (resid - 0x9000) + '). To download the edited file, use the Patch in Progress in Tools › Patch Generator.');
     } catch (e) {
       setStatus('The page could not make ' + f.name + ' into a tune: ' + e.message + '.', true);
     }
@@ -1056,7 +1194,7 @@ function paintStripSky(cv, resid, sky, rules, day, quarter) {
   if (sky && rules) {
     const scene = skyScene(rules, day, quarter);
     const rows = QD_PATTERNS[scene.pattern.name];
-    const bg = nearestPaletteIndex(QD_OLD_COLOURS[rules.back.v] || [255, 255, 255]);
+    const bg = nearestPaletteIndex(QD_OLD_COLORS[rules.back.v] || [255, 255, 255]);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) idx[y * W + x] = (rows[y & 7] >> (7 - (x & 7))) & 1 ? fg : bg;
     for (const b of scene.bodies) {
       const img = resolveTileImage(b.tile);
@@ -1079,7 +1217,7 @@ function paintStripSky(cv, resid, sky, rules, day, quarter) {
   for (let i = 0; i < W * H; i++) { const c = PAL_RGB[idx[i]] || [0, 0, 0]; im.data[i * 4] = c[0]; im.data[i * 4 + 1] = c[1]; im.data[i * 4 + 2] = c[2]; im.data[i * 4 + 3] = 255; }
   g.putImageData(im, 0, 0);
 }
-/* The open zone's strip above its map, at the map's hour (the maintainer,
+/* The open zone's strip at the foot of its page, at the map's hour (the maintainer,
    6 October 2026: landscapes "not shown in Zones tab"). The strip and its
    sky are the entry script's SetLandscapeImage, as zoneLandscapeArg reads
    it; a click opens the strip's page. Nothing on the World tab, whose
@@ -1166,11 +1304,11 @@ function buildStripSky(resid) {
   dayLbl.style.minWidth = '4.5em';
   row2.appendChild(day); row2.appendChild(dayLbl);
   wrap.appendChild(row2);
-  const say = document.createElement('div');
-  say.className = 'sv-note';
+  const noteElement = document.createElement('div');
+  noteElement.className = 'sv-note';
   const hh = v => Math.floor(v.v / (1 << rules.hourUnit.v)) + ':00';
-  say.innerHTML = 'Sunrise ' + srcNum(rules.sunrise, hh(rules.sunrise)) + ', sunset ' + srcNum(rules.sunset, hh(rules.sunset)) + '.';
-  wrap.appendChild(say);
+  noteElement.innerHTML = 'Sunrise ' + srcNum(rules.sunrise, hh(rules.sunrise)) + ', sunset ' + srcNum(rules.sunset, hh(rules.sunset)) + '.';
+  wrap.appendChild(noteElement);
   draw();
   return wrap;
 }
@@ -1246,6 +1384,7 @@ function renderImage() {
          screen tall, with the slider below the fold (the maintainer,
          6 October 2026: "enable zoom on landscapes in their tab"). */
       const vp = document.getElementById('canvasViewport');
+      if (vp) vp._stripH = 0;          // applyZoom fixes the box's height at this zoom
       zs.max = 8;
       z = Math.max(1, Math.min(8, vp && vp.clientWidth > 40 ? Math.floor(vp.clientWidth / W) : 2));
     } else { zs.max = 16; z = autoZoom(W, H); }
@@ -1257,7 +1396,7 @@ function renderImage() {
     const lbl = labelFor(resid);
     out.textContent = "Rendered resource 0x" + resid.toString(16).toUpperCase() +
       (lbl ? " (" + lbl + ")" : "") + " - " + W + "x" + H + " (zoom " + z + "x)";
-  } catch(err) { out.textContent = "Decode error: " + err.message; }
+  } catch(err) { out.textContent = "The page could not decode this: " + err.message; }
 }
 
 // The indexed-PNG writer, the zlib stream and the metadata stripper are in

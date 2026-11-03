@@ -136,15 +136,15 @@ const jsEvents = resid =>
 //     constant, delvmod's measure simply fails, and the page has them right on
 //     payload shape rather than on any statistic. Fixing those upstream would
 //     mean giving delvmod a shape bank, which is a larger thing than this.
-const KNOWN_CLASSES = [
+const EXPECTED_CLASSES = [
   ['split: ddasm\u2019s sweep reads consecutive callbacks as one function; the viewer finds each by the pointer its window is handed', [
     '1174', '1175']],
   ['decrypt: delvmod leaves it encrypted, the fallback rightly does not', [
     '3006', '300A', '300E', '3010']],
 ];
-const KNOWN = new Map();
-for (const [why, list] of KNOWN_CLASSES)
-  for (const r of list) KNOWN.set(r, why);
+const PINNED_DIVERGENCES = new Map();
+for (const [why, list] of EXPECTED_CLASSES)
+  for (const r of list) PINNED_DIVERGENCES.set(r, why);
 
 // ---- compare ---------------------------------------------------------------
 let compared = 0, identical = 0, proseChecked = 0;
@@ -174,9 +174,9 @@ for (const [ridHex, pyRec] of Object.entries(ref)) {
       // The viewer showed this function as a string; delvmod must at least
       // have read direct text at the same place (body start = offset + 3).
       proseChecked++;
-      const want = Number(off) + 3;
-      if (!(p.length && p[0][0] === 't' && p[0][1] === want))
-        bad = bad || `prose function at ${off}: delvmod did not read text at ${want}`;
+      const expected = Number(off) + 3;
+      if (!(p.length && p[0][0] === 't' && p[0][1] === expected))
+        bad = bad || `prose function at ${off}: delvmod did not read text at ${expected}`;
       continue;
     }
     if (p.length !== j.length) {
@@ -199,11 +199,11 @@ for (const [ridHex, pyRec] of Object.entries(ref)) {
 
 // ---- verdict ---------------------------------------------------------------
 for (const [ridHex, why] of divergent) {
-  const known = KNOWN.get(ridHex);
-  if (known) { KNOWN.delete(ridHex); if (verbose) console.error(`known ${ridHex}: ${why} (${known})`); }
+  const pinnedReason = PINNED_DIVERGENCES.get(ridHex);
+  if (pinnedReason) { PINNED_DIVERGENCES.delete(ridHex); if (verbose) console.error(`known ${ridHex}: ${why} (${pinnedReason})`); }
   else fail(ridHex, why);
 }
-for (const [ridHex, why] of KNOWN)
+for (const [ridHex, why] of PINNED_DIVERGENCES)
   fail(ridHex, `pinned as divergent (${why}) but now matches -- remove it from KNOWN`);
 
 console.log(`${compared} functions compared across ${Object.keys(ref).length} resources: ` +

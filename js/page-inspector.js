@@ -69,7 +69,7 @@ function applyMapZoom(fromSlider) {
   clampMapPan();
   applyMapTransform();
   updateMapArrows();
-  rememberMapView();
+  storeMapView();
 }
 
 /* ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ window.MAP_VIEW_MEMORY = Object.create(null);
 // previous one's transform. Folding the two together let that moment write the
 // old map's scroll position into the new map's memory.
 window.MAP_SEL_MEMORY = Object.create(null);
-function rememberMapView() {
+function storeMapView() {
   const cm = window.CUR_MAP;
   if (!cm || !mapView.scale) return;
   window.MAP_VIEW_MEMORY[cm.resid] = { scale: mapView.scale, x: mapView.x, y: mapView.y };
@@ -167,7 +167,7 @@ function fitMapToView(_retry) {
   mapView.scale = f.scale; mapView.x = f.x; mapView.y = f.y;
   applyMapTransform();
   updateMapArrows();
-  rememberMapView();
+  storeMapView();
 }
 
 // Hide each hint once there is nothing further to pan to on that side.
@@ -194,7 +194,7 @@ function panMapByArrow(dx, dy) {
   clampMapPan();
   applyMapTransform();
   updateMapArrows();
-  rememberMapView();
+  storeMapView();
 }
 
 function setupMapViewportInteraction() {
@@ -229,7 +229,7 @@ function setupMapViewportInteraction() {
     const pct = Math.round(mapView.scale * 100);
     slider.value = Math.max(5, Math.min(+slider.max || 400, pct));
     document.getElementById('mapZoomLabel').textContent = slider.value + '%';
-    rememberMapView();
+    storeMapView();
   }
 
   // A click has to be distinguished from the end of a drag, or every pan would
@@ -254,7 +254,7 @@ function setupMapViewportInteraction() {
     clampMapPan();
     applyMapTransform();
   };
-  const onUp = () => { mapView.dragging = false; rememberMapView(); };
+  const onUp = () => { mapView.dragging = false; storeMapView(); };
 
   viewport.addEventListener('pointerdown', e => {
     viewport.setPointerCapture(e.pointerId);
@@ -358,6 +358,8 @@ function clearMapInspector() {
   // map answers questions when you click it.
   el.innerHTML = '<span class="inspDim">Click any square to see the props and people on it.</span>';
   el.style.display = 'block';
+  // Hidden until a square is picked, as the World tab's popup is.
+  el.classList.remove('inspOpen');
 }
 
 /* ---------------------------------------------------------------------------
@@ -386,14 +388,14 @@ function hideMapHover() {
   if (el) { el.style.display = 'none'; hoverSquare = ''; }
 }
 
-function updateMapHover(clientX, clientY, asked) {
+function updateMapHover(clientX, clientY, isTouch) {
   const el = document.getElementById('mapHover');
   const vp = document.getElementById('mapViewport');
   const cm = window.CUR_MAP;
   if (!el || !vp || !cm) return;
   const sq = mapSquareFromClient(clientX, clientY);
   if (!sq) { hideMapHover(); return; }
-  const key = cm.resid + ':' + sq.tx + ',' + sq.ty + (asked ? '!' : '');
+  const key = cm.resid + ':' + sq.tx + ',' + sq.ty + (isTouch ? '!' : '');
   const rect = vp.getBoundingClientRect();
   const px = clientX - rect.left, py = clientY - rect.top;
   // Same square, so only the card moves: rebuilding it on every pixel of
@@ -401,7 +403,7 @@ function updateMapHover(clientX, clientY, asked) {
   // Only while it is up, though -- a tap on the square the pointer last
   // passed over would otherwise re-place a hidden card and show nothing.
   if (key === hoverSquare && el.style.display !== 'none') {
-    placeHoverCard(el, vp, px, py, asked);
+    placeHoverCard(el, vp, px, py, isTouch);
     return;
   }
   hoverSquare = key;
@@ -409,13 +411,13 @@ function updateMapHover(clientX, clientY, asked) {
   // ordered back in front by CSS. Built the other way round -- canvas first,
   // words in an appended element -- the card's innerHTML showed nothing,
   // which is a thing no harness could then check.
-  const card = squareCard(cm.level, { result: { m: cm.m, props: cm.props } }, sq.tx, sq.ty, null, asked);
+  const card = squareCard(cm.level, { result: { m: cm.m, props: cm.props } }, sq.tx, sq.ty, null, isTouch);
   if (!card) { el.style.display = 'none'; return; }
   el.innerHTML = card.html;
   if (card && card.person) appendFaceOrSprite(el, card.person);
-  el.classList.toggle('hvPinned', !!asked);
+  el.classList.toggle('hvPinned', !!isTouch);
   el.style.display = 'flex';
-  placeHoverCard(el, vp, px, py, asked);
+  placeHoverCard(el, vp, px, py, isTouch);
 }
 
 /* A tap that lands on a pinned card belongs to the card. Both cards are
@@ -447,7 +449,7 @@ try { guardHoverCardTaps(); } catch (e) { quiet(e); }
    the point by a thumb's width upwards instead, and where there is no room
    above it goes to the foot of the panel rather than under the hand.
 
-   `touch` is the page's `asked` flag: it is true exactly when a finger made
+   `touch` is the page's `isTouch` flag: it is true exactly when a finger made
    the request, which is also when the card shows more (see squareCard). */
 const HOVER_TOUCH_CLEAR = 64;   // px above the finger: a thumb and its shadow
 function placeHoverCard(el, vp, px, py, touch) {
@@ -499,7 +501,7 @@ function propInspectRows(p) {
   rows.push(['Tile', '0x' + p.tileId.toString(16).toUpperCase() +
                      (terrainNameFor(p.tileId) ? ', ' + terrainNameFor(p.tileId) : '')]);
   rows.push(['Flags', '0x' + r.flags.toString(16).padStart(2, '0').toUpperCase() +
-                      (r.takeable ? ' (you can take it)' : '')]);
+                      (r.takeable ? ' (the hero can take it)' : '')]);
   // What the square is actually being asked about most of the time: how heavy
   // is that thing, and what does its class say about it. Both come out of the
   // prop type's script resource, which was already parsed for the Items
@@ -518,7 +520,7 @@ function propInspectRows(p) {
     const haveKey = keysForLock(r.d1).length;
     rows.push(['Lock', 'id ' + r.d1 + (haveKey
       ? ', ' + haveKey + ' matching key' + (haveKey === 1 ? '' : 's') + ' in the world'
-      : '; no key matches it, so the lockpick, magic or a script opens it')]);
+      : ' (no key matches it, so the lockpick, magic or a script opens it)')]);
   }
   if (r.proptype === KEY_PROPTYPE && r.d1)
     rows.push(['Opens', 'lock id ' + r.d1 + ', ' + locksForKey(r.d1).length + ' lock(s)']);
@@ -702,7 +704,7 @@ function inspectMapSquare(tx, ty) {
   const exits = mapExitSquares(cm.resid).filter(e => e.x === tx && e.y === ty);
   const edges = mapExitEdges(cm.resid, cm.m).filter(e => e.cells.some(c => c[0] === tx && c[1] === ty));
   const faux = tileId ? getFauxProps().get(tileId) : null;
-  const needsRope = ropeSquares(cm.resid).has(tx + ',' + ty);
+  const requiresRope = ropeSquares(cm.resid).has(tx + ',' + ty);
 
   const parts = ['<div class="inspHead">Square ' + tx + ', ' + ty + ' <span class="inspDim">(' + gameSquare(tx, ty) + ')</span>' +
     (tileId ? ' &nbsp;·&nbsp; terrain tile 0x' + tileId.toString(16).toUpperCase() +
@@ -739,9 +741,9 @@ function inspectMapSquare(tx, ty) {
           (withView !== alone ? ' <span class="inspDim">(' + alone +
             ' of 32 with nothing in view)</span>' : '') + '</div>') +
       '<div class="inspDim">That is the base value for every square of the level, not just this ' +
-      'one; anything bright in the eleven-by-eleven view lightens the whole map, and moving it out ' +
-      'of view darkens the map again. The game also ignores light sources it treats as unseen, which ' +
-      'the file does not record, so the page counts every source in view.</div></div>');
+      'one. Anything bright in the eleven-by-eleven view lightens the whole map, and moving it out ' +
+      'of view darkens the map again. The game also ignores light sources it treats as unseen. The file ' +
+      'does not record which those are, so the page counts every source in view.</div></div>');
   }
 
   // A square inside a gateway's footprint shows it first, and offers the
@@ -790,13 +792,13 @@ function inspectMapSquare(tx, ty) {
     const z = zoneportInfo(e.idx);
     parts.push('<div class="inspCard"><b>Open ' + SIDE_WORDS[e.side] + ' edge</b> ' +
       '<span class="inspDim">map header exit, zoneport 0x' + e.idx.toString(16).toUpperCase() +
-      (z ? ' to ' + svEsc(z.name) : '') + '</span><div class="inspDim">Not just this square: the whole ' +
-      (e.side === 'N' || e.side === 'S' ? 'row' : 'column') + ' is a way out. Walking far enough ' +
+      (z ? ' to ' + svEsc(z.name) : '') + '</span><div class="inspDim">The whole ' +
+      (e.side === 'N' || e.side === 'S' ? 'row' : 'column') + ' is a way out, not just this square. Walking far enough ' +
       SIDE_WORDS[e.side] + ' at any ' + (e.side === 'N' || e.side === 'S' ? 'column' : 'row') +
       ' leaves the map here.</div></div>');
   }
 
-  if (needsRope) {
+  if (requiresRope) {
     parts.push('<div class="inspCard"><b>Rope</b> <span class="inspDim">prop type 0x14B on this ' +
       'square</span><div class="inspDim">A rope hangs here, which is what makes the drop below ' +
       'passable. There are four in the whole scenario, all of them on ravines.</div></div>');
@@ -805,8 +807,8 @@ function inspectMapSquare(tx, ty) {
   if (faux) {
     parts.push('<div class="inspCard"><b>' +
       svEsc(propDisplayName(faux.proptype) || ('0x' + faux.proptype.toString(16))) + '</b>' +
-      ' <span class="inspDim">not a real prop; the terrain tile itself draws it (0xF010), ' +
-      'not placed in the prop list</span><div class="inspActs">' +
+      ' <span class="inspDim">not a real prop. The terrain tile itself draws it (0xF010), ' +
+      'and the prop list does not place it</span><div class="inspActs">' +
       '<button class="sv-chip" onclick="showPropTypeDetail(' + faux.proptype + ')">Prop type</button>' +
       '</div></div>');
   }
@@ -840,7 +842,7 @@ function inspectMapSquare(tx, ty) {
     if (isExitProp(p.rec.proptype, window.CUR_MAP ? window.CUR_MAP.resid : undefined)) ways.push('a way out of here, by its class');
     if (isConcealedProp(p.rec.proptype)) ways.push('concealed');
     if (isWallProp(p.rec.proptype) && !(((getTileAttributes(ARCHIVE)[p.tileId] || 0) >> 8) & 0x02))
-      ways.push('a wall you can walk through');
+      ways.push('a wall the hero can walk through');
     const acts = ['<button class="sv-chip" onclick="showPropTypeDetail(' + p.rec.proptype + ')">Prop type</button>'];
     if (isInventoryItem(p.rec.proptype))
       acts.push('<button class="sv-chip" onclick="showItemDetail(' + p.rec.proptype + ')">Item</button>');
@@ -876,11 +878,13 @@ function inspectMapSquare(tx, ty) {
       '<div id="propEdit-' + p.rec.index + '" class="peForm" style="display:none"></div></div>');
   }
 
-  if (!hits.length && !people.length && !exits.length && !edges.length && !faux && !needsRope)
+  if (!hits.length && !people.length && !exits.length && !edges.length && !faux && !requiresRope)
     parts.push('<div class="inspDim">Nothing but terrain on this square.</div>');
 
   host.innerHTML = parts.join('');
   host.style.display = 'block';
+  host.classList.add('inspOpen');
+  host.scrollTop = 0;
   // The zoomrect is a canvas, so it is built and hung in place afterwards
   // rather than serialised into the string above.
   for (const [slot, rec, contents] of boxes) {
@@ -948,7 +952,7 @@ function renderMapResource(resid) {
     if (!result) {
       document.getElementById('mapLabel').textContent =
         '0x' + resid.toString(16).toUpperCase() + (lbl ? ' ' + lbl : '') + '  |  (not readable as a valid map)';
-      out.textContent = "The page could not render map 0x" + resid.toString(16).toUpperCase() + ": its header is not valid (the decryption went wrong, or it is not a map).";
+      out.textContent = "The page could not draw map 0x" + resid.toString(16).toUpperCase() + " because its header is not valid (the decryption went wrong, or it is not a map).";
       currentResid = resid;
       return;
     }
@@ -1000,7 +1004,7 @@ function renderMapResource(resid) {
     out.textContent = "Rendered map 0x" + resid.toString(16).toUpperCase() +
       (lbl ? " (" + lbl + ")" : "") + " with " + result.propCount + " props";
     currentResid = resid;
-  } catch(err) { out.textContent = "Map render error: " + err.message; }
+  } catch(err) { out.textContent = "The page could not draw this map: " + err.message; }
 }
 
 
@@ -1367,8 +1371,8 @@ function gatewayRatio(gw) {
    and a cached entry is the one the panel puts on screen. */
 function buildThumbsFor(gw, sizes) {
   if (!gw || gw.sealed) return;
-  const need = sizes.filter(sz => !worldThumbs.has(thumbKey(gw.destResid, sz, true)));
-  if (!need.length) return;
+  const missingSizes = sizes.filter(sz => !worldThumbs.has(thumbKey(gw.destResid, sz, true)));
+  if (!missingSizes.length) return;
   try {
     const e = renderMapUncached(gw.destResid);
     if (!e || !e.result) return;
@@ -1410,10 +1414,10 @@ function buildThumbsFor(gw, sizes) {
     };
     // Bare first, off the clean canvas; then the roofs go on and the same
     // sizes are taken again. One render, every variant.
-    for (const sz of need) worldThumbs.set(thumbKey(gw.destResid, sz, false), shrink(sz));
+    for (const sz of missingSizes) worldThumbs.set(thumbKey(gw.destResid, sz, false), shrink(sz));
     const rc = src.getContext('2d');
     if (rc) paintRoofsInto(rc, e.result.tileSize, e.result.m, mapRoofSections(gw.destResid));
-    for (const sz of need) worldThumbs.set(thumbKey(gw.destResid, sz, true), shrink(sz));
+    for (const sz of missingSizes) worldThumbs.set(thumbKey(gw.destResid, sz, true), shrink(sz));
   } catch (err) { quiet(err); }
 }
 

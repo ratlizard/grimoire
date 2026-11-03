@@ -32,10 +32,16 @@
              answer needs, since the jump there is the previous keyword
              test skipping to the next one, and must still reach it.
              `replaceOp: true` replaces the one instruction at `at`.
-     dataEdits: [{ what, resid, fn }] -- fn (b) => string | Uint8Array,
+     dataEdits: [{ what, resid, fn, create? }] -- fn (b) => string | Uint8Array,
              run on the decrypted bytes (a copy); it edits b in place and
              returns a log line, or returns a new array to replace the
              resource, or throws when the bytes are not what it expects.
+             `create: true` makes a resource the file does not have: fn
+             receives the bytes made for it so far in the session, or
+             none, and returns the new array; finishDataPatch adds it to
+             the archive, encrypted as every resource below 0x8000 is (the
+             rule delv-archive.js's scenario builder gives a new piece).
+             The gong's painting class was the first (25 October 2026).
      textEdits: [{ what, resid, find, replace, count?, mid?, at?, optional? }]
              -- every occurrence of the text `find` in the resource (count
              is how many there must be; omitted means at least one) is
@@ -49,7 +55,7 @@
              so this is the same edit for all of them. `resid: null` is the
              same edit over every script resource, each allowed to match
              nothing (the British spellings, which are not tied to a place),
-             less the resources in `except`. `prose: true` matches a whole
+             except the resources in `except`. `prose: true` matches a whole
              word of running text only: not a word's part, not a
              highlighted word (after an @), and nothing in a keyword list,
              which a spelling that changed a word's start would stop
@@ -67,7 +73,7 @@
    writing the file out and opening it again between stages did. */
 
 // The scenario's script resources by delvmod's hints: subindexes 0..14 and
-// 47 direct, 15..125 class, less the graphics, map, prop and sound ones.
+// 47 direct, 15..125 class, except the graphics, map, prop and sound ones.
 function dataPatchScriptResids(spec) {
   const NON = new Set([127, 128, 131, 135, 137, 141, 142, 144]);
   return spec.resources.map(r => r.resid).filter(id => { const si = (id >> 8) - 1; return !NON.has(si) && si !== 3 && ((si >= 0 && si <= 14) || si === 47 || (si >= 15 && si <= 125)); });
@@ -196,13 +202,13 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
     } else if (!e.planned && s.lates.has(e.resid)) {
       const list = s.lates.get(e.resid), moved = Object.assign({}, e, { at: carry(e.at, list) });
       if (e.to !== undefined) moved.to = carry(e.to, list);
-      if (e.expect) moved.expect = Object.fromEntries(Object.entries(e.expect).map(([at, want]) => [carry(+at, list), want]));
+      if (e.expect) moved.expect = Object.fromEntries(Object.entries(e.expect).map(([at, expected]) => [carry(+at, list), expected]));
       e = moved;
     }
     const b = s.bytesOf(e.resid);
-    for (const [at, want] of Object.entries(e.expect || {})) {
-      const got = dataPatchOpAt(b, e.resid, +at);
-      if (!got || !got.text.startsWith(want)) throw new Error(e.what + ': at 0x' + (+at).toString(16) + ' the listing has ' + (got && got.text) + ', not ' + want);
+    for (const [at, expected] of Object.entries(e.expect || {})) {
+      const actual = dataPatchOpAt(b, e.resid, +at);
+      if (!actual || !actual.text.startsWith(expected)) throw new Error(e.what + ': at 0x' + (+at).toString(16) + ' the listing has ' + (actual && actual.text) + ', not ' + expected);
     }
     let to = e.to;
     if (e.replaceOp) { const g = dataPatchOpAt(b, e.resid, e.at); if (!g) throw new Error(e.what + ': no instruction at 0x' + e.at.toString(16)); to = g.next; }
@@ -219,8 +225,10 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
   // Data edits first: a resource laid out afresh (the name table) must
   // be whole before a text edit looks for a word in it.
   for (const d of dataEdits) try {
-    const b = s.bytesOf(d.resid).slice();
+    const b = d.create ? (s.plain.get(d.resid) || new Uint8Array(0)).slice() : s.bytesOf(d.resid).slice();
+    if (d.create && !s.plain.has(d.resid) && getResourceBytes(s.arc, d.resid)) throw new Error('0x' + d.resid.toString(16).toUpperCase() + ' is in the file already');
     const res = d.fn(b);
+    if (d.create && !(res instanceof Uint8Array)) throw new Error('a resource made new must be returned whole');
     // A data edit may return a new array (a resource laid out afresh) or a
     // line about the array it edited in place.
     const line = res instanceof Uint8Array ? 'laid out again, ' + b.length + ' to ' + res.length + ' bytes' : res;
@@ -321,7 +329,10 @@ function applyDataEdits(s, { edits = [], dataEdits = [], textEdits = [] }) {
 function finishDataPatch(s) {
   const changed = [];
   for (const [resid, data] of s.plain) {
-    const r = s.spec.resources.find(x => x.resid === resid);
+    let r = s.spec.resources.find(x => x.resid === resid);
+    // A resource a fix made (`create`) is added, as a Magpie patch adds a
+    // gremlin's script that the shipped file lacks.
+    if (!r) { r = { resid, data, encrypted: resid < 0x8000 }; s.spec.resources.push(r); s.spec.resources.sort((a, b) => a.resid - b.resid); changed.push(resid); continue; }
     const was = smartDecrypt(getResourceBytes(s.arc, resid), resid).data;
     r.data = data;
     if (was.length !== data.length || was.some((v, i) => v !== data[i])) changed.push(resid);
@@ -340,9 +351,9 @@ function finishDataPatch(s) {
    stands in for DATA_FIX_COMMUNITY_TYPOS (community_text_patch.mjs hands in
    what it read out of the collection). */
 function dataFixesChosen(ids) {
-  const want = new Set(ids), out = new Set(), taken = new Set();
+  const chosenIds = new Set(ids), out = new Set(), taken = new Set();
   for (const f of DATA_FIXES) {
-    if (!want.has(f.id)) continue;
+    if (!chosenIds.has(f.id)) continue;
     if (f.choice) { if (taken.has(f.choice)) continue; taken.add(f.choice); }
     out.add(f.id);
   }

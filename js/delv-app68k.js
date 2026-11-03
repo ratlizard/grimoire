@@ -43,7 +43,7 @@
    The parts of a cave: 'hex' bytes; ':name' a label; 'bXX name' a short
    branch, XX its opcode byte (60 bra, 66 bne, 67 beq, 6c bge, 6d blt...), to
    a label; 'bra.l 0x..' and 'bsr.l 0x..' a 32-bit branch to an offset in the
-   segment; 'pcrel 0x.. k' a long holding that offset less its place plus
+   segment; 'pcrel 0x.. k' a long holding that offset minus its place plus
    k (the operand of a `move.l #d,d0` that a `move.l (0,pc,d0.l)` six bytes
    on reads from). These are the forms the caves use and no more; the 68K
    instructions themselves are bytes, with capstone's reading beside them in
@@ -114,7 +114,7 @@ function applyApp68kFixes(spec, ids) {
   const report = new Map(), rep = id => report.get(id) || report.set(id, { id, inPlace: [], caves: [], values: [], data0: [] }).get(id);
   const u32 = (b, o) => ((b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3]) >>> 0;
   const w32 = (b, o, v) => { b[o] = (v >>> 24) & 0xFF; b[o + 1] = (v >>> 16) & 0xFF; b[o + 2] = (v >>> 8) & 0xFF; b[o + 3] = v & 0xFF; };
-  const same = (b, o, want) => want.every((x, i) => b[o + i] === x);
+  const same = (b, o, expected) => expected.every((x, i) => b[o + i] === x);
   const owner = new Map();
   const claim = (id, n, at, len) => {
     for (let i = 0; i < len; i++) {

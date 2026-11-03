@@ -124,6 +124,23 @@ have failed, because `git show <ref>:index.html` returns 1.4 MB and Node's
 default pipe buffer is 1 MB; the `maxBuffer` and the failure-rather-than-skip
 in that file are both from that hour.
 
+**Fronts landing together do not stop on the number.** Two fronts that start
+from one version both bump the line, so the second conflicts on it, or merges
+cleanly to a number that two commits share, and `version_check.mjs` fails the
+second because the number has to exceed the deployed one. On 28 October 2026
+sessions landing together changed the number by hand and landed again.
+`.gitattributes` sends `index.html` to the merge driver
+`utilities/version_merge.mjs`, which applies the bump a commit made to the
+number already on main. When the commit moved the middle number, main's middle
+number goes up by one and the last number goes to zero. When it moved the last
+number, main's last number goes up by one. A commit that did not move the number
+leaves main's, and a conflict that is more than the version line stays a
+conflict. `.merge-drivers` is the file `tools/front.sh` reads to register the
+driver in the repository's git configuration, in `new` and again in `land`.
+`utilities/version_merge_check.mjs` rebases real commits with the driver on
+scratch repositories and fails when the number is wrong. Its control, without
+the driver, has to end on main's number.
+
 ### Working beside the forks, in full
 
 
@@ -255,16 +272,19 @@ loads all thirteen, in this order, before the two tiers below:
 | `js/delv-app68k.js` | `applyApp68kFixes(spec, ids)` — the 68K fixes written into the resource fork's `CODE` resources and `DATA 0`: sites checked, caves laid out at `CODE 1`'s end or before a segment's relocation table (which moves up), the A5 world grown. `applyAppFixes` calls it |
 | `js/delv-apppatch.js` | `applyAppFixes({data, rsrc}, fixes)` — the fixes written into the PowerPC program: each site's words checked, the caves laid out and assembled, the code section grown and everything after it moved (the section header, and `cfrg 0`'s fragment offsets), text written in place, resources rewritten. Anything unexpected refuses the whole patch. `app_patch.mjs` and the Patches tab's *Fixes to the program* call it |
 | `js/delv-datafixes.js` | `DATA_FIXES` — every fix to the scenario, as data, one entry a fix: its edits in `js/delv-datapatch.js`'s three kinds, or a plan that finds them in the file; the stage it is applied in and why the stages are in that order (`DATA_FIX_STAGES`); the lists the Patches tab shows them in; the text's own lists and its options; and `DATA_FIX_COMMUNITY_TYPOS`, the community's typo pairs, written by `community_text_patch.mjs --write-js` and never by hand. The file to edit to add, change or drop a fix |
+| `js/delv-halloween.js` | `halloweenPlan(s, ctx)`, the Halloween mod of the Utility Mods (skeleton figures, skull portraits, the rattling opening scene, the waltz and the gray windows), with each place found in the file as the mods' stage has it, and the maintainer's skull and the waltz as data. Its conversation colors are `halloween-colors` in `js/delv-appfixes.js` |
 | `js/delv-datapatch.js` | `applyDataFixes(bytes, ids)` — the fixes chosen, applied stage by stage to one session of the archive; `applyDataEdits`, one stage's code, data and text edits, each checking what it expects before it writes, which was `patch_build.mjs`'s inside until 28 September 2026. Anything unexpected refuses the whole build, naming the fix. `patch_build.mjs`, the builders and the Patches tab's *Fixes to the game, as a patch* call it |
+| `js/delv-plaques.js` | the start screen's stone buttons (PICT 139 to 145, and the six on PICT 132): `START_PLAQUES`, where each sits and the word carved in it; `plaqueLift`, the carved word lifted off by fitting the stone's lighting and refilling the word's box with the button's speckle; `plaqueCarve`, a new word's coverage cut in with Onward's cut, measured on the shipped buttons by the workbench's `tools/plaques/` (`START_PLAQUES.cut`). Pixels to pixels, no canvas: the page draws the word (`plaqueCover` in `js/page-fork.js`). Checked by `plaque_check.mjs` and, for the drawing, `browser_check.mjs` |
+| `js/delv-routinenotes.js` | `ROUTINE_NOTES`, what the program's routines do in plain words, by class, each text keyed by its routine's entry and each claim citing the instructions that show it. **Written by a script**, the workbench's `tools/fnpublish.py`, which copies only the classes read twice there. Change the words there, not here. Data > Program shows a routine's text above its listing, each address a link that rings it (`routineNoteHTML`), and its callers read from the code (`exeCallSitesOf`). The installer smoke's *routine notes* block checks that every cited address lies in its routine in the page's reading of the program |
 
-**The page's own furniture** — loaded last, because it is the only tier that
-knows the document exists. Added 13 September 2026, when the maintainer asked
-why everything was being dumped into `index.html`:
+**The page's furniture** loads last, because it is the only tier that
+reads or writes the document. The tier was split out of `index.html` on
+13 September 2026, and these are its files.
 
 | File | Purpose |
 |---|---|
 | `js/delv-sheets.js` | `mechSectionEl()` — one section of a rules sheet as a `<details>`, buildable from any renderer; the string builders the sections are written with (`mechTable`, `mechNum`, `mechStat`, `mechSrc`); `MECH_GROUPS`, which says how the Mechanics sheet is arranged; the five sections that left it for the sheet they describe (`spellsMechSection`, `skillsMechSection`, `balloonsMechSection`, `libraryMechSection`, `talkMechSection`) with `mechCardAboveGallery` to seat one above a gallery's tiles; and `MECH_MOVED` with `tabLink`/`cardLink`/`ruleLink`, which is how a link reaches a section that is no longer on Mechanics. Reads no archive: it turns figures already read into a card |
-| `js/delv-mapview.js` | What the zone view draws over itself and the controls that choose it: `MAP_PATH_WHO`, `setMapPathWho`, `refreshPathPicker`, and `drawSchedulePath()` — one character's day drawn into whichever context `drawMapMarks` is filling, so it works on the mark layer, the detail lens and the PNG export alike. Reads no archive itself; the readers it calls (`loadSchedules`, `findPath`, `buildPropBlockers`) stay in the page |
+| `js/delv-mapview.js` | What the zone view draws over itself and the controls that choose it: `MAP_PATH_CHARACTER`, `setMapPathCharacter`, `refreshPathPicker`, and `drawSchedulePath()` — one character's day drawn into whichever context `drawMapMarks` is filling, so it works on the mark layer, the detail lens and the PNG export alike. Reads no archive itself; the readers it calls (`loadSchedules`, `findPath`, `buildPropBlockers`) stay in the page |
 
 The line in **Where new code goes** below is about the DOM, and it is there to
 keep the decoders checkable against delvmod — not to keep the page one file.
@@ -277,7 +297,7 @@ inline script holding `GRIMOIRE_VERSION` and the brand line (the version
 check reads the constant from the page; the brand line runs at load and
 needs the files before it).
 
-**The page's own script**, in fourteen files loaded in this order after
+**The page's script**, in fifteen files loaded in this order after
 `js/delv-mapview.js`. Same scope, same rules: classic scripts, one global
 scope, so a name declared in any of them is reachable from all, and the order
 only decides what has run when a statement runs at load time. Where a
@@ -292,13 +312,14 @@ function lives is where it was in the one file; move one only with a reason.
 | `js/page-map.js` | the map renderer: terrain, faux props, roofs, `drawLighting`, exits, sitting, the square you clicked |
 | `js/page-inspector.js` | the map viewport, clicking the map, containers, the world map's towns and country |
 | `js/page-atlas.js` | the atlas |
-| `js/page-tabs.js` | cross-references, the script view, concept search, the linked view, the tab tree |
+| `js/page-tabs.js` | cross-references, the script view, the scripts' text index, the linked view, the tab tree |
 | `js/page-data.js` | the Data sheets: zone backdrops, the executable's keys and preferences record, cheats, saved game, installer, combat AI, changes |
 | `js/page-rules.js` | the rule readers (`diceGame`, `combatRules`, `exeClockRules` and the rest) that the Mechanics, Skills, Spells and Barks sheets state |
 | `js/page-mechanics.js` | the Mechanics figures, the patches and compare tools, `renderMechanicsSheet` |
 | `js/page-views.js` | the executable's sheet, Tools, parts and uses, monsters, the text and conversation views, editing |
 | `js/page-export.js` | the preferences file, the disk image, the zip, MIDI, GIF and PNG |
 | `js/page-galleries.js` | bulk export, gallery arrangement, the sprite zoom, text editing, the ditherizer, locks, lazy tiles, the keyboard, the boot |
+| `js/page-search.js` | the search box, its query (words, OR, NOT, quotes), the index of names, scripts and every page (read by drawing each page), and the results panel |
 
 The harnesses did not change for this: `utilities/page_scripts.mjs` collects
 every `<script>` in document order, which is also why they cannot see a
@@ -368,7 +389,28 @@ node utilities/check_all.mjs            # everything, one table, about 80 second
 node utilities/check_all.mjs --quick    # skip the slow browser-ish smokes
 node utilities/check_all.mjs viewer     # the one page there is
 CHECK_JOBS=1 node utilities/check_all.mjs   # one check at a time, as before 18 September 2026
+CHECK_SHARD=2/4 node utilities/check_all.mjs   # the second of four shares of the checks
+node utilities/check_all.mjs --shard-plan=4    # which check is in which share
 ```
+
+GitHub runs the suite as four shares on four machines at the same time
+(`.github/workflows/checks.yml`), which cut a run from about 363 seconds, 312
+of them `check_all`, to the longest check plus the setup. A check goes to the
+share with the least weight so far, heaviest first, by the seconds in
+`utilities/check_weights.json`, taken from a run on GitHub, and a check that is
+not in the file counts as three seconds. A check named in another's `after`
+runs in the share of each check that names it. The longest check sets the floor.
+On 28 October 2026 four checks (`scenario links` at 150 seconds, `smoke rules`,
+`smoke edits` and `game fixes`) were the floor, and each is now several checks
+that the shares deal out. `scenario links` is three parts (`--part=i/3`), each
+walking every category page, a third of the detail pages and the pages reached
+from those. `game fixes` is three parts that deal out its builds and its
+sections. `rules@i-2` and `edits@i-2` are slices of the smoke parts' top-level
+blocks (`blockTaker` in `smoke_boot.mjs`, dealt by `smoke_weights.json`).
+Splitting costs the page's start-up in each part, and `edits` also repeats about
+12 seconds of work that its blocks share, so a slice is not half of its part.
+Refresh both weight files from a run when the times move. `SMOKE_TIMES=1` prints
+each block's time and `link_census.mjs --times` each page's.
 
 `check_all.mjs` is the entry point: it does the setup (extracting data and
 resource forks from `reference/game/Cythera Data.hqx` and `.../Cythera.hqx`
@@ -492,6 +534,8 @@ guide carried it*.
 | unreached code | `reach_check.mjs` | every declared function is reached by the page, a handler or the player; the unreached are pinned by name |
 | decoder snapshot | `decoder_snapshot.mjs` | a hash of Cythera's decoders' output, expected value in `check_all.mjs` |
 | PICT BitsRect | `pict_bits_check.mjs` | the uncompressed PICT opcodes, synthetic, which no game resource reaches |
+| image write | `image_write_check.mjs` | `rsrcReplaceImage` over every image resource of both forks (PICT, the six icon kinds, cursors, cicn, ppat): the same pixels back, painted and masked blocks back, another size rejected |
+| start buttons | `plaque_check.mjs` | `js/delv-plaques.js` against the shipped buttons: each in its place on PICT 132, a word found on all twelve, the lifted box within two levels darker and seven lighter than the stone beside it (negative control: a lift twelve levels dark), nothing outside the box changed, the same seed the same bytes; `plaqueCarve` reaching a pixel past its cover and no further, darkening the stroke, its light and shade the way round the measured cut has them (control: the code's across term reversed), and an empty cover changing nothing |
 | oracle currency | `oracle_check.mjs` | the delvmod submodule is at the fork's master |
 | delvmod tables | `delv_crosscheck.mjs` | the encryption lists, opcode table, symbol tables and decrypt verdicts, parsed out of delvmod's Python |
 | delvmod graphics | `delv_graphics_check.mjs` + `delv_graphics_ref.py` | `decompressDCG` pixel for pixel against delvmod |
@@ -533,6 +577,8 @@ guide carried it*.
 | quicktime instruments | `qtmusic_check.mjs` | QuickTime 3's instruments unpacked from its installer, every sample found, every part of the game's tunes given an instrument, and the theme's render pinned |
 | midi import | `midi_import_check.mjs` | `qtmaWrite` rebuilding the shipped tunes' headers byte for byte, and each tune back from its own MIDI file through `midiToQtma`, with controls |
 | resource snapshot | `rsrc_snapshot.mjs` | a hash of the classic-Mac decoders over both forks |
+| resource_dasm | `dasm_check.mjs` | the page's exports of every picture, icon, cursor, pattern, color table, font glyph, sound and string of both forks against resource_dasm's, with the known differences named (a skip without resource_dasm) |
+| resource_dasm control | `dasm_check.mjs --control` | one resource of each kind changed on grimoire's side, and each change reported |
 | disk image | `hfs_check.mjs` | `writeHfsImage` structurally |
 | disk image in the fork | `hfs_check.mjs` | every volume it writes read back through systemless's reader, forks byte for byte; skipped without the fork's `examples/hfs_dump.rs` |
 
@@ -580,7 +626,9 @@ green (`await_checks`; `NO_CHECKS=1` skips the wait). It checks out grimoire
 with the delvmod submodule and its whole history (`version_check.mjs`
 compares against `origin/main`), and beside it `ratlizard/wolflizard` on
 `cythera-detailed` (the HFS round trip builds its `hfs_dump` example, with
-the Rust build cached), `ratlizard/mac-files` (`copies_check.mjs`) and
+the Rust build cached), `ratlizard/mac-files` (`copies_check.mjs`; a
+front's run takes mac-files' branch of the same name when there is one,
+because a changed reader is copied here before mac-files' `main` has it) and
 `ratlizard/ratlizard.github.io` (`reach_check.mjs` counts the player's
 calls). It installs `unar` and llvm-mc 22 from apt.llvm.org:
 `ppc_check.mjs` fails with 21 and with Ubuntu's 18, which read the code
@@ -610,6 +658,26 @@ stayed `Cythera Data.Hqx` in git for a while after someone had renamed it, a ren
 of case alone that a case-insensitive filesystem kept from git. Until
 18 September 2026 there were 144 empty catches and a visitor got a quieter
 page and no reason.
+
+**Where `quiet` sends a failure** (moved here from `CLAUDE.md`, *Gotchas*,
+on 28 October 2026). Every optional decode that fails reports to `quiet(e)`
+in `js/mac-bytes.js`, which records each distinct failure with a count and
+its source line. The Tools sheet has them under *Fell back quietly*.
+Uncaught errors and unhandled rejections reach that list too, through the
+listeners installed at boot, and reach the status line. `?loud=1` prints
+each to the console for the browser check.
+
+**A fake clock must not start at zero** (moved here from `CLAUDE.md`,
+*Traps inside the `node:vm` harnesses*, on 28 October 2026), and this cost
+two debugging sessions in one afternoon. `mobile_input_check.mjs` drives
+`pumpButtons`, which compares `Date.now()` against `lastButtonAt`, set to
+`0` at the start. From a clock at 0 every transition looks like it arrived
+before the gap expired, so the outbox deferred for ever and the check hung
+with no output. Starting the clock at a real timestamp fixed that and
+immediately broke the other half. `asTheMacSeesIt` counted sync windows
+from zero, so a 2026 timestamp meant billions of empty windows. Anchor
+derived time to the first message's timestamp, and start the clock where a
+browser's would be.
 
 ### delvmod is the correctness oracle, in full
 
@@ -715,6 +783,27 @@ count words. Both other implementations already had both right, so these
 were this side's alone; the resource snapshot moved from `4d4c7cf6e1b1` to
 `3850dee3cd55` for exactly those four pictures.
 
+**resource_dasm is a third opinion, and the only one that reads every kind.**
+fuzziqersoftware's C++ decoder (MIT) was written with no knowledge of this
+one, and `utilities/dasm_check.mjs` compares what the page exports with what
+it writes, resource by resource, for both forks. Pictures, icons, cursors and
+patterns are compared pixel by pixel, color tables entry by entry, and every
+glyph of the two fonts, the sounds' samples and the strings in full. The
+check runs the project's macOS release, which the workspace has beside the
+repositories, and skips without it, so it runs on this machine and not on
+GitHub. Its header has what it allows and why. A color channel may be one
+step of 255 apart, from the two programs' different ways of turning
+QuickDraw's 16 bits into 8. The 4-bit icons are compared by index, because
+resource_dasm's 16-color table is an approximation of Apple's and the page's
+is Apple's, as read out of the ROMs. It found three differences, each read
+to its cause. Two are resource_dasm's (glyph R of both fonts is wider than
+its cell, and resource_dasm cuts off its last columns), and the check
+reports them as known. The third was this side's and is fixed. `mctb` 129 is
+a menu color table, a count and 30-byte menu color entries, and
+`COLOR_TABLE_TYPES` listed it with the clut family, so the page drew it as
+one black swatch. `decodeMctb` reads it as Toolbox Essentials and systemless
+do, and resource_dasm writes it raw, so the check does not compare it.
+
 **The HFS writer is the exception that proves the rule, and it is labelled as
 one.** `js/mac-hfs.js` was written *from* systemless's `src/disk_image/hfs.rs`
 — every MDB offset, every catalog record shape, the B-tree node descriptor and
@@ -765,9 +854,8 @@ implementations have the same bug.** No suite will tell you.
 
 **The quiet labels were grey until 8 October 2026.** `.partsTitle`,
 `.skillKey`, `.mechSub` and about a hundred other rules were `#b5b2a8` and
-`#8c8980`, so that no label was gold-tinted enough to read as a link; the
-maintainer called grey subtitles on the purple "barely legible", and both
-became near-white (`#f0ede4`, `#dcd8cc`) across `index.html` and `js/`. A
+`#8c8980`, so that no label was gold-tinted enough to read as a link. Gray
+on the purple was hard to read, and both became near-white (`#f0ede4`, `#dcd8cc`) across `index.html` and `js/`. A
 quiet label is quiet by its size, not its colour.
 
 #### `canvas.html`
@@ -778,8 +866,7 @@ quiet label is quiet by its size, not its colour.
   only the fields it reads (`USES`). Everything a control does is a hover
   `title`; the long form is the "?" dialog and nowhere else. The previous
   layout (6 September 2026) had a tool picker dialog, a floating tip under a
-  row of eight creatures, and a paragraph beside half the controls, and the
-  maintainer called it a hot mess. On a phone the dock along the bottom is
+  row of eight creatures, and a paragraph beside half the controls. On a phone the dock along the bottom is
   the ink row and the tool row, and the options open as a sheet over the
   picture (`body.sheet`), which is the arrangement that keeps the canvas
   the same size whatever is opened.
@@ -806,6 +893,13 @@ quiet label is quiet by its size, not its colour.
   take a row of their own under the tools, at 40 px. The pixels were extracted with the viewer's own decoders
   driven the way `decoder_snapshot.mjs` drives them; re-extract the same
   way if a frame is ever wrong.
+- **Two drawn scenes, one for each shape of screen.** The Cave
+  (`buildFooterScene`, 512 by 176) opens on a desktop and on a phone held
+  sideways. Falls (`buildFalls`, 108 by 160, a gorge at night) opens on a
+  phone held upright (`firstScene`), since the Cave left most of one empty.
+  Falls is sized so `fitCanvas()` shows it at three screen pixels to one on
+  phones from 360 by 780 to 412 by 915, and its header has the figures. Both
+  are drawn by code in the same module and use all five ramps.
 - **`browser_check.mjs` loads it and requires no console error**, since
   18 September 2026, and that is the whole of what the suite asks of it.
   What was done for its layout, on 6 September 2026, was to drive it in

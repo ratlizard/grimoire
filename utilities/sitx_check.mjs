@@ -107,12 +107,12 @@ else {
       if (e.folder) continue;
       for (const which of ['data', 'rsrc']) {
         if (!e[which]) continue;
-        let got;
-        try { got = ev(`(() => { const a = parseStuffItXArchive(__z); return stuffItXFork(__z, a.entries[${i}], '${which}'); })()`); }
+        let actual;
+        try { actual = ev(`(() => { const a = parseStuffItXArchive(__z); return stuffItXFork(__z, a.entries[${i}], '${which}'); })()`); }
         catch (er) { fail(`${basename(file)}: ${e.path} ${which}`, er.message); continue; }
         const ref = join(out, e.path) + (which === 'rsrc' ? '/..namedfork/rsrc' : '');
         if (!existsSync(ref)) { fail(`${basename(file)}: ${e.path} ${which}`, 'unar did not extract it'); continue; }
-        if (!same(got, readFileSync(ref))) fail(`${basename(file)}: ${e.path} ${which}`, `${got.length} bytes, not what unar extracts (${statSync(ref).size})`);
+        if (!same(actual, readFileSync(ref))) fail(`${basename(file)}: ${e.path} ${which}`, `${actual.length} bytes, not what unar extracts (${statSync(ref).size})`);
         else forksChecked++;
       }
     }
@@ -172,15 +172,15 @@ else {
   const opened = [];
   for (const file of saves) {
     sandbox.__z = new Uint8Array(readFileSync(file));
-    const got = ev(`(() => { try { const f = extractDelverArchive(__z); return { name: f.forks.name, path: f.via, data: f.bytes, rsrc: f.forks.rsrc, type: f.forks.type }; } catch (e) { return { error: e.message }; } })()`);
-    if (got.error) { fail(basename(file), got.error); continue; }
+    const actual = ev(`(() => { try { const f = extractDelverArchive(__z); return { name: f.forks.name, path: f.via, data: f.bytes, rsrc: f.forks.rsrc, type: f.forks.type }; } catch (e) { return { error: e.message }; } })()`);
+    if (actual.error) { fail(basename(file), actual.error); continue; }
     const out = join(TMP, 'save-' + basename(file));
     execFileSync('unar', ['-q', '-f', '-D', '-o', out, file], {stdio: 'ignore'});
-    const find = d => { for (const f of readdirSync(d, {recursive: true})) if (basename(String(f)) === got.name && statSync(join(d, String(f))).isFile()) return join(d, String(f)); return null; };
+    const find = d => { for (const f of readdirSync(d, {recursive: true})) if (basename(String(f)) === actual.name && statSync(join(d, String(f))).isFile()) return join(d, String(f)); return null; };
     const ref = find(out);
-    if (!ref) fail(basename(file), `unar has no ${got.name}`);
-    else if (!same(got.data, readFileSync(ref)) || !same(got.rsrc, readFileSync(ref + '/..namedfork/rsrc'))) fail(basename(file), `${got.name} is not what unar extracts`);
-    else opened.push(`${got.name} (${got.type})`);
+    if (!ref) fail(basename(file), `unar has no ${actual.name}`);
+    else if (!same(actual.data, readFileSync(ref)) || !same(actual.rsrc, readFileSync(ref + '/..namedfork/rsrc'))) fail(basename(file), `${actual.name} is not what unar extracts`);
+    else opened.push(`${actual.name} (${actual.type})`);
   }
   if (opened.length === saves.length) ok('the saved games', `${opened.join(', ')}, through extractDelverArchive, data and resource fork as unar extracts them`);
 }

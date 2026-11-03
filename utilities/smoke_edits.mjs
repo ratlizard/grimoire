@@ -7,11 +7,12 @@
 // all six in this process, in order.
 import { htmlPath, dataPath, onlyCat, visePath, savePath, html, js, archive, rsrcPath, rsrcFork, missingIds,
          El, REGISTRY, catSel, optionSource, CATEGORY_VALUES, body, documentStub, rafQueue, drainRaf, sandbox,
-         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally } from './smoke_boot.mjs';
+         ctx, peek, fail, t0, status, A, readFileSync, existsSync, tally, blockTaker } from './smoke_boot.mjs';
+const take = blockTaker(import.meta.url);
 
 // Opening a second archive must not leave the first one's derived tables
 // behind. Sentinels survive only if something is not being reset.
-try {
+if (take()) try {
   // Two kinds since 19 September 2026: the tables, which live on the archive
   // object (DERIVED) and go with it, and the state resetDerivedCaches still
   // clears by name. Both are marked and neither may survive a reload.
@@ -66,7 +67,7 @@ try {
    it -- that catches a renamed id -- but which tab a section lands on is
    judged from the freshly walked markup of that tab, by a section title the
    group owns against one belonging to another group. */
-try {
+if (take()) try {
   const groups = peek('MECH_GROUPS') || [];
   const walk = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   ctx.showCategory('MECHANICS');
@@ -80,7 +81,7 @@ try {
   const MARK = {
     MECH_PROGRESS: 'Experience and Levels', MECH_STATUS: 'Status Effects', MECH_INTERACT: 'Locks and Lockpicks',
     MECH_PUZZLES: 'The Riddles', MECH_COMBAT: 'Damage to Things', MECH_ECONOMY: 'The Dice Game',
-    HACKERY: 'Loose Ends',
+    HACKERY: 'What Calls What',
   };
   const strayTab = [];
   for (const g of groups) {
@@ -217,12 +218,12 @@ try {
    on.
    The library and talk cards are pinned in separate blocks above, where the
    readers they need are already built. */
-try {
+if (take()) try {
   const walkGrid = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const opened = [];
   const go = v => { opened.push([v, ctx.showCategory(v)]); return walkGrid(); };
   const mech = go('MECHANICS'), skills = go('SKILLS'), spells = go('SPELLS'), barks = go('BARKS');
-  const refused = opened.filter(([, r]) => r === false).map(([v]) => v);
+  const unopenedTabs = opened.filter(([, r]) => r === false).map(([v]) => v);
   // The lede of each card, distinctive enough not to match the sheet it now
   // sits on: the Spells sheet has "spells" in every other line, so that one
   // is pinned on a phrase only the card uses.
@@ -233,7 +234,7 @@ try {
   ];
   const gone = moved.filter(([, title, html]) => !html.includes(title));
   const lingering = moved.filter(([, title]) => mech.includes(title));
-  if (refused.length) fail('section moves', 'a tab would not open, so the sheets compared are not the ones named: ' + refused.join(', '));
+  if (unopenedTabs.length) fail('section moves', 'a tab would not open, so the sheets compared are not the ones named: ' + unopenedTabs.join(', '));
   else if (!/Hackery/.test(mech)) fail('section moves', 'the Mechanics sheet did not render, so the absence checks prove nothing');
   else if (gone.length) fail('section moves', 'a card is missing from its new home: ' + gone.map(m => m[0] + ' (' + m[3] + ')').join(', '));
   else if (lingering.length) fail('section moves', 'a card is still on the Mechanics sheet, so the move is half done: ' + lingering.map(m => m[0]).join(', '));
@@ -255,24 +256,24 @@ try {
    here parses the real markup into them. A lighter sandbox reports every
    category as lost, which looks exactly like the bug and comes from the
    sandbox instead. */
-try {
+if (take()) try {
   const was = ctx.location.hash;
   const landings = [];
   /* A link made before the Mechanics split points at the whole sheet, which no
      tab stands for; it must land on the first group, whose tab the tree has a
      leaf for, or the tab row comes up blank. */
   const firstGroup = (peek('MECH_GROUPS') || [])[0];
-  for (const [hash, want] of [['135', '135'], ['MECH_COMBAT', 'MECH_COMBAT'],
+  for (const [hash, expected] of [['135', '135'], ['MECH_COMBAT', 'MECH_COMBAT'],
                               ['MECHANICS', firstGroup && firstGroup.value], ['ITEMS', 'ITEMS']]) {
     ctx.location.hash = '#c=' + hash;
     ctx.parseArchiveBytes(archive, 'Cythera Data (reloaded on ' + hash + ')', { via: 'data fork' });
-    landings.push([hash, want, REGISTRY.get('categorySelect').value]);
+    landings.push([hash, expected, REGISTRY.get('categorySelect').value]);
   }
   ctx.location.hash = '';
   ctx.parseArchiveBytes(archive, 'Cythera Data (reloaded with no hash)', { via: 'data fork' });
   const bare = REGISTRY.get('categorySelect').value;
   ctx.location.hash = was;
-  const lost = landings.filter(([, want, got]) => !want || got !== want);
+  const lost = landings.filter(([, expected, actual]) => !expected || actual !== expected);
   // The control: with no hash the world IS the right answer, so a run where
   // everything lands on WORLD proves nothing unless this one does too.
   if (bare !== 'WORLD') fail('reload stays on the tab', 'with no hash it landed on ' + bare + ', not the world, so this check is not exercising the open path');
@@ -286,7 +287,7 @@ try {
 // and confirm the rebuilt file serves the edit back -- decrypted -- while
 // everything else survives. This is the only check that drives editing, so
 // anything new that writes belongs in it.
-try {
+if (take()) try {
   // Any resource of subindex 1 (known_encrypted) proves re-encryption.
   const specBefore = peek('delverArchiveSpec')(peek('ARCHIVE.bytes'));
   const countBefore = specBefore.resources.length;
@@ -316,9 +317,9 @@ try {
    Patch Comparison and opens that section, whose report was drawn into a
    shut fold until then, so the button seemed to do nothing. The control is
    the same build with the edits set aside, which must be rejected as empty. */
-try {
+if (take()) try {
   ctx.showCategory('PATCHES');
-  const got = peek(`(() => {
+  const patchResult = peek(`(() => {
     const keep = window.EDITED_RESIDS;
     window.EDITED_RESIDS = new Set();
     const empty = basketPatch(), emptyFiles = basketFiles();
@@ -338,13 +339,13 @@ try {
     return { empty: !!empty, emptyFiles: !!emptyFiles, edits: ed.resids, inPatch: w ? w.merged.resids : null, chip,
              shown, open: !!(sec && sec.open), replaces: rep ? rep.willReplace : null };
   })()`);
-  const one = got.edits.length;
-  if (got.empty || got.emptyFiles) fail('edits in your patch', 'Your Patch built something with no edit and nothing chosen');
+  const one = patchResult.edits.length;
+  if (patchResult.empty || patchResult.emptyFiles) fail('edits in your patch', 'Your Patch built something with no edit and nothing chosen');
   else if (!one) fail('edits in your patch', 'the edit is not among Your Patch\u2019s edits');
-  else if (!got.inPatch || got.edits.some(r => got.inPatch.indexOf(r) < 0)) fail('edits in your patch', 'the Magpie patch leaves out the edits: ' + JSON.stringify(got));
-  else if (got.chip.indexOf(one + (one === 1 ? ' edit' : ' edits')) < 0) fail('edits in your patch', 'Your Patch shows no chip for the edits: ' + JSON.stringify(got.chip));
-  else if (!got.shown || !got.open) fail('edits in your patch', 'View Comparison did not open Patch Comparison: ' + JSON.stringify(got));
-  else if (got.replaces !== one) fail('edits in your patch', 'View Comparison reports ' + got.replaces + ' replaced against ' + one + ' edited');
+  else if (!patchResult.inPatch || patchResult.edits.some(r => patchResult.inPatch.indexOf(r) < 0)) fail('edits in your patch', 'the Magpie patch leaves out the edits: ' + JSON.stringify(patchResult));
+  else if (patchResult.chip.indexOf(one + (one === 1 ? ' edit' : ' edits')) < 0) fail('edits in your patch', 'Your Patch shows no chip for the edits: ' + JSON.stringify(patchResult.chip));
+  else if (!patchResult.shown || !patchResult.open) fail('edits in your patch', 'View Comparison did not open Patch Comparison: ' + JSON.stringify(patchResult));
+  else if (patchResult.replaces !== one) fail('edits in your patch', 'View Comparison reports ' + patchResult.replaces + ' replaced against ' + one + ' edited');
   else console.log('  edits in your patch: ' + one + ' edit, in the Magpie patch and its chip; View Comparison opens Patch Comparison on it; with no edit the patch is rejected as empty');
   peek('(window.PATCH_REPORT = null, window.PATCH_BYTES = null, 0)');
 } catch (e) { fail('edits in your patch', e); }
@@ -353,18 +354,18 @@ try {
 // applyPropRecordEdit and confirm the rebuilt archive serves the list back
 // with exactly that field changed -- same record count, neighbours
 // byte-identical.
-try {
+if (take()) try {
   const propResid = peek('delverArchiveSpec')(peek('ARCHIVE.bytes')).resources
     .map(r => r.resid).find(r => (r >> 8) === 0x81);
   const parse = () => ctx.parseDelverPropList(
     ctx.smartDecrypt(ctx.getResourceBytes(A(), propResid), propResid).data);
   const before = parse();
   const idx = before.findIndex(r => r.onMap);
-  const want = { x: before[idx].x + 1 };
-  if (!ctx.applyPropRecordEdit(propResid, idx, want)) throw new Error('applyPropRecordEdit returned false');
+  const edit = { x: before[idx].x + 1 };
+  if (!ctx.applyPropRecordEdit(propResid, idx, edit)) throw new Error('applyPropRecordEdit returned false');
   const after = parse();
   if (after.length !== before.length) fail('prop edit', `record count moved: ${before.length} -> ${after.length}`);
-  else if (after[idx].x !== want.x || after[idx].y !== before[idx].y)
+  else if (after[idx].x !== edit.x || after[idx].y !== before[idx].y)
     fail('prop edit', `record ${idx} came back at ${after[idx].x},${after[idx].y}`);
   else {
     const other = (idx + 1) % before.length;
@@ -376,7 +377,7 @@ try {
 
 // Schedules, v1.40.0: everybody's day as a card each, a post a row, the
 // square a link into the zone.
-try {
+if (take()) try {
   ctx.showCategory('SCHEDULES');
   const sh = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const cards = (function count(el) { return (/^sched-\d+$/.test(el.id || '') ? 1 : 0) + (el.children || []).map(count).reduce((a, b) => a + b, 0); })(REGISTRY.get('sheetGrid'));
@@ -433,7 +434,7 @@ try {
    old destination is asserted GONE. And the card open is awaited rather than
    assumed: the sheet is built by the category switch and the card does not
    exist until it has run, which is why openSchedule defers by a tick. */
-try {
+if (take()) try {
   const leafFor = peek('TAB_LEAF_FOR');
   const walk = el => (el.innerHTML || '') + (el.children || []).map(walk).join('');
   ctx.showCharacterDetail(2);                        // Alaric, who keeps a day
@@ -482,7 +483,7 @@ try {
    The negative half: a landscape no script sets (0x8411) and a room no zone
    places (0x1C5F) must say so and link nothing. A join that matched loosely
    -- every zone for every landscape -- would pass every presence test here. */
-try {
+if (take()) try {
   // A script's owner rows are under its code (#scriptRefs) since 23 September
   // 2026; every other resource's are in the panel above it.
   const usage = r => { ctx.jumpToResource(r); drainRaf();
@@ -533,7 +534,7 @@ try {
    back to it. The negative half: another character's dossier must not have
    the class lists, and a writing that is not one of them must not show the
    hero -- a join keyed on subindex 1 alone would pass everything else. */
-try {
+if (take()) try {
   const walk = el => (el.innerHTML || '') + (el.children || []).map(walk).join('');
   // A script's owner rows are under its code (#scriptRefs) since 23 September
   // 2026; every other resource's are in the panel above it.
@@ -577,7 +578,7 @@ try {
    wanted poster comes from a placed poster's Data2, and the lute opens the
    pipes as the shipped script does -- so the lute's picture, which
    nothing opens, must have no window row. */
-try {
+if (take()) try {
   // A script's owner rows are under its code (#scriptRefs) since 23 September
   // 2026; every other resource's are in the panel above it.
   const usage = r => { ctx.jumpToResource(r); drainRaf();
@@ -620,7 +621,7 @@ try {
    prop-type field is an argument, and three have 26, the book's -- one sits
    at (57,13) in Cademia -- so no chip may open that square; and a class whose
    placed props are all alike (the club) has no list at all. */
-try {
+if (take()) try {
   const walk = el => (el.innerHTML || '') + (el.children || []).map(walk).join('');
   ctx.showItemDetail(0x1A); drainRaf();
   const book = walk(REGISTRY.get('sheetGrid'));
@@ -645,7 +646,7 @@ try {
    rule was worked out: the spear's tile 0x206 shows the spear as the
    class it is the base of, and the hatchet 0x207, which no class owns,
    still offers the spear at aspect 1 and its sheet and states it. */
-try {
+if (take()) try {
   const walk = el => (el.innerHTML || '') + (el.children || []).map(walk).join('');
   ctx.showSpriteZoom(0x206, 'spear'); drainRaf();
   const spearView = walk(REGISTRY.get('spriteZoom'));
@@ -684,7 +685,7 @@ try {
    The negative control is the last line: with no patch open the report host
    must be empty, so a section that drew its pairs unconditionally would fail
    here rather than look right. */
-try {
+if (take()) try {
   ctx.showCategory('PATCHES');
   const walk = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   const before = walk();
@@ -700,19 +701,19 @@ try {
   // nothing, and the tile comparison is what this is about.
   const base = ctx.delverArchiveSpec(archive);
   const victims = [0x8E04, 0x8E34];
-  const WANT = { 0x8E04: [1, 5, 9], 0x8E34: [0, 2] };
+  const EXPECTED = { 0x8E04: [1, 5, 9], 0x8E34: [0, 2] };
   const spec = { scenarioTitle: base.scenarioTitle, playerName: '',
                  formatMajor: base.formatMajor, formatMinor: base.formatMinor, resources: [] };
-  let wantTiles = 0;
+  let expectedTiles = 0;
   for (const resid of victims) {
     const src = base.resources.find(r => r.resid === resid);
     if (!src) { fail('patches', 'the archive has no ' + resid.toString(16)); throw new Error('no sheet'); }
     const dec = ctx.decodeResource(A(), src.data, 141, resid);
     const img = dec.image.slice();
-    for (const t of WANT[resid]) {
+    for (const t of EXPECTED[resid]) {
       for (let y = t * 32; y < (t + 1) * 32; y++)
         for (let x = 0; x < dec.W; x++) img[y * dec.W + x] = ((x + y) & 1) ? 3 : 250;
-      wantTiles++;
+      expectedTiles++;
     }
     // A sheet resource is a bare DCG stream of the 32-wide column, which is
     // what decodeResource gives back, so the encoder the ditherizer uses for
@@ -759,7 +760,7 @@ try {
   else if (after.indexOf('A patch made by the smoke test') < 0) fail('patches', 'the description is not shown');
   else if (after.indexOf(rep.descriptor.uuidText) < 0) fail('patches', 'the UUID is not shown');
   else if (after.indexOf('Bug Fix') < 0) fail('patches', 'type code 0 is not named Bug Fix');
-  else if (canvases !== wantTiles * 2) fail('patches', `${canvases} tile canvases, expected ${wantTiles * 2} (a pair for each of ${wantTiles})`);
+  else if (canvases !== expectedTiles * 2) fail('patches', `${canvases} tile canvases, expected ${expectedTiles * 2} (a pair for each of ${expectedTiles})`);
   else {
     /* Applying it. The patch was made here from the archive that is open, so
        merging it must put those five redrawn tiles into the archive itself --
@@ -793,7 +794,7 @@ try {
     const host = REGISTRY.get('patchReport');
     if (host && countTag(host, 'CANVAS'))
       fail('patches', 'the tile pairs survive after the patch is forgotten');
-    else console.log(`  patches: a made patch reads back with its description, its UUID and ${wantTiles} redrawn tiles as ${canvases} canvases, and forgetting it empties the report`);
+    else console.log(`  patches: a made patch reads back with its description, its UUID and ${expectedTiles} redrawn tiles as ${canvases} canvases, and forgetting it empties the report`);
   }
 } catch (e) { fail('patches', e); }
 
@@ -810,7 +811,7 @@ try {
    report every line after the insertion, which is the control on the
    masking. Under all of it diffSequences is held to rebuilding both sides
    of a thousand random pairs, which is what an edit script is for. */
-try {
+if (take()) try {
   let bad = 0;
   let seed = 7;
   const rnd = n => { seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF; return seed % n; };
@@ -863,16 +864,16 @@ try {
    that file is and prints a note of its absence elsewhere. The archive must be
    recognised and give the DelP icon; the data file, which has no Magpie, must
    give none. */
-try {
+if (take()) try {
   const MAGPIE = 'reference/community/addons/614_MagpiePumpkinPatch.sit.hqx';
   if (!existsSync(MAGPIE)) console.log('  (no Magpie archive among the add-ons; the patch icon is not checked)');
   else {
     ctx.MAGPIE_FORK = undefined;
     const none = ctx.noteMagpieFrom(archive);
-    const got = ctx.noteMagpieFrom(new Uint8Array(readFileSync(MAGPIE)));
+    const magpieNote = ctx.noteMagpieFrom(new Uint8Array(readFileSync(MAGPIE)));
     const icon = ctx.magpieIcon('DelP');
     if (none) fail('patch icon', 'the data file was taken for an archive holding Magpie');
-    else if (!got || !icon || !icon.width) fail('patch icon', 'the Pumpkin Patch archive gave no Magpie icon for a patch');
+    else if (!magpieNote || !icon || !icon.width) fail('patch icon', 'the Pumpkin Patch archive gave no Magpie icon for a patch');
     else {
       // The Patches tab wears it only while a patch is the file open: with
       // Cythera Data open, the cloth; with the Pumpkin Patch itself as the
@@ -904,7 +905,7 @@ try {
    The negative control comes first: with nothing chosen the frames must come
    back byte for byte and no patch must be offered, so a section that always
    wrote something would fail rather than look right. */
-try {
+if (take()) try {
   ctx.showCategory('PATCHES');
   const countTag = (el, tag) => (el.tagName === tag ? 1 : 0) +
     (el.children || []).reduce((n, c) => n + countTag(c, tag), 0);
@@ -934,11 +935,11 @@ try {
   const sheet = cover[1] && cover[1].sheet;
   const plainCanvases = countTag(host, 'CANVAS');
   const plainInputs = countTag(host, 'INPUT');
-  const wantInputs = 5 + cover[1].shades;
-  const wantCanvases = 2 + cover[1].shades + 32;
+  const expectedInputs = 5 + cover[1].shades;
+  const expectedCanvases = 2 + cover[1].shades + 32;
   if (peek('heroSpritePatch()') !== null) fail('hero colours', 'a patch is offered with nothing chosen');
-  else if (plainInputs !== wantInputs) fail('hero colours', `${plainInputs} inputs with nothing chosen, expected a colour for each of five parts and ${cover[1].shades} shades and no description`);
-  else if (plainCanvases !== wantCanvases) fail('hero colours', `${plainCanvases} canvases, expected 2 figures, ${cover[1].shades} shade rows and 16 pairs`);
+  else if (plainInputs !== expectedInputs) fail('hero colours', `${plainInputs} inputs with nothing chosen, expected a colour for each of five parts and ${cover[1].shades} shades and no description`);
+  else if (plainCanvases !== expectedCanvases) fail('hero colours', `${plainCanvases} canvases, expected 2 figures, ${cover[1].shades} shade rows and 16 pairs`);
   else if (!REGISTRY.get('heroBody') || !REGISTRY.get('heroOther')) fail('hero colours', 'no body or sprite list');
 
   // Blond hair and a blue top on the heroine.
@@ -973,9 +974,9 @@ try {
     const pristine = peek('window.PRISTINE_BYTES').length;
     if (!ctx.heroSpriteApply()) fail('hero colours', 'the patch would not apply');
     else {
-      const got = peek(`(() => { const d = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, ${sheet}), 141, ${sheet}); return Array.from(d.image); })()`);
-      const want = peek(`Array.from(heroRecoloured(heroFigure('heroine')).image)`);
-      if (got.length !== want.length || got.some((v, i) => v !== want[i]))
+      const actual = peek(`(() => { const d = decodeResource(ARCHIVE, getResourceBytes(ARCHIVE, ${sheet}), 141, ${sheet}); return Array.from(d.image); })()`);
+      const expected = peek(`Array.from(heroRecoloured(heroFigure('heroine')).image)`);
+      if (actual.length !== expected.length || actual.some((v, i) => v !== expected[i]))
         fail('hero colours', 'the open file does not have the recoloured sheet');
       else if (peek('window.PRISTINE_BYTES').length !== pristine) fail('hero colours', 'applying moved the file as it arrived');
       else if (peek(`heroFigure('heroine').unknown`)) fail('hero colours', 'after applying, the section reads the recoloured sheet instead of the shipped one');
@@ -1085,7 +1086,7 @@ try {
 /* A save against the scenario, the readable half (25 September 2026): the
    shipped save compared with the open file shows the character records
    that differ field by field and the zone lists record by record. */
-try {
+if (take()) try {
   if (!savePath || !existsSync(savePath)) console.log('  (no saved game; the save comparison is skipped)');
   else {
     ctx.showCategory('PATCHES');
@@ -1138,7 +1139,7 @@ try {
    carried one is carried, where it read "at 0, 1". And a save with no list
    for the zone has the scenario's, so nothing is gone; before, every
    record was. */
-try {
+if (take()) try {
   const listId = 0x810B;
   const own = ctx.smartDecrypt(ctx.getResourceBytes(A(), listId), listId).data;
   const recs = ctx.parseDelverPropList(own);
@@ -1189,7 +1190,7 @@ try {
 
    The download is caught rather than performed: the stub records the last
    blob handed to downloadBlob, which is how export_test works too. */
-try {
+if (take()) try {
   ctx.showCategory('PATCHES');
   const walk = () => (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid'));
   if (!REGISTRY.has('compareFile')) fail('compare', 'no file control on the comparison section');
@@ -1296,7 +1297,7 @@ try {
 // The ditherizer's data path: dither a synthetic image to the palette,
 // DCG-encode it, write it into a real portrait slot through the full
 // rebuild, and confirm the rebuilt archive decodes it back pixel for pixel.
-try {
+if (take()) try {
   const rgba = new Uint8Array(64 * 64 * 4);
   for (let i = 0; i < 64 * 64; i++) {
     rgba[i * 4] = (i * 7) & 0xFF; rgba[i * 4 + 1] = (i * 13) & 0xFF;
@@ -1338,13 +1339,13 @@ try {
    rebuild as Edit bytes, so the resource is among the edits the comparison
    section exports. The rebuilt script is read back: the new call is there,
    and the topic's resume point moved past it. */
-try {
+if (take()) try {
   ctx.jumpToResource(0x1857);
   ctx.startCodeEdit();
   REGISTRY.get('editCodeAt').value = '0x013E';
   REGISTRY.get('editCodeText').value = 'call_resource SetCharacterFlag (0xF00)\narg Arg00\nbyte 0x07\nend';
   ctx.previewCodeEdit();
-  const refused = REGISTRY.get('editCodePreview').textContent;
+  const previewMessage = REGISTRY.get('editCodePreview').textContent;
   REGISTRY.get('editCodeAt').value = '0x013D';
   ctx.previewCodeEdit();
   const preview = REGISTRY.get('editCodePreview').textContent;
@@ -1353,7 +1354,7 @@ try {
   const fn = ctx.dvmExtents(b, 0x1857).find(([st, en, k]) => k === 'function' && 0x13D >= st && 0x13D < en);
   const ops = fn ? ctx.dvmDisassemble(b.subarray(fn[0], fn[1]), 3).ops.map(o => [fn[0] + o[0], o[2], o[3]]) : [];
   const at = ops.find(o => o[0] === 0x13D), resp = ops.find(o => o[1] === 'conversation_response' && /^"name"/.test(o[2]));
-  if (!/not where an instruction starts/.test(refused)) fail('change code', 'an offset inside an instruction was not rejected: ' + refused.slice(0, 120));
+  if (!/not where an instruction starts/.test(previewMessage)) fail('change code', 'an offset inside an instruction was not rejected: ' + previewMessage.slice(0, 120));
   else if (!/\+7 bytes/.test(preview) || !/\+ 013D  call_resource/.test(preview)) fail('change code', 'the preview does not mark the new code: ' + preview.slice(0, 200));
   else if (!peek('window.EDITED_RESIDS').has(0x1857)) fail('change code', 'the edit did not go through the rebuild');
   else if (!at || at[1] !== 'call_resource' || !resp || !/-> 0x0147$/.test(resp[2])) fail('change code', 'Paris\u2019s rebuilt name topic does not read back: ' + JSON.stringify([at, resp]));
@@ -1368,7 +1369,7 @@ try {
    itself. A bad number and a line the game cannot print are rejected. Applied,
    the gremlin is in the open file under the first free number, read back
    through the engine's rule for its subindex, and the form moves on. */
-try {
+if (take()) try {
   ctx.showCategory('PATCHES');
   if (!REGISTRY.get('gremlinMaker')) throw new Error('no host for the section');
   const first = peek('gremlinNumber()');
@@ -1393,7 +1394,7 @@ try {
   const r = peek(read);
   const text = r.ops.map(o => o[1] + (o[2] ? ' ' + o[2] : ''));
   const ret = r.ops.find(o => o[1] === 'return'), targets = r.ops.filter(o => o[1] === 'then').map(o => o[2]);
-  const refused = peek(`[{ flag: '300' }, { say: 'Café' }, { which: 'x' }, { when: 'signal', which: '' }].map(o => {
+  const formErrors = peek(`[{ flag: '300' }, { say: 'Café' }, { which: 'x' }, { when: 'signal', which: '' }].map(o => {
     window.GREMLIN_STATE = Object.assign({}, window.GREMLIN_STATE, o, { listing: null });
     try { gremlinListingFromForm(window.GREMLIN_STATE); return null; } catch (e) { return e.message; } })`);
   form({ when: 'signal', which: '3001' });
@@ -1408,7 +1409,7 @@ try {
     fail('gremlin maker', 'the method reads back as ' + text.join(' | '));
   else if (!ret || targets.length !== 2 || targets.some(t => !new RegExp('-> 0x' + ret[0].toString(16).toUpperCase().padStart(4, '0') + '$').test(t)))
     fail('gremlin maker', 'a test does not jump to the end: ' + targets.join(', ') + ', return at ' + (ret && ret[0]));
-  else if (refused.some(m => !m)) fail('gremlin maker', 'a form that cannot be written was accepted: ' + JSON.stringify(refused));
+  else if (formErrors.some(m => !m)) fail('gremlin maker', 'a form that cannot be written was accepted: ' + JSON.stringify(formErrors));
   else {
     form();
     const w = peek('gremlinPatch()'), rid = 0x1F00 + first;
@@ -1440,7 +1441,7 @@ try {
    British spelling, and Peirithous's alive bit. Built again on the file it
    has just fixed, it must stop. data_fix_check.mjs checks every fix and
    every combination; this checks the section. */
-try {
+if (take()) try {
   ctx.showCategory('PATCHES');
   if (!REGISTRY.get('dataFixMaker')) throw new Error('no host for the section');
   ctx.dataFixClear();
@@ -1450,7 +1451,7 @@ try {
   // Bryce Schroeder's six, by name: the lists are by category since
   // 1 October 2026, and his are in three of them.
   for (const id of ['fetch', 'fishing', 'aethon-locks', 'aethon-ask-about', 'paris-diomede-names', 'green-goat-chair']) ctx.dataFixToggle(id, true);
-  const refusedParis = peek(`(() => { try { dataFixPatch(); return null; } catch (e) { return e.message; } })()`);
+  const rejectedParis = peek(`(() => { try { dataFixPatch(); return null; } catch (e) { return e.message; } })()`);
   const paris = peek(`DATA_FIXES.find(f => f.id === 'paris-diomede-names').title`);
   ctx.dataFixToggle('paris-diomede-names', false);
   ctx.dataFixToggle('text', true);
@@ -1493,7 +1494,7 @@ try {
     return { fetch: row('fetch'), fishing: row('fishing'), locks: row('aethon-locks') }; })()`);
   const text = id => peek(`(() => { const b = smartDecrypt(getResourceBytes(ARCHIVE, ${id}), ${id}).data; let t = ''; for (let i = 0; i < b.length; i++) t += String.fromCharCode(b[i]); return t; })()`);
   if (none !== null || orphan === null) fail('game fixes', 'a patch was written with nothing chosen, or none with one of the text\u2019s choices alone');
-  else if (!refusedParis || refusedParis.indexOf(paris) !== 0) fail('game fixes', 'the edited Paris topic was not rejected by the fix’s name: ' + refusedParis);
+  else if (!rejectedParis || rejectedParis.indexOf(paris) !== 0) fail('game fixes', 'the edited Paris topic was not rejected by the fix’s name: ' + rejectedParis);
   else if (changes.why || !changes.yery || !changes.landKing || !changes.british || !changes.community || changes.twoTaled)
     fail('game fixes', 'the list of the text’s changes is not the options chosen: ' + JSON.stringify(changes));
   else if (!link || link.resid !== 0x1858 || link.t !== 'Yery well' || !link.opened || !link.ringed)

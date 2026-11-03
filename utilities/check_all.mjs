@@ -6,6 +6,17 @@
 //   node utilities/check_all.mjs viewer      (one page: viewer | browser | mobile)
 //   node utilities/check_all.mjs 'in the game'   (one check by its name, its whole output after the table)
 //   CHECK_JOBS=1 node utilities/check_all.mjs   (one at a time, as it ran until 18 September 2026)
+//   CHECK_SHARD=2/4 node utilities/check_all.mjs   (the second of four shares of the checks)
+//   node utilities/check_all.mjs --shard-plan=4    (which check goes in which share, and the weights)
+//
+// Shares let GitHub run the suite on several machines at the same time. Each
+// check goes to the share with the least weight so far, heaviest first, by the
+// seconds in check_weights.json (taken from a run on GitHub, and a check
+// missing from it counts as three seconds). A check named in another's `after`
+// runs in the share of every check that names it, since each machine unpacks
+// for itself. The longest check sets the floor, because no number of shares
+// brings the run below it. On 28 October 2026 that was `scenario links`, at
+// 150 seconds.
 //
 // The checks run several at a time, up to CHECK_JOBS of them (four unless
 // set otherwise: each is a Node process holding the whole page, and this
@@ -24,7 +35,7 @@
 // before most checks can run, and that is the step most likely to be forgotten.
 
 import {execFile, execFileSync, execSync} from 'node:child_process';
-import {existsSync, mkdirSync, readdirSync, writeFileSync} from 'node:fs';
+import {existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {availableParallelism} from 'node:os';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -93,7 +104,7 @@ const FETCHED_FORKS = !existsSync(resolve(ROOT, HQX)) && !existsSync(resolve(ROO
 // so a checkout without the game runs this check too rather than skipping it:
 // vise_check.mjs accepts a .sit as readily as a .bin, since sniffViseInstaller
 // opens both. It resolves to that path whether or not the file is there yet --
-// `want` is tested after the setup step has had its chance to create it.
+// `requiredInputs` is tested after the setup step has had its chance to create it.
 const VISE_BIN = firstExisting('reference/game/installers/Cythera.bin',
   'reference/original_installers/Cythera.bin', 'reference/Cythera.bin',
   `${TMP}/Cythera installers (archive.org).sit`);
@@ -146,6 +157,18 @@ function findLlvmMc() {
   return 'llvm-mc';
 }
 const LLVM_MC = findLlvmMc();
+// resource_dasm, the second decoder that dasm_check.mjs compares
+// js/mac-rsrc-types.js with: $RESOURCE_DASM, the PATH, then the workspace's
+// copy of the project's macOS release (DISK.md), one level up from a main
+// checkout and three from a front. Nothing here installs it, and without it
+// both rows skip and state it.
+function findResourceDasm() {
+  if (process.env.RESOURCE_DASM) return process.env.RESOURCE_DASM;
+  try { const p = execSync('command -v resource_dasm', {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim(); if (p) return p; } catch (e) { /* not on the path */ }
+  return firstExisting('../resource_dasm-bin/release-macos/resource_dasm',
+    '../../../resource_dasm-bin/release-macos/resource_dasm');
+}
+const RESOURCE_DASM = findResourceDasm();
 // A Chrome or Chromium, for browser_check.mjs: the one check that runs the
 // page in a browser rather than in node:vm. $CHROME, the PATH, then the
 // Mac's Applications folder; without one that row skips and states it.
@@ -190,13 +213,13 @@ const ART_PACK_URL = 'https://opengameart.org/sites/default/files/Dungeon%20Craw
 // the three the row skips and states it.
 const KIT = firstHolding('work/pristine/.systemless', process.env.PLAYKIT, '../playthrough-2026-09-08', '../../../playthrough-2026-09-08');
 const GAME_BIN = firstExisting(process.env.SYSTEMLESS_BIN, '../m68k-patched/systemless', '../../../m68k-patched/systemless');
-const LICENCE = firstExisting('reference/game/installed-folders/Cythera License (registered).data',
+const LICENSE = firstExisting('reference/game/installed-folders/Cythera License (registered).data',
   '../cythera-reference/game/installed-folders/Cythera License (registered).data');
 const EXPORTS = `${TMP}/check_all_exports`;
 
 process.chdir(ROOT);
 
-function say(s) { process.stdout.write(s + '\n'); }
+function writeLine(s) { process.stdout.write(s + '\n'); }
 
 // ---- setup -----------------------------------------------------------------
 // The local copies first: extracting a .hqx that is already on disk costs a
@@ -206,61 +229,61 @@ function say(s) { process.stdout.write(s + '\n'); }
 // does not prove. $NO_FETCH skips the fallback for anyone who wants the old
 // behaviour of skipping instead.
 async function ensureForks() {
-  const need = [[HQX, DATA], [APP_HQX, APP_RSRC]];
+  const extractions = [[HQX, DATA], [APP_HQX, APP_RSRC]];
   let missing = false;
-  for (const [src, out] of need) {
+  for (const [src, out] of extractions) {
     if (existsSync(out)) continue;
     if (!existsSync(src)) { missing = true; continue; }
-    say(`  extracting ${src} …`);
+    writeLine(`  extracting ${src} …`);
     execFileSync('python3', ['utilities/binhex_decode.py', src, TMP], {stdio: 'ignore'});
   }
   if (!missing) return;
   if (process.env.NO_FETCH) {
-    say('  ! the game is not in reference/ and $NO_FETCH is set; some checks will be skipped');
+    writeLine('  ! the game is not in reference/ and $NO_FETCH is set; some checks will be skipped');
     return;
   }
-  say('  ! the game is not in reference/ — fetching it instead');
+  writeLine('  ! the game is not in reference/ — fetching it instead');
   const {fetchGame} = await import('./fetch_game.mjs');
-  if (!await fetchGame(TMP, say))
-    say('  ! could not get the game; some checks will be skipped');
+  if (!await fetchGame(TMP, writeLine))
+    writeLine('  ! could not get the game; some checks will be skipped');
 }
 
 // The Dungeon Crawl Stone Soup tiles, CC0, for artpack_check.mjs: the pack
 // Make a Scenario's art pack choice is written for, 6 MB once and cached.
 async function ensureArtPack() {
   if (existsSync(ART_PACK) || process.env.NO_FETCH) return;
-  say('  fetching the Dungeon Crawl tiles from opengameart.org …');
+  writeLine('  fetching the Dungeon Crawl tiles from opengameart.org …');
   try {
     const res = await fetch(ART_PACK_URL);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     writeFileSync(ART_PACK, new Uint8Array(await res.arrayBuffer()));
-  } catch (e) { say('  ! could not: ' + e.message + '; the art pack check will be skipped'); }
+  } catch (e) { writeLine('  ! could not: ' + e.message + '; the art pack check will be skipped'); }
 }
 
 async function ensureQuickTime() {
   if (existsSync(QT_EXE) || process.env.NO_FETCH) return;
-  say('  fetching QuickTime 3 from archive.org for its instruments …');
+  writeLine('  fetching QuickTime 3 from archive.org for its instruments …');
   try {
     const res = await fetch(QT_URL);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     writeFileSync(QT_EXE, new Uint8Array(await res.arrayBuffer()));
-  } catch (e) { say('  ! could not: ' + e.message + '; the QuickTime check will be skipped'); }
+  } catch (e) { writeLine('  ! could not: ' + e.message + '; the QuickTime check will be skipped'); }
 }
 
 function ensureGraphicsRef() {
   if (existsSync(GFX_REF) || !existsSync(DELV) || !existsSync(DATA)) return;
-  say('  building the delvmod graphics reference …');
+  writeLine('  building the delvmod graphics reference …');
   try {
     const json = execFileSync('python3', ['utilities/delv_graphics_ref.py', DELV, DATA],
       {maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'ignore']});
     execSync(`cat > "${GFX_REF}"`, {input: json});
   } catch (e) {
-    say('  ! could not build it: ' + (e.message || '').split('\n')[0]);
+    writeLine('  ! could not build it: ' + (e.message || '').split('\n')[0]);
   }
 }
 
 // ---- the checks ------------------------------------------------------------
-// `want` has the files that must exist for a check to be meaningful; if one
+// `requiredInputs` has the files that must exist for a check to be meaningful; if one
 // is missing the check is skipped and reported as skipped, rather than failing
 // in a way that looks like a real problem.
 const CHECKS = [
@@ -285,7 +308,7 @@ const CHECKS = [
   {page: 'viewer', name: 'stylesheet',
    cmd: ['utilities/css_check.mjs', 'index.html'],
    grep: /css: [^\n]*/},
-  {page: 'viewer', name: 'decoder snapshot', want: [DATA],
+  {page: 'viewer', name: 'decoder snapshot', requiredInputs: [DATA],
    cmd: ['utilities/decoder_snapshot.mjs', 'index.html', DATA], grep: /SNAPSHOT \w+/,
    expect: 'SNAPSHOT 8843a9f3d2aeb2be'},
   // Synthetic on purpose: none of Cythera's twenty-one PICTs uses the
@@ -295,44 +318,54 @@ const CHECKS = [
   {page: 'viewer', name: 'PICT BitsRect',
    cmd: ['utilities/pict_bits_check.mjs', 'index.html'],
    grep: /\d+ synthetic pictures/},
+  // Replace with a PNG writes an image back in the form it had; a round
+  // trip through the decoders over every image resource of both forks.
+  {page: 'viewer', name: 'image write', requiredInputs: [DATA_RSRC, APP_RSRC],
+   cmd: ['utilities/image_write_check.mjs', 'index.html', DATA_RSRC, APP_RSRC],
+   grep: /image write: 139 images/},
+  // The start screen's buttons: their carved words lifted off clean, against
+  // the shipped pictures; the new words are drawn in browser_check.mjs.
+  {page: 'viewer', name: 'start buttons', requiredInputs: [DATA_RSRC],
+   cmd: ['utilities/plaque_check.mjs', 'index.html', DATA_RSRC],
+   grep: /plaques: 12 buttons lifted clean[^\n]*/},
   /* Is the oracle current? delvmod is a fork this project pushes fixes to,
      and a fix to it is worth nothing if the copy the suite compares against
      is older. Placed before the delvmod checks so that a stale oracle is read
      as the reason they agreed, rather than as a reassurance. */
-  {page: 'viewer', name: 'oracle currency', want: [DELV],
+  {page: 'viewer', name: 'oracle currency', requiredInputs: [DELV],
    cmd: ['utilities/oracle_check.mjs', DELV],
    grep: /the oracle is[^\n]*/},
-  {page: 'viewer', name: 'delvmod tables', want: [DATA, DELV],
+  {page: 'viewer', name: 'delvmod tables', requiredInputs: [DATA, DELV],
    cmd: ['utilities/delv_crosscheck.mjs', 'index.html', DELV, DATA]},
-  {page: 'viewer', name: 'delvmod graphics', want: [DATA, GFX_REF],
+  {page: 'viewer', name: 'delvmod graphics', requiredInputs: [DATA, GFX_REF],
    cmd: ['utilities/delv_graphics_check.mjs', 'index.html', DATA, GFX_REF],
    grep: /identical pixels : \d+/},
   // The writer's oracle needs only delvmod -- its synthetic archives are
   // built on the fly -- so unlike the read checks it runs on a checkout
   // without the game. DATA is passed anyway: when the game is there the
   // check also proves the real archive re-serializes byte-identically.
-  {page: 'viewer', name: 'delvmod write', want: [DELV], after: ['addons + heuristic'],
+  {page: 'viewer', name: 'delvmod write', requiredInputs: [DELV], after: ['addons + heuristic'],
    cmd: ['utilities/delv_write_check.mjs', 'index.html', DELV, DATA, SAVE],
    grep: /all comparisons passed/},
   // ddasm's Disassembler RUN against dvmDisassemble, decode event by decode
   // event, over every script in the archive -- the walk check that
   // delv_crosscheck's table comparison never was. It spawns a separate Python
   // reference (delv_dasm_ref.py), so delvmod and the archive are all it needs.
-  {page: 'viewer', name: 'delvmod disassembly', want: [DATA, DELV],
+  {page: 'viewer', name: 'delvmod disassembly', requiredInputs: [DATA, DELV],
    cmd: ['utilities/delv_dasm_check.mjs', 'index.html', DELV, DATA],
    grep: /\d+ functions compared[^\n]*/},
   // The conversation extractor against the community's verified dialogue
   // collection (cytheraguides.com, gathered in play). The oracle directory
   // is gitignored -- when it is absent the harness still runs its
   // structural half against the archive and passes on that alone.
-  {page: 'viewer', name: 'dialogue vs guides', want: [DATA],
+  {page: 'viewer', name: 'dialogue vs guides', requiredInputs: [DATA],
    cmd: ['utilities/dialogue_check.mjs', 'index.html', DATA],
    grep: /\d+ characters, [\d,]+ topics.*/},
-  {page: 'viewer', name: 'archive loading', want: [HQX, DATA, DATA_RSRC, APP_HQX],
+  {page: 'viewer', name: 'archive loading', requiredInputs: [HQX, DATA, DATA_RSRC, APP_HQX],
    cmd: ['utilities/loader_test.mjs', 'index.html', HQX, DATA, DATA_RSRC, APP_HQX, VISE_BIN]},
   // The installer: js/mac-vise.js against the catalog's CRC for every
   // file, and against the BinHex copies for the two files the suite has.
-  {page: 'viewer', name: 'installer', want: [VISE_BIN],
+  {page: 'viewer', name: 'installer', requiredInputs: [VISE_BIN],
    cmd: ['utilities/vise_check.mjs', VISE_BIN, DATA, DATA_RSRC, APP_DATA, APP_RSRC, INSTALLED_SIT],
    grep: /\d+ files, \d+ extracted, \d+ CRC mismatches/},
   // The heuristic half of smartDecrypt, scored against the tables that
@@ -350,11 +383,11 @@ const CHECKS = [
      reading back can fail. See the harness header. */
   {page: 'viewer', name: 'script writing',
    cmd: ['utilities/asm_check.mjs', 'index.html', DATA],
-   want: [DATA],
+   requiredInputs: [DATA],
    grep: /script writing: [^\n]*/},
   {page: 'viewer', name: 'folded listing',
    cmd: ['utilities/fold_check.mjs', 'index.html', DATA],
-   want: [DATA],
+   requiredInputs: [DATA],
    grep: /folded \d+ functions[^\n]*/},
   /* And does turning those jumps into blocks preserve the control flow? A
      different kind of risk from the fold's: a misread jump renders a wrong
@@ -365,16 +398,16 @@ const CHECKS = [
      no shape that reaches them. */
   {page: 'viewer', name: 'recovered structure',
    cmd: ['utilities/structure_check.mjs', 'index.html', DATA],
-   want: [DATA],
+   requiredInputs: [DATA],
    grep: /structured \d+ of \d+[^\n]*/},
   /* And does the Read view say everything the recovered tree does? Every
      call, every test and every string of every function, held to the
      function's ops; three controls in the harness header. */
   {page: 'viewer', name: 'code read aloud',
    cmd: ['utilities/read_check.mjs', 'index.html', DATA],
-   want: [DATA],
+   requiredInputs: [DATA],
    grep: /read \d+ functions[^\n]*/},
-  {page: 'viewer', name: 'addons + heuristic', want: [DATA],
+  {page: 'viewer', name: 'addons + heuristic', requiredInputs: [DATA],
    cmd: ['utilities/addons_check.mjs', 'index.html', DATA, ADDONS],
    grep: /heuristic [\d.]+% vs the tables \([^)]*\)/},
   /* Applying a Magpie patch -- the one add-on system Cythera has. The merge
@@ -384,7 +417,7 @@ const CHECKS = [
      which extracted the patch out of its StuffIt archive; the page does that
      itself since method 13 landed, so getting the patch out of the .hqx is
      part of what this proves now. */
-  {page: 'viewer', name: 'magpie patch', want: [DATA], after: ['addons + heuristic'],
+  {page: 'viewer', name: 'magpie patch', requiredInputs: [DATA], after: ['addons + heuristic'],
    cmd: ['utilities/patch_check.mjs', 'index.html', DATA, ADDONS],
    grep: /\d+ of [\d,]+ resources replaced, [\d,]+ bytes out(?:; \d+ tiles of \d+ redrawn across \d+ sheets)?/},
   /* The game's fixes (js/delv-datafixes.js, js/delv-datapatch.js), which the
@@ -395,9 +428,12 @@ const CHECKS = [
      patched file with every fix is pinned: a change to any fix moves it, and
      the value moves in the same commit. `--full` adds each fix left out,
      about a minute, and is run when a fix is added. */
-  {page: 'viewer', name: 'game fixes', want: [DATA],
-   cmd: ['utilities/data_fix_check.mjs', 'index.html', DATA, COLLECTION],
-   grep: /every fix: [^\n]*/, expect: 'every fix: 298 resources changed, patched file 56f2fd15ce267b53'},
+  /* In three parts (--part=i/n), which deal out the builds and the sections
+     that follow them. The pinned line comes from the section of every fix
+     together, which the first part runs, so the other two have nothing to pin. */
+  ...[1, 2, 3].map(part => ({page: 'viewer', name: `game fixes ${part}`, requiredInputs: [DATA],
+   cmd: ['utilities/data_fix_check.mjs', 'index.html', DATA, COLLECTION, `--part=${part}/3`],
+   ...(part === 1 ? {grep: /every fix: [^\n]*/, expect: 'every fix: 530 resources changed, patched file bb28640965e442ed'} : {grep: /alone: [^\n]*/})})),
   /* Cythera Data in Spanish (js/delv-translate.js with the table
      js/delv-es.js), both forks: the table covers every piece and has no
      stale entry, every script still disassembles, the keyword lists are the
@@ -409,7 +445,7 @@ const CHECKS = [
      hash is pinned, so a
      change to the table or the applier moves it, and the value moves in the
      same commit. */
-  {page: 'viewer', name: 'spanish', want: [DATA, DATA_RSRC, APP_DATA, APP_RSRC],
+  {page: 'viewer', name: 'spanish', requiredInputs: [DATA, DATA_RSRC, APP_DATA, APP_RSRC],
    cmd: ['utilities/translate_check.mjs', 'index.html', DATA, DATA_RSRC, APP_DATA, APP_RSRC],
    grep: /\d+ of \d+ highlighted words answer as in English[^\n]*/,
    expect: '509 of 513 highlighted words answer as in English; 0 pieces untranslated; SPANISH 2ca82cf4; the program 232 loads in Spanish',
@@ -422,7 +458,7 @@ const CHECKS = [
      fork is compared against the MacBinary copy as well, which shares no code
      with either. Without `unar` the lengths and the snapshot are still
      checked; without the corpus it skips. */
-  {page: 'viewer', name: 'stuffit 13 and 15', want: [ADDONS],
+  {page: 'viewer', name: 'stuffit 13 and 15', requiredInputs: [ADDONS],
    cmd: ['utilities/sit_methods_check.mjs', 'index.html', 'reference'],
    grep: /\d+ of \d+ compressed fork\(s\) in \d+ archive\(s\)[^\n]*/},
   /* StuffIt X (js/mac-stuffitx.js), a port of The Unarchiver's: every fork
@@ -454,7 +490,7 @@ const CHECKS = [
      is pinned: 1.0.3 and 1.0.4 have the same data file byte for byte, and a
      decoder change that altered what counts as the same resource would move
      these numbers without moving any snapshot. */
-  {page: 'viewer', name: 'between releases', want: [VISE_ALL],
+  {page: 'viewer', name: 'between releases', requiredInputs: [VISE_ALL],
    cmd: ['utilities/releases_check.mjs', 'index.html', VISE_ALL ? dirname(VISE_ALL) : 'reference/game/installers'],
    grep: /[^\n]*resources changed/},
   /* The undither, scored against a known original. It needs no archive: the
@@ -471,7 +507,7 @@ const CHECKS = [
      This one checks the frame exactly and requires the face inside it to still
      be reduced, from the real archive, because the evidence for which is
      which is the corpus itself. */
-  {page: 'viewer', name: 'portrait frame lock', want: [DATA],
+  {page: 'viewer', name: 'portrait frame lock', requiredInputs: [DATA],
    cmd: ['utilities/frame_lock_check.mjs', 'index.html', DATA],
    grep: /the vintner's grapes: \d+\/\d+ pixels exactly as drawn/},
   /* The Mechanics sheet's probabilities: the closed-form models in
@@ -494,14 +530,14 @@ const CHECKS = [
      the workbench's cythera_symbols.txt beside the repository (a sibling
      checkout, or $WORKBENCH) it is held to that independently recovered
      routine list, address for address. */
-  {page: 'viewer', name: 'executable', want: [APP_DATA],
+  {page: 'viewer', name: 'executable', requiredInputs: [APP_DATA],
    cmd: ['utilities/pef_check.mjs', 'js/mac-pef.js', APP_DATA, PEF_SYMBOLS],
    grep: /\d+ routines named[^\n]*/},
   /* js/mac-ppc.js against LLVM's PowerPC disassembler, word for word: the
      application's code section when it is there, every branch-field
      combination, and 300,000 generated words. A word read differently, or
      read here when LLVM rejects it, fails; one LLVM alone reads is counted. */
-  {page: 'viewer', name: 'powerpc decoder', want: [LLVM_MC],
+  {page: 'viewer', name: 'powerpc decoder', requiredInputs: [LLVM_MC],
    cmd: ['utilities/ppc_check.mjs', 'js/mac-ppc.js', 'js/mac-pef.js', LLVM_MC, APP_DATA],
    grep: /[\d,]+ words read the same[^;]*/},
   /* The application patch (js/delv-apppatch.js, js/delv-appfixes.js) and the
@@ -512,7 +548,7 @@ const CHECKS = [
      68K half (js/delv-app68k.js) held byte for byte to what the workbench
      builds, and the rejections. Without llvm-mc the lines are held to the
      decoder alone. */
-  {page: 'viewer', name: 'application patch', want: [APP_DATA, APP_RSRC],
+  {page: 'viewer', name: 'application patch', requiredInputs: [APP_DATA, APP_RSRC],
    cmd: ['utilities/app_patch_check.mjs', APP_DATA, APP_RSRC, LLVM_MC],
    grep: /[\d,]+ of [\d,]+ code words written back the same/},
   {page: 'viewer', name: 'rule models',
@@ -525,6 +561,13 @@ const CHECKS = [
   {page: 'viewer', name: 'version',
    cmd: ['utilities/version_check.mjs', 'index.html'],
    grep: /version [\d.]+[^\n]*/},
+  /* The merge rule for the version line (version_merge.mjs), run through real
+     rebases on scratch repositories. It fails when the version after a rebase
+     is not main's with the front's bump added, and its control, with no
+     driver registered, has to end on main's number. */
+  {page: 'viewer', name: 'version merge',
+   cmd: ['utilities/version_merge_check.mjs'],
+   grep: /version merge [^\n]*/},
   /* The page in a real browser, over HTTP on a loopback port: index.html
      loads with no console error and the last script ran (a load-order fault
      is what stops it, and the node:vm harnesses run the scripts as one
@@ -532,15 +575,17 @@ const CHECKS = [
      page's ?src= path and the world comes up; canvas.html loads clean,
      which is that page's only check. Quiet failures are counted from the
      console (?loud=1). Skips without a Chrome. */
-  {page: 'viewer', name: 'browser', want: [CHROME],
+  {page: 'viewer', name: 'browser', requiredInputs: [CHROME],
    cmd: ['utilities/browser_check.mjs', 'index.html', 'canvas.html', HQX],
    grep: /browser: [^\n]*/},
-  /* The UI smoke, in eight rows that each start from a fresh boot and run
+  /* The UI smoke, in ten rows that each start from a fresh boot and run
      at once (viewer_smoke.mjs with no part named is the whole drive in one
-     process). The galleries loop is halved across two rows, since it is
-     most of the drive's time. */
-  ...['galleries-a', 'galleries-b', 'views', 'atlas', 'rules', 'edits', 'saves', 'installer'].map(part => ({
-    page: 'viewer', name: 'smoke ' + part, want: [DATA], slow: true, after: ['addons + heuristic'],
+     process). The galleries loop is halved across two rows, since it was
+     most of the drive's time, and the rules and the edits are two slices each
+     (`rules@1-2`, the blocks of the part dealt by smoke_weights.json), since
+     they were the longest rows after it. */
+  ...['galleries-a', 'galleries-b', 'views', 'atlas', 'rules@1-2', 'rules@2-2', 'edits@1-2', 'edits@2-2', 'saves', 'installer'].map(part => ({
+    page: 'viewer', name: 'smoke ' + part, requiredInputs: [DATA], slow: true, after: ['addons + heuristic'],
     cmd: ['utilities/viewer_smoke.mjs', 'index.html', DATA, '', VISE_ALL, SAVE, part],
     grep: part.startsWith('galleries') ? /\d+ galleries, [\d,]+ tiles[^\n]*/ : /clean in [\d.]+ s/})),
   /* Where the Scenario tab's links lead (link_census.mjs): every page of it
@@ -552,15 +597,18 @@ const CHECKS = [
      chip and a unit's Stats table chip did the first, 253 links, and every
      script, picture and sound page the second; those runs are the controls.
      About a minute. */
-  {page: 'viewer', name: 'scenario links', want: [DATA], slow: true,
-   cmd: ['utilities/link_census.mjs', 'index.html', DATA],
-   grep: /scenario links: [^\n]*/},
+  /* In three parts (--part=i/n after smoke_boot's five positional arguments).
+     Each walks every category page and a third of the detail pages and what
+     they lead to, which together are all the pages one walk reaches. */
+  ...[1, 2, 3].map(part => ({page: 'viewer', name: `scenario links ${part}`, requiredInputs: [DATA], slow: true,
+   cmd: ['utilities/link_census.mjs', 'index.html', DATA, '', '', '', `--part=${part}/3`],
+   grep: /scenario links: [^\n]*/})),
   /* Bad input: every real input corrupted a fixed number of ways from a
      fixed seed and handed to the page's entry point, each case in a
      worker under a deadline. A decoder may return or throw; it may not
      fail to stop or take the process down. Has a control that loops on
      purpose and must be reported as a hang. */
-  {page: 'viewer', name: 'bad input', want: [DATA], slow: true,
+  {page: 'viewer', name: 'bad input', requiredInputs: [DATA], slow: true,
    cmd: ['utilities/fuzz_check.mjs', 'index.html', DATA, DATA_RSRC, HQX, VISE_BIN, VISE_ALL,
          firstExisting('reference/community/addons/616_Rocky_the_Flying_Chicken.zip')],
    grep: /fuzz: [^\n]*/},
@@ -569,10 +617,10 @@ const CHECKS = [
      to open it and save it again, and the file the game wrote must have
      the edit; the unedited seed is the control. The one oracle the writers
      had lacked -- delvmod is not the game. About forty seconds. */
-  {page: 'viewer', name: 'in the game', want: [KIT, GAME_BIN, LICENCE], slow: true, alone: true,
-   cmd: ['utilities/game_check.mjs', 'index.html', KIT, GAME_BIN, LICENCE, DATA, APP_DATA, APP_RSRC],
+  {page: 'viewer', name: 'in the game', requiredInputs: [KIT, GAME_BIN, LICENSE], slow: true, alone: true,
+   cmd: ['utilities/game_check.mjs', 'index.html', KIT, GAME_BIN, LICENSE, DATA, APP_DATA, APP_RSRC],
    grep: /game: [^\n]*/},
-  {page: 'viewer', name: 'zip export', want: [DATA], slow: true,
+  {page: 'viewer', name: 'zip export', requiredInputs: [DATA], slow: true,
    cmd: ['utilities/export_test.mjs', 'index.html', DATA, EXPORTS], zips: EXPORTS},
 
   // The classic-Mac resource decoders were once a separate page
@@ -589,12 +637,12 @@ const CHECKS = [
      writes are read back out of the glyf table and filled by winding number
      over the strike's pixel grid, and every pixel must match. Has a
      negative control per font in each direction. */
-  {page: 'viewer', name: 'bitmap font write', want: [DATA_RSRC],
+  {page: 'viewer', name: 'bitmap font write', requiredInputs: [DATA_RSRC],
    cmd: ['utilities/nfnt_write_check.mjs', 'index.html', DATA_RSRC],
    grep: /\d+ of \d+ strikes written as TrueType[^\n]*/},
   // Patches > Behind the Scenes: each fix written into the fork, read back
   // from MacBinary, everything else unchanged, a second run rejected.
-  {page: 'viewer', name: 'behind the scenes', want: [DATA_RSRC],
+  {page: 'viewer', name: 'behind the scenes', requiredInputs: [DATA_RSRC],
    cmd: ['utilities/backstage_check.mjs', 'index.html', DATA_RSRC],
    grep: /\d+ fix, \d+ strings, written and read back[^\n]*/},
   /* QuickTime 3's instruments out of its Windows installer (a zip around
@@ -603,23 +651,39 @@ const CHECKS = [
      the synthesis: record it here when the change is meant. */
   /* Make a Scenario's art pack: its PNG decoder, its matcher from the game's
      names to the pack's files, and a scenario built with it. */
-  {page: 'viewer', name: 'art pack', want: [ART_PACK, DATA],
+  {page: 'viewer', name: 'art pack', requiredInputs: [ART_PACK, DATA],
    cmd: ['utilities/artpack_check.mjs', 'index.html', ART_PACK, DATA],
    grep: /art pack: [^\n]*/},
-  {page: 'viewer', name: 'quicktime instruments', want: [QT_EXE, DATA],
+  {page: 'viewer', name: 'quicktime instruments', requiredInputs: [QT_EXE, DATA],
    cmd: ['utilities/qtmusic_check.mjs', 'index.html', QT_EXE, DATA],
    grep: /QuickTime 3: [^\n]*/,
-   expect: 'QuickTime 3: 21 files unpacked, the controls refused; 235 instruments, 1544 key ranges, every sample found; every part of 11 tunes has an instrument; the theme 98.1 s, TUNE f04b2a97a124'},
+   // TUNE was f04b2a97a124 until 25 October 2026, when a part's volume became squared (QT_VOLUME_POWER),
+   // 2559b8843847 until 28 October 2026, when every envelope stage became 1.451 times as long (QT_ENV_STRETCH),
+   // and f94e4e0de430 until later that day, when a sample's loop stopped short of loopEnd.
+   expect: 'QuickTime 3: 21 files unpacked and the controls caught. 235 instruments, 1544 key ranges, every sample found. Every part of 11 tunes has an instrument, the theme 98.1 s, TUNE 5a31226bc465'},
   /* A tune written and a MIDI file made into one (qtmaWrite, midiToQtma),
      held to the shipped tunes: their headers rebuilt byte for byte, and
      each back from its MIDI file. The harness's header has the rest. */
-  {page: 'viewer', name: 'midi import', want: [DATA],
+  {page: 'viewer', name: 'midi import', requiredInputs: [DATA],
    cmd: ['utilities/midi_import_check.mjs', 'index.html', DATA],
    grep: /midi import: [^\n]*/,
    expect: 'midi import: 11 shipped headers rebuilt byte for byte; 13401 notes and 7835 controllers back from MIDI where they were (a controller\'s value within 89 of 65536); the controls caught'},
-  {page: 'viewer', name: 'resource snapshot', want: [APP_RSRC, DATA_RSRC],
+  {page: 'viewer', name: 'resource snapshot', requiredInputs: [APP_RSRC, DATA_RSRC],
    cmd: ['utilities/rsrc_snapshot.mjs', 'index.html', APP_RSRC, DATA_RSRC],
-   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT b0b89791ac47'},   // 'Page' text for an empty page ("This page has no text."), 16 October 2026; only that type moved
+   grep: /SNAPSHOT \w+/, expect: 'SNAPSHOT 8e52be1105b5'},   // 25 October 2026: mctb read as menu color entries (ea7b0c7651d2, its line alone moved), then MAC_4BIT_PAL as high bytes (icl4's line alone, ics4 using none of the five entries)
+  /* The same decoders held to resource_dasm, a second implementation, on
+     every picture, icon, cursor, pattern, color table, font, sound and string
+     of both forks; the snapshot above proves them unchanged, and this row
+     tests whether they are right. The two known differences are in the
+     harness's header, with the program at fault. The control row changes one
+     resource of each kind on grimoire's side and fails unless each is caught. */
+  {page: 'viewer', name: 'resource_dasm', requiredInputs: [RESOURCE_DASM, APP_RSRC, DATA_RSRC],
+   cmd: ['utilities/dasm_check.mjs', 'index.html', RESOURCE_DASM, `${TMP}/dasm_check`, APP_RSRC, DATA_RSRC],
+   grep: /resource_dasm: \d+ resources[^\n]*/,
+   expect: 'resource_dasm: 199 resources compared, 197 match, 2 known differences, 0 other differences, 1420 channels one step apart'},
+  {page: 'viewer', name: 'resource_dasm control', requiredInputs: [RESOURCE_DASM, APP_RSRC, DATA_RSRC],
+   cmd: ['utilities/dasm_check.mjs', '--control', 'index.html', RESOURCE_DASM, `${TMP}/dasm_check`, APP_RSRC, DATA_RSRC],
+   grep: /resource_dasm control: [^\n]*/, expect: 'resource_dasm control: every change caught'},   // the Mac readers' text in plain US English, 22 October 2026: the text of DATA, FOND, LINF, styl, TILE and TxSt moved, no pixels; then CODE's text lost its dash (the old hash came back with the two dashes put back alone)
 
   // The HFS disk-image writer index.html exports with: structural here, and
   // in the row after it every volume round-tripped through systemless's
@@ -632,7 +696,7 @@ const CHECKS = [
    grep: /\d+ volumes, \d+ structural checks/,
    expect: '5 volumes, 131 structural checks'},
   {page: 'viewer', name: 'disk image in the fork', slow: true,
-   want: [resolve(ROOT, SYSLESS, 'examples/hfs_dump.rs')],
+   requiredInputs: [resolve(ROOT, SYSLESS, 'examples/hfs_dump.rs')],
    cmd: ['utilities/hfs_check.mjs', 'index.html', SYSLESS],
    grep: /\d+ volumes, \d+ structural checks[^\n]*/,
    expect: '5 volumes, 135 structural checks, 4 round-tripped through systemless'},
@@ -640,7 +704,7 @@ const CHECKS = [
 ];
 
 // ---- run -------------------------------------------------------------------
-say(`\n  Cythera checks — ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`);
+writeLine(`\n  Cythera checks — ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`);
 await ensureForks();
 /* The argument is a page or one check. One check by name was added on
    16 October 2026: "re-run a failing one on its own" was the advice under
@@ -648,12 +712,56 @@ await ensureForks();
    list out of this file by hand, which the game check's eight arguments made
    a chore. Named alone, the check's whole output is printed under the table,
    since the row shows one line of it. */
+// A share of the checks, for CHECK_SHARD=i/n and --shard-plan=n.
+const WEIGHTS = JSON.parse(readFileSync(resolve(HERE, 'check_weights.json'), 'utf8'));
+function planShards(count) {
+  const weights = WEIGHTS;
+  const weight = check => weights[check.name] ?? 3;
+  const load = new Array(count).fill(0), shardOf = new Map();
+  const heaviestFirst = [...CHECKS].sort((a, b) => weight(b) - weight(a) || CHECKS.indexOf(a) - CHECKS.indexOf(b));
+  for (const check of heaviestFirst) {
+    let lightest = 0;
+    for (let j = 1; j < count; j++) if (load[j] < load[lightest]) lightest = j;
+    shardOf.set(check.name, lightest);
+    load[lightest] += weight(check);
+  }
+  const shares = Array.from({length: count}, () => new Set());
+  const add = (index, name) => {
+    if (shares[index].has(name)) return;
+    shares[index].add(name);
+    for (const before of CHECKS.find(c => c.name === name)?.after || []) add(index, before);
+  };
+  for (const check of CHECKS) add(shardOf.get(check.name), check.name);
+  return {shares, weight};
+}
+const planArg = args.find(a => a.startsWith('--shard-plan='));
+if (planArg) {
+  const {shares, weight} = planShards(Number(planArg.split('=')[1]));
+  shares.forEach((share, i) => {
+    const total = [...share].reduce((sum, name) => sum + weight(CHECKS.find(c => c.name === name)), 0);
+    writeLine(`  share ${i + 1} has ${share.size} checks and ${total} s of work (${[...share].join(', ')})`);
+  });
+  const covered = new Set(shares.flatMap(s => [...s]));
+  const missing = CHECKS.filter(c => !covered.has(c.name));
+  writeLine(missing.length ? `  No share has ${missing.map(c => c.name).join(', ')}.` : `  Every one of the ${CHECKS.length} checks is in a share.`);
+  process.exit(missing.length ? 1 : 0);
+}
+const shardArg = (process.env.CHECK_SHARD || '').match(/^(\d+)\/(\d+)$/);
+let inShard = () => true;
+if (process.env.CHECK_SHARD && (!shardArg || +shardArg[1] < 1 || +shardArg[1] > +shardArg[2])) {
+  writeLine(`  CHECK_SHARD is "${process.env.CHECK_SHARD}" and has to be i/n, with i from 1 to n.`);
+  process.exit(1);
+}
+if (shardArg) {
+  const share = planShards(+shardArg[2]).shares[+shardArg[1] - 1];
+  inShard = check => share.has(check.name);
+}
 const byName = only && CHECKS.some(c => c.name === only);
-const chosen = check => !only || (byName ? check.name === only : check.page === only);
+const chosen = check => inShard(check) && (!only || (byName ? check.name === only : check.page === only));
 // A name that matches nothing once ran nothing and print "A clean run is
 // 0 ok", which reads as a pass.
 if (!CHECKS.some(chosen)) {
-  say(`  No page or check is called "${only}". Pages: ${[...new Set(CHECKS.map(c => c.page))].join(', ')}.`);
+  writeLine(`  No page or check is called "${only}". Pages: ${[...new Set(CHECKS.map(c => c.page))].join(', ')}.`);
   process.exit(1);
 }
 if (CHECKS.some(c => chosen(c) && c.page === 'viewer')) { ensureGraphicsRef(); await ensureQuickTime(); await ensureArtPack(); }
@@ -701,8 +809,8 @@ function judge(check, ok, out, secs) {
     /* The row truncates a note at 96 characters, and the half worth reading is
        what to do about it, so the name is left out -- the row already has
        it -- and both hashes and the instruction fit. */
-    const got = (note || '(nothing)').replace(/^SNAPSHOT /, ''), want = expected.replace(/^SNAPSHOT /, '');
-    out += `\nFAIL: got ${got}, want ${want}; if deliberate, move it in check_all.mjs`;
+    const actual = (note || '(nothing)').replace(/^SNAPSHOT /, ''), expectedSnapshot = expected.replace(/^SNAPSHOT /, '');
+    out += `\nFAIL: the output is ${actual} and the check expects ${expectedSnapshot}; if deliberate, move it in check_all.mjs`;
   }
   if (!ok) {
     failed++;
@@ -751,13 +859,23 @@ for (let i = 0; i < CHECKS.length; i++) {
   const check = CHECKS[i];
   if (!chosen(check)) { rows[i] = null; done.add(check.name); continue; }
   if (quick && check.slow) { rows[i] = [check.page, check.name, 'skip', '--quick']; skipped++; done.add(check.name); continue; }
-  const missing = (check.want || []).filter(p => !existsSync(p));
+  const missing = (check.requiredInputs || []).filter(p => !existsSync(p));
   if (missing.length) {
     rows[i] = [check.page, check.name, 'skip', 'needs ' + missing.map(m => m.replace(TMP + '/', '')).join(', ')];
     skipped++; done.add(check.name);
     continue;
   }
   pending.push(i);
+}
+/* The checks start heaviest first, by the seconds in check_weights.json, so that
+   a long check does not start last and leave the other workers idle while it
+   finishes. A check that others wait on (`after`) counts as the heaviest of
+   them, since they cannot start without it. The table still prints in the
+   list's order. */
+{
+  const seconds = check => WEIGHTS[check.name] ?? 3;
+  const priority = check => Math.max(seconds(check), ...CHECKS.filter(c => (c.after || []).includes(check.name)).map(seconds));
+  pending.sort((a, b) => priority(CHECKS[b]) - priority(CHECKS[a]) || a - b);
 }
 const started = Date.now();
 await new Promise(resolve => {
@@ -773,7 +891,7 @@ await new Promise(resolve => {
       runCheck(check, i).then(row => {
         if (check.alone) aloneRunning = false;
         rows[i] = row; done.add(check.name); running--;
-        say(`  ${row[2] === 'ok' ? 'ok  ' : 'FAIL'}  ${check.name}  ${row[3].match(/\([\d.]+s\)$/)[0]}`);
+        writeLine(`  ${row[2] === 'ok' ? 'ok  ' : 'FAIL'}  ${check.name}  ${row[3].match(/\([\d.]+s\)$/)[0]}`);
         pump();
       });
     }
@@ -785,27 +903,28 @@ for (let i = rows.length - 1; i >= 0; i--) if (rows[i] === null) rows.splice(i, 
 
 const w0 = Math.max(...rows.map(r => r[0].length));
 const w1 = Math.max(...rows.map(r => r[1].length));
-say('');
+writeLine('');
 for (const [page, name, status, note] of rows) {
   const mark = status === 'ok' ? '  ok  ' : status === 'skip' ? ' skip ' : ' FAIL ';
-  say(`  ${page.padEnd(w0)}  ${name.padEnd(w1)}  ${mark}  ${note}`);
+  writeLine(`  ${page.padEnd(w0)}  ${name.padEnd(w1)}  ${mark}  ${note}`);
 }
 
 const ran = rows.length - skipped;
-say(`\n  ${ran} checks run, ${failed} failed, ${skipped} skipped, ${wall}s wall clock with ${JOBS} at a time`);
+writeLine(`\n  ${ran} checks run, ${failed} failed, ${skipped} skipped, ${wall}s wall clock with ${JOBS} at a time`);
 // CLAUDE.md used to state the clean-run figure in prose, and it went stale
 // four times -- each time on the day a check was added, silently, while the
 // file still read as authoritative. The fifth time, on 8 September 2026, the
 // instruction in the handoff was to stop correcting the prose and have the
 // suite say the sentence instead. This is that sentence: paste it in when it
 // changes, rather than counting the checks by hand.
-if (!failed && !skipped && !only)
-  say(`  A clean run is ${ran} ok, 0 failed, 0 skipped.`);
+if (shardArg) writeLine(`  This was share ${shardArg[1]} of ${shardArg[2]}, and the other shares hold the rest of the checks.`);
+else if (!failed && !skipped && !only)
+  writeLine(`  A clean run is ${ran} ok, 0 failed, 0 skipped.`);
 if (byName) {
   const i = CHECKS.findIndex(c => c.name === only);
-  if (outputs[i] != null) say('\n' + outputs[i].trimEnd());
+  if (outputs[i] != null) writeLine('\n' + outputs[i].trimEnd());
 } else if (failed) {
-  say('  Re-run a failing one alone to see its full output:');
-  for (const r of rows) if (r[2] === 'FAIL') say(`    node utilities/check_all.mjs '${r[1]}'`);
+  writeLine('  Re-run a failing one alone to see its full output:');
+  for (const r of rows) if (r[2] === 'FAIL') writeLine(`    node utilities/check_all.mjs '${r[1]}'`);
 }
 process.exit(failed ? 1 : 0);

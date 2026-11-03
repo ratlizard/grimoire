@@ -45,6 +45,64 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       if (!/0x437B8/.test(one) || !/KeyRoutine\(short\)/.test(one)) fail('executable', 'a routine chip does not land on the routine: ' + one.slice(0, 200));
       else console.log(`  executable: ${pef.routines.length} routines named, ${pef.loader.symbols.length} imports from ${pef.loader.libraries.length} libraries; KeyRoutine at 0x437B8`);
     }
+    /* The routine notes, v1.330.0: what a routine does in plain words,
+       written in the workbench (js/delv-routinenotes.js), each claim citing
+       the instructions that show it. The workbench checks its addresses
+       against its own reading of the program; this holds them to the page's
+       reading of the shipped one, which is what a visitor's link rings.
+       Every text's entry must start a routine of its name, and every address
+       in a routine's text must lie in that routine or start another; in a
+       class's opening it must lie in one of the class's routines. Then the
+       page must show a text with its addresses as links and its callers
+       read from the code. The negative control is a copy of the notes with
+       one address moved into another routine, which must be caught. */
+    try {
+      const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
+      const notes = peek('ROUTINE_NOTES');
+      // By the demangled name, or by the mangled one where the page's demangler
+      // stops short of the workbench's (a conversion operator, __opPc__8TSegLoadFv).
+      // The routines outside a class, under the key '', go by the whole mangled
+      // symbol (GetTileName__FsPcUcUc), since two of a name differ only by it.
+      const named = (r, name) => {
+        if (!r) return false;
+        if (r.name === name || r.name.startsWith(name + '(') || r.mangled === name) return true;
+        const [cls, fn] = name.split('::');
+        return !!fn && r.mangled.includes(cls.length + cls) && (r.mangled.startsWith(fn + '__') || r.mangled.startsWith('__' + fn + '__'));
+      };
+      const misplaced = set => {
+        const bad = [];
+        for (const [cls, k] of Object.entries(set)) {
+          const ranges = [];
+          for (const n of k.routines) {
+            const r = ctx.exeRoutineAt(n.entry);
+            if (!r || r.offset !== n.entry || !named(r, n.name)) { bad.push(n.name + ' starts no routine of its name at 0x' + n.entry.toString(16)); continue; }
+            ranges.push(r);
+            for (const m of n.text.matchAll(/`0x([0-9A-F]{6})`/g)) {
+              const v = parseInt(m[1], 16), at = ctx.exeRoutineAt(v);
+              if (!(v >= r.offset && v < r.offset + r.length) && !(at && at.offset === v)) bad.push(n.name + ' cites 0x' + m[1]);
+            }
+          }
+          for (const m of k.opening.matchAll(/`0x([0-9A-F]{6})`/g)) {
+            const v = parseInt(m[1], 16), at = ctx.exeRoutineAt(v);
+            if (!ranges.some(r => v >= r.offset && v < r.offset + r.length) && !(at && at.offset === v)) bad.push(cls + "'s opening cites 0x" + m[1]);
+          }
+        }
+        return bad;
+      };
+      const routines = Object.values(notes).reduce((n, k) => n + k.routines.length, 0);
+      const cites = JSON.stringify(notes).match(/`0x[0-9A-F]{6}`/g).length;
+      const bad = misplaced(notes);
+      const moved = JSON.parse(JSON.stringify(notes));
+      const enc = moved.TSegFile.routines.find(n => n.name === 'TSegFile::Encrypt');
+      enc.text = enc.text.replace('`0x07BA58`', '`0x07BB0C`');
+      ctx.openPefRoutine('TSegFile::Encrypt');
+      const page = all(REGISTRY.get('sheetGrid'));
+      if (bad.length) fail('routine notes', bad.length + ' misplaced: ' + bad.slice(0, 4).join('; '));
+      else if (!misplaced(moved).some(b => /Encrypt cites 0x07BB0C/.test(b))) fail('routine notes', 'an address moved into Decrypt was not caught');
+      else if (!/>Description</.test(page) || !new RegExp('jumpToExeAt\\(' + 0x07BA58 + '\\)[^>]*>0x07BA58<').test(page) || !/>Callers<[\s\S]*TSegFile::Decrypt/.test(page))
+        fail('routine notes', 'the routine page does not show the text with its links and callers (' + page.slice(0, 200) + ')');
+      else console.log(`  routine notes: ${Object.keys(notes).length} classes, ${routines} routines, ${cites} cited addresses, each in its routine, and a moved address caught`);
+    } catch (e) { fail('routine notes', e.stack || e.message); }
     /* The program's figures on the Mechanics sheet, v1.51.0: the clock,
        hunger, healing, poison, the talk balloon, what a command spends and
        who is whose enemy, each read out of the application's code with the
@@ -91,14 +149,14 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // of CalcLighting, and the window's walk for "in view".
       else if ((b => !b || !b.near || b.near.v !== 4 || !b.far || b.far.v !== 8 || !b.view || !inRoutine(b.near, 'TViewer::CalcLighting'))(ctx.exeLightBands()))
         fail('program figures', 'the light bands were misread: ' + JSON.stringify(ctx.exeLightBands()));
-      // The party bar's colours (exePartyColours), 3 October 2026: palette
+      // The party bar's colours (exePartyColors), 3 October 2026: palette
       // index by state, in the order DrawCharStatus tests them, poison
       // green 2 to sleep blue 9, then hunger grey 7 below nutrition 4 by
       // HasAbility's constant, and white 0 for none; each figure in the
       // routine it is in.
-      else if ((p => !p || p.rows.map(r => r.colour.v + ':' + (r.hunger ? 'hunger' : r.flag.v)).join() !== '2:9,6:14,5:21,14:13,13:17,9:22,7:hunger' ||
-                  !p.plain || p.plain.v !== 0 || !p.hungry || p.hungry.v !== 4 || !inRoutine(p.rows[0].colour, 'TStatusWindow::DrawCharStatus') || !inRoutine(p.hungry, 'TSpellFX::HasAbility'))(ctx.exePartyColours()))
-        fail('program figures', 'the party bar\u2019s colours were misread: ' + JSON.stringify(ctx.exePartyColours()));
+      else if ((p => !p || p.rows.map(r => r.color.v + ':' + (r.hunger ? 'hunger' : r.flag.v)).join() !== '2:9,6:14,5:21,14:13,13:17,9:22,7:hunger' ||
+                  !p.plain || p.plain.v !== 0 || !p.hungry || p.hungry.v !== 4 || !inRoutine(p.rows[0].color, 'TStatusWindow::DrawCharStatus') || !inRoutine(p.hungry, 'TSpellFX::HasAbility'))(ctx.exePartyColors()))
+        fail('program figures', 'the party bar\u2019s colours were misread: ' + JSON.stringify(ctx.exePartyColors()));
       // The alignment's names: the AI's groups by the value each compares.
       else if ((a => !a || ['neutral', 'evil', 'good', 'feral'].some((n, v) => !a.byValue[v] || a.byValue[v].name !== n || !inRoutine(a.byValue[v].at, 'SCombatAIEntry::CalculateObject')))(ctx.exeAlignmentNames()))
         fail('program figures', 'the alignments were misnamed: ' + JSON.stringify(ctx.exeAlignmentNames()));
@@ -126,17 +184,17 @@ if (visePath && existsSync(visePath) && !onlyCat) {
                   !inRoutine({ exe: r[5].at }, 'TActiveMonster::HandleMove') || !inRoutine({ exe: r[6].at }, 'TActiveMonster::CanMove'))(ctx.exeUnitMoveRules()))
         fail('program figures', 'the movement rules of a unit’s flags were misread: ' + JSON.stringify(ctx.exeUnitMoveRules()));
       else if ((() => {
-        const said = f => ctx.monsterFlagsHTML(f).replace(/<[^>]+>/g, '');
+        const flagsText = f => ctx.monsterFlagsHTML(f).replace(/<[^>]+>/g, '');
         const harpy = ctx.monsterFlagsHTML(0x00083042);
         return !/jumpToExeAt\(\d+\)[^>]*>can move onto water or pool</.test(harpy) || !/>sets off nothing it steps on</.test(harpy) || /\bfl(y|ies|ight)\b/.test(harpy) ||
-               !/cannot move onto a rope or fence/.test(said(0x10004000)) || !/moves only onto water, shore or pool/.test(said(0x20001001)) ||
-               !/can move onto a mousehole/.test(said(0x40084040)) || !/immune to fire · can move onto lava/.test(said(0x000200F2)) ||
+               !/cannot move onto a rope or fence/.test(flagsText(0x10004000)) || !/moves only onto water, shore or pool/.test(flagsText(0x20001001)) ||
+               !/can move onto a mousehole/.test(flagsText(0x40084040)) || !/immune to fire · can move onto lava/.test(flagsText(0x000200F2)) ||
                // The king: the party's mark named, and the bits nothing tests marked as such.
-               !/can move onto a party member’s square/.test(said(0x800201F4)) || !/\+0x30 \(read by nothing\)/.test(said(0x800201F4)) ||
+               !/can move onto a party member’s square/.test(flagsText(0x800201F4)) || !/\+0x30 \(read by nothing\)/.test(flagsText(0x800201F4)) ||
                // The death script's 0x2000, linked to its test there.
                !/jumpToScriptAt\(3725,\d+\)[^>]*>fades away with its parts when it dies</.test(harpy) ||
                // Over every unit the program and the scripts leave 0x0010, 0x0020 and 0x1000 unread, and nothing else.
-               ctx.parseMonsterStats().filter(u => !u.blank).map(u => /\+0x([0-9A-F]+) \(read by nothing\)/.exec(said(u.flags))).reduce((a, m) => (a | (m ? parseInt(m[1], 16) : 0)) >>> 0, 0) !== 0x1030;
+               ctx.parseMonsterStats().filter(u => !u.blank).map(u => /\+0x([0-9A-F]+) \(read by nothing\)/.exec(flagsText(u.flags))).reduce((a, m) => (a | (m ? parseInt(m[1], 16) : 0)) >>> 0, 0) !== 0x1030;
       })())
         fail('program figures', 'a unit’s flags do not say what the program does with them: ' + ctx.monsterFlagsHTML(0x00083042));
       // A record's byte 31, the size a created creature was made at: the
@@ -148,16 +206,16 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         fail('program figures', 'with no application open a unit’s flags still show what only the program has: ' + withoutApp(() => ctx.monsterFlagsHTML(0x00083042)));
       // The five 2012 bed measurements, with the program's clock.
       else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
-        .some(([q, o, want]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== want))
+        .some(([q, o, expected]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== expected))
         fail('program figures', 'the bed rates on the program’s clock do not reproduce the 2012 measurements');
-      else if (/to read the program’s figures here/.test(mh) || !new RegExp('jumpToExeAt\\(' + clk.hourShift.exe + '\\)').test(mh) || !/flag <button[^>]*>9<\/button>, Poisoned/.test(mh) || !/every <button[^>]*>30 minutes<\/button> at levels 2 and 3/.test(mh))
+      else if (/to read the program’s numbers here/.test(mh) || !new RegExp('jumpToExeAt\\(' + clk.hourShift.exe + '\\)').test(mh) || !/flag <button[^>]*>9<\/button>, Poisoned/.test(mh) || !/every <button[^>]*>30 minutes<\/button> at levels 2 and 3/.test(mh))
         fail('program figures', 'the Mechanics sheet does not state the program’s figures as links');
       else if (!/<b>4 seconds<\/b>/.test(bh) || !new RegExp('jumpToExeAt\\(' + bark.ticks.exe + '\\)').test(bh))
         fail('program figures', 'the Barks sheet does not state the balloon’s figures as links');
       else {
         // The listing opens in words (EXE_VIEW, 6 October 2026): the ringed
         // line describes what the instruction does, and the code view names it.
-        const said = ringOf(bark.ticks.exe);
+        const flagsText = ringOf(bark.ticks.exe);
         ctx.EXE_VIEW = 'code';
         const hit = ringOf(bark.ticks.exe), miss = ringOf(bark.ticks.exe + 4);
         // The third view folds the instruction into a statement, which still
@@ -166,7 +224,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         const folded = ringOf(bark.ticks.exe);
         ctx.EXE_VIEW = 'words';
         if (!folded || !/240/.test(folded) || /addi 3, 3/.test(folded)) fail('program figures', 'the pseudo-code does not ring a statement holding the balloon’s figure: ' + JSON.stringify(folded));
-        if (!said || !/Add 240 to a value\./.test(said) || /addi/.test(said)) fail('program figures', 'the listing in words does not say what the balloon’s instruction does: ' + JSON.stringify(said));
+        if (!flagsText || !/Add 240 to a value\./.test(flagsText) || /addi/.test(flagsText)) fail('program figures', 'the listing in words does not say what the balloon’s instruction does: ' + JSON.stringify(flagsText));
         else if (!hit || !/addi 3, 3, 240/.test(hit) || !miss || /240/.test(miss)) fail('program figures', 'following the balloon’s link does not ring its instruction: ' + JSON.stringify([hit, miss]));
         else {
           const app = ctx.APP_DATA, img = ctx.appImage();
@@ -235,10 +293,10 @@ if (visePath && existsSync(visePath) && !onlyCat) {
           const named = re => { for (let pt = 0; pt < tiles.length; pt++) if (re.test(ctx.propTypeName(pt) || '')) return pt; return -1; };
           const tree = named(/^ancient tree$/i), fume = named(/^fumerole$/i);
           if (tree < 0 || fume < 0) { fail('class cache', 'no ancient tree or fumerole by name to check'); return true; }
-          for (const [pt, want] of [[tree, /None of them applies to this kind/], [fume, /This kind has no class script/]]) {
+          for (const [pt, expected] of [[tree, /None of them applies to this kind/], [fume, /This kind has no class script/]]) {
             ctx.showItemDetail(pt); const a = all(REGISTRY.get('sheetGrid'));
             ctx.showPropTypeDetail(pt); const b = all(REGISTRY.get('sheetGrid'));
-            if (!want.test(a) || !want.test(b)) { fail('class cache', ctx.propTypeName(pt) + '\u2019s pages do not say ' + want + ' (item page ' + want.test(a) + ', creatures-and-props page ' + want.test(b) + ')'); return true; }
+            if (!expected.test(a) || !expected.test(b)) { fail('class cache', ctx.propTypeName(pt) + '\u2019s pages do not say ' + expected + ' (item page ' + expected.test(a) + ', creatures-and-props page ' + expected.test(b) + ')'); return true; }
           }
           return false;
         })()) ;
@@ -246,19 +304,19 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       }
     } catch (e) { fail('class cache', e); }
 
-    /* Who ScheduleTime schedules, read off the routine (exeScheduleWho):
+    /* Who ScheduleTime schedules, read off the routine (exeScheduleRules):
        the four tests as the notes read them on 24 September 2026, the
        behaviour 112 traced to the scripts that set it, and the Schedules
        sheet stating the rule only while the application is open. */
     try {
       const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
       const inRoutine = (val, name) => { const r = val && ctx.exeRoutineAt(val.exe); return !!(r && r.name.startsWith(name + '(')); };
-      const who = ctx.exeScheduleWho();
-      const waits = who ? ctx.behaviorSetSites(who.waiting.value.v) : [];
-      if (!who) fail('who is scheduled', 'ScheduleTime was not read');
-      else if (who.partyBit.byte.v !== 8 || who.partyBit.bit.v !== 0x40 || who.aliveBit.byte.v !== 6 || who.aliveBit.mask.v !== 1 || who.waiting.byte.v !== 22 || who.waiting.value.v !== 112 || who.monsterWord.disp.v !== 28)
-        fail('who is scheduled', 'the tests were misread: ' + JSON.stringify([who.partyBit, who.aliveBit, who.waiting, who.monsterWord]));
-      else if (!inRoutine(who.waiting.value, 'ScheduleTime') || !inRoutine(who.monsterWord.disp, 'ScheduleTime')) fail('who is scheduled', 'a figure is linked outside ScheduleTime');
+      const character = ctx.exeScheduleRules();
+      const waits = character ? ctx.behaviorSetSites(character.waiting.value.v) : [];
+      if (!character) fail('who is scheduled', 'ScheduleTime was not read');
+      else if (character.partyBit.byte.v !== 8 || character.partyBit.bit.v !== 0x40 || character.aliveBit.byte.v !== 6 || character.aliveBit.mask.v !== 1 || character.waiting.byte.v !== 22 || character.waiting.value.v !== 112 || character.monsterWord.disp.v !== 28)
+        fail('who is scheduled', 'the tests were misread: ' + JSON.stringify([character.partyBit, character.aliveBit, character.waiting, character.monsterWord]));
+      else if (!inRoutine(character.waiting.value, 'ScheduleTime') || !inRoutine(character.monsterWord.disp, 'ScheduleTime')) fail('who is scheduled', 'a figure is linked outside ScheduleTime');
       else if (waits.length < 2 || !waits.some(w => w.resid === 0x1806) || !waits.some(w => w.resid === 0x1AF6)) fail('who is scheduled', 'behaviour 112 is set by ' + waits.map(w => '0x' + w.resid.toString(16)).join(' '));
       else {
         ctx.showCategory('SCHEDULES');
@@ -281,7 +339,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         }
       }
     } catch (e) { fail('who is scheduled', e); }
-    /* What each behaviour does, off DoMove (exeBehaviours, 2 October 2026;
+    /* What each behaviour does, off DoMove (exeBehaviors, 2 October 2026;
        the workbench's doc/behaviours.md is the reading): the table's 171
        cases, a handful of them as the reading has them with their waits,
        each linked inside DoMove; the Schedules sheet giving a behaviour by
@@ -289,14 +347,14 @@ if (visePath && existsSync(visePath) && !onlyCat) {
        open the game's words alone, no link. */
     try {
       const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
-      const b = ctx.exeBehaviours();
-      const want = [[0, 'stands still', 8], [1, 'follows the party leader', null], [3, 'fights, attacking the strongest', null], [7, 'retreats', null],
+      const b = ctx.exeBehaviors();
+      const expected = [[0, 'stands still', 8], [1, 'follows the party leader', null], [3, 'fights, attacking the strongest', null], [7, 'retreats', null],
                     [138, 'paces north and south', 12], [141, 'paces east and west', 16], [135, 'stands facing east', 20], [144, 'wanders', 20],
                     [145, 'nothing of its own', null], [147, 'eats', 32], [150, 'comes to the party leader and talks', 8], [200, 'fights by combat program 200', null]];
-      const bad = want.filter(([v, does, wait]) => { const d = ctx.behaviourDoes(v); return !d || d.does !== does || (wait === null ? false : !d.wait || d.wait.v !== wait); });
-      const linked = want.filter(([v]) => { const d = ctx.behaviourDoes(v); return d && d.at; }).every(([v]) => { const r = ctx.exeRoutineAt(ctx.behaviourDoes(v).at.exe); return r && r.name.startsWith('TActiveMonster::DoMove('); });
+      const bad = expected.filter(([v, does, wait]) => { const d = ctx.behaviorDoes(v); return !d || d.does !== does || (wait === null ? false : !d.wait || d.wait.v !== wait); });
+      const linked = expected.filter(([v]) => { const d = ctx.behaviorDoes(v); return d && d.at; }).every(([v]) => { const r = ctx.exeRoutineAt(ctx.behaviorDoes(v).at.exe); return r && r.name.startsWith('TActiveMonster::DoMove('); });
       if (!b || b.count !== 171) fail('behaviours', 'DoMove’s table was not read: ' + JSON.stringify(b && b.count));
-      else if (bad.length) fail('behaviours', 'misread: ' + bad.map(([v]) => v + ' ' + JSON.stringify(ctx.behaviourDoes(v))).join('; '));
+      else if (bad.length) fail('behaviours', 'misread: ' + bad.map(([v]) => v + ' ' + JSON.stringify(ctx.behaviorDoes(v))).join('; '));
       else if (!linked) fail('behaviours', 'a behaviour is linked outside DoMove');
       else {
         ctx.showCategory('SCHEDULES');
@@ -306,7 +364,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
           fail('behaviours', 'the Schedules sheet does not say the behaviours with their links');
         else if (/comes to the party leader|jumpToExeAt\(\d+\)[^>]*>144</.test(wh) || !/144 <span>working<\/span>/.test(wh))
           fail('behaviours', 'with no application the Schedules sheet shows more than the game’s words, or not them');
-        else console.log(`  behaviours: ${b.count} cases off DoMove, ${want.length} pinned with their waits; the Schedules sheet shows them, linked`);
+        else console.log(`  behaviours: ${b.count} cases off DoMove, ${expected.length} pinned with their waits; the Schedules sheet shows them, linked`);
       }
     } catch (e) { fail('behaviours', e); }
     /* The sky of the hour, off DrawSky, CalcLocations and gXPos (exeSkyRules).
@@ -354,13 +412,13 @@ if (visePath && existsSync(visePath) && !onlyCat) {
        not kept. */
     try {
       const st = ctx.exeSyscallTable(), pn = ctx.programNames();
-      const got = new Map((st ? st.entries : []).filter(x => x.name).map(x => [x.op, x.name]));
+      const syscallNames = new Map((st ? st.entries : []).filter(x => x.name).map(x => [x.op, x.name]));
       ctx.jumpToResource(0x1861); ctx.setScriptFold(false);
       const raw = REGISTRY.get('textContent').innerHTML;
       ctx.setScriptFold('structured');
       const folded = REGISTRY.get('textContent').innerHTML;
-      if (!pn || !pn.syscalls || !got.size) fail('program names', 'the handler table was not read');
-      else if ([...got].some(([op, n]) => pn.syscalls.get(op) !== n)) fail('program names', 'programNames and the handler table differ');
+      if (!pn || !pn.syscalls || !syscallNames.size) fail('program names', 'the handler table was not read');
+      else if ([...syscallNames].some(([op, n]) => pn.syscalls.get(op) !== n)) fail('program names', 'programNames and the handler table differ');
       else if (!/sys nearby/.test(raw) || /sys IsInParty/.test(raw) || !/\bnearby\(/.test(folded)) fail('program names', 'the listing does not print the program\u2019s names');
       else if (ctx.dvmFlagName(9) !== 'Poisoned' || ctx.dvmFlagName(18) !== 'Night Vision' || ctx.dvmFlagName(0) !== null || ctx.dvmFlagName(24) !== null)
         fail('program names', 'the flags are misnamed: ' + [9, 18, 0, 24].map(ctx.dvmFlagName).join(', '));
@@ -371,7 +429,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         const off = [ctx.dvmSyscallShown('IsInParty'), ctx.dvmFlagName(9), ctx.dvmBitFlagName(6)];
         [ctx.APP_DATA, ctx.APP_RSRC] = keep;
         if (off[0] !== 'IsInParty' || off[1] !== null || off[2] !== null) fail('program names', 'without the application the names do not fall back: ' + JSON.stringify(off));
-        else console.log('  program names: ' + got.size + ' syscalls, ' + Object.keys(pn.flags || {}).length + ' flags and ' + Object.keys(pn.bits || {}).length + ' bits read out of the application; without it, delvmod\u2019s names and numbers');
+        else console.log('  program names: ' + syscallNames.size + ' syscalls, ' + Object.keys(pn.flags || {}).length + ' flags and ' + Object.keys(pn.bits || {}).length + ' bits read out of the application; without it, delvmod\u2019s names and numbers');
       }
     } catch (e) { fail('program names', e); }
     /* What a signal reaches, 12 September 2026. These figures are the
@@ -426,8 +484,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         const html = (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(grid);
         const titles = []; (function w(el) { if (el.title) titles.push(el.title); (el.children || []).forEach(w); })(grid);
         const opens = titles.filter(t => /^portrait 0x88[0-9A-F]{2}, tap to open$/.test(t));
-        const said = html.replace(/<[^>]+>/g, '');
-        if (!new RegExp('jumpToExeAt\\(' + pc.writes.exe + '\\)').test(html) || !/There are 6 choices at character creation\./.test(said) || /not displayed/.test(said) ||
+        const flagsText = html.replace(/<[^>]+>/g, '');
+        if (!new RegExp('jumpToExeAt\\(' + pc.writes.exe + '\\)').test(html) || !/There are 6 choices at character creation\./.test(flagsText) || /not displayed/.test(flagsText) ||
             !new RegExp('jumpToExeAt\\(' + pc.offered.count.exe + '\\)').test(html))
           fail('hero portrait', 'the hero’s page does not state the program’s figures as links: ' + html.replace(/<[^>]+>/g, '').slice(0, 300));
         else if (opens.length !== 7 || !opens.includes('portrait 0x8800, tap to open') || !opens.includes('portrait 0x88F0, tap to open'))
@@ -435,6 +493,26 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         else console.log(`  hero portrait: slot ${pc.first.v} + ${pc.perRow.v} a column past ${pc.base.v.toString(16)}, written as ${pc.writes.v.toString(16)}; ${pc.offered.rows} rows by ${pc.offered.cols} offered; ${opens.length - 1} portraits offered on the hero’s page, each opening its resource`);
       }
     } catch (e) { fail('hero portrait', e); }
+    /* The text styles and the codes in a line of text, v1.359.0: every
+       figure exeTextStyles reads, pinned at the shipped program's value and
+       in the routine it is read from, and the Fonts page's section stating
+       them as links. A shape the reader misses makes it null, and the
+       application is open here, so a null is a failure. */
+    try {
+      const ts = ctx.exeTextStyles();
+      const inR = (val, name) => { const r = val && ctx.exeRoutineAt(val.exe); return !!(r && r.name.startsWith(name)); };
+      const want = { first: 128, count: 23, fallFont: 1, fallSize: 12, plain: 5, open: 60, step: 3, shift: 5, bare: 8, close: 62, back: 5, convBase: 1, pause: 42, keyword: 64, hide: 38 };
+      const wrong = ts ? Object.keys(want).filter(k => !ts[k] || ts[k].v !== want[k]) : ['all'];
+      if (wrong.length) fail('text styles', 'misread ' + wrong.join(', ') + ' ' + JSON.stringify(ts));
+      else if (!inR(ts.first, 'LoadFontInfo') || !inR(ts.step, 'TTextContext::TTextContext') || !inR(ts.convBase, 'TConversation::ShowTalking') || !inR(ts.pause, 'TConversation::myprintstr'))
+        fail('text styles', 'a figure is not in the routine it comes from');
+      else {
+        const box = ctx.textStylesPanel(), html = box.innerHTML, text = html.replace(/<[^>]+>/g, '');
+        if (!new RegExp('jumpToExeAt\\(' + ts.step.exe + '\\)').test(html) || !/so its text is style 6, &lt;1 is style 9 \(Seldane, 12 pt, plain\)/.test(text) || !/TxSt 150/.test(text))
+          fail('text styles', 'the Fonts section does not state the figures (' + text.slice(0, 400) + ')');
+        else console.log(`  text styles: ${ts.count.v} from TxSt ${ts.first.v}, a missing one font ${ts.fallFont.v} at ${ts.fallSize.v}, and "<d" is s + ${ts.shift.v} + ${ts.step.v}d with a conversation's s ${ts.convBase.v}`);
+      }
+    } catch (e) { fail('text styles', e); }
     /* The Cheats sheet off the program, v1.52.0: the gate, every case of the
        key routine's switch, the preferences record scanned out of the whole
        program, what the game stores and the file's keys. The figures pinned
@@ -463,7 +541,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         fail('program keys', 'the stored defaults were misread: ' + JSON.stringify(defaults));
       else if (keys.map(e => e.key.v).sort().join() !== 'Ambient,Backdrop,CurPlayer,CurScen,Map Window Loc,Music,UI Prefs,Volume')
         fail('program keys', 'the file’s keys were misread: ' + keys.map(e => e.key.v).join());
-      else if (rows !== kr.cases.length + 2 || !/option-l/.test(html) || !/broken/.test(html) || /Everyone is hostile/.test(html) || !/enemy/.test(html) || !/0x0864/.test(html) || !/1,024 times the aspect/.test(html) || !/fights as a spear/.test(html) || !/Motion Filters/.test(html) || !/Map Window Loc/.test(html) || !/DBC80000/.test(html) || !/2 to 5/.test(html) || !/Don't Ask Again/.test(html))
+      else if (rows !== kr.cases.length + 2 || !/option-l/.test(html) || !/Look coordinates/.test(html) || /Everyone is hostile/.test(html) || !/enemy/.test(html) || !/0x0864/.test(html) || !/1,024 × aspect/.test(html) || !/fights as a spear/.test(html) || !/Motion Filters/.test(html) || !/Map Window Loc/.test(html) || !/DBC80000/.test(html) || !/2 to 5/.test(html) || !/Don't Ask Again/.test(html))
         fail('program keys', `the Cheats sheet does not state what was read: ${rows} key rows for ${kr.cases.length} cases`);
       else if (!new RegExp('jumpToExeAt\\(' + kr.gate.word.exe + '\\)').test(html) || !inRoutine(kr.gate.word.exe, 'TMapWindow::KeyRoutine') || !new RegExp('jumpToExeAt\\(' + caseOf(0xA0).calls.find(c => /DoTicks/.test(c.v)).args[4].exe + '\\)').test(html))
         fail('program keys', 'the gate’s code or option-t’s 1024 is not a link to its instruction');
@@ -517,17 +595,17 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       const buttonsSeen = {};
       let shippedDrift = null;
       {
-        const want = strip(ctx.cytheraShippedLayout());
+        const expected = strip(ctx.cytheraShippedLayout());
         const opened = ctx.INSTALLER && ctx.INSTALLER.picked;
         let seen = 0;
         for (const inst of (ctx.INSTALLER ? ctx.INSTALLER.installers : [])) {
           const name = inst.name || inst.title;
           try {
             if (name !== ctx.INSTALLER.picked) ctx.switchInstaller(name);
-            const got = strip(ctx.cytheraPrefsLayout());
+            const actual = strip(ctx.cytheraPrefsLayout());
             buttonsSeen[name] = JSON.stringify(ctx.cytheraPrefsLayout().buttons);
             seen++;
-            if (got !== want && !shippedDrift) shippedDrift = name + ' reads differently from PREF_SHIPPED';
+            if (actual !== expected && !shippedDrift) shippedDrift = name + ' reads differently from PREF_SHIPPED';
           } catch (e) { shippedDrift = shippedDrift || (name + ': ' + e.message); }
         }
         if (!shippedDrift && seen < 2) shippedDrift = 'only ' + seen + ' release(s) were opened';
@@ -634,6 +712,77 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!r.third || !r.back) fail('apply to site', 'Apply with no program fix did not put the program back: ' + JSON.stringify(r));
       else console.log('  apply to site: option-p applied to the site\u2019s program and parsed, the same program in Replacement Files, applied again, and the program as it arrived put back');
     }
+    /* The program is not dropped by an edit (21 October 2026). A tune replaced with a
+       MIDI file goes through applyResourceEdit, which parses the rebuilt
+       file again; that parse dropped the program taken out of the
+       installer, so Replacement Files with a program fix chosen showed "No
+       program is open." The edit here writes the tune's bytes back unchanged, and
+       the file and the dirty list are put back afterwards. */
+    {
+      const r = ctx.__peek(`(() => {
+        const bytes = ARCHIVE.bytes, dirty = new Set(window.EDITED_RESIDS), name = window.ARCHIVE_SOURCE_NAME;
+        const edited = applyResourceEdit(0x9000, getResourceBytes(ARCHIVE, 0x9000));
+        const kept = !!(window.APP_DATA && window.APP_RSRC_RAW);
+        fixPreset('none'); appFixToggle('option-p', true);
+        const files = basketFiles();
+        const prog = !!files && files.entries.some(e => e.name === 'Cythera');
+        const note = (document.getElementById('patchBarNote') || {}).textContent || '';
+        fixPreset('tested');
+        parseArchiveBytes(bytes, name, { rsrc: window.CYTHERA_RSRC_RAW, via: 'edit' });
+        window.EDITED_RESIDS = dirty;
+        return { edited, kept, prog, note };
+      })()`);
+      if (!r.edited) fail('program after an edit', 'the tune was not written back: ' + JSON.stringify(r));
+      else if (!r.kept || !r.prog) fail('program after an edit', 'the program went with the edit: ' + JSON.stringify(r));
+      else console.log('  program after an edit: a tune rewritten, and Replacement Files still has the program with option-p chosen');
+    }
+    /* An image in the program's fork replaced from a PNG (21 October 2026):
+       icl8 128 with a block painted in goes into the program; with no
+       program fix chosen, Replacement Files has the program, with the new
+       icl8 and hasBundle set, and the MacBinary written from it has the
+       flag at bytes 73 and 101; with Put the Original Back the program is out
+       of Replacement Files again. The PNG is made here with node's zlib. */
+    {
+      const { deflateSync, crc32 } = await import('node:zlib');
+      const png = (W, H, rgba) => {
+        const chunk = (tag, body) => { const len = Buffer.alloc(4); len.writeUInt32BE(body.length); const tb = Buffer.concat([Buffer.from(tag), body]); const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(tb)); return Buffer.concat([len, tb, crc]); };
+        const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4); ihdr[8] = 8; ihdr[9] = 6;
+        const raw = Buffer.alloc((W * 4 + 1) * H);
+        for (let y = 0; y < H; y++) Buffer.from(rgba.buffer, rgba.byteOffset + y * W * 4, W * 4).copy(raw, y * (W * 4 + 1) + 1);
+        return new Uint8Array(Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]));
+      };
+      const was = ctx.__peek(`(() => { const e = APP_RSRC.resourcesByType.icl8.find(x => x.id === 128); const d = APP_RSRC.dataOf('icl8', e); const a = exportArtifacts(APP_RSRC, 'icl8', e, d)[0]; return { d, px: a.canvas._px.data }; })()`);
+      const px = new Uint8Array(was.px);
+      for (let y = 12; y < 20; y++) for (let x = 12; x < 20; x++) { px.set([0, 0, 0, 255], (y * 32 + x) * 4); }
+      ctx.SMOKE_ICON_PNG = png(32, 32, px);
+      const r = ctx.__peek(`(() => {
+        fixPreset('none');
+        replaceForkImage('app', 'icl8', 128, window.SMOKE_ICON_PNG, 'icon.png');
+        showMacRsrcDetail('icl8', 128, 'app');
+        const text = (function all(el) { return (el.textContent || '') + (el.children || []).map(all).join(''); })(document.getElementById('sheetGrid'));
+        const now = APP_RSRC.dataOf('icl8', APP_RSRC.resourcesByType.icl8.find(x => x.id === 128));
+        const files = basketFiles();
+        const prog = files && files.entries.find(e => e.name === 'Cythera');
+        const inProg = !!prog && (() => { const f = openResourceFork(prog.rsrc); const d = f.dataOf('icl8', f.resourcesByType.icl8.find(x => x.id === 128)); return d.length === now.length && d.every((x, i) => x === now[i]); })();
+        const bin = prog ? writeMacBinary(prog) : null;
+        const left = basketLeftOut('disk');
+        forkPictureRestore('app', 'icl8', 128);
+        const back = APP_RSRC.dataOf('icl8', APP_RSRC.resourcesByType.icl8.find(x => x.id === 128));
+        const after = basketFiles();
+        fixPreset('tested');
+        return { buttons: /Replace with a PNG/.test(text) && /Put the Original Back/.test(text) && /with the program/.test(text),
+                 now: Array.from(now), inProg, flags: prog ? prog.finderFlags : null, bin73: bin ? bin[73] : null, bin101: bin ? bin[101] : null,
+                 left: left.some(t => /icl8 128/.test(t)), back: Array.from(back), afterProg: !!after && after.entries.some(e => e.name === 'Cythera'), note: (document.getElementById('patchBarNote') || {}).textContent || '' };
+      })()`);
+      const sameAs = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+      if (!r.buttons) fail('program image', 'the icl8\u2019s page does not offer Replace with a PNG and Put the Original Back with the program named');
+      else if (sameAs(r.now, Array.from(was.d))) fail('program image', 'the icl8 did not change');
+      else if (!r.inProg) fail('program image', 'Replacement Files has no program with the new icl8: ' + r.note);
+      else if (r.flags !== 0x2000 || r.bin73 !== 0x20 || r.bin101 !== 0) fail('program image', 'the program is not written with hasBundle: ' + JSON.stringify([r.flags, r.bin73, r.bin101]));
+      else if (!r.left) fail('program image', 'the icl8 is not in the disk image\u2019s list of what it leaves out');
+      else if (!sameAs(r.back, Array.from(was.d)) || r.afterProg) fail('program image', 'Put the Original Back did not put back the shipped icl8, or the program stayed in Replacement Files');
+      else console.log('  program image: icl8 128 from a PNG, in Replacement Files with the program and hasBundle (MacBinary bytes 73 and 101), listed as left off the disk, and the shipped bytes put back');
+    }
     ctx.showCategory('AIRULES');
     const rows = (REGISTRY.get('sheetGrid').children || []);
     // The Rules tab has the vocabulary out of the application's fork.
@@ -686,7 +835,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // inside it, at -16455.
       // License wears Register Cythera's icon, the program in the installer
       // that makes a license, which must not be Cythera's.
-      const want = ['cytheradata', 'cythera', 'savegame', 'apppef', 'apprsrc', 'combatai', 'license'];
+      const artIds = ['cytheradata', 'cythera', 'savegame', 'apppef', 'apprsrc', 'combatai', 'license'];
       /* The VISE mark is in the installer's resource fork, and whether
          that fork is in hand depends on the container it arrived in. A
          MacBinary has it; archive.org's four-in-one StuffIt compressed it
@@ -696,10 +845,10 @@ if (visePath && existsSync(visePath) && !onlyCat) {
          asserted follows what the caller passed, as in vise_check.mjs. */
       const viseFork = ctx.INSTALLER && ctx.INSTALLER.container && ctx.INSTALLER.container.rsrc;
       const haveVise = !!(viseFork && viseFork.length);
-      if (haveVise) want.push('installer');
+      if (haveVise) artIds.push('installer');
       const drawn = {};
-      for (const id of want) { const a = art(id); drawn[id] = !!(a && a.width); }
-      const lacking = want.filter(id => !drawn[id]);
+      for (const id of artIds) { const a = art(id); drawn[id] = !!(a && a.width); }
+      const lacking = artIds.filter(id => !drawn[id]);
       // The two that name no file icon at all, so they must fall through to
       // the tile: the Combat AI scripts and the rules they are written
       // against are TEXT files, which no bundle here claims.
@@ -711,7 +860,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (plain.length) fail('data tab icons', 'a tab that sets no file icon got one anyway: ' + plain.join(', '));
       else if (sameCursor) fail('data tab icons', 'both application forks resolved to the same cursor, so one of the two ids is wrong');
       else if (art('license') === art('cythera') || (haveVise && art('license') === art('installer'))) fail('data tab icons', 'the License tab wears another program\u2019s icon, not Register Cythera\u2019s');
-      else console.log('  data tab icons: ' + want.length + ' Data tabs drawn from the file itself (' +
+      else console.log('  data tab icons: ' + artIds.length + ' Data tabs drawn from the file itself (' +
         node('apppef').crsr + ' and ' + node('apprsrc').crsr + ' for the application’s two forks, the CombatAI folder, Register Cythera' +
         (haveVise ? ' and the VISE mark' : '') + ' out of the installer), the two TEXT tabs' +
         (haveVise ? '' : ' and the installer, whose fork this container compressed with Arsenic,') + ' on their tiles');

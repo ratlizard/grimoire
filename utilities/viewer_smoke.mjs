@@ -19,10 +19,16 @@ import { PARTS, finish } from './smoke_boot.mjs';
 // galleries-a and galleries-b are the two halves of the galleries loop, each
 // a distinct module instance through its query string; `galleries` is both.
 const MODULE = { 'galleries-a': './smoke_galleries.mjs?slice=a', 'galleries-b': './smoke_galleries.mjs?slice=b' };
+// `rules@1-2` is the first of two slices of the rules part's blocks, and
+// `edits@2-3` the second of three of the edits part's (blockTaker in
+// smoke_boot.mjs deals the blocks by smoke_weights.json), so that the longest
+// part is not the floor of a run. The slices of a part together run all of it.
+const SLICE = /^(rules|edits)@(\d+)-(\d+)$/;
 const ALL = ['galleries', 'views', 'atlas', 'rules', 'edits', 'saves', 'installer'];
 const parts = PARTS.length ? PARTS : ALL;
 for (const p of parts) {
-  if (!ALL.includes(p) && !MODULE[p]) { console.error('no such part: ' + p + ' (' + ALL.concat(Object.keys(MODULE)).join(', ') + ')'); process.exit(2); }
-  await import(MODULE[p] || ('./smoke_' + p + '.mjs'));
+  const sliced = SLICE.exec(p);
+  if (!ALL.includes(p) && !MODULE[p] && !sliced) { console.error('no such part: ' + p + ' (' + ALL.concat(Object.keys(MODULE), ['rules@i-n', 'edits@i-n']).join(', ') + ')'); process.exit(2); }
+  await import(MODULE[p] || (sliced ? `./smoke_${sliced[1]}.mjs?slice=${sliced[2]}-${sliced[3]}` : './smoke_' + p + '.mjs'));
 }
 finish(PARTS);

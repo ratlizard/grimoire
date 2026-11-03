@@ -44,13 +44,13 @@ const SIT_NAME = 'Cythera installers (archive.org).sit';
 
 // The two files the rest of the suite reads, by their path inside the
 // installer's catalog, and the base name each is written out under.
-const WANTED = [
+const REQUIRED_FILES = [
   ['Cythera 1.0.4 ƒ/Cythera Data', 'Cythera Data'],
   ['Cythera 1.0.4 ƒ/Cythera',      'Cythera'],
 ];
 
-export async function fetchGame(outDir, say = () => {}) {
-  const done = () => WANTED.every(([, base]) =>
+export async function fetchGame(outDir, logProgress = () => {}) {
+  const done = () => REQUIRED_FILES.every(([, base]) =>
     existsSync(join(outDir, base + '.data')) && existsSync(join(outDir, base + '.rsrc')));
   if (done()) return true;
 
@@ -60,15 +60,15 @@ export async function fetchGame(outDir, say = () => {}) {
   if (existsSync(sitPath)) {
     sit = new Uint8Array(readFileSync(sitPath));
   } else {
-    say(`  fetching the installer from archive.org (28 MB) …`);
+    logProgress(`  fetching the installer from archive.org (28 MB) …`);
     let res;
     try {
       res = await fetch(URL_SIT, {redirect: 'follow'});
     } catch (e) {
-      say(`  ! could not reach archive.org: ${e.message}`);
+      logProgress(`  ! could not reach archive.org: ${e.message}`);
       return false;
     }
-    if (!res.ok) { say(`  ! archive.org answered ${res.status} ${res.statusText}`); return false; }
+    if (!res.ok) { logProgress(`  ! archive.org answered ${res.status} ${res.statusText}`); return false; }
     sit = new Uint8Array(await res.arrayBuffer());
     writeFileSync(sitPath, sit);
   }
@@ -82,24 +82,24 @@ export async function fetchGame(outDir, say = () => {}) {
 
   let found;
   try { found = ctx.sniffViseInstaller(sit); }
-  catch (e) { say(`  ! the archive did not open as an installer: ${e.message}`); return false; }
-  if (!found) { say('  ! the archive did not open as an installer'); return false; }
+  catch (e) { logProgress(`  ! the archive did not open as an installer: ${e.message}`); return false; }
+  if (!found) { logProgress('  ! the archive did not open as an installer'); return false; }
 
   const byPath = new Map(found.archive.entries.map(e => [e.path, e]));
-  for (const [inArchive, base] of WANTED) {
+  for (const [inArchive, base] of REQUIRED_FILES) {
     const entry = byPath.get(inArchive);
-    if (!entry) { say(`  ! ${inArchive} is not in the archive`); return false; }
+    if (!entry) { logProgress(`  ! ${inArchive} is not in the archive`); return false; }
     let r;
     try { r = ctx.viseExtract(found.archive, entry); }
-    catch (e) { say(`  ! could not extract ${inArchive}: ${e.message}`); return false; }
+    catch (e) { logProgress(`  ! could not extract ${inArchive}: ${e.message}`); return false; }
     // The catalog's CRC-32 covers data fork then resource fork. A file
     // that fails it is corrupt, and writing it would turn a bad download into
     // what looks like a decoder regression two checks later.
-    if (!r.crcOk) { say(`  ! ${inArchive} failed the catalog's CRC`); return false; }
+    if (!r.crcOk) { logProgress(`  ! ${inArchive} failed the catalog's CRC`); return false; }
     writeFileSync(join(outDir, base + '.data'), Buffer.from(r.data));
     writeFileSync(join(outDir, base + '.rsrc'), Buffer.from(r.rsrc));
   }
-  say(`  extracted ${found.picked} from the archive`);
+  logProgress(`  extracted ${found.picked} from the archive`);
   return true;
 }
 

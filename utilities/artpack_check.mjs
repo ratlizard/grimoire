@@ -52,23 +52,23 @@ function png(W, H, type, depth, rows, extra, lace) {
   const ih = Buffer.alloc(13); ih.writeUInt32BE(W, 0); ih.writeUInt32BE(H, 4); ih[8] = depth; ih[9] = type; ih[12] = lace ? 1 : 0;
   return new Uint8Array(Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ih), ...(extra || []), chunk('IDAT', deflateSync(Buffer.concat(rows))), chunk('IEND', Buffer.alloc(0))]));
 }
-const W = 5, H = 3, want = new Uint8Array(W * H * 4);
-for (let i = 0; i < W * H; i++) want.set([i * 16 & 255, 255 - i * 9, i * 5 & 255, i % 4 ? 255 : 0], i * 4);
+const W = 5, H = 3, expected = new Uint8Array(W * H * 4);
+for (let i = 0; i < W * H; i++) expected.set([i * 16 & 255, 255 - i * 9, i * 5 & 255, i % 4 ? 255 : 0], i * 4);
 const row = (y, per) => Buffer.from([0, ...Array.from({length: W}, (_, x) => per(y * W + x)).flat()]);
 const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
 const made = {
-  'RGBA': [png(W, H, 6, 8, Array.from({length: H}, (_, y) => row(y, i => Array.from(want.subarray(i * 4, i * 4 + 4))))), want],
-  'RGB': [png(W, H, 2, 8, Array.from({length: H}, (_, y) => row(y, i => Array.from(want.subarray(i * 4, i * 4 + 3))))), want.map((v, i) => i % 4 === 3 ? 255 : v)],
+  'RGBA': [png(W, H, 6, 8, Array.from({length: H}, (_, y) => row(y, i => Array.from(expected.subarray(i * 4, i * 4 + 4))))), expected],
+  'RGB': [png(W, H, 2, 8, Array.from({length: H}, (_, y) => row(y, i => Array.from(expected.subarray(i * 4, i * 4 + 3))))), expected.map((v, i) => i % 4 === 3 ? 255 : v)],
   'palette with tRNS': [png(W, H, 3, 8, Array.from({length: H}, (_, y) => row(y, i => [i])),
-    [chunk('PLTE', Buffer.from(Array.from({length: W * H}, (_, i) => Array.from(want.subarray(i * 4, i * 4 + 3))).flat())), chunk('tRNS', Buffer.from(Array.from({length: W * H}, (_, i) => want[i * 4 + 3])))]), want],
-  'grey with alpha': [png(W, H, 4, 8, Array.from({length: H}, (_, y) => row(y, i => [want[i * 4], want[i * 4 + 3]]))), want.map((v, i) => i % 4 === 3 ? v : want[i - i % 4])]
+    [chunk('PLTE', Buffer.from(Array.from({length: W * H}, (_, i) => Array.from(expected.subarray(i * 4, i * 4 + 3))).flat())), chunk('tRNS', Buffer.from(Array.from({length: W * H}, (_, i) => expected[i * 4 + 3])))]), expected],
+  'grey with alpha': [png(W, H, 4, 8, Array.from({length: H}, (_, y) => row(y, i => [expected[i * 4], expected[i * 4 + 3]]))), expected.map((v, i) => i % 4 === 3 ? v : expected[i - i % 4])]
 };
 // Interlaced: the same RGBA picture as Adam7's seven passes.
 {
   const rows = [];
   for (const [x0, y0, dx, dy] of [[0, 0, 8, 8], [4, 0, 8, 8], [0, 4, 4, 8], [2, 0, 4, 4], [0, 2, 2, 4], [1, 0, 2, 2], [0, 1, 1, 2]])
-    for (let y = y0; y < H; y += dy) { const px = []; for (let x = x0; x < W; x += dx) px.push(...want.subarray((y * W + x) * 4, (y * W + x) * 4 + 4)); if (px.length) rows.push(Buffer.from([0, ...px])); }
-  made['interlaced RGBA'] = [png(W, H, 6, 8, rows, null, true), want];
+    for (let y = y0; y < H; y += dy) { const px = []; for (let x = x0; x < W; x += dx) px.push(...expected.subarray((y * W + x) * 4, (y * W + x) * 4 + 4)); if (px.length) rows.push(Buffer.from([0, ...px])); }
+  made['interlaced RGBA'] = [png(W, H, 6, 8, rows, null, true), expected];
 }
 for (const [name, [bytes, pixels]] of Object.entries(made)) {
   try { const d = ctx.pngDecode(bytes); if (d.W !== W || d.H !== H || !same(Array.from(d.rgba), Array.from(pixels))) fail(`a ${name} PNG made here came back as other pixels`); }
@@ -77,7 +77,7 @@ for (const [name, [bytes, pixels]] of Object.entries(made)) {
 // The control: a byte in the middle of the compressed stream changed must
 // not come back the same (the last four are zlib's checksum, which the
 // decoder does not read, and changing one of those proved nothing).
-{ const b = made.RGBA[0].slice(); b[49] ^= 0x55; let ok = false; try { ok = same(Array.from(ctx.pngDecode(b).rgba), Array.from(want)); } catch (e) { ok = false; } if (ok) fail('a damaged PNG decoded to the right pixels, so the comparison cannot fail'); }
+{ const b = made.RGBA[0].slice(); b[49] ^= 0x55; let ok = false; try { ok = same(Array.from(ctx.pngDecode(b).rgba), Array.from(expected)); } catch (e) { ok = false; } if (ok) fail('a damaged PNG decoded to the right pixels, so the comparison cannot fail'); }
 
 // ---- the pack -------------------------------------------------------------
 const pack = ctx.readArtPack(new Uint8Array(readFileSync(packPath)));
@@ -102,10 +102,10 @@ if (!lost || lost.matched || !/^item\//.test(lost.path) || lost.path !== again.p
 
 // ---- the build ------------------------------------------------------------
 ctx.parseArchiveBytes(new Uint8Array(readFileSync(dataPath)), 'Cythera Data', {via: 'data fork'});
-const ask = {name: 'Crawl Field', width: 24, height: 20, x: 10, y: 12, badArt: true};
-const drawn = ctx.delverArchiveSpec(new Uint8Array(ctx.newScenarioBytes(ask)));
+const scenarioSpec = {name: 'Crawl Field', width: 24, height: 20, x: 10, y: 12, badArt: true};
+const drawn = ctx.delverArchiveSpec(new Uint8Array(ctx.newScenarioBytes(scenarioSpec)));
 const report = {};
-const fromPack = ctx.redrawDelverArt(new Uint8Array(ctx.newScenarioBytes(Object.assign({}, ask, {badArt: false}))), ctx.scenarioFigureTiles(), ctx.scenarioPackArt(pack, report));
+const fromPack = ctx.redrawDelverArt(new Uint8Array(ctx.newScenarioBytes(Object.assign({}, scenarioSpec, {badArt: false}))), ctx.scenarioFigureTiles(), ctx.scenarioPackArt(pack, report));
 const packed = ctx.delverArchiveSpec(fromPack.bytes), parc = ctx.openDelverArchive(fromPack.bytes);
 const before = ctx.delverArchiveSpec(new Uint8Array(readFileSync(dataPath)));
 const of = (sp, rid) => (sp.resources.find(r => r.resid === rid) || {}).data;

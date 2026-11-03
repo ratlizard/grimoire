@@ -124,15 +124,15 @@ export function makeElement() {
   return el;
 }
 
-// memoiseIds: return the same element for a repeated getElementById. loader_test
+// memoizeIds: return the same element for a repeated getElementById. loader_test
 //   needs this -- it sets a value on an element and expects the page to read it
 //   back -- and it is closer to a real document, so it is the default.
 // objectUrls: stub URL.createObjectURL rather than passing Node's real URL.
 //   export_test needs it, since it catches saves instead of performing them.
-export function makeSandbox({ memoiseIds = true, objectUrls = false } = {}) {
+export function makeSandbox({ memoizeIds = true, objectUrls = false } = {}) {
   const els = new Map();
   const document = {
-    getElementById: memoiseIds
+    getElementById: memoizeIds
       ? id => (els.has(id) ? els.get(id) : els.set(id, makeElement()).get(id))
       : () => makeElement(),
     createElement: () => makeElement(),

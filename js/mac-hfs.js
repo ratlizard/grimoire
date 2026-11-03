@@ -3,8 +3,8 @@
 
    `writeHfsImage()` turns a tree of files into the bytes of a `.dsk` disk
    image that an emulated Mac will mount. It is the last step of the path this
-   repository has been building towards from the other end: index.html can
-   already open the archive, edit a resource and serialise the whole thing back
+   repository has been building toward from the other end: index.html can
+   already open the archive, edit a resource and serialize the whole thing back
    out through `writeDelverArchive`, but what came out was a file on a modern
    computer, and the game that reads it lives inside an emulator. A disk image
    is the only container the mobile shell (now in ratlizard/alchemy)'s emulator will take.
@@ -145,8 +145,8 @@ const HFS_MAC_EPOCH_OFFSET = 2082844800;   // seconds between 1904 and 1970
 // Node kinds, as ndType. Leaf is -1 and stored as 0xFF.
 const HFS_ND_INDEX = 0, HFS_ND_HEADER = 1, HFS_ND_LEAF = 0xFF;
 
-// Empty nodes left at the end of every B-tree so the File Manager has
-// somewhere to split into. See hfsBuildBTree for what happens without them.
+// Empty nodes left at the end of every B-tree, so the File Manager has
+// room to split a node. See hfsBuildBTree for what happens without them.
 const HFS_SPARE_NODES = 8;
 
 function hfsMacTime(date) {
@@ -332,7 +332,7 @@ function hfsIndexRecord(key, nodeNumber, keyLen) {
    `spare` empty nodes follow all of it.
 
    The spares are what a real formatter leaves: a tree with no free node
-   cannot be split, and a tree that cannot be split cannot be inserted into.
+   cannot be split, and nothing can be inserted into a tree that cannot split.
    Nothing here inserts, so they are insurance rather than a fix -- see the
    note on the desktop-file alert at the end of the file header, where they
    were first (wrongly) blamed. Eight nodes is 4 KB. */
@@ -440,14 +440,14 @@ function writeHfsImage(options) {
     let nextCnid = HFS_FIRST_USER_CNID;
     const files = [], dirs = [];
     const seen = new Map();          // parent CNID -> names already used
-    function uniqueName(parent, wanted) {
+    function uniqueName(parent, baseName) {
         if (!seen.has(parent)) seen.set(parent, new Set());
         const used = seen.get(parent);
-        let name = wanted, n = 2;
+        let name = baseName, n = 2;
         // Case-insensitively unique, because that is how HFS sees it.
         while (used.has(name.toUpperCase())) {
             const tail = ' ' + (n++);
-            name = wanted.slice(0, 31 - tail.length) + tail;
+            name = baseName.slice(0, 31 - tail.length) + tail;
         }
         used.add(name.toUpperCase());
         return name;
@@ -518,8 +518,8 @@ function writeHfsImage(options) {
     const slack = Math.max(1024 * 1024, Math.ceil(contentBytes * 0.05));
     const floor = Math.max(opts.sizeBytes || 0, contentBytes + slack);
     let alBlkSize = HFS_SECTOR;
-    const blocksNeeded = size => Math.ceil(size / alBlkSize);
-    while (blocksNeeded(floor) + files.length * 2 + 8 > 65535) alBlkSize *= 2;
+    const blocksFor = size => Math.ceil(size / alBlkSize);
+    while (blocksFor(floor) + files.length * 2 + 8 > 65535) alBlkSize *= 2;
 
     const upBlocks = n => Math.ceil(n / alBlkSize);
     /* A tree file's logical size must be its whole allocation: Mac OS 7.6

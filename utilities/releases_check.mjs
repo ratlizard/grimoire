@@ -85,18 +85,18 @@ const out = ev(`(() => {
 // to stand in the handoff as an unidentified trailing table, and every
 // count here carried an asterisk for it). `real` is the rest, and is the
 // figure to read as what the release changed.
-const WANT = {
+const EXPECTED = {
   '1.0.1 to 1.0.2': {changed: 246, added: 1, removed: 0, count: 1557, unsetKeysOnly: 213, real: 33},
   '1.0.2 to 1.0.3': {changed: 125, added: 0, removed: 0, count: 1558, unsetKeysOnly: 103, real: 22},
   '1.0.3 to 1.0.4': {changed: 0, added: 0, removed: 0, count: 1558, unsetKeysOnly: 0, real: 0},
 };
 for (const row of out) {
   if (row.missing) { fail(row.pair, 'one of the two releases is not in the archive'); continue; }
-  const w = WANT[row.pair];
-  const got = `${row.changed} changed, ${row.added} added, ${row.removed} removed, of ${row.count}; ${row.unsetKeysOnly} differ only in unset table keys, ${row.real} really changed`;
-  const want = `${w.changed} changed, ${w.added} added, ${w.removed} removed, of ${w.count}; ${w.unsetKeysOnly} differ only in unset table keys, ${w.real} really changed`;
-  if (got !== want) fail(row.pair, got + ' against ' + want);
-  else ok(row.pair, got + (row.where ? '  (' + row.where + ')' : ''));
+  const w = EXPECTED[row.pair];
+  const actual = `${row.changed} changed, ${row.added} added, ${row.removed} removed, of ${row.count}; ${row.unsetKeysOnly} differ only in unset table keys, ${row.real} really changed`;
+  const expected = `${w.changed} changed, ${w.added} added, ${w.removed} removed, of ${w.count}; ${w.unsetKeysOnly} differ only in unset table keys, ${w.real} really changed`;
+  if (actual !== expected) fail(row.pair, actual + ' against ' + expected);
+  else ok(row.pair, actual + (row.where ? '  (' + row.where + ')' : ''));
 }
 // 0xEB8 is the spell-hit script the Spells sheet cites, and 1.0.1 does not
 // have it. Named here because "one resource was added" is a figure and "the
@@ -155,13 +155,13 @@ const apps = ev(`(() => {
 const lastApp = apps['1.0.3 to 1.0.4'];
 if (!lastApp) console.log('  skip  the applications could not be taken out of the installers');
 else {
-  const wantAdded = ['IsAntiAliasedTextEnabled', 'MyFindSymbol', 'SetAntiAliasedTextEnabled'];
-  if (lastApp.added.join(', ') !== wantAdded.join(', '))
-    fail('what 1.0.4 added to the program', lastApp.added.join(', ') + ' against ' + wantAdded.join(', '));
+  const expectedAdded = ['IsAntiAliasedTextEnabled', 'MyFindSymbol', 'SetAntiAliasedTextEnabled'];
+  if (lastApp.added.join(', ') !== expectedAdded.join(', '))
+    fail('what 1.0.4 added to the program', lastApp.added.join(', ') + ' against ' + expectedAdded.join(', '));
   else ok('1.0.4 added three routines', lastApp.added.join(', '));
   if (lastApp.gone.length) fail('1.0.4 removed nothing', 'it removed ' + lastApp.gone.join(', '));
-  const wantResized = ['TAudio::SetSoundVolume(short, unsigned char)', 'TConvMode::Perform()', 'TDelverApp::RunStart()'];
-  if (lastApp.resizedNames.join(', ') !== wantResized.join(', '))
+  const expectedResized = ['TAudio::SetSoundVolume(short, unsigned char)', 'TConvMode::Perform()', 'TDelverApp::RunStart()'];
+  if (lastApp.resizedNames.join(', ') !== expectedResized.join(', '))
     fail('what 1.0.4 recompiled', lastApp.resizedNames.join(', '));
   else ok('and recompiled three', lastApp.resizedNames.length + ': RunStart, SetSoundVolume, Perform');
   ok('its resource fork', lastApp.forkChanged + ' changed, of types ' + lastApp.forkTypes);
@@ -195,9 +195,9 @@ if (firstApp && firstApp.added) ok('1.0.1 to 1.0.2 in the program',
  *
  * 1.0.1's notes cannot be checked at all -- they describe changes from 1.0.0
  * and no 1.0.0 exists on this disk. That is stated rather than left as a gap. */
-const eq = (what, got, expect) => {
-  if (String(got) !== String(expect)) fail(what, `expected ${JSON.stringify(expect)}, got ${JSON.stringify(got)}`);
-  else ok(what, String(got));
+const eq = (what, actual, expect) => {
+  if (String(actual) !== String(expect)) fail(what, `expected ${JSON.stringify(expect)}, got ${JSON.stringify(actual)}`);
+  else ok(what, String(actual));
 };
 
 const notes = ev(`(() => {

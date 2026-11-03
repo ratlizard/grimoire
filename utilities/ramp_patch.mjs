@@ -289,9 +289,9 @@ const mergedById = new Map(mergedSpec.resources.map(r => [r.resid, r.data]));
 let wrong = 0, untouched = 0;
 for (const r of g.delverArchiveSpec(archive).resources) {
   const after = mergedById.get(r.resid);
-  const isOurs = changed.includes(r.resid);
+  const isChanged = changed.includes(r.resid);
   const same = after && after.length === r.data.length && r.data.every((v, i) => after[i] === v);
-  if (isOurs) { if (same) wrong++; }            // a patched sheet that did not move
+  if (isChanged) { if (same) wrong++; }            // a patched sheet that did not move
   else if (!same) wrong++;                      // a sheet the patch does not touch that did
   else untouched++;
 }

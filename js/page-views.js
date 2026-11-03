@@ -151,8 +151,13 @@ function exeCalls(op, name) {
 }
 // Every call of a routine anywhere in the code, by one scan kept with the program.
 function exeCallersOf(name) {
-  const img = appImage(), pef = appPef(); if (!img) return [];
   const target = exeRoutineNamed(name); if (!target) return [];
+  return exeCallSitesOf(target.offset).map(at => { const r = exeRoutineAt(at); const ops = exeOpsOf(r); return { routine: r, ops, i: ops.findIndex(o => o.at === at) }; }).filter(c => c.routine && c.i >= 0);
+}
+// The addresses of every bl that reaches an offset. By offset, since two
+// overloads share a name and exeRoutineNamed finds the first.
+function exeCallSitesOf(offset) {
+  const img = appImage(), pef = appPef(); if (!img) return [];
   if (!pef.callIndex) {
     pef.callIndex = new Map();
     for (let at = 0; at + 4 <= img.code.length; at += 4) {
@@ -163,7 +168,7 @@ function exeCallersOf(name) {
       (pef.callIndex.get(to) || pef.callIndex.set(to, []).get(to)).push(at);
     }
   }
-  return (pef.callIndex.get(target.offset) || []).map(at => { const r = exeRoutineAt(at); const ops = exeOpsOf(r); return { routine: r, ops, i: ops.findIndex(o => o.at === at) }; }).filter(c => c.routine && c.i >= 0);
+  return pef.callIndex.get(offset) || [];
 }
 // A number in an instruction, with its address: { v, exe }.
 function exeVal(op, v) { return op ? { v, exe: op.at } : null; }
@@ -209,7 +214,7 @@ function jumpToExeAt(at, why) {
   if (window.CUR_SUBN === 'MECHANICS' || MECH_GROUP_BY_VALUE[window.CUR_SUBN]) mechKeepPlace();
   window.PEF_VIEW = { at, why: why || window.SRC_CLICKED || '' };
   window.SRC_CLICKED = '';
-  if (window.CUR_SUBN === 'APPPEF') renderAppPefSheet();
+  if (window.CUR_SUBN === 'APPPEF') { renderAppPefSheet(); syncDeepLink(); }
   else openVia('APPPEF', () => {});
   setTimeout(() => {
     const hit = document.getElementById('listingHit');
@@ -217,7 +222,7 @@ function jumpToExeAt(at, why) {
   }, 40);
   return true;
 }
-function pefBackToList() { window.PEF_VIEW = null; renderAppPefSheet(); }
+function pefBackToList() { window.PEF_VIEW = null; renderAppPefSheet(); syncDeepLink(); }
 // One routine, instruction by instruction: calls and branches named and
 // followable, TOC slots shown as their contents.
 /* A routine in plain words, a sentence an instruction (6 October 2026).
@@ -291,7 +296,7 @@ function exePlainLines(r) {
     } else if (mn === 'slwi') s = 'Multiply a value by ' + Math.pow(2, d.sh) + '.';
     else if (mn === 'srwi') s = 'Divide a value by ' + Math.pow(2, d.mb) + '.';
     else if (bare === 'srawi') s = 'Divide a value by ' + Math.pow(2, d.sh) + '.';
-    else if (bare === 'addze') s = 'Round that division towards zero.';
+    else if (bare === 'addze') s = 'Round that division toward zero.';
     else if (bare === 'rlwinm' || bare === 'rlwimi') s = bare === 'rlwimi' ? 'Put one field into a packed value.' : 'Take one field out of a packed value.';
     else if (bare === 'mr') s = 'Copy a value.';
     else if (bare === 'extsh') s = 'Read a value as a two-byte number.';
@@ -449,12 +454,12 @@ function exePseudo(r) {
     if (blk.s === 0) for (let i = 3; i <= 10; i++) reg[i] = atom('arg' + (i - 2));
     const fresh = new Set();
     let cond = null, at = 0, to = null;
-    const say = (text, link) => lines.push({ at, text, to: link === undefined ? null : link });
+    const addLine = (text, link) => lines.push({ at, text, to: link === undefined ? null : link });
     const name = q => 'r' + q;
-    const settle = q => { if (reg[q].k === undefined && reg[q].s === name(q)) return; say(name(q) + ' = ' + str(reg[q])); reg[q] = atom(name(q)); };
+    const settle = q => { if (reg[q].k === undefined && reg[q].s === name(q)) return; addLine(name(q) + ' = ' + str(reg[q])); reg[q] = atom(name(q)); };
     // Whether a register's value is read from instruction `from` on: later
     // in the block before it is replaced, or after the block.
-    const wanted = (q, from) => {
+    const isUsedLater = (q, from) => {
       for (let j = from; j <= blk.e; j++) { const x = ud(ops[j]); if (x.u.includes(q)) return true; if (x.w.includes(q)) return false; }
       return !!(blk.out >>> q & 1);
     };
@@ -462,7 +467,7 @@ function exePseudo(r) {
     // written out if a later instruction reads its register, and otherwise
     // dropped.
     let now = blk.s;
-    const before = (test, self) => { for (let q = 0; q < 32; q++) if (vol(q) && reg[q].k === undefined && reg[q].s !== name(q) && test(reg[q])) { if (wanted(q, self ? now : now + 1)) settle(q); else reg[q] = atom(name(q)); } };
+    const before = (test, self) => { for (let q = 0; q < 32; q++) if (vol(q) && reg[q].k === undefined && reg[q].s !== name(q) && test(reg[q])) { if (isUsedLater(q, self ? now : now + 1)) settle(q); else reg[q] = atom(name(q)); } };
     // A test whose operands have since changed is printed as it stood.
     const stale = test => { if (cond && !cond.old && ((cond.a.k === undefined && test(cond.a)) || (cond.b.k === undefined && test(cond.b)))) cond.old = true; };
     const mentions = word => e => new RegExp('(^|[^A-Za-z0-9_])' + word + '($|[^A-Za-z0-9_])').test(e.s);
@@ -473,16 +478,16 @@ function exePseudo(r) {
       // An expression that reads the register it is going into is written out
       // immediately.
       if (!vol(q) || (e.k === undefined && (mentions(name(q))(e) || e.s.length > 64))) {
-        if (!(e.k === undefined && e.s === name(q))) say(name(q) + ' = ' + str(e));
+        if (!(e.k === undefined && e.s === name(q))) addLine(name(q) + ' = ' + str(e));
         reg[q] = atom(name(q));
       } else reg[q] = e;
       fresh.add(q);
     };
-    if (target[blk.s]) { at = ops[blk.s].at; say('\u0002'); }
+    if (target[blk.s]) { at = ops[blk.s].at; addLine('\u0002'); }
     for (let i = blk.s; i <= blk.e; i++) {
       const o = ops[i], d = o.d;
       at = o.at; now = i;
-      const raw = () => { before(() => true, true); say('\u0003' + o.text); };
+      const raw = () => { before(() => true, true); addLine('\u0003' + o.text); };
       if (!d) raw();
       else {
         const mn = d.mn, bare = mn.replace(/\.$/, ''), dot = bare !== mn;
@@ -492,20 +497,20 @@ function exePseudo(r) {
           if (d.lk) {
             const args = []; for (let q = 3; q <= 10 && fresh.has(q); q++) args.push(str(reg[q]));
             const callee = d.indirect ? '(*' + (d.indirect === 'ctr' ? 'address' : 'return address') + ')' : '\u0001';
-            say('r3 = ' + callee + '(' + args.join(', ') + ')', d.indirect ? null : o.to);
+            addLine('r3 = ' + callee + '(' + args.join(', ') + ')', d.indirect ? null : o.to);
             for (const q of [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) reg[q] = atom(name(q));
             fresh.clear(); cond = null;
           } else {
             for (let q = 0; q < 32; q++) if (vol(q) && (blk.out >>> q & 1) && !(d.indirect === 'lr' && q === 3)) settle(q);
             // r3 is what a routine hands back; named where the routine ever sets it.
-            if (d.indirect === 'lr') say('return' + (reg[3].k !== undefined || reg[3].s !== 'r3' ? ' ' + str(reg[3]) : B.some(x => x.def >>> 3 & 1) ? ' r3' : ''));
-            else if (d.indirect) say('goto one of several places, by a number');
+            if (d.indirect === 'lr') addLine('return' + (reg[3].k !== undefined || reg[3].s !== 'r3' ? ' ' + str(reg[3]) : B.some(x => x.def >>> 3 & 1) ? ' r3' : ''));
+            else if (d.indirect) addLine('goto one of several places, by a number');
             else if (d.conditional && /^b[tf]/.test(mn)) {
               const yes = mn[1] === 't', which = d.bi & 3;
               const opn = [yes ? '<' : '>=', yes ? '>' : '<=', yes ? '==' : '!='][which];
-              say('if (' + (cond ? (cond.old ? 'earlier: ' : '') + wrap(cond.a, 3, cond.hexy, true) + ' ' + opn + ' ' + wrap(cond.b, 3, cond.hexy, true) : 'an earlier test ' + opn + ' 0') + ') goto \u0001', o.to);
-            } else if (d.conditional) say('\u0003' + o.text + ' \u0001', o.to);
-            else say('goto \u0001', o.to);
+              addLine('if (' + (cond ? (cond.old ? 'earlier: ' : '') + wrap(cond.a, 3, cond.hexy, true) + ' ' + opn + ' ' + wrap(cond.b, 3, cond.hexy, true) : 'an earlier test ' + opn + ' 0') + ') goto \u0001', o.to);
+            } else if (d.conditional) addLine('\u0003' + o.text + ' \u0001', o.to);
+            else addLine('goto \u0001', o.to);
           }
         } else if (mn === 'nop' || mn === 'stmw' || mn === 'lmw' || mn === 'mflr' || mn === 'mtlr' || mn === 'mtctr') {
           if (mn === 'mflr') reg[d.rd] = atom('return address');
@@ -515,13 +520,13 @@ function exePseudo(r) {
           // Below the stack pointer the routine saves the registers it must hand back, and restores them.
           else if (d.d < 0) { if (m[1] === 'l') reg[d.rt] = atom(name(d.rt)); }
           else if (m[1] === 'l') { dest = d.rt; res = atom('local' + d.d); }
-          else if (reg[d.rt].s !== 'return address') { const v = str(reg[d.rt]); before(mentions('local' + d.d)); stale(mentions('local' + d.d)); say('local' + d.d + ' = ' + v); }
+          else if (reg[d.rt].s !== 'return address') { const v = str(reg[d.rt]); before(mentions('local' + d.d)); stale(mentions('local' + d.d)); addLine('local' + d.d + ' = ' + v); }
         } else if (m && d.ra === 2 && !m[5] && m[1] === 'l') { dest = d.rt; res = atom(tocName(d.d)); }
         else if (m && m[2] !== 'mw') {
           const base = m[5] ? bin('+', reg[d.ra], reg[d.rb], 3) : reg[d.ra];
           const cell = memOf(m[2], base, m[5] ? 0 : d.d);
           if (m[1] === 'l') { dest = d.rt; res = cell; }
-          else { const v = str(reg[d.rt]); before(e => e.mem); stale(e => e.mem); say(cell.s + ' = ' + v); }
+          else { const v = str(reg[d.rt]); before(e => e.mem); stale(e => e.mem); addLine(cell.s + ' = ' + v); }
         } else if (mn === 'li') { dest = d.rd; res = konst(d.imm); }
         else if (mn === 'lis') { dest = d.rd; res = konst(d.imm << 16); }
         else if (/^addi[cs]?$/.test(bare) && d.ra === 1) { if (d.rd !== 1) { dest = d.rd; res = atom('&local' + d.imm); } }
@@ -595,7 +600,7 @@ function exePseudoHTML(r, ringAt, why) {
     else line = off(l.at) + '  ' + svEsc(l.text).replace('\u0001', l.to !== null ? exeTargetHTML(r, l.to) : '');
     if (i !== ringLine) return line;
     const o = ops[(ringAt - r.offset) >> 2];
-    const note = (why ? 'You followed \u201c' + svEsc(why) + '\u201d. ' : '') + 'The line above has the instruction at +0x' + (ringAt - r.offset).toString(16).toUpperCase() +
+    const note = (why ? 'The link \u201c' + svEsc(why) + '\u201d leads here. ' : '') + 'The line above has the instruction at +0x' + (ringAt - r.offset).toString(16).toUpperCase() +
       (o && exePlainLines(r)[(ringAt - r.offset) >> 2] ? ': ' + svEsc(exePlainLines(r)[(ringAt - r.offset) >> 2]).replace('\u0001', 'there').replace(/^./, c => c.toLowerCase()) : '.');
     return '<span id="listingHit" class="listingHit">' + line + '</span><span class="listingNote">' + note + '</span>';
   });
@@ -625,15 +630,55 @@ function exeListingHTML(r, ringAt, why) {
     }
     // In words: the place in the routine, as a jump's link names it, then
     // the sentence, with the jump's link standing in for the place.
-    const said = plain[i] ? svEsc(plain[i]).replace('\u0001', where) + toc : '<span class="refnote">' + t + '</span>';
-    const line = plainOn ? ('+0x' + (o.at - r.offset).toString(16).toUpperCase()).padEnd(7) + ' ' + said
+    const shownText = plain[i] ? svEsc(plain[i]).replace('\u0001', where) + toc : '<span class="refnote">' + t + '</span>';
+    const line = plainOn ? ('+0x' + (o.at - r.offset).toString(16).toUpperCase()).padEnd(7) + ' ' + shownText
       : hex(o.at) + '  ' + o.word.toString(16).toUpperCase().padStart(8, '0') + '  ' + t;
     if (o.at !== ringAt) return line;
-    const note = [why ? 'You followed “' + svEsc(why) + '”. The program sets it on the line above.' : '',
+    const note = [why ? 'The link “' + svEsc(why) + '” leads here. The program sets it on the line above.' : '',
                   plainOn ? '' : plain[i]].filter(Boolean).join(' ');
     return '<span id="listingHit" class="listingHit">' + line + '</span>' + (note ? '<span class="listingNote">' + note + '</span>' : '');
   });
   return '<pre class="pane exeListing" style="max-height:none' + (plainOn ? ';white-space:pre-wrap' : '') + '">' + lines.join('\n') + '</pre>';
+}
+/* What a routine and its class do, in plain words: ROUTINE_NOTES
+   (js/delv-routinenotes.js), written in the workbench from the
+   instructions, read twice and compared, every claim citing the
+   instructions that show it. A text is found by the routine's entry, never
+   its name, which two overloads share. In a text an address in backticks
+   is a link that rings that instruction in the visitor's copy of the program
+   (jumpToExeAt), so a claim is checked against the code it cites in one
+   click; a routine's name in backticks is a link to it; any other name is
+   set as code. *Stars* are a title, and lines starting "- " a list. */
+function routineNoteAt(offset) {
+  if (typeof ROUTINE_NOTES === 'undefined') return null;
+  if (!routineNoteAt.byEntry) {
+    routineNoteAt.byEntry = new Map();
+    for (const cls of Object.keys(ROUTINE_NOTES)) for (const r of ROUTINE_NOTES[cls].routines) routineNoteAt.byEntry.set(r.entry, r);
+  }
+  return routineNoteAt.byEntry.get(offset) || null;
+}
+function routineNoteHTML(text) {
+  const inline = line => line.split('`').map((part, k) => {
+    if (k % 2 === 0) return svEsc(part).replace(/\*([^*]+)\*/g, '<i>$1</i>');
+    if (/^0x[0-9A-F]{6}$/.test(part)) return svLink(part, 'jumpToExeAt(' + parseInt(part, 16) + ')');
+    if (/^[A-Za-z_]\w*::~?\w+$/.test(part) && exeRoutineNamed(part)) return svLink(part, 'openPefRoutine(\'' + part + '\')');
+    return '<code>' + svEsc(part) + '</code>';
+  }).join('');
+  return text.split(/\n\s*\n/).map(block => {
+    const lines = block.split('\n');
+    if (!/^- /.test(lines[0])) return '<p class="mechLede">' + inline(lines.join(' ')) + '</p>';
+    const items = [];
+    for (const l of lines) { if (/^- /.test(l)) items.push(l.slice(2)); else items[items.length - 1] += ' ' + l.trim(); }
+    return '<ul class="mechLede">' + items.map(i => '<li>' + inline(i) + '</li>').join('') + '</ul>';
+  }).join('');
+}
+// Where a routine is called from, read from the visitor's program: each
+// caller once, a link to the call.
+function routineCallersHTML(r) {
+  const seen = new Map();
+  for (const at of exeCallSitesOf(r.offset)) { const c = exeRoutineAt(at); if (c && !seen.has(c.offset)) seen.set(c.offset, { c, at }); }
+  if (!seen.size) return '<p class="mechLede">No call in the program reaches it directly. A routine called through a table of addresses, as a virtual routine is, has no direct call.</p>';
+  return '<p class="mechLede">' + [...seen.values()].map(x => svLink(x.c.name, 'jumpToExeAt(' + x.at + ')')).join(', ') + '.</p>';
 }
 function renderAppPefSheet() {
   stopAllViewActivity();
@@ -649,12 +694,16 @@ function renderAppPefSheet() {
     const box = document.createElement('div');
     box.className = 'mechView';
     const hexv = n => '0x' + (n >>> 0).toString(16).toUpperCase();
+    const note = routineNoteAt(view.offset);
     box.innerHTML = '<div class="foldAll" style="justify-content:flex-start">' + svLink('All routines', 'pefBackToList()') + ' ' +
       [['words', 'Plain Words'], ['pseudo', 'Pseudo-code'], ['code', 'Code']].map(v => window.EXE_VIEW === v[0]
         ? '<span class="inspDim">' + v[1] + '</span>' : svLink(v[1], 'exeSetView(\'' + v[0] + '\')')).join(' ') + '</div>' +
       '<div class="changesHead">' + svEsc(view.name) + '</div>' +
       '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
       (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes, and a slot in the program’s table of addresses shows what the game stores there when it starts.</p>' +
+      (note ? '<div class="mechSub">Description</div>' + routineNoteHTML(note.text) : '') +
+      '<div class="mechSub">Callers</div>' + routineCallersHTML(view) +
+      '<div class="mechSub">Instructions</div>' +
       exeListingHTML(view, window.PEF_VIEW.at, window.PEF_VIEW.why);
     grid.appendChild(box);
     out.textContent = view.name + ', ' + (view.length / 4) + ' instructions';
@@ -686,12 +735,16 @@ function renderAppPefSheet() {
   const row = r => '<tr>' + num(hex(r.offset)) + num(r.length.toLocaleString()) + '<td title="' + svEsc(r.mangled) + '">' + svLink(r.name, 'jumpToExeAt(' + r.offset + ')') + '</td></tr>';
   const table = list => '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">at</th><th class="num">bytes</th><th>routine</th></tr></thead><tbody>' + list.map(row).join('') + '</tbody></table></div>';
   if (q) h += rs.length ? table(rs) : '<div class="changesNote">No routine matches.</div>';
-  else h += [...byClass.entries()].sort((a, b) => (a[0] || '~').localeCompare(b[0] || '~')).map(([c, list]) =>
-    '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(c || 'functions outside a class') + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + list.length + '</b></span></span></summary><div class="mechBody">' + table(list) + '</div></details>').join('');
+  else h += [...byClass.entries()].sort((a, b) => (a[0] || '~').localeCompare(b[0] || '~')).map(([c, list]) => {
+    const words = typeof ROUTINE_NOTES !== 'undefined' && ROUTINE_NOTES[c];
+    const told = list.filter(r => routineNoteAt(r.offset)).length;
+    return '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(c || 'functions outside a class') + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + list.length + '</b></span>' +
+      (told ? '<span class="mechStat"><b>' + told + '</b> described</span>' : '') + '</span></summary><div class="mechBody">' + (words ? routineNoteHTML(words.opening) : '') + table(list) + '</div></details>';
+  }).join('');
   h += '<p class="mechLede" style="margin-top:10px">The page decodes each name from the compiler’s shorthand, and leaves it as written where it cannot.</p>';
   box.innerHTML = h;
   grid.appendChild(box);
-  out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '; ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
+  out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '. ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
 }
 
 /* Cythera Preferences, the file the game stores its settings in, on a
@@ -719,17 +772,17 @@ const PREF_HELP = {
   Music: ['sound', 'Preferences dialog', 'How loud the music is, in eighths of full volume: 8 is full, 0 is silent.'],
   Ambient: ['sound', 'Preferences dialog', 'Background sounds, such as animals and ocean waves.'],
   movement: ['movement', 'Preferences dialog', 'How the game draws a step from one square to the next: in four stages (Smoother), in two (Faster), or as one jump (Fastest). It takes the same game time in all three. The dialog’s Graphics Quality slider sets the same thing.'],
-  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second; these three come from the game’s hidden Preferences menu. The file can hold others, down to no limit at all. A higher limit plays each step’s animation faster; holding a key still walks at the pace of the Mac’s key repeat.'],
+  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second. These three come from the game’s hidden Preferences menu. The file can hold others, down to no limit at all. A higher limit plays each step’s animation faster, but holding a key still walks at the pace of the Mac’s key repeat.'],
   motionFilters: ['movement', 'Preferences dialog', 'Leaves blowing on the trees and waves rippling across the ocean.'],
   walkAround: ['movement', 'Preferences dialog', 'The hero steps around things in the way rather than stopping at them.'],
-  liveDrag: ['windows', 'Preferences dialog', 'Lets you drag the game’s windows around the screen.'],
-  manualContainers: ['windows', 'Preferences dialog', 'Opening a container lets you choose where its window goes. Off, the game places it for you.'],
+  liveDrag: ['windows', 'Preferences dialog', 'The player can drag the game’s windows around the screen.'],
+  manualContainers: ['windows', 'Preferences dialog', 'Opening a container lets the player choose where its window goes. Off, the game places it.'],
   zoomRects: ['windows', 'Preferences dialog', 'Windows open with a zooming outline.'],
   Backdrop: ['windows', 'Not in the game', 'The pattern that fills the screen behind every window. Nothing in the game sets it.'],
   switch256: ['startup', 'Startup prompt', 'On a screen set to more than 256 colors, the game switches it to 256 when it starts. Off, it runs in the colors the screen already has.'],
-  dontAsk: ['startup', 'Startup prompt', 'The game shows no 256-color prompt when it starts. Off, it shows the prompt on a screen set to more than 256 colors, and the answer replaces the switch above.'],
+  noPrompt: ['startup', 'Startup prompt', 'The game shows no 256-color prompt when it starts. Off, it shows the prompt on a screen set to more than 256 colors, and the answer replaces the switch above.'],
   cheats: ['startup', 'Not in the game', null],
-  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button: the second button clicks as if you held Command, the third Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu; the right-click fix on the Patches tab puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
+  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button. The second button clicks with Command held, the third with Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu. The right-click fix in the Patch Generator puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
 };
 /* The License tab, a stub by the maintainer's word (6 October 2026): what
    the file is, where it goes, a link to the thing that makes one, and a
@@ -755,14 +808,14 @@ function renderLicenseSheet() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.id = 'licenseFile'; inp.accept = '*/*';
   about.appendChild(inp);
-  const said = document.createElement('div');
-  said.className = 'changesNote'; said.id = 'licenseSaid';
-  said.style.marginLeft = '0';
-  about.appendChild(said);
+  const shownText = document.createElement('div');
+  shownText.className = 'changesNote'; shownText.id = 'licenseSaid';
+  shownText.style.marginLeft = '0';
+  about.appendChild(shownText);
   inp.onchange = () => {
     const f = inp.files && inp.files[0];
     if (!f) return;
-    f.arrayBuffer().then(buf => { said.innerHTML = licenseSaidHTML(new Uint8Array(buf)); }, e => quiet(e, 'reading a license file'));
+    f.arrayBuffer().then(buf => { shownText.innerHTML = licenseReportHTML(new Uint8Array(buf)); }, e => quiet(e, 'reading a license file'));
   };
   box.appendChild(about);
   const make = document.createElement('div');
@@ -775,7 +828,7 @@ function renderLicenseSheet() {
   out.textContent = LICENSE_FILE_NAME + ', the file where the game stores its registration.';
 }
 // What the tab shows for a chosen file. The name is the file's, verbatim.
-function licenseSaidHTML(bytes) {
+function licenseReportHTML(bytes) {
   const lic = cytheraLicenseRead(bytes);
   if (!lic) return svEsc('This is not a ' + LICENSE_FILE_NAME + ' file. One is ' + LICENSE_FILE_SIZE + ' bytes, and this is ' + bytes.length + '.');
   return svEsc('The name in this file is ') + '<b>' + svEsc(lic.name) + '</b>' + svEsc(lic.hasCode ? ', with a code.' : ', with no code.');
@@ -816,7 +869,7 @@ function renderPrefsSheet() {
   sheet.innerHTML = '<p class="prefLede">' + svEsc('Choose the settings, then download the file and put it in the Preferences folder of the System Folder, replacing the one there. ' +
       'Each setting starts as a new copy of the game has it.') + '</p>' +
     '<p class="prefFrom">' + svEsc(layout.from === 'shipped'
-      ? 'The settings are the same in all four releases, so nothing needs to be open. Open the game to read them from your copy instead.'
+      ? 'The settings are the same in all four releases, so nothing needs to be open. Open the game to read them from that copy instead.'
       : 'The page reads the settings from the program open here.') + '</p>';
   /* The two presets (cytheraPrefsPreset): each sets every row, the switches
      by their ids and the choosers by their values. Built with createElement,
@@ -903,9 +956,9 @@ function renderPrefsSheet() {
   // The startup question's answer and its "don't ask" as two switches, each
   // labelled with the dialog's text, so every pairing can be written. Both
   // start on: the game's recommendation, and no question in the way.
-  (layout.startup || []).forEach((x, i) => { if (PREF_STARTUP_IDS[i]) sw(['switch256', 'dontAsk'][i], PREF_STARTUP_IDS[i], x.text, true); });
+  (layout.startup || []).forEach((x, i) => { if (PREF_STARTUP_IDS[i]) sw(['switch256', 'noPrompt'][i], PREF_STARTUP_IDS[i], x.text, true); });
   sw('cheats', 'prefCheats', 'Allow the cheat keys', true,
-     svEsc('Lets the cheat keys work after you type ' + layout.gate.word + '. Nothing in the game turns this on, so a copy as released cannot enter cheat mode.'));
+     svEsc('Lets the cheat keys work after typing ' + layout.gate.word + '. Nothing in the game turns this on, so a copy as released cannot enter cheat mode.'));
   // No label anywhere in the game, so the row's name is one the page supplies.
   if (layout.buttons) sw('mouseButtons', 'prefMouseButtons', 'Extra mouse buttons', false);
   for (const [g, title] of PREF_GROUPS) {
@@ -928,7 +981,7 @@ function renderPrefsSheet() {
   pbtns.className = 'prefSave';
   const saveNote = document.createElement('div');
   saveNote.className = 'prefSaveNote';
-  saveNote.textContent = 'Tested in the game: the game read a file this page wrote, and cheat mode activated.';
+  saveNote.textContent = 'Tested in the game. The game read a file this page wrote, and cheat mode came on.';
   saveBox.appendChild(pbtns);
   saveBox.appendChild(saveNote);
   save.appendChild(saveBox);
@@ -1020,13 +1073,13 @@ function renderToolsSheet() {
      Generator, Save File Generator, Preferences File Generator, Graphics
      Ditherizer and ColorCycleCanvas. The Font Replacer, the Seldane Script
      Replacer and the MIDI Importer left for a section of the Patch
-     Generator (Fonts and Music), since what they change goes into Your
-     Patch. The canvas page's row is its name drawn as that page draws it
+     Generator (Fonts and Music), since what they change goes into the
+     Patch in Progress. The canvas page's row is its name drawn as that page draws it
      (.ccMark). */
   for (const [label, note, go, icon, mark] of [
     ['Patch Generator', 'Bugfixes and the tools that make a patch, in one download.', () => showCategory('PATCHES'), BUILD_A_PATCH_ICON],
-    ['Save File Generator', 'A saved game made from the scenario open here, with the hero you set.', at('SAVEGAME', 'saveMaker')],
-    ['Preferences File Generator', 'The game’s settings file, made with the options you choose.', at('PREFS')],
+    ['Save File Generator', 'A saved game made from the scenario open here, with the hero set on the form.', at('SAVEGAME', 'saveMaker')],
+    ['Preferences File Generator', 'The game’s settings file, made with the options chosen here.', at('PREFS')],
     ['Graphics Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
       () => { showCategory('135'); openDitherTool(); }],
     ['ColorCycleCanvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener'), null, true]]) {
@@ -1063,7 +1116,7 @@ function renderToolsSheet() {
     const q = document.createElement('details');
     q.className = 'quietLog';
     const n = QUIET_FAILURES.size;
-    const line = n ? n + (n === 1 ? ' thing' : ' things') + ' fell back quietly since the page loaded' : 'Nothing has fallen back quietly since the page loaded';
+    const line = n ? n + (n === 1 ? ' thing' : ' things') + ' have fallen back quietly since the page loaded' : 'Nothing has fallen back quietly since the page loaded';
     q.innerHTML = '<summary>' + line + '</summary>';
     if (n) {
       const ul = document.createElement('div');
@@ -1337,10 +1390,10 @@ function characterChip(i, terse) {
 // What a person says over their head, from the bark catalogue: their own
 // lines, and the shared idle script's where their dialogue hands off to it.
 function characterSays(i) {
-  let mine = [];
-  try { mine = buildBarkCatalogue().filter(b => b.who === i); } catch (e) { mine = []; }
-  if (!mine.length) return '';
-  const lines = mine.flatMap(b => b.words).map(w => '“' + svEsc(w) + '”');
+  let characterBarks = [];
+  try { characterBarks = buildBarkCatalog().filter(b => b.character === i); } catch (e) { characterBarks = []; }
+  if (!characterBarks.length) return '';
+  const lines = characterBarks.flatMap(b => b.words).map(w => '“' + svEsc(w) + '”');
   return partsStrip('Says', ['<button class="navChip" onclick="showCategory(\'BARKS\')">Barks</button>'],
     lines.join(', '));
 }
@@ -1557,11 +1610,11 @@ function soundUsageRows(resid, subn) {
     if (lists.length) rows.push(['Default in', lists.map(r => svChip(r, 'for anyone with no sounds set')), '']);
     const eggs = u.eggs.get(n) || [];
     if (eggs.length) rows.push(['Heard in', zoneSquareChips(eggs), '']);
-    if (!rows.length) rows.push(['Played by', [], 'Nothing plays this sound; no script, class, list or egg in the file names it.']);
+    if (!rows.length) rows.push(['Played by', [], 'Nothing plays this sound. No script, class, list or egg in the file names it.']);
   } else if (subn === 143) {
     const chips = chipsFor(u.music.get(resid - 0x9000));
     rows.push(['Played by', chips, chips.length ? '' :
-      'No script refers to this music by number; the program starts some music itself.']);
+      'No script refers to this music by number. The program starts some music itself.']);
   }
   return rows;
 }
@@ -1736,11 +1789,11 @@ function ownerRows(resid, subn) {
     // Every script that refers to this strip, the zone's entry script
     // included where it is one; a negative number is the strip with no sky
     // (landscapeSetters).
-    const chips = [], said = new Set();
+    const chips = [], shownText = new Set();
     for (const st of landscapeZones(resid)) {
       const key = st.resid + (st.sky ? '' : '-');
-      if (said.has(key)) continue;
-      said.add(key);
+      if (shownText.has(key)) continue;
+      shownText.add(key);
       chips.push(relChip({ js: 'jumpToScriptAt(' + st.resid + ',' + st.at + ')',
         main: landscapeSetterName(st.resid), sub: st.sky ? 'over the sky' : 'no sky',
         title: trailForResid(st.resid) }));
@@ -1877,19 +1930,6 @@ const MONSTER_TOP_FLAG_NAMES = [
   [0x0004, 'takes no edged damage'],               // 0x3040: type 0x01 returns 0
   [0x0008, 'poisons with its blows'],              // 0xE87 adds 0x100 to the type; 0x3041 sets flag 9 for it
 ];
-function monsterFlagsText(f) {
-  const bits = [];
-  let rest = f >>> 0;
-  for (const [bit, name] of MONSTER_FLAG_NAMES)
-    if (f & bit) { bits.push(name); rest = (rest & ~bit) >>> 0; }
-  const tops = monsterTopFlagSites();
-  for (const [bit, name] of MONSTER_TOP_FLAG_NAMES) {
-    const w = (bit << 16) >>> 0;
-    if (tops.has(bit) && (f & w)) { bits.push(name); rest = (rest & ~w) >>> 0; }
-  }
-  if (rest) bits.push('+0x' + rest.toString(16).toUpperCase() + ' (' + monsterRestWord() + ')');
-  return bits.length ? bits.join(' · ') : 'none set';
-}
 /* What the bits left over are called. With the program open every bit
    anything tests has its name, so what is left is read by nothing: the
    workbench's tools/unitflags_scan.mjs followed the word bit by bit from
@@ -1941,8 +1981,8 @@ function monsterTopFlagSites() {
   if (!f) return out;
   try {
     const named = DVM_SYM.field[String(f.field)];
-    const spelt = '(?:0x' + f.field.toString(16).toUpperCase() + '\\b' + (named ? '|' + named + '\\b' : '') + ')';
-    const hint = new RegExp('get_field ' + spelt), get = new RegExp('^get_field ' + spelt);
+    const spelled = '(?:0x' + f.field.toString(16).toUpperCase() + '\\b' + (named ? '|' + named + '\\b' : '') + ')';
+    const hint = new RegExp('get_field ' + spelled), get = new RegExp('^get_field ' + spelled);
     for (const e of buildScriptTextIndex()) {
       if (!hint.test(e.text)) continue;
       const ops = dvmOpsOf(e);
@@ -2143,8 +2183,8 @@ function monsterFlagsHTML(f, each) {
   const named = [];
   let rest = f >>> 0;
   // A bit two rules read (0x0080 is fire and lava) is not counted twice.
-  let told = 0;
-  const own = v => { if (!each) return ''; const again = (told & v) >>> 0 === v >>> 0; told = (told | v) >>> 0;
+  let describedBits = 0;
+  const own = v => { if (!each) return ''; const again = (describedBits & v) >>> 0 === v >>> 0; describedBits = (describedBits | v) >>> 0;
     return ' <span style="color:#dcd8cc">' + (again ? 'also ' : '') + propWordHex(v >>> 0) + '</span>'; };
   for (const [bit, name] of MONSTER_FLAG_NAMES)
     if (f & bit) { const s = sites.get(bit); named.push({ low: bit, html: (s ? srcNum(s, name) : svEsc(name)) + own(bit) }); rest = (rest & ~bit) >>> 0; }
@@ -2374,14 +2414,14 @@ function showMonsterDetail(idx) {
   if (sites.length) {
     h += '<div class="mechSub">Where It Hatches</div><ul class="ruleList">' + sites.map(s =>
       '<li>' + svLink(s.zone + ' (zone ' + (s.map - 0x8000) + ')', 'jumpToResource(' + s.map + ')') + ' at (' + s.x + ', ' + s.y + ')' + (s.n > 1 ? ', ' + s.n + ' of them' : '') +
-      ', hatching ' + behaviourHTML(s.beh) + '</li>').join('') + '</ul>';
+      ', hatching ' + behaviorHTML(s.beh) + '</li>').join('') + '</ul>';
     /* The lich who stands still is taken for Tavara, the mage who destroyed
        Abydos; no text names him, and this is the line players read it from,
        quoted from the file. */
     const still = sites.filter(s => s.beh === 0);
     if (r.proptype === 297 && still.length === 1 && sites.length > 1) {
-      const said = srcSaid(0x187F, 'Instead, he just sits in his mountain strongholds, awaiting a death that will never truly come.');
-      if (/<button/.test(said)) h += '<div class="sv-note">The one that stands still is taken for Tavara. Ur-Sylph, of the traitor who destroyed a colony: ' + said + '</div>';
+      const shownText = srcQuoteText(0x187F, 'Instead, he just sits in his mountain strongholds, awaiting a death that will never truly come.');
+      if (/<button/.test(shownText)) h += '<div class="sv-note">The page takes the one that stands still for Tavara. Ur-Sylph, of the traitor who destroyed a colony: ' + shownText + '</div>';
     }
   }
   panel.innerHTML = h;
@@ -2409,10 +2449,10 @@ function showMonsterDetail(idx) {
         (u.rule && u.rule.aspectStep ? srcNum(u.rule.aspectStep, String(u.step)) : String(u.step)) +
         ' (the frames for one direction) on the ' + (u.rule ? srcNum(u.rule.dx, 'eight squares') : 'eight squares') + ' around it' +
         '.' + (app ? ' ' + pefChip('TOctoMonster::TOctoMonster') : '');
-      else if (u.kind === 'crawl') how.innerHTML = lay + ': <b>a head with its tail behind it</b>; the tail is a second record at the head’s aspect plus ' + (u.rule ? srcNum(u.rule.tailOffset, '8') : '8') +
+      else if (u.kind === 'crawl') how.innerHTML = lay + ': <b>a head with its tail behind it</b>. The tail is a second record at the head’s aspect plus ' + (u.rule ? srcNum(u.rule.tailOffset, '8') : '8') +
         '. The layout sets which kind it is.' + (app ? ' ' + pefChip('TCrawlMonster::TCrawlMonster') + pefChip('TActiveMonster::CreateMonster') : '');
       else if (u.kind === 'span') how.innerHTML = lay + ': one record, and <b>its tiles span ' + whole.cols + ' by ' + whole.rows + '</b> according to their attributes, as a thing placed in the world does.';
-      else how.innerHTML = lay + ': one record, one tile; the layout sets the frame.' + (app ? ' ' + pefChip('TActiveMonster::AdjustAspect') : '');
+      else how.innerHTML = lay + ': one record and one tile, and the layout sets the frame.' + (app ? ' ' + pefChip('TActiveMonster::AdjustAspect') : '');
       box.appendChild(how);
       panel.appendChild(box);
     }
@@ -2610,7 +2650,7 @@ function renderText(sameResource) {
   cancelResourceEdit();
   try {
     const resDataRaw = ARCHIVE.bytes.slice(roff, roff+rlen);
-    const { data: resData, wasDecrypted, rawEntropy, decEntropy, shape, allZero, known } = smartDecrypt(resDataRaw, resid);
+    const { data: resData, wasDecrypted, rawEntropy, decEntropy, shape, allZero, inTables } = smartDecrypt(resDataRaw, resid);
 
     document.getElementById('textPreview').style.display = 'block';
     document.getElementById('zoomControls').style.display = 'none';
@@ -2622,7 +2662,7 @@ function renderText(sameResource) {
     // decryptor made, and how close it was.
     const readNote =
       (wasDecrypted ? 'decrypted' : 'read as stored') +
-      (known ? "  (from delvmod's tables)"
+      (inTables ? "  (from delvmod's tables)"
              : shape ? '  (by its shape: ' + shape + ')'
              : rawEntropy || decEntropy
                ? '  (entropy ' + Math.min(rawEntropy, decEntropy).toFixed(2) +
@@ -2697,6 +2737,8 @@ function renderText(sameResource) {
     if (qtPlayBtn) qtPlayBtn.style.display = 'none';
     const midiInBtn = document.getElementById('midiInBtn');
     if (midiInBtn) midiInBtn.style.display = 'none';
+    const midiAddBtn = document.getElementById('midiAddBtn');
+    if (midiAddBtn) midiAddBtn.style.display = 'none';
     const qtPickBtn = document.getElementById('qtPickBtn');
     if (qtPickBtn) qtPickBtn.style.display = 'none';
     if (subn === 143) {
@@ -2705,6 +2747,7 @@ function renderText(sameResource) {
       let head = "--- QTMA TUNE (decoded) ---\n";
       try {
         const info = qtmaToMidi(resDataRaw);
+        showTuneRoll(resid, info);
         const gm = Object.keys(info.noteRequests).sort((a,b)=>a-b)
           .map(p => "  part " + p + " -> MIDI ch " + ((info.chanOf[p]|0)+1) +
                     ", GM program " + info.noteRequests[p] + " (" +
@@ -2717,8 +2760,9 @@ function renderText(sameResource) {
         if (midiBtn) midiBtn.style.display = '';
         if (qtPlayBtn) qtPlayBtn.style.display = '';
         if (midiInBtn) midiInBtn.style.display = '';
+        if (midiAddBtn) midiAddBtn.style.display = '';
       } catch(e) {
-        head += "(could not decode as a QTMA tune: " + e.message + ")\n\n";
+        head += "(the page could not decode this as a QTMA tune: " + e.message + ")\n\n";
       }
       content = head + content;
     }
@@ -2745,7 +2789,7 @@ function renderText(sameResource) {
           scriptText = 'name: "' + named.name + '"\n\n' +
                        'The body starts at +0x' + named.bodyOffset.toString(16).toUpperCase() +
                        ' and runs ' + (resData.length - named.bodyOffset) + ' bytes.\n' +
-                       'It is not Delver script code; running the disassembler over it\n' +
+                       'It is not Delver script code. Running the disassembler over it\n' +
                        'produces meaningless output, and its real format is unknown.\n' +
                        'The bytes are in the raw dump below.';
         } else {
@@ -2766,7 +2810,7 @@ function renderText(sameResource) {
           if (render !== dvmRender) rawText = dvmRender(ARCHIVE, resData, resid) || '';
         }
       } catch (e) {
-        scriptText = '// disassembly failed: ' + e.message;
+        scriptText = '// the page could not disassemble this: ' + e.message;
       }
     }
     const sv = document.getElementById('scriptView');
@@ -2811,7 +2855,7 @@ function renderText(sameResource) {
       (wasDecrypted ? " (auto-decrypted)" : " (no decryption applied)");
     currentResid = resid;
     window.CUR_RAW_BYTES = resDataRaw;
-  } catch(err) { out.textContent = "Text render error: " + err.message; }
+  } catch(err) { out.textContent = "The page could not show this resource: " + err.message; }
 }
 
 // --- Readable dialogue pane -------------------------------------------
@@ -2926,7 +2970,7 @@ function convScrollTo(resid, at) {
 
 function convBadgeFor(a) {
   if (a.call !== undefined) {
-    if (a.call === 0xF00) return 'learns your name';
+    if (a.call === 0xF00) return 'learns the hero’s name';
     if (a.call === 0xE86) return 'training';
     if (a.call === 0x813) return 'a rumor from the pool';
     if ((a.call >> 8) === 8) return null;              // chain calls render in the header
@@ -2957,18 +3001,32 @@ function convTextHtml(resid, e) {
   // only at the start.
   const lines = e.kw && e.kw !== '*' ? (convReadConds(resid).lines.get(e.at) || []) : [];
   let prev = '';
+  const words = s => escHtml(s).replace(/@([A-Za-z][A-Za-z'-]*)/g,
+    '<span class="convLink" onclick="convJumpWord(' + resid + ',\'$1\')">$1</span>');
+  const edit = t => window.DLG_EDIT ? ' <button class="linkbtn dlgEdit" onclick="editStringAt(' + resid + ',' + t.off + ')">edit</button>' : '';
+  const paras = [];
   for (const t of e.text) {
+    // A string whose start only some players see (dvmConversation's `opt`)
+    // continues the line before it when that line stops mid-word, as
+    // Naxos's "hero" and "ine" do. The card shows "hero(ine)", and the
+    // part in brackets has the test as its hover text.
+    if (t.opt) {
+      const test = /^load_far_word (0x[0-9A-Fa-f]+)$/.exec(t.optTest || '');
+      const hover = 'The game prints this part when ' + (test ? dvmFarWordName(test[1]) + ' is not zero' : 'the test before it passes');
+      const part = '<span class="convOpt" title="' + svEsc(hover) + '">(' + words(t.str.slice(0, t.opt)) + ')</span>' + words(t.str.slice(t.opt)) + edit(t);
+      const last = paras[paras.length - 1];
+      if (last && /[A-Za-z]$/.test(last.str)) { last.html += part; last.str = t.str; continue; }
+      paras.push({ str: t.str, html: part });
+      continue;
+    }
     let chain = [];
     for (const l of lines) { if (l.at > t.off) break; chain = l.chain; }
-    const said = chain.join(' and ');
-    const lead = said && said !== prev ? '<span class="inspDim">' + chain.map(c => convCondHtml(resid, c)).join(' and ').replace(/ and if /g, ' and ') + ':</span> ' : '';
-    prev = said;
-    const body = escHtml(t.str)
-      .replace(/@([A-Za-z][A-Za-z'-]*)/g,
-        '<span class="convLink" onclick="convJumpWord(' + resid + ',\'$1\')">$1</span>');
-    html += '<p class="dlgLine">' + lead + body +
-      (window.DLG_EDIT ? ' <button class="linkbtn dlgEdit" onclick="editStringAt(' + resid + ',' + t.off + ')">edit</button>' : '') + '</p>';
+    const shownText = chain.join(' and ');
+    const lead = shownText && shownText !== prev ? '<span class="inspDim">' + chain.map(c => convCondHtml(resid, c)).join(' and ').replace(/ and if /g, ' and ') + ':</span> ' : '';
+    prev = shownText;
+    paras.push({ str: t.str, html: lead + words(t.str) + edit(t) });
   }
+  for (const p of paras) html += '<p class="dlgLine">' + p.html + '</p>';
   return html;
 }
 
@@ -3004,9 +3062,43 @@ function convIntendedFor(stub) {
   // ("job", "bye", the "y" and "n" of a question) is the whole word, and a
   // longer one ("very easy") is spelt out already.
   if (!/^[a-z]{4}$/i.test(stub)) return [];
-  const out = [];
-  for (const [k, o] of convIntendedWords()) if (convKwMatches(stub, k)) out.push(o);
-  return out.sort((a, b) => b.n - a.n || a.text.localeCompare(b.text)).map(o => o.text);
+  const pick = words => {
+    const out = [];
+    for (const [k, o] of words) if (convKwMatches(stub, k)) out.push(o);
+    return out.sort((a, b) => b.n - a.n || a.text.localeCompare(b.text)).map(o => o.text);
+  };
+  const marked = pick(convIntendedWords());
+  if (marked.length) return marked;
+  // No response marks the word: Naxos's "glau" is Glaucus, a name the
+  // game prints plain. The character names come next, then any word the
+  // responses print plain, most used first.
+  const names = new Map(), t = nameTable() || [];
+  for (const nm of t) {
+    const w = String(nm || '').trim();
+    if (/^[A-Za-z][A-Za-z'-]*$/.test(w) && w !== 'x') names.set(w.toLowerCase(), { text: w, n: 1 });
+  }
+  const named = pick(names);
+  return named.length ? named : pick(convPlainWords());
+}
+// Every word the conversations print, @-marked or not, by how often.
+function convPlainWords() {
+  if (DERIVED.CONV_PLAIN) return DERIVED.CONV_PLAIN;
+  const words = new Map();
+  const walk = es => { for (const e of es || []) {
+    for (const t of e.text || []) for (const m of String(t.str).matchAll(/[A-Za-z][A-Za-z'-]{3,}/g)) {
+      const k = m[0].toLowerCase(), o = words.get(k) || { text: m[0], n: 0 };
+      o.n++; words.set(k, o);
+    }
+    walk(e.sub);
+  } };
+  for (const [subn, base] of [[23, 0x1800], [7, 0x800]]) {
+    const count = subindexCount(ARCHIVE, subn);
+    for (let i = 0; i < count; i++) {
+      const c = conversationFor(base + i);
+      if (c) { walk(c.entries); if (c.preamble) walk([c.preamble]); }
+    }
+  }
+  return (DERIVED.CONV_PLAIN = words);
 }
 // A prompt as the player types it, and as the code stores it.
 function convPromptHtml(e) {
@@ -3077,9 +3169,29 @@ function convReadConds(resid) {
       }
     };
     for (const f of fns) walk(f.clauses);
+    // Each local's values, from every "set VarNN to ..." in the script.
+    out.locals = new Map();
+    const sets = cl => { for (const c of cl || []) {
+      const m = /^set (Var[0-9A-F]{2}) to (.+)$/.exec(c.text);
+      if (m) { if (!out.locals.has(m[1])) out.locals.set(m[1], []); if (out.locals.get(m[1]).indexOf(m[2]) < 0) out.locals.get(m[1]).push(m[2]); }
+      sets(c.kids);
+    } };
+    for (const f of fns) sets(f.clauses);
   } catch (err) { quiet(err, 'reading a conversation\u2019s conditions'); }
   DERIVED.CONV_READ_CONDS.set(resid, out);
   return out;
+}
+/* A local in a condition, "if Var00", has no meaning of its own: the
+   script sets it, and what it is set to is the meaning. Naxos's Var00 is
+   "test flag player character, 29". The card writes each local with the
+   values the script gives it in brackets, as the Read view words them. */
+function convLocalShown(resid, c) {
+  const locals = convReadConds(resid).locals;
+  if (!locals || !locals.size) return c;
+  return c.replace(/\bVar[0-9A-F]{2}\b/g, v => {
+    const vals = locals.get(v);
+    return vals && vals.length ? v + ' (set to ' + vals.slice(0, 3).join(' or ') + (vals.length > 3 ? ' and more' : '') + ')' : v;
+  });
 }
 /* A condition as the card words it. A test of a flag of the character's
    that the Read view found set by one of that character's topics reads as
@@ -3091,29 +3203,29 @@ function convCondHtml(resid, c) {
   const notes = convReadConds(resid).notes;
   const neg = /^not \((.*)\)$/.exec(c), k = neg ? neg[1] : c;
   const note = notes.get(k) || notes.get(c) || '';
-  const who = (typeof characterName === 'function' && resid >= 0x1800 && resid < 0x1900) ? characterName(resid - 0x1800) : null;
+  const character = (typeof characterName === 'function' && resid >= 0x1800 && resid < 0x1900) ? characterName(resid - 0x1800) : null;
   const m = /^\((.+?)’s conversation, asked about ([A-Z,]+) sets bit (\d+) of (.+?)’s bit flags/.exec(note);
   const own = /^its bit flags has bit (\d+)/.exec(k);
-  if (m && own && own[1] === m[3] && who && m[1] === who && m[4] === who) {
+  if (m && own && own[1] === m[3] && character && m[1] === character && m[4] === character) {
     const w = m[2].toLowerCase().split(',')[0];
     const link = '<span class="convLink" onclick="convJumpWord(' + resid + ',\'' + w + '\')">' + svEsc(w) + '</span>';
     return 'if ' + (neg ? 'not yet asked about ' + link : 'asked about ' + link + ' before');
   }
   // A note that is only the helper's number, "(0xF13)", adds nothing the
   // test has not shown.
-  const said = /^\(0x[0-9A-F]+\)$/.test(note) ? '' : note;
-  return 'if ' + svEsc(c) + (said ? ' <span class="inspDim">' + svEsc(said) + '</span>' : '');
+  const shownText = /^\(0x[0-9A-F]+\)$/.test(note) ? '' : note;
+  return 'if ' + readLinkHex(svEsc(convLocalShown(resid, c))) + (shownText ? ' <span class="inspDim">' + readLinkHex(svEsc(shownText)) + '</span>' : '');
 }
 function convCardHtml(resid, e, depth) {
   const kws = convPromptHtml(e);
   const badges = [];
-  const said = e.kw === '*' ? null : convReadConds(resid).get(e.at);
-  const condBadges = said ? said.slice(0, 3).map(c => convCondHtml(resid, c)) : [];
-  if (!said && e.conds.length) badges.push('depends on: ' + e.conds.map(dvmSyscallShown).join(', '));
+  const shownText = e.kw === '*' ? null : convReadConds(resid).get(e.at);
+  const condBadges = shownText ? shownText.slice(0, 3).map(c => convCondHtml(resid, c)) : [];
+  if (!shownText && e.conds.length) badges.push('depends on: ' + e.conds.map(dvmSyscallShown).join(', '));
   // A character helper (0xF00 up) the condition already reads through is
   // not repeated as a call.
   for (const a of e.actions) {
-    if (said && a.call !== undefined && (a.call >> 8) === 0x0F) continue;
+    if (shownText && a.call !== undefined && (a.call >> 8) === 0x0F) continue;
     const b = convBadgeFor(a); if (b) badges.push(b);
   }
   let html = '<div class="convCard' + (depth ? ' convSub' : '') + '" id="conv-' + resid + '-' + e.at + '">' +
@@ -3132,7 +3244,7 @@ function convCardHtml(resid, e, depth) {
    group topic the character or an earlier group already answers is not
    repeated; the group's heading shows how many. The catch-all's words
    come last, after the groups, which is when the engine reaches them. */
-function convWhoHtml(resid, conv) {
+function convSpeakerHtml(resid, conv) {
   const ci = resid - 0x1800;
   let face = null;
   try { face = typeof characterFace === 'function' ? characterFace(ci) : null; } catch (e) { face = null; }
@@ -3185,7 +3297,7 @@ function renderConversationPane(data, subn, resid) {
       ', read from the code' + (chain ? ' · generic topics: ' + chain : '');
   }
   let html = '<div class="convHead">' + head + '</div>' + dlgToolsHtml();
-  if (subn !== 8) html += convWhoHtml(resid, conv);
+  if (subn !== 8) html += convSpeakerHtml(resid, conv);
   // The catch-all last, whatever order the chain tests it in.
   const ordered = conv.entries.filter(e => e.kw !== '*').concat(conv.entries.filter(e => e.kw === '*'));
   if (subn === 8) for (const e of ordered) html += convCardHtml(resid, e, 0);
@@ -3341,8 +3453,8 @@ function startResourceEdit() {
   document.getElementById('editBytesText').value = hex.trimEnd();
   document.getElementById('editBytesNote').textContent =
     'Plaintext bytes of 0x' + currentResid.toString(16).toUpperCase() +
-    (dec.wasDecrypted ? ' (stored encrypted; re-encrypted on rebuild)' : '') +
-    '. The page ignores spaces and the length may change; emptying it removes the ' +
+    (dec.wasDecrypted ? ' (the file stores it encrypted, and the rebuild encrypts it again)' : '') +
+    '. The page ignores spaces, and the length may change. Emptying it removes the ' +
     'resource from the file.';
   document.getElementById('editBytesWrap').style.display = '';
 }
@@ -3363,7 +3475,7 @@ function codeEditBytes() {
   const b = smartDecrypt(raw, resid).data;
   const num = id => { const v = document.getElementById(id).value.trim(); if (!v) return null; const n = /^0x/i.test(v) ? parseInt(v, 16) : parseInt(v, 16); if (!Number.isFinite(n)) throw new Error(v + ' is not an offset'); return n; };
   const at = num('editCodeAt'), to = num('editCodeTo');
-  if (at === null) throw new Error('say where the new code goes');
+  if (at === null) throw new Error('give the offset where the new code goes');
   // Both ends must be where an instruction starts, in one function.
   const fn = dvmExtents(b, resid).find(([st, en, kind]) => kind === 'function' && at >= st && at < en);
   if (!fn) throw new Error('0x' + at.toString(16).toUpperCase() + ' is not in a function');
@@ -3423,8 +3535,30 @@ function parseHexBytes(text) {
 
 function applyResourceEditFromText() {
   const bytes = parseHexBytes(document.getElementById('editBytesText').value);
-  if (!bytes) { setStatus('That is not hex. Enter pairs of 0–9 and a–f; the page ignores spaces, and the count must be even.', true); return; }
+  if (!bytes) { setStatus('That is not hex. Enter pairs of 0–9 and a–f. The page ignores spaces, and the count must be even.', true); return; }
   if (applyResourceEdit(currentResid, bytes)) cancelResourceEdit();
+}
+
+/* A resource the open file does not have, added: a tune brought in from a
+   MIDI file under a new number (the maintainer, 24 October 2026, after the
+   import could only replace a tune). With `encrypted` set the writer stores
+   it enciphered, as the rest of its subindex is. It joins the edited set,
+   so it is in the Patch in Progress, and a patch can add a resource the game file
+   lacks (mergeDelverPatch). A number already in the file returns false,
+   with the reason on the status line. */
+function addResource(resid, data, encrypted) {
+  const spec = delverArchiveSpec(ARCHIVE.bytes);
+  if (!spec) { setStatus('The page could not read the open file again, so the file is as it was.', true); return false; }
+  if (spec.resources.some(r => r.resid === resid)) { setStatus('0x' + resid.toString(16).toUpperCase() + ' is already in the file.', true); return false; }
+  spec.resources.push({ resid, data, encrypted: !!encrypted });
+  const dirty = new Set(window.EDITED_RESIDS);
+  dirty.add(resid);
+  const name = window.ARCHIVE_SOURCE_NAME || 'archive';
+  parseArchiveBytes(writeDelverArchive(spec), name, { rsrc: window.CYTHERA_RSRC_RAW, via: 'edit' });
+  window.EDITED_RESIDS = dirty;
+  refreshChangesBadge();
+  showEditNotice(resid, 'added', dirty.size);
+  return true;
 }
 
 function applyResourceEdit(resid, newData) {
@@ -3446,14 +3580,14 @@ function applyResourceEdit(resid, newData) {
   refreshChangesBadge();
   setStatus('Rebuilt the file with 0x' + resid.toString(16).toUpperCase() +
     (newData.length ? ' edited' : ' removed') + ', ' + dirty.size +
-    ' resource(s) changed this session. Edits stay in the page’s memory only; to download the edited file, go to ' +
-    'Data › Cythera Data › Changes.');
+    ' resource(s) changed this session. Edits stay in the page’s memory only. To download the edited file, ' +
+    'use the Patch in Progress in Tools › Patch Generator.');
   showEditNotice(resid, newData.length ? 'edited' : 'removed', dirty.size);
   return true;
 }
 /* The status line lives in the Settings panel, so an edit made from a page
    showed where it went to nobody. This line under the top row shows it on the
-   page, with Your Patch a link (the Changes tab until 17 October 2026, the
+   page, with the Patch in Progress a link (the Changes tab until 17 October 2026, the
    Patch Generator's section of that name until the 19th), and goes away by
    itself. */
 let _editNoticeTimer = null;
@@ -3461,7 +3595,7 @@ function showEditNotice(resid, what, count) {
   const el = document.getElementById('editNotice');
   if (!el) return;
   el.innerHTML = '0x' + resid.toString(16).toUpperCase() + ' ' + what + ' in memory, ' + count + ' resource' + (count === 1 ? '' : 's') +
-    ' changed this session. ' + svLink('Your Patch', "showCategory('CHANGES')", 'is where to download it');
+    ' changed this session. The ' + svLink('Patch in Progress', "showCategory('CHANGES')", 'is where to download it');
   el.style.display = '';
   if (_editNoticeTimer) clearTimeout(_editNoticeTimer);
   _editNoticeTimer = setTimeout(() => { el.style.display = 'none'; }, 15000);
@@ -3480,7 +3614,7 @@ function togglePropEdit(propResid, index) {
   if (!host) return;
   if (host.style.display !== 'none') { host.style.display = 'none'; host.innerHTML = ''; return; }
   const raw = getResourceBytes(ARCHIVE, propResid);
-  if (!raw) { setStatus('Prop list 0x' + propResid.toString(16).toUpperCase() + ' is not readable.', true); return; }
+  if (!raw) { setStatus('The page could not read prop list 0x' + propResid.toString(16).toUpperCase() + '.', true); return; }
   const rec = parseDelverPropList(smartDecrypt(raw, propResid).data)[index];
   if (!rec) return;
   const fld = (label, id, val, size) =>
@@ -3495,7 +3629,7 @@ function togglePropEdit(propResid, index) {
     fld('d3 0x', 'd3', rec.d3.toString(16).padStart(4, '0').toUpperCase()) +
     fld('ref 0x', 'storeref', rec.storeref.toString(16).padStart(4, '0').toUpperCase()) +
     '<button class="sv-chip" onclick="applyPropEditForm(' + propResid + ',' + index + ')">Apply</button>' +
-    '<div class="inspDim">x and y are the location in the file; for a prop that is carried or inside something, ' +
+    '<div class="inspDim">x and y are the location in the file. For a prop that is carried or inside something, ' +
     'they give the holder, not a square. Apply rebuilds the whole file.</div>';
   host.style.display = '';
 }
@@ -3514,7 +3648,7 @@ function applyPropEditForm(propResid, index) {
     storeref: num('storeref', 16, 0xFFFF)
   };
   for (const [k, v] of Object.entries(fields)) {
-    if (v === null) { setStatus('Bad value for ' + k + ', nothing changed.', true); return; }
+    if (v === null) { setStatus('The page cannot use that value for ' + k + ', so nothing changed.', true); return; }
   }
   applyPropRecordEdit(propResid, index, fields);
 }
@@ -3580,7 +3714,7 @@ const DISK_ARCHIVE_NAME = 'Cythera Data';
    which is why index.html fetches the `.hqx` and not the data fork. */
 function missingForkWarning(rsrc) {
   if (rsrc && rsrc.length) return null;
-  return 'You opened this file without its resource fork, so the disk will not ' +
-         'work in the game: Cythera rejects it with “Unable to open RT”. Open the ' +
+  return 'This file opened without its resource fork, so the disk will not ' +
+         'work in the game. Cythera rejects it with “Unable to open RT”. Open the ' +
          '.hqx (or a MacBinary copy) instead of the data fork alone, and export again.';
 }

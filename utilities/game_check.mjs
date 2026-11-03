@@ -42,11 +42,11 @@ import {makeSandbox} from './dom_stub.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
-const [htmlPath, kitArg, binArg, licenceArg, scenarioArg, appDataArg, appRsrcArg] = process.argv.slice(2);
+const [htmlPath, kitArg, binArg, licenseArg, scenarioArg, appDataArg, appRsrcArg] = process.argv.slice(2);
 const KIT = resolve(ROOT, kitArg || '../playthrough-2026-09-08');
 const BIN = resolve(ROOT, binArg || '../m68k-patched/systemless');
-const LICENCE = resolve(ROOT, licenceArg || 'reference/game/installed-folders/Cythera License (registered).data');
-for (const [what, p] of [['the playthrough kit', join(KIT, 'work/pristine/.systemless')], ['the fork binary', BIN], ['the registered licence', LICENCE], ['the seed save', join(KIT, 'saves/cp2-omens-test/data.fork')]])
+const LICENSE = resolve(ROOT, licenseArg || 'reference/game/installed-folders/Cythera License (registered).data');
+for (const [what, p] of [['the playthrough kit', join(KIT, 'work/pristine/.systemless')], ['the fork binary', BIN], ['the registered licence', LICENSE], ['the seed save', join(KIT, 'saves/cp2-omens-test/data.fork')]])
   if (!existsSync(p)) { console.log(`  skip: ${what} is not at ${p}`); process.exit(0); }
 
 const SEED = join(KIT, 'saves/cp2-omens-test');
@@ -61,7 +61,7 @@ rmSync(PLAY, {recursive: true, force: true});
 mkdirSync(PLAY, {recursive: true});
 cpSync(join(KIT, 'work/game'), join(PLAY, 'game'), {recursive: true});
 cpSync(join(KIT, 'work/pristine'), join(PLAY, 'pristine'), {recursive: true});
-writeFileSync(join(PLAY, 'pristine/.systemless/saves/Cythera Installed Folder/System Folder/Preferences/Cythera License/data.fork'), readFileSync(LICENCE));
+writeFileSync(join(PLAY, 'pristine/.systemless/saves/Cythera Installed Folder/System Folder/Preferences/Cythera License/data.fork'), readFileSync(LICENSE));
 // The title screen clicked away at tick 400 (it is up by then), Open Game at
 // 800 (the menu is up by then), Cmd-S at 1500 with the game well into the
 // zone, and the run ends at 1800 so the save has time to finish.
@@ -78,7 +78,7 @@ const hero = () => ctx.parseDelverCharacterRecords(ctx.smartDecrypt(ctx.getResou
 const before = hero();
 if (!before || before.x !== 29 || before.y !== 27 || before.zone !== 40)
   fail(`the seed is not the one this was written for: hero at zone ${before && before.zone} (${before && before.x}, ${before && before.y}), expected zone 40 (29, 27)`);
-const wantTraining = (before.training + 100) & 0xFF;
+const expectedTraining = (before.training + 100) & 0xFF;
 // The hero stands in two places in a save: character record 1 in 0xF009,
 // and prop record 1 in 0xF306, the characters' prop list, which the game
 // places him from. Edited in the character record alone he loaded where the
@@ -88,7 +88,7 @@ const wantTraining = (before.training + 100) & 0xFF;
 const heroProp = () => ctx.parseDelverPropList(ctx.smartDecrypt(ctx.getResourceBytes(peek('ARCHIVE'), 0xF306), 0xF306).data)[1];
 const propBefore = heroProp();
 if (!propBefore || propBefore.x !== 29 || propBefore.y !== 27) fail(`the hero's prop record is not at (29, 27): ${JSON.stringify(propBefore && {x: propBefore.x, y: propBefore.y})}`);
-if (!ctx.applyCharacterRecordEdit(1, {y: 26, training: wantTraining})) fail('the page rejected the character record edit');
+if (!ctx.applyCharacterRecordEdit(1, {y: 26, training: expectedTraining})) fail('the page rejected the character record edit');
 /* The rest of the save's forms ride in the same run (25 September 2026): a
    quest value and a quest flag no script touches in this state, a room
    switch, a thing given to the hero and a To Do line. The game loads each
@@ -102,7 +102,7 @@ if (!ctx.giveToCharacter(1, {proptype: 66, aspect: 0, d3: 0x300, flags: 0x10})) 
 if (!ctx.addTodoLine(10, 114, 0x021A)) fail('the page rejected the To Do line');
 const edited = peek('ARCHIVE.bytes');
 const after = hero(), propAfter = heroProp();
-if (after.y !== 26 || after.training !== wantTraining || propAfter.y !== 26) fail('the edits did not reach the rebuilt file: ' + JSON.stringify({after, propAfter}));
+if (after.y !== 26 || after.training !== expectedTraining || propAfter.y !== 26) fail('the edits did not reach the rebuilt file: ' + JSON.stringify({after, propAfter}));
 
 // ---- one run: seed the store, drive the game, read the file it wrote --------
 function run(label, dataFork, made) {
@@ -146,13 +146,13 @@ for (const [label, r] of [['control', control], ['edited', trial]]) {
 }
 if (control.read && (control.read.x !== 29 || control.read.y !== 27 || control.read.training !== before.training))
   fail(`control: the unedited seed came back changed: (${control.read.x}, ${control.read.y}), training ${control.read.training}`);
-if (trial.read && (trial.read.x !== 29 || trial.read.y !== 26 || trial.read.training !== wantTraining))
-  fail(`edited: the game did not keep the edit: (${trial.read.x}, ${trial.read.y}), training ${trial.read.training}; wanted (29, 26), training ${wantTraining}`);
-const WANT = {value5: 3, flag77: true, room4: 1, given: 1, todo10: '3072021a'};
+if (trial.read && (trial.read.x !== 29 || trial.read.y !== 26 || trial.read.training !== expectedTraining))
+  fail(`edited: the game did not keep the edit: (${trial.read.x}, ${trial.read.y}), training ${trial.read.training}; wanted (29, 26), training ${expectedTraining}`);
+const EXPECTED = {value5: 3, flag77: true, room4: 1, given: 1, todo10: '3072021a'};
 if (control.rest && (control.rest.value5 || control.rest.flag77 || control.rest.room4 || control.rest.given || control.rest.todo10 !== '5000ffff'))
   fail('control: the unedited seed came back with a quest value, flag, room, gift or To Do line it never had: ' + JSON.stringify(control.rest));
-if (trial.rest && JSON.stringify(trial.rest) !== JSON.stringify(WANT))
-  fail('edited: the game did not keep the quest value, flag, room, gift and To Do line: ' + JSON.stringify(trial.rest) + ', wanted ' + JSON.stringify(WANT));
+if (trial.rest && JSON.stringify(trial.rest) !== JSON.stringify(EXPECTED))
+  fail('edited: the game did not keep the quest value, flag, room, gift and To Do line: ' + JSON.stringify(trial.rest) + ', wanted ' + JSON.stringify(EXPECTED));
 if (!failures) console.log('  and it kept quest value 5 at 3, flag 77, room 4 entered, the thing given and To Do line 114 in slot 10; the control has none of them');
 if (!failures) console.log(`  the game loaded the edited save and saved it back: hero at (${trial.read.x}, ${trial.read.y}) with ${trial.read.training} training points, from (${before.x}, ${before.y}) and ${before.training}; the unedited seed came back as itself`);
 /* A save the page MADE, from the scenario alone (7 October 2026;
@@ -192,15 +192,15 @@ if (scenarioArg && existsSync(scenarioArg)) {
   const cp1Path = join(KIT, 'saves/cp1-intro-done/data.fork');
   if (existsSync(cp1Path) && md.welcome && md.archetypes) {
     const real = ctx.delverArchiveSpec(new Uint8Array(readFileSync(cp1Path)));
-    const mine = ctx.delverArchiveSpec(new Uint8Array(ctx.newGameSaveBytes({name: 'Bellerophon', archetype: md.archetypes.list.find(a => a.skills.length === 2).index, welcomed: true})));
+    const newGameSpec = ctx.delverArchiveSpec(new Uint8Array(ctx.newGameSaveBytes({name: 'Bellerophon', archetype: md.archetypes.list.find(a => a.skills.length === 2).index, welcomed: true})));
     const seg = (sp, id) => sp.resources.find(r => r.resid === id).data, hex = b => Buffer.from(b).toString('hex');
-    const qa = ctx.saveQuestState(real), qb = ctx.saveQuestState(mine);
+    const qa = ctx.saveQuestState(real), qb = ctx.saveQuestState(newGameSpec);
     const held = sp => ctx.parseDelverPropList(seg(sp, 0x8100 + md.zone)).filter(r => (r.flags === 0x1C || r.flags === 0x10) && r.x === 0 && r.y === 1 && r.proptype > 190).map(r => [r.flags, r.proptype, r.aspect, r.d3].join(':')).join(' ');
     if (qa.flags.join() !== qb.flags.join() || qa.values.join() !== qb.values.join()) fail('welcome: the quest values and flags are not those of the kit’s save after the king');
-    else if (hex(seg(real, 0x0401).subarray(0, 8)) !== hex(seg(mine, 0x0401).subarray(0, 8))) fail('welcome: To Do slot 0 is ' + hex(seg(mine, 0x0401).subarray(0, 8)) + ', the kit’s ' + hex(seg(real, 0x0401).subarray(0, 8)));
-    else if ((qa.chars[md.welcome.who].state & 0x80) !== (qb.chars[md.welcome.who].state & 0x80) || !(qb.chars[md.welcome.who].state & 0x80)) fail('welcome: the king’s flag is not set as in the kit’s save');
-    else if (held(real) !== held(mine) || !held(mine)) fail('welcome: the hero holds ' + held(mine) + ', and in the kit’s save ' + held(real));
-    else console.log('  a Fighter made with the king having spoken matches the kit’s save after his welcome: the flags, To Do slot 0, his flag, and ' + held(mine).split(' ').length + ' things held');
+    else if (hex(seg(real, 0x0401).subarray(0, 8)) !== hex(seg(newGameSpec, 0x0401).subarray(0, 8))) fail('welcome: To Do slot 0 is ' + hex(seg(newGameSpec, 0x0401).subarray(0, 8)) + ', the kit’s ' + hex(seg(real, 0x0401).subarray(0, 8)));
+    else if ((qa.chars[md.welcome.character].state & 0x80) !== (qb.chars[md.welcome.character].state & 0x80) || !(qb.chars[md.welcome.character].state & 0x80)) fail('welcome: the king’s flag is not set as in the kit’s save');
+    else if (held(real) !== held(newGameSpec) || !held(newGameSpec)) fail('welcome: the hero holds ' + held(newGameSpec) + ', and in the kit’s save ' + held(real));
+    else console.log('  a Fighter made with the king having spoken matches the kit’s save after his welcome: the flags, To Do slot 0, his flag, and ' + held(newGameSpec).split(' ').length + ' things held');
   } else console.log('  the king’s welcome was not compared: the kit’s save after it, or the reading, is missing');
   /* The characters' prop list against a real new game's (the same day): the
      kit's save taken at a new game, its list against the rule run on its
@@ -211,32 +211,32 @@ if (scenarioArg && existsSync(scenarioArg)) {
   const cp0Path = join(KIT, 'saves/cp0-newgame/data.fork');
   if (existsSync(cp0Path)) {
     const cp0 = ctx.delverArchiveSpec(new Uint8Array(readFileSync(cp0Path))), table = cp0.resources.find(r => r.resid === 0xF009).data;
-    const real = cp0.resources.find(r => r.resid === 0xF306).data, mine = ctx.delverCharacterPropList(table, table[32]);
+    const real = cp0.resources.find(r => r.resid === 0xF306).data, newGameSpec = ctx.delverCharacterPropList(table, table[32]);
     const odd = [];
-    for (let i = 0; i < 256; i++) { const a = real.subarray(i * 16, i * 16 + 16), b = mine.subarray(i * 16, i * 16 + 16); if (a.some((v, k) => v !== b[k])) odd.push({i, bare: a[0] === b[0] && a.subarray(1).every(v => !v)}); }
-    if (real.length !== mine.length || odd.length > 2 || odd.some(o => !o.bare)) fail('list: the characters’ prop list differs from a real new game’s other than in a scheduled character’s square: ' + JSON.stringify(odd.slice(0, 8)));
+    for (let i = 0; i < 256; i++) { const a = real.subarray(i * 16, i * 16 + 16), b = newGameSpec.subarray(i * 16, i * 16 + 16); if (a.some((v, k) => v !== b[k])) odd.push({i, bare: a[0] === b[0] && a.subarray(1).every(v => !v)}); }
+    if (real.length !== newGameSpec.length || odd.length > 2 || odd.some(o => !o.bare)) fail('list: the characters’ prop list differs from a real new game’s other than in a scheduled character’s square: ' + JSON.stringify(odd.slice(0, 8)));
     else console.log('  the rule for the characters’ prop list gives a real new game’s from its table, but for the square of characters ' + odd.map(o => o.i).join(' and ') + ', whom the hour leaves off the map');
   }
   if (!made) fail('made: the page could not make a save from the scenario');
   else {
-    const want = ctx.parseDelverCharacterRecords(ctx.delverArchiveSpec(made).resources.find(r => r.resid === 0xF009).data)[1];
+    const expected = ctx.parseDelverCharacterRecords(ctx.delverArchiveSpec(made).resources.find(r => r.resid === 0xF009).data)[1];
     const r = run('made', new Uint8Array(made), true);
-    const got = r.read, keys = ['zone', 'x', 'y', 'proptype', 'body', 'reflex', 'mind', 'level', 'health', 'healthMax', 'training'];
+    const actual = r.read, keys = ['zone', 'x', 'y', 'proptype', 'body', 'reflex', 'mind', 'level', 'health', 'healthMax', 'training'];
     if (!r.completed || !r.opened || r.same) fail(`made: the game did not open, run and save the made file (${r.log})`);
-    else if (!got || keys.some(k => got[k] !== want[k])) fail('made: the hero came back changed: ' + JSON.stringify(keys.map(k => [k, want[k], got && got[k]]).filter(t => t[1] !== t[2])));
-    else if (want.body !== 21 || want.level !== 3 || !want.health) fail('made: the file was not made with the stats asked for: ' + JSON.stringify(want));
+    else if (!actual || keys.some(k => actual[k] !== expected[k])) fail('made: the hero came back changed: ' + JSON.stringify(keys.map(k => [k, expected[k], actual && actual[k]]).filter(t => t[1] !== t[2])));
+    else if (expected.body !== 21 || expected.level !== 3 || !expected.health) fail('made: the file’s stats are not the ones requested: ' + JSON.stringify(expected));
     else {
       const back = ctx.delverArchiveSpec(r.written), q = ctx.saveQuestState(back), pal = friend ? q.chars[friend.index] : null, ch = back.resources.find(x => x.resid === 0x0400).data;
       const [sn, sv] = story ? Object.entries(story.values)[0] : [];
-      if (got.zone !== elsewhere.zone) fail(`made: the hero is in zone ${got.zone}, not ${elsewhere.zone}`);
-      else if (friend && (!pal || !(pal.state & 0x40) || pal.zone !== got.zone || pal.raw[22] !== 1)) fail('made: the companion is not in the party, in the zone and following: ' + JSON.stringify(pal && {state: pal.state, zone: pal.zone, behaviour: pal.raw[22]}));
+      if (actual.zone !== elsewhere.zone) fail(`made: the hero is in zone ${actual.zone}, not ${elsewhere.zone}`);
+      else if (friend && (!pal || !(pal.state & 0x40) || pal.zone !== actual.zone || pal.raw[22] !== 1)) fail('made: the companion is not in the party, in the zone and following: ' + JSON.stringify(pal && {state: pal.state, zone: pal.zone, behavior: pal.raw[22]}));
       else if (story && q.values[+sn] !== sv) fail(`made: quest value ${sn} is ${q.values[+sn]}, not the ${sv} of ${story.name}`);
       else if (md.welcome && !q.flags[md.welcome.flag.v]) fail('made: the game did not retain the quest flag of the king’s welcome');
       else if (((ch[84] << 8) | ch[85]) !== 3) fail('made: the day is not 3: ' + ((ch[84] << 8) | ch[85]));
-      else if (arch && (() => { const list = ctx.parseDelverPropList(back.resources.find(x => x.resid === 0x8100 + got.zone).data);
+      else if (arch && (() => { const list = ctx.parseDelverPropList(back.resources.find(x => x.resid === 0x8100 + actual.zone).data);
         return !arch.skills.every(k => list.some(p => p.flags === md.archetypes.flags.v && p.x === 0 && p.y === 1 && p.proptype === k.type && p.aspect === (k.level | md.archetypes.bit.v))); })())
         fail('made: the game did not write back the ' + arch.name + '’s skills as the hero’s');
-      else madeLine = `; and a save made from the scenario alone, hero in zone ${got.zone} at (${got.x}, ${got.y}) with body ${got.body}, level ${got.level}, health ${got.health}` + (friend ? `, character ${friend.index} with him` : '') + (story ? `, in the state ${story.name}` : '') + ', on day 3' + (arch ? `, a ${arch.name} with ${arch.skills.length} skills` : '');
+      else madeLine = `; and a save made from the scenario alone, hero in zone ${actual.zone} at (${actual.x}, ${actual.y}) with body ${actual.body}, level ${actual.level}, health ${actual.health}` + (friend ? `, character ${friend.index} with him` : '') + (story ? `, in the state ${story.name}` : '') + ', on day 3' + (arch ? `, a ${arch.name} with ${arch.skills.length} skills` : '');
     }
     if (madeLine) console.log('  the game loaded' + madeLine.slice(5) + ', and saved it back');
   }

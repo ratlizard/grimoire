@@ -95,9 +95,9 @@ const cases = [
   [[0x41, 0x90, 0x04], [0x41, 0x41, 0x41, 0x41], 'run of 4'],
   [[0x01, 0x02, 0x90, 0x03, 0x04], [0x01, 0x02, 0x02, 0x02, 0x04], 'run mid-stream'],
 ];
-for (const [enc, want, label] of cases) {
-  const got = Array.from(dec(rleOnly(enc))).slice(0, want.length);
-  check('RLE ' + label, JSON.stringify(got) === JSON.stringify(want), JSON.stringify(got));
+for (const [enc, expected, label] of cases) {
+  const actual = Array.from(dec(rleOnly(enc))).slice(0, expected.length);
+  check('RLE ' + label, JSON.stringify(actual) === JSON.stringify(expected), JSON.stringify(actual));
 }
 
 // ---- 3. Recognising the archive -------------------------------------------
@@ -200,10 +200,10 @@ const trials = [
   ['#0x8D02', { r: '8D02' }],
   ['', null],
 ];
-for (const [hash, want] of trials) {
+for (const [hash, expected] of trials) {
   ctx.location.hash = hash;
-  const got = parseDeepLink();
-  check('deep link ' + (hash || '(empty)'), JSON.stringify(got) === JSON.stringify(want), JSON.stringify(got));
+  const actual = parseDeepLink();
+  check('deep link ' + (hash || '(empty)'), JSON.stringify(actual) === JSON.stringify(expected), JSON.stringify(actual));
 }
 ctx.location.hash = '';
 
@@ -359,7 +359,7 @@ if (visePath) {
 
   // An installer that is not Cythera's: the catalog reads, there is no
   // 'DelS' file, and the rejection states it.
-  const notOurs = new Uint8Array(vise);
+  const otherInstaller = new Uint8Array(vise);
   {
     // Flip the archive entry's type in the MacBinary's data fork: 'DelS' -> 'XelS'.
     const dataStart = 128;
@@ -367,12 +367,12 @@ if (visePath) {
     const cat = arc.catalogOffset;
     // find the FVCT record for the archive by scanning for 'DelS' followed by 'Delv' after the catalog
     let at = -1;
-    for (let i = dataStart + cat; i < notOurs.length - 8; i++) {
-      if (notOurs[i] === 0x44 && notOurs[i+1] === 0x65 && notOurs[i+2] === 0x6C && notOurs[i+3] === 0x53 &&
-          notOurs[i+4] === 0x44 && notOurs[i+5] === 0x65 && notOurs[i+6] === 0x6C && notOurs[i+7] === 0x76) { at = i; break; }
+    for (let i = dataStart + cat; i < otherInstaller.length - 8; i++) {
+      if (otherInstaller[i] === 0x44 && otherInstaller[i+1] === 0x65 && otherInstaller[i+2] === 0x6C && otherInstaller[i+3] === 0x53 &&
+          otherInstaller[i+4] === 0x44 && otherInstaller[i+5] === 0x65 && otherInstaller[i+6] === 0x6C && otherInstaller[i+7] === 0x76) { at = i; break; }
     }
-    if (at > 0) notOurs[at] = 0x58;
-    const r = refusal(notOurs);
+    if (at > 0) otherInstaller[at] = 0x58;
+    const r = refusal(otherInstaller);
     check('an installer without the archive is rejected by name', at > 0 && r.threw && /no Delver archive/.test(r.msg), r.msg.slice(0, 120));
   }
 }

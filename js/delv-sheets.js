@@ -58,7 +58,7 @@ const mechTable = (heads, rows, cls) => rows.length
 const mechNum = v => '<td class="num">' + (v === null || v === undefined || v === '' ? '' : svEsc(String(v))) + '</td>';
 const mechStat = (n, what) => '<span class="mechStat"><b>' + svEsc(String(n)) + '</b> ' + svEsc(what) + '</span>';
 const mechSrc = (label, resid) => refExists(resid) ? partChip(label, resid) : '';
-const MECH_NO_APP = 'Open the game from its installer, under Settings, to read the program’s figures here.';
+const MECH_NO_APP = 'Open the game from its installer, under Settings, to read the program’s numbers here.';
 
 /* The sections that belong on another sheet.
 
@@ -88,19 +88,19 @@ function spellsMechSection() {
     // figures, and the roll is the first line here.
     sp.spells.length ? '' : 'No spell in this file is cast through the shared script.',
     sp.spells.length ? [
-      'The game adds two random numbers below the caster’s Casting figure, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>: the only number below 1 is 0. The caster spends the magic points even when the cast fails.',
+      'The game adds two random numbers below the caster’s Casting skill, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>, because the only number below 1 is 0. The caster spends the magic points even when the cast fails.',
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
-      sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The caster pays the cost.',
-      'Spell damage works like a blow’s; the victim’s resistance applies, and the caster earns experience as usual.',
-      fbFx && fbFx.damage.some(d => /target square/.test(d.who)) ? '<b>Fireball hurts only the character on the square it targets</b>, although by its description it engulfs all within.' : '',
+      sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' + ' + srcNum(sp.rule.timeMult) + ' × level</b> clock units.' : 'The caster pays the cost.',
+      'Spell damage works like a blow’s. The victim’s resistance applies, and the caster earns experience as usual.',
+      fbFx && fbFx.damage.some(d => /target square/.test(d.character)) ? '<b>Fireball hurts only the character on the square it targets</b>, although by its description it engulfs all within.' : '',
       (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Non-magical damage, whether fire, electric, blunt or edged, does <b>nothing at all</b> to monsters that resist non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike count as magical, which is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
-      'Spell damage prints no message, and <b>every enemy</b> means every hostile character on the loaded map, on screen or not, so Tremor hurts enemies you cannot see.',
+      'Spell damage prints no message, and <b>every enemy</b> means every hostile character on the loaded map, on screen or not, so Tremor hurts enemies out of sight.',
       (function () {
         const et = appImage() ? exeEnemyTable() : null;
         if (!et || !et.alignmentByte || !et.enemy) return '';
         const rows = [];
         for (let a = 0; a < et.side; a++) rows.push(a + ': ' + et.table.v.slice(a * et.side, (a + 1) * et.side).join(' '));
-        return 'Who is an enemy comes from a ' + srcNum(et.table, et.side + '×' + et.side) + ' table of alignments, the caster’s down the side and the other character’s across, where ' + srcNum(et.enemy) + ' means enemy: <b>' + rows.join('; ') + '</b>.' +
+        return 'Who is an enemy comes from a ' + srcNum(et.table, et.side + '×' + et.side) + ' table of alignments, the caster’s down the side and the other character’s across, where ' + srcNum(et.enemy) + ' means enemy: <b>' + rows.join(' · ') + '</b>.' +
           (et.peace && et.peaceKey ? ' A cheat key ' + srcNum(et.peaceKey, 'makes nobody an enemy') + '.' : '');
       })(),
       'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune or the map.',
@@ -109,7 +109,7 @@ function spellsMechSection() {
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
         if (!t.length) return '';
         const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that need a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>: the target has to be in one of the eight squares around the caster. You can aim the rest anywhere. ' + mechLink('target', 'What a Use Can Be Aimed At') : '';
+        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that need a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>. The target has to be in one of the eight squares around the caster. The rest can go anywhere. ' + mechLink('target', 'What the ‘Use’ Command Can Target') : '';
       })()
     ].filter(Boolean) : [],
     '', '');
@@ -125,7 +125,7 @@ function skillsMechSection() {
 }
 
 function balloonsMechSection() {
-  const barks = buildBarkCatalogue();
+  const barks = buildBarkCatalog();
   const bark = appImage() ? exeBarkRules() : null;
   return mechSectionEl('balloons', 'Talk Balloons', null, '',
     'The short lines over a character’s head. ' +
@@ -142,9 +142,9 @@ function balloonsMechSection() {
 function libraryMechSection(lib) {
   if (lib === undefined) lib = libraryRules();
   const rows = lib ? lib.map(d => {
-    const who = d.readers.map(r => srcNum({ v: '', resid: r.resid, at: r.at }, r.name + (r.field === 'd2' ? ' (Data2)' : ''))).join(', ');
+    const readerLinks = d.readers.map(r => srcNum({ v: '', resid: r.resid, at: r.at }, r.name + (r.field === 'd2' ? ' (Data2)' : ''))).join(', ');
     return '<tr>' + mechNum(d.entries.length) + '<td>' + partChip('0x' + d.resid.toString(16).toUpperCase(), d.resid) + '</td>' +
-      '<td>' + who + '</td>' + mechNum(d.shownCount) + mechNum(d.unshown.length) + '</tr>';
+      '<td>' + readerLinks + '</td>' + mechNum(d.shownCount) + mechNum(d.unshown.length) + '</tr>';
   }) : [];
   const unshown = lib ? lib.reduce((a, d) => a.concat(d.unshown.map(e => ({ d, e }))), []) : [];
   const dangling = lib ? lib.reduce((a, d) => a.concat(d.dangling.map(k => ({ d, k }))), []) : [];
@@ -160,12 +160,12 @@ function libraryMechSection(lib) {
       '<b>' + countLink(passages + ' passages', 'The ' + passages + ' passages', lib.flatMap(d => d.entries.map(e => passageLink(d, e)))) + '</b> across <b>' +
         countLink(lib.length + ' arrays', 'The ' + lib.length + ' arrays of passages', resChips(lib.map(d => d.resid))) + '</b>, shown by ' + [...new Set(lib.flatMap(d => d.readers.map(r => r.name)))].join(', ') + '.',
       unshown.length ? '<b>' + countLink(String(unshown.length), 'The ' + unshown.length + ' passages that appear nowhere in play',
-        unshown.map(u => passageLink(u.d, u.e))) + ' appear nowhere in play</b>: no prop in the world and no script points to them. They exist in the file, but you cannot read them.' : '',
+        unshown.map(u => passageLink(u.d, u.e))) + ' appear nowhere in play</b>. No prop in the world and no script points to them. They exist in the file, but nothing in the game shows them.' : '',
       dangling.length ? '<b>' + countLink(String(dangling.length), 'The ' + dangling.length + ' Data1 values that point to no passage',
-        dangling.map(x => svLink('Data1 ' + x.k, 'jumpToResource(' + x.d.resid + ')', '0x' + x.d.resid.toString(16).toUpperCase()))) + '</b> are the other way round: a thing in the world whose Data1 points to no passage.' : ''
+        dangling.map(x => svLink('Data1 ' + x.k, 'jumpToResource(' + x.d.resid + ')', '0x' + x.d.resid.toString(16).toUpperCase()))) + '</b> are the opposite case, a thing in the world whose Data1 points to no passage.' : ''
     ].filter(Boolean) : [],
     mechTable(['#passages', 'array', 'shown by', '#shown', '#not shown'], rows) +
-    (unshown.length ? '<div class="partsTitle">Written, never shown</div>' +
+    (unshown.length ? '<div class="partsTitle">Written but never shown</div>' +
       mechTable(['array', '#no.', 'the passage'], unshown.map(u =>
         '<tr><td>' + propWordHex(u.d.resid) + '</td>' + mechNum(u.e.index) +
         '<td>' + svEsc(String(u.e.str).replace(/\s+/g, ' ').trim().slice(0, 120)) + '</td></tr>')) : ''), '');
@@ -188,18 +188,18 @@ function talkMechSection() {
     '<tr><td>' + groupChip(g) + '</td>' + mechNum(g.topics) + mechNum(g.inherited) +
     '<td class="mechSub">' + (g.called ? 'called from a topic by ' + g.called : '') + '</td></tr>');
   const shapeRows = cv.shapes.filter(s => s.shape).map(s =>
-    '<tr>' + mechNum(s.who.length) + '<td>' + svEsc(s.shape) + '</td>' +
-    '<td class="mechSub">' + svEsc(s.who.slice(0, 5).map(c => c.name).join(', ') +
-      (s.who.length > 5 ? ', and ' + (s.who.length - 5) + ' more' : '')) + '</td></tr>');
+    '<tr>' + mechNum(s.character.length) + '<td>' + svEsc(s.shape) + '</td>' +
+    '<td class="mechSub">' + svEsc(s.character.slice(0, 5).map(c => c.name).join(', ') +
+      (s.character.length > 5 ? ', and ' + (s.character.length - 5) + ' more' : '')) + '</td></tr>');
   return mechSectionEl('talk', 'Who Answers as Whom', null, '',
-    cv.chars.length ? 'A character answers from their topics first, then from topics shared with others: Naxos answers as 0x804, then 0x80E, then 0x801.'
+    cv.chars.length ? 'A character answers from their topics first, then from topics shared with others. Naxos, for one, answers as 0x804, then 0x80E, then 0x801.'
                     : 'No conversation in this file.',
     cv.chars.length ? [
       '<b>' + countLink(cv.chars.length + ' characters', 'The ' + cv.chars.length + ' characters with topics', cv.chars.map(c => charChip(c))) + '</b> hold <b>' +
         countLink(topics + ' topics', 'The ' + topics + ' topics, by character', cv.chars.map(c => charChip(c, String(c.topics)))) + '</b> between them, of which <b>' +
         countLink(String(deeper), 'The ' + deeper + ' topics that open further topics, by character', cv.chars.filter(c => c.deeper).map(c => charChip(c, String(c.deeper)))) + '</b> open further topics.',
       '<b>' + countLink(real.length + ' groups', 'The ' + real.length + ' groups', real.map(g => groupChip(g))) + '</b> serve more than one character. The longest chains have four steps, and most characters use a House, then a city, then Human.',
-      alone ? '<b>' + alone.who.length + ' answer as nobody but themselves</b>: ' + alone.who.map(c => svLink(c.name, 'jumpToResource(' + c.rid + ')')).join(', ') + '.' : '',
+      alone ? '<b>' + alone.character.length + ' answer as nobody but themselves</b>: ' + alone.character.map(c => svLink(c.name, 'jumpToResource(' + c.rid + ')')).join(', ') + '.' : '',
       others.length ? 'Not every 0x8xx resource is a group: ' + others.map(g => groupChip(g, g.kind)).join(' ') : ''
     ].filter(Boolean) : [],
     mechTable(['group', '#topics', '#inherit it', ''], groupRows) +
@@ -280,7 +280,7 @@ function mechCardAboveGallery(grid, build) {
    up. */
 const MECH_GROUPS = [
   { value: 'MECH_PROGRESS', title: 'Progress', tile: 0x240,
-    note: 'The payoff from your trials and travails.',
+    note: 'The payoff from the hero’s trials and travails.',
     ids: ['experience', 'karma', 'training', 'todo'] },
   { value: 'MECH_STATUS', title: 'Status', tile: 0x3CE,
     note: 'Food, healing, potions, sleep, time, swamp, lava and light.',
@@ -298,8 +298,8 @@ const MECH_GROUPS = [
     note: 'What things cost, and what a wager pays.',
     ids: ['shops', 'dice'] },
   { value: 'HACKERY', title: 'Hackery', tile: 0x207,
-    note: 'How the scenario works underneath, and the places where it does not add up.',
-    ids: ['propword', 'charflags', 'classflags', 'eggs', 'palette', 'syscalls', 'leans', 'loose'] },
+    note: 'Prop records, flags, eggs, the palette, built-in calls, and what calls what.',
+    ids: ['propword', 'charflags', 'classflags', 'eggs', 'palette', 'syscalls', 'leans'] },
 ];
 /* The sections that write a file rather than read a rule: a patch opened
    and applied, a sprite made into one, and one file compared with another.
@@ -313,10 +313,11 @@ const MECH_GROUPS = [
    it. */
 /* Build a Patch until 19 October 2026, when the maintainer named it
    Patch Generator on Tools and the section that had that name, what was
-   edited this session, went: Your Patch has the edits, and its View
+   edited this session, went: the Patch in Progress has the edits, and its View
    Comparison shows them. */
 const MECH_TOOL_GROUP = { value: 'PATCHES', title: 'Patch Generator',
-  note: 'Cythera\u2019s official add-on system is the PowerPC application Magpie. It was released by Glenn Andreas alongside a sample patch \u201cPumpkin Patch\u201d, but specifications to create new patches were never released. The format has been reverse-engineered to make new patches possible, though Magpie is limited to editing the data fork of the Cythera Data file.',
+  note: 'Cythera\u2019s official add-on system is the PowerPC application Magpie. It was released by Glenn Andreas alongside a sample patch \u201cPumpkin Patch\u201d, but specifications to create new patches were not released. The format has been reverse-engineered to make new patches possible, though Magpie is limited to editing the data fork of the Cythera Data file.' +
+      ' Select any of the fixes below and download them either as replacement files (modified from the input files) or as a combined patch file for use with Magpie. Note that while stacking multiple Magpie patch files is a convenient way to toggle patches selectively, they can overwrite parts of each other if they modify similar resources.',
   /* Three parts by use (the maintainer, 16 October 2026): the game's
      fixes, the patches that add or change content, and the sections that
      read a patch or compare two files. Each is headed as a group is on the

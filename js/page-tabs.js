@@ -80,35 +80,35 @@ function buildXrefIndex() {
 // Descriptions are the wiki's words where it has any, and say plainly when
 // it has none. An invented purpose would be worse than admitting none.
 const SUBINDEX_PURPOSE = {
-  0:   ['Symbol table', 'One resource, 0x0101, holding names for numbered things. They are the developers’ names and do not always match the game as released, so they are a hint rather than the truth.'],
-  1:   ['Data lists and the game’s writing', 'Lists of things: character names, and the global values the symbol table in subindex 0 names. It is also where Cythera’s in-game writing is: the bookshelf histories and bestiaries, the prophecies, the scrolls and letters, the signs, the gravestones and the ring inscriptions. Each passage is one entry in a list, and a thing in the world picks its entry with the number in its Data1. The Mechanics page covers them under The Game’s Writing.'],
-  2:   ['Global store', '0x301 has four values that any script can read and write: the quality of each inn. 0x33F is four bytes that nothing uses.'],
-  3:   ['AI combat scripts', 'Named behaviors: Attack Nearest, Defend, Beserk, Healer. The file stores each unencrypted, as a name followed by a body that is not script code like the rest of the file.'],
-  4:   ['Archetypes', '0x501 is the nine characters a game can start as, with their names in 0x203 (Explorer, Fighter, Swordsman, Beserker [sic], Mage, Wizard, Mystic, Storyteller, Rogue) and their descriptions in 0x204, in that order. Each has body, reflex and mind, then the skills it starts with: the skill’s number plus 1,024 for each level of it, where a level of 0 means an aptitude for the skill rather than the skill itself. The dialog that creates a character reads it. 0x500 and 0x540 contain only zeros.'],
+  0:   ['Symbol table', 'One resource, 0x0101, that names numbered things. The names are the developers’ and do not always match the released game, so they are a hint rather than the truth.'],
+  1:   ['Data lists and the game’s writing', 'Lists of things: character names, and the global values the symbol table in subindex 0 names. It also holds Cythera’s in-game writing, such as the bookshelf histories and bestiaries, the prophecies, the scrolls and letters, the signs, the gravestones and the ring inscriptions. Each passage is one entry in a list, and a thing in the world picks its entry with the number in its Data1. The Mechanics page covers them under The Game’s Writing.'],
+  2:   ['Global store', '0x301 holds the quality of each inn, four values that any script can read and write. 0x33F is four bytes that nothing uses.'],
+  3:   ['AI combat scripts', 'Named behaviors: Attack Nearest, Defend, Beserk [sic], Healer. The file stores each unencrypted, as a name followed by a body that is not script code like the rest of the file.'],
+  4:   ['Archetypes', '0x501 is the nine characters a game can start as, with their names in 0x203 (Explorer, Fighter, Swordsman, Beserker [sic], Mage, Wizard, Mystic, Storyteller, Rogue) and their descriptions in 0x204, in that order. Each has body, reflex and mind, then the skills it starts with, each stored as the skill’s number plus 1,024 for each level. A level of 0 means an aptitude for the skill rather than the skill itself. The dialog that creates a character reads this table. 0x500 and 0x540 contain only zeros.'],
   7:   ['Group dialogue', 'Dialogue shared by a faction or a place rather than belonging to one character.'],
-  8:   ['Combat AI tests and actions', 'The half of the combat AI’s vocabulary that lives in this file: six tests at 0x901 and thirteen actions at 0x981, in the order the program’s lists (STR# 9307 and 9308) name them, which this page shows when the game is open. The compiled AI rules that come with the game call them, and four dialogues call two of them directly.'],
+  8:   ['Combat AI tests and actions', 'The half of the combat AI’s vocabulary that lives in this file, six tests at 0x901 and thirteen actions at 0x981. They are in the order of the program’s lists (STR# 9307 and 9308), whose names this page shows when the game is open. The compiled AI rules that come with the game call them, and four dialogues call two of them directly.'],
   9:   ['Effect scripts', 'Effects of eating, and possibly of spells and potions.'],
   10:  ['Stub', 'One function, seven bytes long, that answers 0. Nothing in the file or the program calls it.'],
-  11:  ['Task helpers', 'Scripts that give a character something to do: the innkeeper’s service lines (0xC80), opening and closing doors (0xC81 to 0xC83), the tavern barks (0xC84, 0xC85), the blacksmith’s work (0xC86), and the spell-cast announcements (0xC4B, 0xC4C).'],
-  12:  ['Party and inventory helpers', 'Scripts that go through what the party is carrying: what it holds and what that weighs, counting money (0xD04), the reaction to theft (0xD06), and coins spilling when a purse is too heavy (0xD09).'],
-  13:  ['Rule helpers', 'The scripts the page reads the rules from: lock picking (0xE43), combat (0xE84 to 0xE89), experience and levels (0xE86, 0xE8B), spells (0xEA1), shops (0xEA5), training (0xEB1), damage (0xEB8).'],
-  14:  ['Character helpers', 'Twenty-two scripts of one function each, every one acting on a single character: set, clear and test a flag (0xF00 to 0xF02, called from hundreds of lines of dialogue), behavior, health, poison, attributes, experience, level, karma, and two that make a character.'],
-  15:  ['Item classes', 'What each kind of item is: what it is called, and what happens when you use it.'],
-  16:  ['Object classes', 'Objects with data and scripts, and text in them that you can read.'],
-  19:  ['Zone entry scripts', 'One for each map. It runs as you enter the zone, and has the zone names that the game shows.'],
+  11:  ['Task helpers', 'Scripts that give a character something to do, such as the innkeeper’s service lines (0xC80), opening and closing doors (0xC81 to 0xC83), the tavern barks (0xC84, 0xC85), the blacksmith’s work (0xC86), and the spell-cast announcements (0xC4B, 0xC4C).'],
+  12:  ['Party and inventory helpers', 'Scripts that go through what the party carries. They total what it holds and what that weighs, count money (0xD04), react to theft (0xD06) and spill coins when a purse is too heavy (0xD09).'],
+  13:  ['Rule helpers', 'The scripts the page reads the rules from, for lock picking (0xE43), combat (0xE84 to 0xE89), experience and levels (0xE86, 0xE8B), spells (0xEA1), shops (0xEA5), training (0xEB1) and damage (0xEB8).'],
+  14:  ['Character helpers', 'Twenty-two scripts of one function each, every one acting on a single character. They set, clear and test a flag (0xF00 to 0xF02, called from hundreds of lines of dialogue), handle behavior, health, poison, attributes, experience, level and karma, and two of them make a character.'],
+  15:  ['Item classes', 'The name of each kind of item, and what happens when the hero uses it.'],
+  16:  ['Object classes', 'Objects with data and scripts, and the text in them that the hero can read.'],
+  19:  ['Zone entry scripts', 'One for each map. It runs as the hero enters the zone and has the zone names that the game shows.'],
   20:  ['Sub-zone scripts', 'For maps that hold several zones in one 0x80xx resource and show one part at a time.'],
-  23:  ['Character dialogue', 'What a named character says when you talk to them.'],
-  24:  ['Monster classes', 'What each kind of monster is. The script that sets one up is given the monster and the thing that represents it, and entry 0x1D sets what happens when it dies.'],
-  25:  ['Skill & spell classes', 'Descriptions and scripts for spells, skills and actions. Usually several small functions: one gives the name, another the description.'],
-  26:  ['Room scripts', 'One for each room, id 0x1B00 plus the room number: the description shown the first time you enter, and for some rooms an Enter that does more. A room is a rectangle marked on the map by an egg, which is a trigger with nothing to see.'],
+  23:  ['Character dialogue', 'A named character’s lines when the hero talks to them.'],
+  24:  ['Monster classes', 'What each kind of monster is. The script that sets one up receives the monster and the thing that represents it, and entry 0x1D sets what happens when it dies.'],
+  25:  ['Skill & spell classes', 'Descriptions and scripts for spells, skills and actions. Each is usually several small functions, one giving the name and another the description.'],
+  26:  ['Room scripts', 'One for each room, at id 0x1B00 plus the room number. Each has the description the game shows the first time the hero enters, and some have an Enter that does more. A room is a rectangle that an egg marks on the map, and an egg is a trigger with nothing to see.'],
   27:  ['Room scripts', 'Rooms 256 to 511 are here, in the same form as 0x1Bxx; the file has rooms 301 to 454.'],
-  29:  ['Room scripts', 'Room 800, the one room numbered past 511; entering it changes zone.'],
+  29:  ['Room scripts', 'Room 800, the one room numbered past 511. Entering it changes zone.'],
   47:  ['Character actions', 'Scripts that seem to be for things done to a character, ToggleLock among them.'],
   127: ['Maps', 'The grid of tiles that makes up a map, with its size and its four exits, one to each point of the compass.'],
-  128: ['Prop lists', 'One for each map: a 16-byte record placing every object, door and container on it.'],
+  128: ['Prop lists', 'One for each map, with a 16-byte record placing every object, door and container on it.'],
   131: ['Landscapes', 'Backdrop artwork: 18 images the maps share.'],
   135: ['Portraits', 'Character portrait graphics.'],
-  137: ['Graphics', 'One 32 by 16 icon for each skill and spell: icon n belongs to 0x1A00 plus n.'],
+  137: ['Graphics', 'One 32 by 16 icon for each skill and spell. Icon n belongs to 0x1A00 plus n.'],
   141: ['Tile sheets', 'The terrain and object tiles that make up the maps.'],
   142: ['Graphics', 'Sprite and animation frames.'],
   143: ['Music', 'The music, as QuickTime Music tunes.'],
@@ -302,339 +302,6 @@ function buildScriptTextIndex() {
   return (DERIVED.SCRIPT_TEXT = map);
 }
 
-// A few starting points, because the useful queries are rarely one word and
-// nobody should have to already know the engine's vocabulary to ask.
-const SEARCH_PRESETS = {
-  'Fire':     'fire|burn|flame|lava|scorch',
-  'Poison':   'poison|venom|toxic|sick',
-  'Damage':   'TakeDamage|ResistDamage|damage|wound|hurt',
-  'Healing':  'heal|cure|restore|bandage|potion',
-  'Status':   'StatusEffect|paralys|sleep|blind|confus',
-  'Locks':    'Lockable|UseLock|PickLock|locked|key',
-  'Eating':   'eat|food|hungry|nutrition|drink'
-};
-
-function searchPreset(name) {
-  const box = document.getElementById('searchBox');
-  box.value = SEARCH_PRESETS[name] || name;
-  runSearch();
-}
-
-let _searchTimer = null;
-function queueSearch() {
-  clearTimeout(_searchTimer);
-  _searchTimer = setTimeout(runSearch, 220);
-}
-
-/* ---------------------------------------------------------------------------
-   Asking a question, answered from the tables the page already has.
-
-   The search finds text. A question is not a text search: "who teaches axe"
-   is not a hunt for the word "axe", it is the training table filtered by
-   skill, and the answer is a row rather than a list of hits. Nine shapes are
-   recognised, each naming a table this page already builds on the spot and
-   which column the question fixes. Anything that fits none of them falls
-   through to the ordinary search, which is also where a recognised question
-   goes if its subject is not in the file.
-
-   No model is involved and none is needed: every one of these is a filter.
-   The same shapes are what a model would have to be handed anyway, so this
-   is the retrieval half built first and by itself.
---------------------------------------------------------------------------- */
-const ASK_SHAPES = [
-  { id: 'teaches', re: /^(?:who|where can i|where do i)\s+(?:can\s+)?(?:teach(?:es)?|learn|train(?:s|ed)?(?:\s+in)?)\s+(?:me\s+)?(.+?)\??$/i,
-    what: 'who teaches a skill' },
-  { id: 'sells',   re: /^(?:who\s+sells|where (?:can i (?:buy|get)|do i buy))\s+(?:an?\s+|the\s+)?(.+?)\??$/i,
-    what: 'who sells a thing' },
-  { id: 'cost',    re: /^(?:how much (?:is|does .* cost|for)|what does)\s+(?:an?\s+|the\s+)?(.+?)(?:\s+cost)?\??$/i,
-    what: 'what a thing costs' },
-  { id: 'does',    re: /^what does\s+(?:the\s+)?(.+?)\s+do\??$/i, what: 'what a spell or skill does' },
-  { id: 'cures',   re: /^(?:what|how do i)\s+(?:cures?|cure|fix(?:es)?)\s+(.+?)\??$/i, what: 'what clears a status' },
-  { id: 'says',    re: /^who says\s+["“']?(.+?)["”']?\??$/i, what: 'who says a line' },
-  { id: 'resists', re: /^what (?:is|are)\s+(?:the\s+|an?\s+)?(.+?)\s+(?:immune to|resistant to|proof against)\??$/i,
-    what: 'what a monster resists' },
-  { id: 'where',   re: /^where (?:is|are|can i find)\s+(?:the\s+|an?\s+)?(.+?)\??$/i, what: 'where a thing or a person is' },
-  { id: 'who',     re: /^who (?:is|was)\s+(?:the\s+)?(.+?)\??$/i, what: 'who somebody is' }
-];
-// One example a shape, shown under the search box so the shapes can be found.
-const ASK_EXAMPLES = ['who teaches axe', 'who sells bread', 'how much is a sword', 'what does Fireball do',
-  'what cures poison', 'who says Welcome', 'what is a ghost immune to', 'where is Alaric', 'who is Omen'];
-function askNorm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
-function askRow(k, v) { return '<tr><td class="skillKey">' + k + '</td><td>' + v + '</td></tr>'; }
-function askCard(title, note, rows, chips) {
-  return '<section class="mechSec askCard"><div class="mechHead"><h3>' + svEsc(title) + '</h3></div>' +
-    (note ? '<p class="mechLede">' + note + '</p>' : '') +
-    (rows && rows.length ? '<div class="mechBody tableScroll"><table class="vocabTable barkTable mechTable"><tbody>' + rows.join('') + '</tbody></table></div>' : '') +
-    (chips ? '<div class="partsStrip">' + chips + '</div>' : '') + '</section>';
-}
-function askCharacterChip(who, fallback) {
-  try { if (who !== null && who !== undefined && characterRecord(who)) return characterChip(who); } catch (e) { quiet(e); }
-  return fallback || '';
-}
-/* One question. Returns HTML, or null when the shape was not recognised or
-   its subject is not in this archive -- in both cases the caller falls back
-   to searching the text, which is the honest thing to do with a question
-   this cannot answer. */
-function answerQuestion(q) {
-  // Several shapes can match one sentence -- "what does fireball do" reads as
-  // both the price question and the what-does-it-do one -- so each is tried
-  // in turn and the first that finds its subject in the file answers.
-  for (const sh of ASK_SHAPES) {
-    const hit = sh.re.exec(q.trim());
-    if (!hit) continue;
-    const out = askOneShape(sh, hit);
-    if (out) return out;
-  }
-  return null;
-}
-function askOneShape(shape, hit) {
-  const m = { sh: shape, hit };
-  // Articles are not part of the name: "a lich", "the sword".
-  const subject = askNorm(m.hit[1]).replace(/^(?:an?|the|some)\s+/, '');
-  if (!subject) return null;
-  const like = name => { const n = askNorm(name); return !!n && (n === subject || n.includes(subject) || subject.includes(n)); };
-  try {
-    if (m.sh.id === 'teaches') {
-      const skills = skillCatalogue().filter(x => like(x.name) && x.kind !== 'command');
-      if (!skills.length) return null;
-      return skills.map(x => askCard('Who teaches ' + x.name,
-        x.teachers.length ? 'Every script that teaches it.' : 'Nobody in this file teaches it.',
-        x.teachers.map(t => askRow(t.mastery ? 'to mastery' : 'teaches',
-          askCharacterChip(t.who, svChip(t.resid)))),
-        partChip(x.name, x.resid))).join('');
-    }
-    if (m.sh.id === 'sells' || m.sh.id === 'cost') {
-      const rows = [];
-      for (const sp of shopRules().shops)
-        for (const g of sp.goods)
-          if (like(g.name)) rows.push(askRow(g.price + ' obols' + (g.count > 1 ? ' for ' + g.count : ''),
-            askCharacterChip(sp.who, svChip(sp.resid)) + (sp.title ? ' <span class="inspDim">“' + svEsc(sp.title) + '”</span>' : '')));
-      if (!rows.length) return null;
-      return askCard(m.sh.id === 'cost' ? 'What ' + m.hit[1].trim() + ' costs' : 'Who sells ' + m.hit[1].trim(),
-        'The listed price, before the vendor bargains.',
-        rows, mechLink('shops', 'Mechanics › Shops'));
-    }
-    if (m.sh.id === 'does') {
-      const sp = spellRules().spells.find(x => like(x.name));
-      if (sp) {
-        const fx = spellEffects().get(sp.resid);
-        const rows = [askRow('level', String(sp.level)), askRow('costs', sp.cost + ' magic')];
-        if (fx) {
-          for (const d of fx.damage) rows.push(askRow('damage', '<b>' + (amountWords(d.amount) || 'an amount the script works out') + '</b> ' + (d.type !== null ? damageTypeName(d.type) : '') + ' to ' + d.who));
-          for (const h of fx.heals) rows.push(askRow('heals', '<b>' + svEsc(h.text) + '</b>'));
-        }
-        return askCard(sp.name, svEsc(dvmDescriptionOf(sp.resid) || ''), rows, partChip(sp.name, sp.resid) + tabLink('SPELLS', 'Spells'));
-      }
-      const sk = skillCatalogue().find(x => like(x.name));
-      if (sk) return askCard(sk.name, svEsc(sk.description || ''),
-        [askRow('taught by', sk.teachers.map(t => askCharacterChip(t.who, svChip(t.resid))).join(' ') || '<span class="inspDim">nobody in this file</span>')]
-          .concat(sk.askedBy.length ? [askRow('checked by', sk.askedBy.map(r => svChip(r)).join(' '))] : [])
-          .concat(sk.weapons.length ? [askRow('swung with it', sk.weapons.map(w => svEsc(w.name)).join(', '))] : []),
-        partChip(sk.name, sk.resid));
-      return null;
-    }
-    if (m.sh.id === 'cures') {
-      const st = statusRules();
-      const name = [...st.cures.keys()].find(like);
-      if (!name) return null;
-      const by = [...(st.cures.get(name) || [])];
-      return askCard('What clears ' + name,
-        'Every script that removes it.',
-        by.map(r => askRow(selfNameFor(r) || ('0x' + r.toString(16).toUpperCase()), svChip(r))),
-        mechLink('status', 'Mechanics › Status Effects'));
-    }
-    if (m.sh.id === 'says') {
-      const hits = buildBarkCatalogue().filter(b => b.words.concat(b.then || []).some(w => askNorm(w).includes(subject)));
-      if (!hits.length) return null;
-      return askCard('Who says “' + m.hit[1].trim() + '”', 'From the balloon lines in the scripts.',
-        hits.slice(0, 12).map(b => askRow(b.words.filter(w => askNorm(w).includes(subject)).map(w => '“' + svEsc(w) + '”').join(', '),
-          askCharacterChip(b.who, '<span class="inspDim">anyone, </span>' + svChip(b.resid)))),
-        '<button class="navChip" onclick="showCategory(\'BARKS\')">Text › Barks</button>');
-    }
-    if (m.sh.id === 'resists') {
-      const N = propNameTable();
-      const ms = parseMonsterStats().filter(r => r.proptype && like(N[r.proptype] || ''));
-      if (!ms.length) return null;
-      return askCard('What ' + m.hit[1].trim() + ' resists', 'From the monster record’s flags, as the default resistance script reads them.',
-        ms.slice(0, 6).map(r => askRow(N[r.proptype] || ('class ' + r.proptype),
-          svEsc(monsterFlagsText(r.flags)) + ' <span class="inspDim">· armor ' + r.armor + ', ' + r.hp + ' health</span>')),
-        mechLink('combat', 'Mechanics › Combat'));
-    }
-    if (m.sh.id === 'where' || m.sh.id === 'who') {
-      const tab = loadCharacterTable();
-      const idx = [];
-      for (let i = 1; i < tab.length; i++) if (tab[i] && like(characterName(i))) idx.push(i);
-      if (idx.length) return askCard(m.sh.id === 'who' ? 'Who ' + m.hit[1].trim() + ' is' : 'Where ' + m.hit[1].trim() + ' is',
-        'From the character table.',
-        idx.slice(0, 6).map(i => askRow(characterName(i),
-          askCharacterChip(i, '') + ' <span class="inspDim">' + svEsc(zoneDisplayName(tab[i].zone)) + ' (' + tab[i].x + ',' + tab[i].y + '), level ' + tab[i].level + '</span>')), '');
-      if (m.sh.id === 'where') {
-        // A thing: the item classes with that name, and the maps they lie on.
-        const N = propNameTable();
-        const pts = Object.keys(N).map(Number).filter(pt => like(N[pt]));
-        if (!pts.length) return null;
-        const rows = [];
-        for (const pt of pts.slice(0, 3)) {
-          const where = [];
-          for (let n = 0; n < 0x100 && where.length < 6; n++) {
-            const mr = 0x8000 + n;
-            let recs = null;
-            try { const raw = getResourceBytes(ARCHIVE, mr + 0x100); if (raw) recs = parseDelverPropList(smartDecrypt(raw, mr + 0x100).data); } catch (e) { quiet(e); }
-            if (!recs) continue;
-            const hit = recs.find(r => r.proptype === pt && r.onMap && r.flags !== 0xFF && r.flags !== 0x42 && r.flags !== 0x44);
-            if (hit) where.push('<button class="sv-chip" onclick="showSquareOnMap(' + mr + ',' + hit.x + ',' + hit.y + ')">' + svEsc(atlasMapName(mr)) + ' (' + hit.x + ',' + hit.y + ')</button>');
-          }
-          rows.push(askRow(N[pt], where.join(' ') || '<span class="inspDim">not lying anywhere; carried, or made by a script</span>'));
-        }
-        return askCard('Where ' + m.hit[1].trim() + ' is', 'The first few places one is lying on the ground.', rows, '');
-      }
-      return null;
-    }
-  } catch (e) { return null; }
-  return null;
-}
-// The text search, when a question was answered but the reader wanted the
-// hits after all.
-function askSearchAnyway() { window.ASK_SKIP = true; runSearch(); window.ASK_SKIP = false; }
-function runSearch() {
-  const q = document.getElementById('searchBox').value.trim();
-  const host = document.getElementById('searchResults');
-  if (!host) return;
-  if (q.length < 2) { host.innerHTML = ''; return; }
-  // A 0x-prefixed id jumps straight to that resource. The prefix is required
-  // on purpose: bare hex would swallow real searches, since "add" is both a
-  // valid hex number and an opcode you would plausibly look for, as are
-  // "dead", "beef", "face" and "ace".
-  const hx = q.match(/^0x([0-9a-f]{1,4})$/i);
-  if (hx) {
-    const rid = parseInt(hx[1], 16);
-    let exists = false;
-    try { const r = getResourceBytes(ARCHIVE, rid); exists = !!(r && r.length); } catch (e) { quiet(e); }
-    if (exists) {
-      host.innerHTML = '<div class="sv-note">Opening resource 0x' +
-        rid.toString(16).toUpperCase().padStart(4, '0') + '\u2026</div>';
-      jumpToResource(rid);
-      return;
-    }
-    host.innerHTML = '<div class="sv-warn">No resource 0x' +
-      rid.toString(16).toUpperCase().padStart(4, '0') + ' in this file.</div>';
-    return;
-  }
-  // A question first: nine shapes that name a table rather than a word to
-  // look for. Anything else, and anything whose subject is not in the file,
-  // falls through to searching the text.
-  let answer = null;
-  try { answer = window.ASK_SKIP ? null : answerQuestion(q); } catch (e) { answer = null; }
-  if (answer) {
-    host.innerHTML = '<div class="mechView askAnswer">' + answer +
-      '<div class="sv-note">Read out of this file. ' +
-      '<button class="linkbtn" onclick="askSearchAnyway()">Search the text for “' + svEsc(q) + '” instead</button></div></div>';
-    return;
-  }
-  host.innerHTML = '<div class="sv-note">Decoding every script&hellip;</div>';
-  // Yield once so the "decoding" note actually paints before the first,
-  // slowest search blocks the thread building the index.
-  setTimeout(() => {
-    let re;
-    // A query containing | or [ is taken as a pattern; anything else is
-    // treated literally, so searching for "0x1A" or "()" does what you meant.
-    try {
-      re = /[|\[]/.test(q) ? new RegExp(q, 'i')
-                           : new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    } catch (e) { host.innerHTML = '<div class="sv-warn">Not a valid pattern.</div>'; return; }
-    const index = buildScriptTextIndex();
-    // Names first: a prop type, a character, a zone, a tile or a resource
-    // called what was typed. "desk" once returned six scripts and never the
-    // desk, because only script text was searched.
-    let things = '';
-    try { things = namedThingsMatching(re); } catch (e) { things = ''; }
-    const hits = [];
-    for (const entry of index) {
-      // Each hit records the offset of its line, read the way listingLineFor
-      // reads the raw listing -- the object's base from its header, the line's
-      // own from its gutter -- so the hit can open the script ringed there.
-      const lines = entry.text.split('\n');
-      const matched = [];
-      let base = -1;
-      for (const ln of lines) {
-        const h = /^(?:function )?obj_([0-9A-F]{4})\b/.exec(ln);
-        if (h) base = parseInt(h[1], 16);
-        const g = base >= 0 && /^  ([0-9A-F]{4})  /.exec(ln);
-        // The index stores delvmod's names and the listing shows the
-        // program's (dvmShowSyscalls), so a line is found by either and
-        // printed as it is shown.
-        const shown = dvmShowSyscalls(ln, true);
-        if (re.test(ln) || re.test(shown)) {
-          matched.push({ text: shown.trim(), at: g ? base + parseInt(g[1], 16) : null });
-          if (matched.length >= 3) break;
-        }
-      }
-      if (matched.length) hits.push({ resid: entry.resid, subn: entry.subn, matched, count: matched.length });
-    }
-    if (!hits.length) {
-      host.innerHTML = things + '<div class="sv-note">No script mentions that. Searched ' +
-                       index.length + ' decoded resources.</div>';
-      return;
-    }
-    let h = things + '<div class="sv-note">' + hits.length + ' of ' + index.length +
-            ' decoded resources match.</div>';
-    for (const hit of hits.slice(0, 60)) {
-      const purpose = SUBINDEX_PURPOSE[hit.subn];
-      h += '<div class="sr-item">' + svChip(hit.resid, purpose ? purpose[0] : '') +
-           '<div class="sr-lines">' +
-           hit.matched.map(m => {
-             const l = svEsc(m.text.length > 160 ? m.text.slice(0, 160) + '\u2026' : m.text);
-             return m.at === null ? '<div>' + l + '</div>'
-               : '<div><a class="srLine" onclick="jumpToScriptAt(' + hit.resid + ',' + m.at + ')">' + l + '</a></div>';
-           }).join('') +
-           '</div></div>';
-    }
-    if (hits.length > 60) h += '<div class="sv-note">' + (hits.length - 60) + ' more not shown.</div>';
-    host.innerHTML = h;
-  }, 20);
-}
-
-// Everything with a name, matched against the search: prop types (the
-// items and units among them), characters, zones, terrain tiles and the
-// resources this tool labels. Rendered as chips ahead of the script hits.
-function namedThingsMatching(re) {
-  const groups = [];
-  const cap = 24;
-  const props = [];
-  const tiles = getPropTileList();
-  for (let pt = 1; pt < tiles.length && props.length < cap; pt++) {
-    const nm = propDisplayName(pt);
-    if (nm && re.test(nm)) props.push(actionChip(nm, (isInventoryItem(pt) ? 'showCategory(\'ITEMS\');showItemDetail(' : 'showCategory(\'PROPS\');showPropTypeDetail(') + pt + ')', 'prop type 0x' + pt.toString(16).toUpperCase()));
-  }
-  if (props.length) groups.push(['Prop types', props]);
-  const chars = [];
-  const table = loadCharacterTable();
-  for (let i = 1; i < table.length && chars.length < cap; i++) {
-    if (!characterRecord(i)) continue;
-    const nm = characterName(i);
-    if (nm && re.test(nm)) chars.push(characterChip(i));
-  }
-  if (chars.length) groups.push(['Characters', chars]);
-  const zones = [];
-  for (let z = 0; z < 256 && zones.length < cap; z++) {
-    if (!refExists(0x8000 + z)) continue;
-    const nm = zoneDisplayName(z);
-    if (nm && re.test(nm)) zones.push(partChip(nm, 0x8000 + z));
-  }
-  if (zones.length) groups.push(['Zones', zones]);
-  const tl = [];
-  const seenTile = new Set();
-  for (let t = 0; t < 0x1000 && tl.length < cap; t++) {
-    const nm = terrainNameFor(t);
-    if (!nm || seenTile.has(nm) || !re.test(nm)) continue;
-    seenTile.add(nm);
-    tl.push(actionChip(nm, 'showSpriteZoom(' + t + ', ' + JSON.stringify(nm) + ')', 'tile 0x' + t.toString(16).toUpperCase()));
-  }
-  if (tl.length) groups.push(['Tiles', tl]);
-  if (!groups.length) return '';
-  return groups.map(([t, c]) => partsStrip(t, c)).join('') + '<div style="height:8px"></div>';
-}
-
 // --- Linked view -----------------------------------------------------------
 // The disassembly is honest but unreadable as a description of behaviour:
 // `call_resource 0x1806` gives an address, not that the script is starting
@@ -826,6 +493,21 @@ function paintDecodedPane() {
   pane.innerHTML = at === null ? body : listingRing(body, d.text, at);
 }
 
+/* A resource id in the Read view's words is a link to the resource. The
+   Read view prints a resource as its id where it has no name: a helper
+   called ("go to L00A7 (0xF02)"), the scripts that set a state or a word
+   ("0x1401 sets state 3 to 1"), the resource a far word is in ("word 0x10
+   of 0x0500"). Anything else in hex there is short (an offset, "word 0x10")
+   or follows "tile"; a number of three or four digits naming no resource
+   stays plain. Quoted game text is left alone. */
+function readLinkHex(html) {
+  return html.split(/(&quot;.*?&quot;|"[^"]*")/).map((part, i) => i % 2 ? part : part.replace(/(^|[^\w.])0x([0-9A-Fa-f]{3,4})\b(?!\w)/g, (m, pre, hx, at, all) => {
+    if (/\btile $/.test(all.slice(Math.max(0, at - 5), at + pre.length))) return m;
+    const rid = parseInt(hx, 16);
+    return refExists(rid) ? pre + '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>' : m;
+  })).join('');
+}
+
 /* The Read view's HTML: each function's name and arguments, then its
    sentences as nested lists, each with the offset its statement has in the
    listings' gutter, so a "go to L0042" can be found and any line checked
@@ -839,14 +521,14 @@ function readViewHtml(fns) {
     return (w[0] || k).toUpperCase() + ' (' + k + ')';
   }).join(', ') + ':';
   const list = cl => '<ul class="readList">' + cl.map(c => '<li>' + (c.at !== null && c.at !== undefined ? '<span class="readAt">' + hex4(c.at) + '</span>' : '') +
-    svEsc(c.prompt !== undefined ? prompt(c.prompt) : c.text.charAt(0).toUpperCase() + c.text.slice(1)) + (c.kids ? list(c.kids) : '') + '</li>').join('') + '</ul>';
+    readLinkHex(svEsc(c.prompt !== undefined ? prompt(c.prompt) : c.text.charAt(0).toUpperCase() + c.text.slice(1))) + (c.kids ? list(c.kids) : '') + '</li>').join('') + '</ul>';
   return fns.map(f => {
     if (f.prose !== undefined) return '<div class="readFn"><div class="readHead">' + svEsc(f.name) + '</div><div class="readProse">' + svEsc(f.prose) + '</div></div>';
     const head = '<div class="readHead">' + svEsc(f.name) + '(' + (f.args || []).join(', ') + ')</div>';
     if (f.answers && !f.clauses) return '<div class="readFn">' + head + '<div class="readProse">Answers ' + f.answers + ' prompt' + (f.answers === 1 ? '' : 's') +
-      '; the Text view lays them out.</div></div>';
+      '. The Text view lays them out.</div></div>';
     const sum = f.summary ? '<div class="readSum">' + svEsc(f.summary.charAt(0).toUpperCase() + f.summary.slice(1)) + '.</div>' : '';
-    return '<div class="readFn">' + head + sum + (f.bad ? '<div class="readProse">The page could not decode part of this; the Raw view shows it.</div>' : '') + list(f.clauses || []) + '</div>';
+    return '<div class="readFn">' + head + sum + (f.bad ? '<div class="readProse">The page could not decode part of this. The Raw view shows it.</div>' : '') + list(f.clauses || []) + '</div>';
   }).join('');
 }
 
@@ -990,7 +672,7 @@ const TAB_TREE = [
           // script, out of the resource fork, and the styles that assign them.
           { id: 'fonts',    label: 'Fonts',    tile: 0x264, values: ['FONTS'] },                              // the inkwell, the maintainer's pick, 27 September 2026; it was 0x180
           // The short lines a character says over their head, read out of
-          // every script that sets one (buildBarkCatalogue).
+          // every script that sets one (buildBarkCatalog).
           { id: 'barks',    label: 'Barks',    tile: 0x185, values: ['BARKS'] } ] },                          // the maintainer's pick, 8 September; it was the bell (0x488)
       // A schedule is something a character is MADE OF -- where they are at
       // each hour -- rather than a separate thing in the scenario, so it
@@ -1110,7 +792,7 @@ const TAB_TREE = [
   // word ("move out completely"): its value lights Tools, as does CHANGES,
   // the Changes tab that became its Patch Generator the same day. Since
   // 19 October 2026 the page is named Patch Generator and CHANGES opens its
-  // Your Patch. Its icon, worn by
+  // Patch in Progress. Its icon, worn by
   // that row (BUILD_A_PATCH_ICON), is Magpie's DelP when a Magpie archive has been opened on this
   // device (magpieIcon) and the fishing pole (0x29A) otherwise.
   { id: 'tools', label: 'Tools', tile: 0x2A9, tileOpen: 0x2AD, values: ['TOOLS', 'PATCHES', 'CHANGES'] }       // a wheelbarrow, another frame of it when selected: the maintainer's pick, 16 September 2026; it was the anvil (0x2E0)
@@ -1122,10 +804,10 @@ const PLACEHOLDER_TABS = {
     'this shows its sections, the shared libraries it uses and the routines it names. ' +
     'The 68K CODE resources are in its resource fork, listed under Resource Fork.',
   AISCRIPTS: 'The Combat AI scripts come with the game as separate .ai text files, not inside ' +
-    'the file. The game runs the compiled ' +
-    'versions: subindex 3, AI Combat Scripts, under Components › Functions › Actions.',
+    'Cythera Data. The game runs the compiled ' +
+    'versions, which are subindex 3, AI Combat Scripts, under Components › Functions › Actions.',
   AIRULES: 'The rules for writing those scripts, the AI Scripting Document, ' +
-    'come with the game as a separate text file, not inside the file.',
+    'come with the game as a separate text file, not inside Cythera Data.',
 };
 
 // Added to a placeholder when the file it describes would have come with the
@@ -1266,7 +948,7 @@ function renderTabRow(row, nodes, selectedId) {
     b.id = 'tab_' + n.id;
     b.setAttribute('role', 'tab');
     b.setAttribute('aria-selected', n.id === selectedId ? 'true' : 'false');
-    if (n.wip) b.title = 'Not yet linked to the rest; shows the raw view where there is one';
+    if (n.wip) b.title = 'Not yet linked to the rest. Shows the raw view where there is one';
     // The whole icon spec, not just the tile: a Data tab may give the file
     // type or the cursor its picture comes from, with the tile as the
     // fallback for before the application is open.
@@ -1342,7 +1024,7 @@ function syncTabsTo(v) {
   const sel = document.getElementById('categorySelect');
   const have = new Set(Array.from(sel.options).map(o => o.value));
   // CHANGES lights Tools and has no chip: it opens the Patch Generator's
-  // Your Patch, which that page's chip reaches (19 October 2026).
+  // Patch in Progress, which that page's chip reaches (19 October 2026).
   const vals = leaf ? leaf.values.filter(x => have.has(x) && x !== 'CHANGES') : [];
   const sub = document.getElementById('navSub');
   if (sub) {
@@ -1392,29 +1074,6 @@ function pickCategory(v) {
   onCategoryChange();
 }
 
-// The script search is not a tab -- it looks across every gallery -- so it
-// opens over whatever is showing and closes back to it.
-function openSearch() {
-  const w = document.getElementById('searchWrap');
-  if (!w) return;
-  w.style.display = 'block';
-  const box = document.getElementById('searchBox');
-  if (box) box.focus();
-}
-/* The search opened on a query, from a link elsewhere on the page: a count
-   in a sentence opens the list it counted ("49 spells" is the scripts that
-   call CastSpell). After the click that asked for it, since a click outside
-   the panel closes it, and with the page at the top, where the panel is. */
-function searchFor(q) {
-  setTimeout(() => {
-    closeTopPanels();
-    openSearch();
-    const box = document.getElementById('searchBox');
-    if (box) box.value = q;
-    runSearch();
-    try { window.scrollTo(0, 0); } catch (e) { quiet(e); }
-  }, 0);
-}
 /* A count in a sentence that opens the things it counted, when no search
    query finds exactly them ("127 characters have alignment 0"). The caller
    hands over the chips, one per thing; the link opens the search panel on
@@ -1432,9 +1091,31 @@ function countLink(label, title, chips) {
 function resChips(resids) {
   return [...resids].sort((a, b) => a - b).map(r => relChip({ resid: r, main: labelFor(r) || selfNameFor(r) || ('0x' + r.toString(16).toUpperCase()), title: trailForResid(r) }));
 }
+/* A count's list opens in a dialog (the maintainer, 28 October 2026). It
+   opened in the search panel with the box emptied, which read as a search
+   that had found these, when no query finds exactly them; a count one
+   query does find is a searchFor link and puts the query in the box. A
+   chip followed closes the dialog. Where the browser has no <dialog> (the
+   harnesses' DOM), the list goes to the search panel. */
 function showCountList(id) {
   const c = COUNT_LISTS[id];
   if (!c) return;
+  let dlg = document.getElementById('countDialog');
+  if (!dlg && document.createElement('dialog').showModal) {
+    dlg = document.createElement('dialog');
+    dlg.id = 'countDialog';
+    dlg.onclick = ev => {
+      // A click on the backdrop, or on anything that leads somewhere, closes it.
+      if (ev.target === dlg || (ev.target.closest && ev.target.closest('button, a, .sv-chip, .relChip'))) dlg.close();
+    };
+    document.body.appendChild(dlg);
+  }
+  if (dlg && dlg.showModal) {
+    dlg.innerHTML = '<div class="countHead"><b>' + svEsc(c.title) + '</b><button class="secondary countClose" aria-label="Close">×</button></div>' +
+      '<div class="partsStrip">' + c.chips.join('') + '</div>';
+    dlg.showModal();
+    return;
+  }
   setTimeout(() => {
     closeTopPanels();
     openSearch();
@@ -1444,8 +1125,4 @@ function showCountList(id) {
     if (host) host.innerHTML = '<div class="sv-note">' + svEsc(c.title) + '</div><div class="partsStrip">' + c.chips.join('') + '</div>';
     try { window.scrollTo(0, 0); } catch (e) { quiet(e); }
   }, 0);
-}
-function closeSearch() {
-  const w = document.getElementById('searchWrap');
-  if (w) w.style.display = 'none';
 }

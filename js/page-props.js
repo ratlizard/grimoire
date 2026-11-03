@@ -76,13 +76,6 @@ function propTypeName(pt) {
 function propTypeNameShown(pt) {
   return window.SHOW_BUILTIN_LABELS ? PROP_TYPE_NAMES[pt] || null : null;
 }
-// Every prop type's shown name, for the search: the tile's name from
-// 0xF004 first, the built-in list only behind the switch.
-function propNameTable() {
-  const t = getPropTileList(), out = {};
-  for (let pt = 1; pt < t.length && pt < 1024; pt++) { const n = propDisplayName(pt); if (n) out[pt] = n; }
-  return out;
-}
 // The best name for a prop type: the archive's name for its base tile
 // (0xF004) first, the wiki's list second and only when it is switched on.
 function propDisplayName(pt, base) {
@@ -104,7 +97,7 @@ function propNameHTML(pt, base) {
   const hidden = PROP_TYPE_NAMES[pt] || null;
   return '<span class="lblText" style="color:#dcd8cc">unnamed</span>' +
     (hidden ? '<span class="nameOffTag" title="The wiki calls this \u201c' + svEsc(hidden) +
-      '\u201d. Switch tool-supplied names on under \u201cSettings\u201d to show it.">name hidden</span>' : '');
+      '\u201d. Turn on Names from outside the game\u2019s text in Settings to show it.">name hidden</span>' : '');
 }
 function itemNameHTML(pt, base) { return propNameHTML(pt, base); }
 
@@ -135,10 +128,10 @@ function framesSharingName(base, present) {
   // same rule stops a doorway cycling into an archway and a sword
   // into the next sword.
   const bases = propBaseTileSet();
-  const mine = present.filter(f => !f || !bases.has(base + f));
-  if (!own) return mine;
-  const same = mine.filter(f => terrainNameFor(base + f) === own);
-  return same.length ? same : mine;
+  const unsharedFrames = present.filter(f => !f || !bases.has(base + f));
+  if (!own) return unsharedFrames;
+  const same = unsharedFrames.filter(f => terrainNameFor(base + f) === own);
+  return same.length ? same : unsharedFrames;
 }
 
 // The same frames, cut into runs by the name 0xF004 gives each one. Prop type
@@ -166,9 +159,9 @@ function frameRuns(base, present) {
    */
 const HUE_WORDS = [[15,'red'],[45,'orange'],[70,'yellow'],[160,'green'],[200,'cyan'],
                    [258,'blue'],[320,'purple'],[345,'pink'],[361,'red']];
-const _frameColourCache = derivedMap('_frameColourCache');
-function frameColourWord(tileId) {
-  if (_frameColourCache.has(tileId)) return _frameColourCache.get(tileId);
+const _frameColorCache = derivedMap('_frameColorCache');
+function frameColorWord(tileId) {
+  if (_frameColorCache.has(tileId)) return _frameColorCache.get(tileId);
   let word = null;
   try {
     const img = resolveTileImage(tileId);
@@ -201,7 +194,7 @@ function frameColourWord(tileId) {
       }
     }
   } catch (e) { quiet(e); }
-  _frameColourCache.set(tileId, word);
+  _frameColorCache.set(tileId, word);
   return word;
 }
 
@@ -212,7 +205,7 @@ function frameColourWord(tileId) {
 // frame in the run are dropped first, and each frame is then named by what is
 // left. Returns a map frame -> word, or null when the run has nothing to
 // distinguish.
-function distinguishingColours(base, frames) {
+function distinguishingColors(base, frames) {
   if (!frames || frames.length < 2) return null;
   const hists = frames.map(f => {
     const h = new Map();
@@ -228,7 +221,7 @@ function distinguishingColours(base, frames) {
   for (let i = 0; i < frames.length; i++) {
     let best = 0, bestN = 0;
     for (const [idx, n] of hists[i]) if (!shared.has(idx) && n > bestN) { best = idx; bestN = n; }
-    const w = best ? colourWordFor(PAL_RGB[best]) : frameColourWord(base + frames[i]);
+    const w = best ? colorWordFor(PAL_RGB[best]) : frameColorWord(base + frames[i]);
     out.set(frames[i], w);
     seen.add(w);
   }
@@ -237,7 +230,7 @@ function distinguishingColours(base, frames) {
 
 // Name one palette entry. Lightness first, because "pale green" and "dark
 // green" are the difference between a jade and a bottle.
-function colourWordFor(rgb) {
+function colorWordFor(rgb) {
   const [r, g, b] = rgb;
   const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
   const lum = (r + g + b) / 3;
@@ -437,22 +430,29 @@ function unitSteps(pt) {
   /* A creature whose sixteen frames are a joining set, one for each
      combination of its four edges the art runs off: the ooze. Shown one to
      a cell it was sixteen blobs in turn, each cut off where it joins a
-     neighbour that was not there. It grows instead over the hydra's nine
-     squares, in the maintainer's order (6 October 2026): alone in the
-     middle, then up, left, down and right, every square wearing the frame
-     that joins the neighbours it has. Which frame joins which edges is
-     read off the art (a frame is open on an edge its pixels reach), so
-     nothing here identifies the ooze by name or number. His five stages use
-     twelve of the sixteen, and he asked for all of them the same day, so
-     two more follow the full nine: the middle row, which is the east
-     end, the east-west piece and the west end, and the middle column,
-     which has the north-south piece. */
+     square that was not there. It grows and shrinks over four squares
+     instead (the maintainer, 28 October 2026): one square, then a square
+     more at a time round the four, clockwise, until all four are there,
+     then a square less at a time in the same order until one is left. The
+     next round grows from the square left, so the lone square goes round
+     the four corners. Every square wears the frame that joins the squares
+     next to it. Which frame joins which edges is read off the art (a frame
+     is open on an edge its pixels reach), so nothing here identifies the
+     ooze by name or number. */
   {
     const joins = info.present.length === 16 ? info.present.map(f => tileEdgeMask(base + f)) : null;
     if (joins && new Set(joins).size === 16) {
       const frameFor = m => info.present[joins.indexOf(m)];
-      const cell = n => [(n - 1) % 3 - 1, Math.floor((n - 1) / 3) - 1];
-      const steps = [[5], [2, 5], [1, 2, 4, 5], [1, 2, 4, 5, 7, 8], [1, 2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6], [2, 5, 8]].map(cells => {
+      // The four squares clockwise from the top left.
+      const QUAD = [[0, 0], [1, 0], [1, 1], [0, 1]];
+      const cell = n => QUAD[n];
+      const rounds = [];
+      for (let r = 0, q = 0; r < 4; r++) {
+        const at = k => (q + k) % 4;
+        rounds.push([at(0)], [at(0), at(1)], [at(0), at(1), at(2)], [0, 1, 2, 3], [at(1), at(2), at(3)], [at(2), at(3)]);
+        q = at(3);
+      }
+      const steps = rounds.map(cells => {
         const has = (x, y) => cells.some(n => cell(n)[0] === x && cell(n)[1] === y);
         return cells.map(n => {
           const [x, y] = cell(n);
@@ -885,9 +885,9 @@ function renderPropTypeSheet() {
 
   let heading = null;
   for (const e of entries) {
-    const want = e.alive ? 'Creatures & people' : 'Objects & scenery';
-    if (want !== heading && !scenery) {
-      heading = want;
+    const groupHeading = e.alive ? 'Creatures & people' : 'Objects & scenery';
+    if (groupHeading !== heading && !scenery) {
+      heading = groupHeading;
       const h = document.createElement('div');
       h.className = 'propHead';
       h.textContent = heading;
@@ -937,7 +937,7 @@ function renderPropTypeSheet() {
     grid.appendChild(cell);
   }
   out.textContent = scenery
-    ? entries.length + ' placed things that are neither units nor carried. The page draws each whole, covering the squares its tiles span; where the scenario puts several of the same class side by side at different aspects, it draws the whole group as it stands' + (q ? ', matching \u201c' + q + '\u201d' : '') + '.'
+    ? entries.length + ' placed things that are neither units nor carried. The page draws each whole, covering the squares its tiles span. Where the scenario puts several of the same class side by side at different aspects, it draws the whole group as it stands' + (q ? ', matching \u201c' + q + '\u201d' : '') + '.'
     : entries.length + ' prop types with artwork' + (q ? ' matching \u201c' + q + '\u201d' : '') + '.';
 }
 
@@ -1003,7 +1003,7 @@ function showPropTypeDetail(pt) {
     // A frame saves as a GIF from its view, beside the PNG; the button
     // that saved a run as an animated GIF went on 16 September 2026 (the
     // maintainer).
-    const colours = null;   // the colour words ("cobalt", "pale") were removed by request
+    const colors = null;   // the colour words ("cobalt", "pale") were removed by request
     const sheet = document.createElement('div');
     sheet.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px';
     // A 2x2 beast -- the titan -- is four tiles a facing, and the tile
@@ -1023,7 +1023,7 @@ function showPropTypeDetail(pt) {
       holder.style.cssText = 'width:52px;height:52px;display:flex;align-items:center;justify-content:center;background:#1c1913;border:1px solid #33302a;overflow:hidden';
       const spr = drawPropSprite(base + f, 24);
       if (spr) holder.appendChild(spr.canvas);
-      const col = colours && colours.get(f);
+      const col = colors && colors.get(f);
       // A tap opens the sheet the frame is on; the enlargement with its
       // downloads is in the sheet's view. The maintainer's ask of
       // 18 September 2026: an image goes to its resource.
@@ -1120,8 +1120,8 @@ const ITEM_FIELD_INFO = {
   0x2A: { gloss:'Melee: damage, reach in squares, damage type, the skill it is used with, the miss sound, the hit sound, and the hit effect (a reference into this resource).' },
   0x2B: { gloss:'Thrown: damage, range, the effect, the sound.' },
   0x2C: { scalar:true, gloss:'Points of protection this armor contributes.' },
-  0x2D: { gloss:'Ammunition: the class a launcher must match, damage, damage type.' },
-  0x2E: { gloss:'Ranged: the ammunition class it fires, range in squares, then sounds.' },
+  0x2D: { gloss:'Ammunition: the class a launcher must match, the sound of its flight, damage type.' },
+  0x2E: { gloss:'Ranged: the ammunition class it fires, range in squares, damage, the sound of a shot.' },
   0x2F: { gloss:'Shield: how much it blocks, and the skill (Shield) added to the block.' },
   0x30: { scalar:true, gloss:'Reagent number, used by alchemy.' },
   0x32: { gloss:'Light this item casts.' },
@@ -1253,34 +1253,51 @@ function classZoomrect(pt) {
 
 /* Every script that reads or writes a class field, by key: the
    `has_member`, `get_field` and `set_field` ops over the whole archive,
-   each with its offset, so an item's field can say who consults it. */
+   each with its offset, so an item's field can say who consults it.
+   `class_member 0xKKNN` reads element NN of the array under key KK, and
+   counts too, with its element (25 October 2026). Before that a script that
+   used an array's elements was linked at its `has_member` test alone, so the
+   Ammunition row reached the combat script at its test for the field, not at
+   the line that plays element 1 as the arrow's flight sound, and no row showed
+   which element a script uses. */
 function dvmFieldReaders() {
   if (DERIVED.FIELD_READERS) return DERIVED.FIELD_READERS;
   const by = new Map();
+  const add = (key, site) => { if (!by.has(key)) by.set(key, []); by.get(key).push(site); };
   for (const e of buildScriptTextIndex()) {
     let ops; try { ops = dvmOpsOf(e); } catch (err) { continue; }
     for (const o of ops) {
       const m = /^(has_member|get_field|set_field) (?:\S+ )?\(?(0x[0-9A-F]+)\)?$/.exec(o.text);
-      if (!m) continue;
-      const key = parseInt(m[2], 16);
-      if (!by.has(key)) by.set(key, []);
-      by.get(key).push({ resid: e.resid, at: o.at, how: m[1] });
+      if (m) { add(parseInt(m[2], 16), { resid: e.resid, at: o.at, how: m[1] }); continue; }
+      const c = /^class_member 0x([0-9A-F]{2})([0-9A-F]{2})$/.exec(o.text);
+      if (c) add(parseInt(c[1], 16), { resid: e.resid, at: o.at, how: 'class_member', el: parseInt(c[2], 16) });
     }
   }
   return (DERIVED.FIELD_READERS = by);
 }
-// The readers of one key as links, a script once, the first site each.
-function fieldReadersHTML(key, cap) {
-  const all = dvmFieldReaders().get(key) || [];
+// The readers of one key as links, a script once, the first site each, from
+// the reads given (by default the whole key's `has_member`, `get_field` and
+// `set_field` sites).
+function fieldReadersHTML(key, cap, given) {
+  const all = given || (dvmFieldReaders().get(key) || []).filter(s => s.el === undefined);
   const seen = new Map();
   for (const s of all) if (!seen.has(s.resid)) seen.set(s.resid, s);
   const sites = [...seen.values()];
   if (!sites.length) return '';
   const n = cap || 8;
-  return sites.slice(0, n).map(s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid))).join(', ') +
+  const link = s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid));
+  return sites.slice(0, n).map(link).join(', ') +
     (sites.length > n ? ' and ' + countLink((sites.length - n) + ' more', 'The ' + sites.length + ' scripts that read ' + itemFieldLabel(key),
-      sites.map(s => srcNum({ resid: s.resid, at: s.at }, labelFor(s.resid) || propWordHex(s.resid)))) : '') +
+      sites.map(link)) : '') +
     ' <span style="color:#dcd8cc">(' + all.length + ' site' + (all.length === 1 ? '' : 's') + ')</span>';
+}
+// The scripts that use each element of an array, one line an element, each
+// link opening the script at the read, so a reader can check the gloss's
+// meaning for an element against the code that uses it.
+function fieldElementReadersHTML(key, cap) {
+  const by = new Map();
+  for (const s of dvmFieldReaders().get(key) || []) if (s.el !== undefined) { if (!by.has(s.el)) by.set(s.el, []); by.get(s.el).push(s); }
+  return [...by.keys()].sort((a, b) => a - b).map(el => 'Element ' + el + ': ' + fieldReadersHTML(key, cap, by.get(el)));
 }
 
 /* The ClassFlags word (key 39), by bit: which classes have each. The
@@ -1304,7 +1321,7 @@ function classFlagBits() {
       bits.get(b).push({ pt, resid: cls.resid, at: f.off, word: w });
     }
   }
-  return { classes, carriers, bits: [...bits.entries()].sort((a, b) => a[0] - b[0]).map(([bit, who]) => ({ bit, who })) };
+  return { classes, carriers, bits: [...bits.entries()].sort((a, b) => a[0] - b[0]).map(([bit, character]) => ({ bit, character })) };
 }
 
 /* The letter under a key (the maintainer, 23 September 2026: in the game
@@ -1597,8 +1614,8 @@ function aspectUseAt(pt, a) {
   let fd = null;
   try { fd = foodRules(); } catch (e) { return null; }
   const food = fd.foods.find(f => f.pt === pt && f.variants);
-  if (food) { const v = food.variants[a]; return v ? { kind: 'food', plus: v.plus, says: v.says !== undefined ? v.says : food.says } : { kind: 'food', beyond: true, count: food.variants.length }; }
-  if (pt === 0x1F && fd.potions.length) { const p = fd.potions[a]; return p ? { kind: 'potion', name: p.name, does: p.does, says: p.says, resid: p.resid } : { kind: 'potion', beyond: true, count: fd.potions.length }; }
+  if (food) { const v = food.variants[a]; return v ? { kind: 'food', plus: v.plus, message: v.message !== undefined ? v.message : food.message } : { kind: 'food', beyond: true, count: food.variants.length }; }
+  if (pt === 0x1F && fd.potions.length) { const p = fd.potions[a]; return p ? { kind: 'potion', name: p.name, does: p.does, message: p.message, resid: p.resid } : { kind: 'potion', beyond: true, count: fd.potions.length }; }
   return null;
 }
 
@@ -1824,7 +1841,7 @@ function propWordAspectSentence(pt) {
   if (!ar) return 'This prop type has no class script, so the aspect changes only the picture and the name.';
   if (ar.reads) return w('This class’s script reads its aspect') + ' (' + ar.reads + (ar.reads === 1 ? ' place' : ' places') + '): what a ' + own + ' does depends on it, not just how it looks.' + (ar.writes ? ' It also changes it, to keep a state.' : '');
   if (ar.writes) return 'This class’s script ' + w('writes its aspect') + ' to keep a state and never reads it; the pictures after the base tile are what it turns into.';
-  return w('This class’s script never reads its aspect') + ', so at any aspect it is the same ' + own + ' in every figure, with a different picture and name.';
+  return w('This class’s script never reads its aspect') + ', so at any aspect it is the same ' + own + ' in every number, with a different picture and name.';
 }
 // What using the item at this aspect does, for the classes that read the
 // aspect at use: a food's nutrition and its line, a potion's effect.
@@ -1833,9 +1850,9 @@ function propWordUseSentence(pt, a) {
   const u = aspectUseAt(pt, a);
   if (!u) return '';
   if (u.kind === 'food') return u.beyond ? ' The class reads a nutrition for ' + u.count + ' variants; beyond those, the amount comes from whatever follows the table.'
-    : ' Eaten, it feeds ' + w('+' + u.plus) + (u.says ? ' and the eater says “' + svEsc(u.says) + '”' : '') + '.';
+    : ' Eaten, it feeds ' + w('+' + u.plus) + (u.message ? ' and the eater says “' + svEsc(u.message) + '”' : '') + '.';
   if (u.kind === 'potion') return u.beyond ? ' The class calls one of ' + u.count + ' effect scripts by the aspect; beyond those there is none.'
-    : ' Drunk, it is the ' + w(svEsc(u.name)) + (u.does.length ? ': ' + svEsc(u.does.join('; ')) : '') + (u.says ? ', “' + svEsc(u.says) + '”' : '') + '.';
+    : ' Drunk, it is the ' + w(svEsc(u.name)) + (u.does.length ? ': ' + svEsc(u.does.join('; ')) : '') + (u.message ? ', “' + svEsc(u.message) + '”' : '') + '.';
   return '';
 }
 function propWordRender() {
@@ -1849,7 +1866,7 @@ function propWordRender() {
   let wear = [];
   try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
   if (wear.length) h += ' At ' + wear.map(x => 'aspect ' + w(x.aspect) + ' it is a ' + w(svEsc(x.name)) + ' (' + propWordHex(x.word) + ')').join(', ') +
-    ', pictures no other item uses, with this item’s figures.';
+    ', pictures no other item uses, with this item’s numbers.';
   h += '</div><div class="pwBits">';
   for (let i = 0; i < 16; i++) {
     if (i === 1 || i === 6) h += '<span class="pwGap"></span>';
@@ -1878,7 +1895,7 @@ function propWordRender() {
   let others = [];
   try { others = inventoryItemList().filter(e => e.pt !== pt && (tiles[e.pt] || 0) && (tiles[e.pt] || 0) <= tile && tile < (tiles[e.pt] || 0) + 32)
     .map(e => ({ pt: e.pt, aspect: tile - (tiles[e.pt] || 0), name: e.name })).sort((x, y) => x.aspect - y.aspect); } catch (e) { others = []; }
-  h += '<div class="mechSub">Other prop types that reach this tile</div>';
+  h += '<div class="mechSub">Other prop types that can show this tile</div>';
   h += '<div class="sv-note" style="margin-top:0">' + (others.length ? others.map(o => svLink(o.name, 'propWordOpen(' + o.pt + ',' + o.aspect + ')', 'at ' + o.aspect + ', ' + propWordHex((o.aspect << 10) | o.pt))).join(', ')
     : 'No other item’s base tile is within 31 tiles before this one.') + '</div>';
   st.read.innerHTML = h;
@@ -1889,7 +1906,7 @@ function propWordRender() {
   if (rules) {
     const reader = rules.readers.find(r => r.pt === pt), ex = rules.examines.find(e => e.pt === pt);
     if (rules.melee.has(pt) && rules.ench && rules.ench.guarded && rules.ench.added) {
-      m = 'Data1 is the enchantment: ' + svLink('the script that settles a blow', 'jumpToResource(0xE87)', '0xE87') + ' reads it from the weapon and adds it to the damage of every blow' + (rules.ench.magic ? ', and a blow with any enchantment counts as magical' : '') + '.';
+      m = 'Data1 is the enchantment. ' + svLink('The script that settles a blow', 'jumpToResource(0xE87)', '0xE87') + ' reads it from the weapon and adds it to the damage of every blow' + (rules.ench.magic ? ', and a blow with any enchantment counts as magical' : '') + '.';
       if (ex && ex.hiVal && ex.loVal) m += st.d1 > ex.hiVal.v ? ' Examine shows “' + svEsc(ex.above2) + '”' : st.d1 > ex.loVal.v ? ' Examine shows “' + svEsc(ex.above0) + '”' : ' Examine reports it once it is above ' + srcNum(ex.loVal) + '.';
       if (reader) m += ' The class script also ' + propWordOps(reader.ops) + '.';
     } else if (reader) m = 'The class script ' + propWordOps(reader.ops) + (reader.ops.some(o => /data3/.test(o)) ? ' (Data3 is both bytes read as one value)' : '') + '. What they mean depends on this class.';
@@ -1953,7 +1970,7 @@ const ITEM_GROUP_ORDER = ['Weapons & Armor', 'Containers', 'Carried Goods'];
 function itemGroupNote(group) {
   if (group === 'Weapons & Armor') return 'Anything used in a fight: weapons, launchers, ammunition, armor and shields.';
   if (group === 'Containers') return 'Anything that contains other things or has a lock.';
-  return 'Everything else you can pick up and carry.';
+  return 'Everything else the hero can carry.';
 }
 
 function renderItemSheet() {
@@ -2021,7 +2038,7 @@ function renderItemSheet() {
   if (orphans.length) {
     const h = document.createElement('div');
     h.className = 'propHead';
-    h.innerHTML = '<span class="groupTitle">Unused Art</span><span class="groupNote">Named pictures no item uses. An item placed at one of them has its picture and name, and its figures stay the same.</span>';
+    h.innerHTML = '<span class="groupTitle">Unused Art</span><span class="groupNote">Named pictures no item uses. An item placed at one of them has its picture and name, and its numbers stay the same.</span>';
     grid.appendChild(h);
     for (const o of orphans) {
       const cell = document.createElement('div');
@@ -2048,7 +2065,7 @@ function renderItemSheet() {
   const withWeight = entries.filter(e => e.weight !== null).length;
   out.textContent = entries.length + ' items' +
     (q ? ' matching \u201c' + q + '\u201d' : '') + ', ' + withWeight + ' with a weight in their class script' +
-    (orphans.length ? '; ' + orphans.length + ' picture' + (orphans.length === 1 ? '' : 's') + ' no class owns' : '') + '.';
+    (orphans.length ? ', and ' + orphans.length + ' picture' + (orphans.length === 1 ? '' : 's') + ' that no class owns' : '') + '.';
 }
 
 /* Each one placed, and what distinguishes them.
@@ -2157,13 +2174,13 @@ function itemEachOneHTML(pt) {
     const p = list[0];
     let icon = '';
     try { icon = relIconURL({ tile: base + p.aspect }); } catch (e) { icon = ''; }
-    const said = (meaning.d1 && meaning.d1.get(p.d1)) || (byD2 && meaning.d2.get(p.d2)) || '';
+    const meaningText = (meaning.d1 && meaning.d1.get(p.d1)) || (byD2 && meaning.d2.get(p.d2)) || '';
     const head = (icon ? '<img class="relIcon" src="' + icon + '" alt="" width="16" height="16"> ' : '') +
       (lookName(p.aspect) ? svEsc(lookName(p.aspect)) + ', ' : '') +
       'aspect ' + srcNum(recSrc(p, 4, 'the aspect and prop type'), String(p.aspect)) +
       ', Data1 ' + srcNum(recSrc(p, 6, 'Data1'), String(p.d1)) +
       (byD2 ? ', Data2 ' + srcNum(recSrc(p, 7, 'Data2'), String(p.d2)) : '') +
-      (said ? '<br>“' + svEsc(said) + '”' : '');
+      (meaningText ? '<br>“' + svEsc(meaningText) + '”' : '');
     // Props on the same square, in the same container or with the same
     // carrier are one chip with a count.
     const spots = new Map();
@@ -2223,7 +2240,7 @@ function classCacheBlock(pt) {
   const looked = ic ? [...new Set(ic.has.map(h => h.key).concat(ic.bits.map(x => x.key), ic.tables.map(t => t.key)))].map(itemFieldLabel) : [];
   const noted = [...new Set(cw.bits.map(b => b.key).concat(cw.tables.map(t => t.key)))].map(itemFieldLabel);
   const none = !cw.bits.length && !cw.tables.length;
-  const lede = 'When the game starts, the program notes a few things about each kind of thing, so it need not look them up in the script again (' + pefChip('FillIntfCache') + ')' +
+  const lede = 'When the game starts, the program notes a few things about each kind of thing, so it does not have to look them up in the script again (' + pefChip('FillIntfCache') + ')' +
     (looked.length ? '. It looks for ' + looked.map(svEsc).join(', ') + '.' : '.') +
     (none ? ' None of them applies to this kind, so nothing about it is noted.' : '');
   return {
@@ -2292,7 +2309,7 @@ function showItemDetail(pt) {
   // below rather than passed off as another view of this item.
   const runs = frameRuns(base, info.present);
   const ownFrames = framesSharingName(base, info.present);
-  const ownColours = null;   // no colour words on frames, by request
+  const frameColors = null;   // no colour words on frames, by request
   const sheet = document.createElement('div');
   sheet.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px';
   for (const f of ownFrames.slice(0, 16)) {
@@ -2302,7 +2319,7 @@ function showItemDetail(pt) {
     holder.style.cssText = 'width:52px;height:52px;display:flex;align-items:center;justify-content:center;background:#1c1913;border:1px solid #33302a;overflow:hidden';
     const spr = drawPropSprite(base + f, 24);
     if (spr) holder.appendChild(spr.canvas);
-    const col = ownColours && ownColours.get(f);
+    const col = frameColors && frameColors.get(f);
     holder.title = 'frame ' + f + ' \u00b7 tile 0x' + (base + f).toString(16).toUpperCase() +
                    (col ? ' \u00b7 ' + col : '');
     cellw.appendChild(holder);
@@ -2329,13 +2346,13 @@ function showItemDetail(pt) {
     // The scythe's block runs on into fourteen other things, so the list is
     // capped -- the point is that the block is not all one item, not to
     // enumerate a sheet.
-    note.innerHTML = 'The rest of this part of the sheet is other things: ' +
+    note.innerHTML = 'The rest of this part of the sheet holds other things, ' +
       strangers.slice(0, 6).map(r => '<b style="color:#fff">' + svEsc(r.name || 'unnamed') + '</b> (frame' +
         (r.frames.length === 1 ? ' ' + r.frames[0] : 's ' + r.frames[0] + ' to ' + r.frames[r.frames.length-1]) + ')'
       ).join(', ') +
       (strangers.length > 6 ? ' and ' + (strangers.length - 6) + ' more' : '') +
-      '. A frame block ends where the 16-tile sheet does, not where the item does; ' +
-      'the names come from 0xF004.';
+      '. A frame block ends where the 16-tile sheet does, not where the item does. ' +
+      'The names come from 0xF004.';
     panel.appendChild(note);
   }
 
@@ -2356,6 +2373,7 @@ function showItemDetail(pt) {
           'No published meaning for this key.</td></tr>') +
         // Who consults it: every script with a has_member, get_field or
         // set_field of this key, the first site in each as a link.
+        fieldElementReadersHTML(f.key, 6).map(line => '<tr><td colspan="2" style="padding:0 0 2px;color:#dcd8cc;font-size:0.75rem">' + line + '</td></tr>').join('') +
         (readers ? '<tr><td colspan="2" style="padding:0 0 6px;color:#dcd8cc;font-size:0.75rem">Read by ' + readers + '</td></tr>'
                  : '<tr><td colspan="2" style="padding:0 0 6px;color:#dcd8cc;font-size:0.75rem">No script in this file reads this entry by name.</td></tr>');
     }
@@ -2390,7 +2408,7 @@ function showItemDetail(pt) {
       const plain = words.replace(/<[^>]+>/g, '');
       fold('struck', 'When struck', plain.charAt(0).toUpperCase() + plain.slice(1),
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">' + words.charAt(0).toUpperCase() + words.slice(1) + '.' +
-        (row.says.filter(s => s !== row.spills)[0] ? ' It shows “' + svEsc(row.says.filter(s => s !== row.spills)[0]) + '”.' : '') + '</div>' +
+        (row.message.filter(s => s !== row.spills)[0] ? ' It shows “' + svEsc(row.message.filter(s => s !== row.spills)[0]) + '”.' : '') + '</div>' +
         '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to Things') + '</div>');
     }
   }
@@ -2418,16 +2436,16 @@ function showItemDetail(pt) {
       fold('aimed', 'Aimed at', words.join(', '),
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">Its prompt is “' + svEsc(t.prompt) + '”, and its answer is ' + srcNum(t.val, propWordHex(t.word)) +
         ', which accepts <b>' + words.map(svEsc).join(', ') + '</b>.' + ((t.word & 0x8000) ? ' Within reach means the user’s square and the eight around it.' : '') + '</div>' +
-        '<div class="sv-note">' + mechLink('target', 'Mechanics › What a Use Can Be Aimed At') + '</div>');
+        '<div class="sv-note">' + mechLink('target', 'Mechanics › What the ‘Use’ Command Can Target') + '</div>');
     }
   }
   // The one thing that damages a square rather than a target.
   {
     let bl = null;
     try { bl = blastRules(); } catch (e) { bl = null; }
-    if (bl && bl.centre && bl.resid === (cls && cls.resid)) {
-      fold('blast', 'When it goes off', bl.centre.v + ' on its square, ' + (bl.edge ? bl.edge.v : '') + ' beside it',
-        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It hands ' + srcNum(bl.centre) + ' to everything on its square, ' +
+    if (bl && bl.center && bl.resid === (cls && cls.resid)) {
+      fold('blast', 'When it goes off', bl.center.v + ' on its square, ' + (bl.edge ? bl.edge.v : '') + ' beside it',
+        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It hands ' + srcNum(bl.center) + ' to everything on its square, ' +
         srcNum(bl.edge) + ' to the four squares beside it and ' + srcNum(bl.corner) + ' to the four corners, as ' +
         (bl.type ? svEsc(damageTypeName(bl.type.v)) + ' (type ' + srcNum(bl.type) + ')' : 'its type') + '.</div>' +
         '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to Things') + '</div>');
@@ -2516,8 +2534,8 @@ function showItemDetail(pt) {
           (ll.length ? ll.map(lockLocationChip).join(' ') : '<span class="inspDim">nothing found</span>') +
           '</div>';
       }).join('') +
-      '<div class="sv-note">' + lockedNoKey + ' further lock numbers have no matching key; ' +
-      'the lockpick, magic or a script opens those locks.</div>');
+      '<div class="sv-note">' + lockedNoKey + ' further lock numbers have no matching key. ' +
+      'The lockpick, magic or a script opens those locks.</div>');
   }
   {
     const all = document.createElement('div');

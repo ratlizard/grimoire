@@ -25,11 +25,11 @@
 
    Whose day the mark follows: a character index into loadSchedules(), or
    null when nobody on the open map keeps a schedule. */
-window.MAP_PATH_WHO = null;
+window.MAP_PATH_CHARACTER = null;
 
-function setMapPathWho(i) {
+function setMapPathCharacter(i) {
   const v = (i === '' || i === null || i === undefined) ? null : +i;
-  window.MAP_PATH_WHO = Number.isFinite(v) ? v : null;
+  window.MAP_PATH_CHARACTER = Number.isFinite(v) ? v : null;
   drawMapMarks();
 }
 
@@ -51,8 +51,8 @@ function refreshPathPicker() {
   sel.innerHTML = here.length
     ? here.map(p => '<option value="' + p.i + '">' + svEsc(p.name) + '</option>').join('')
     : '<option value="">nobody keeps a schedule here</option>';
-  if (!here.some(p => p.i === window.MAP_PATH_WHO)) window.MAP_PATH_WHO = here.length ? here[0].i : null;
-  sel.value = window.MAP_PATH_WHO === null ? '' : String(window.MAP_PATH_WHO);
+  if (!here.some(p => p.i === window.MAP_PATH_CHARACTER)) window.MAP_PATH_CHARACTER = here.length ? here[0].i : null;
+  sel.value = window.MAP_PATH_CHARACTER === null ? '' : String(window.MAP_PATH_CHARACTER);
   sel.disabled = !here.length;
 }
 
@@ -75,11 +75,11 @@ function refreshPathPicker() {
    Only posts on THIS level are joined. A character whose day crosses zones
    leaves the map and comes back, and a line drawn across that gap would
    claim a walk through places this map does not contain. */
-function drawSchedulePath(ctx, TS, cm, colour) {
+function drawSchedulePath(ctx, TS, cm, color) {
   const scheds = loadSchedules();
-  const who = window.MAP_PATH_WHO;
-  const mine = (who !== null && who !== undefined && scheds[who]) ? scheduleDay(who) : [];
-  const here = mine.filter(e => e.mode !== 0 && e.level === cm.level).sort((a, b) => a.hour - b.hour);
+  const character = window.MAP_PATH_CHARACTER;
+  const daySchedule = (character !== null && character !== undefined && scheds[character]) ? scheduleDay(character) : [];
+  const here = daySchedule.filter(e => e.mode !== 0 && e.level === cm.level).sort((a, b) => a.hour - b.hour);
   if (!here.length) return { stops: 0, name: '' };
 
   const hourAmPm = h => h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
@@ -111,7 +111,7 @@ function drawSchedulePath(ctx, TS, cm, colour) {
     for (let i = 0; i < here.length; i++) {
       const a = here[i], b = here[(i + 1) % here.length];
       let leg = null;
-      if (m) { try { leg = findPath(m, a.x, a.y, b.x, b.y, keysCarriedBy(who)); } catch (e) { leg = null; } }
+      if (m) { try { leg = findPath(m, a.x, a.y, b.x, b.y, keysCarriedBy(character)); } catch (e) { leg = null; } }
       legs.push({ pts: leg && leg.length ? leg : [[a.x, a.y], [b.x, b.y]], hour: a.hour, i });
     }
   }
@@ -169,7 +169,7 @@ function drawSchedulePath(ctx, TS, cm, colour) {
      single post has no incoming leg and retains the mark's colour. */
   const ingress = j => (here.length > 1
     ? 'hsl(' + Math.round((here[(j - 1 + here.length) % here.length].hour % 24) * 15) + ' 85% 62%)'
-    : colour);
+    : color);
   for (let j = 0; j < here.length; j++) {
     const e = here[j];
     const hue = ingress(j);
@@ -193,5 +193,5 @@ function drawSchedulePath(ctx, TS, cm, colour) {
   }
   ctx.restore();
 
-  return { stops: here.length, name: characterName(who) };
+  return { stops: here.length, name: characterName(character) };
 }

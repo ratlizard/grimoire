@@ -93,29 +93,19 @@ const APP_FIXES = [
     bug: 'option-p also toggles regeneration',
     sites: [{ at: 0x4448C, was: [0x60000000], asm: ['b @0x446B4            ; the exit the other cases take'] }] },
 
-  { id: 'option-x', kind: 'fix', title: 'Option-x toggles swamp-poison protection on the player, not on character 0',
-    played: 'fork, PowerPC, 30 September 2026: the saved hero has the protection',
-    bug: 'option-x does nothing',
-    sites: [
-      { at: 0x44030,
-        was: [0x887D001A, 0x38000000, 0x54630630, 0x7C630050, 0x3003FFFF, 0x7C001910, 0x9801006F, 0x8801006F, 0x28000000, 0x41820018, 0x38600000],
-        asm: ['lha 3, 0(30)          ; the player', 'slwi 3, 3, 5', 'add 3, 29, 3', 'lbz 3, 26(3)', 'andi. 3, 3, 128       ; flag 31',
-              'beq @0x4406C          ; clear: AddAbility', 'nop', 'nop', 'nop', 'nop', 'lha 3, 0(30)          ; RemoveAbility, on the player'] },
-      { at: 0x4406C, was: [0x38600000], asm: ['lha 3, 0(30)          ; AddAbility, on the player'] }] },
-
   { id: 'drag-northwest', kind: 'fix', title: 'A one-square drag to the north-west slides the thing, as the other seven directions do',
     played: 'fork, PowerPC, 30 September 2026: the paper slides north-west',
     bug: 'A one-square drag to the north-west does nothing',
     sites: [{ at: 0x28838, was: [0x41820064], asm: ['beq @0x28858          ; cursor 22 slides too'] }] },
 
-  { id: 'theft-moved', kind: 'fix', name: 'Suspicious slide', title: 'Moving someone else’s stuff along the ground before taking it no longer gets around the theft check',
+  { id: 'theft-moved', name: 'Suspicious slide',kind: 'fix', title: 'The theft check catches the hero taking someone else’s stuff after moving it along the ground',
     bug: 'Moving an item before taking it avoids the theft check',
     sites: [
       { at: 0x54FFC, was: [0x540007FF], asm: ['andi. 0, 0, 17        ; free if it was free, or carried'] },
       { at: 0x54258, was: [0x28000000, 0x41820010, 0x881E0000, 0x28000008, 0x40820094],
         asm: ['andi. 0, 0, 223       ; the moved bit aside', 'beq @0x5426C', 'cmplwi 0, 8', 'bne @0x542FC', 'nop'] }] },
 
-  { id: 'weight-contents', kind: 'fix', name: 'Low-grain diet', title: 'The scale and the shops weigh an item correctly, instead of adding in whatever an unrelated character or thing is carrying',
+  { id: 'weight-contents', name: 'Low-grain diet',kind: 'fix', title: 'The scale and the shops weigh only the item, not the contents of an unrelated character or thing',
     bug: 'The scale gives wrong weights',
     sites: [{ at: 0x958A4, was: [0x4BFC01B5], asm: ['li 3, 0               ; was bl GetCurInvEncumb'] }] },
 
@@ -133,7 +123,7 @@ const APP_FIXES = [
   // be empty is written as one free slot (flags 0xFF, what the routine's
   // own trimming loop treats as unused), 16 bytes, which is copied like
   // any other and replaces what was there.
-  { id: 'empty-zone-save', kind: 'fix', name: 'Mirage of multitude', title: 'Saving at the clearing of the hidden fortress no longer doubles everything in your inventory',
+  { id: 'empty-zone-save', name: 'Mirage of multitude',kind: 'fix', title: 'Saving at the clearing of the hidden fortress no longer doubles everything in the hero’s inventory',
     bug: 'Saving and reverting around Tavara\u2019s ring duplicates everything carried',
     played: 'Mac OS 8.5, 11 October 2026, the program with the fix alone and with every fix beside the stock one, the hero given stairs to the fortress and to Land King Hall: a save on the island without the fortress, the hall and a save, the island again, and the save then has 36 carried records on the stock program, the hero\u2019s six things twice, and 18 with the fix alone and with every fix. The board\u2019s route on foot (the island and a save, the ring on, the Stronghold, the ring off and a save, Revert To Saved, out by the west edge and onto the fortress\u2019s square): 34 carried on the stock program, 17 with the fix alone. Fork, PowerPC, 12 October 2026: after the save in the hall the stock program\u2019s save still holds the island\u2019s list with the 18 carried records and the fixed ones\u2019 do not; the step back to the island did not land there, so the doubled count is not shown in the fork. Mac OS 8.5, 12 October 2026, ten rounds of the island, a save, the hall, a save: the stock program stops on the tenth return with "Sorry - there has been a fatal error:Out of space for new props!", 288 carried records after four rounds; the program with the fix alone ends the ten with 18',
     sites: [{ at: 0x6EF8, was: [0x54062036], asm: ['bl @cave               ; was slwi 6, 0, 4: the length, 16 a record'] }],
@@ -142,7 +132,7 @@ const APP_FIXES = [
 
   { id: 'books-window', kind: 'fix', title: 'Taking a thing out redraws the window of whatever held it',
     played: 'fork, PowerPC, 30 September 2026: a book handed to Selinus from an open pouch leaves its window',
-    bug: 'You can hand in Sapphire Books in a container again and again',
+    bug: 'The hero can hand in Sapphire Books in a container again and again',
     sites: [{ at: 0x95344,
       was: [0x7FE3FB78, 0x4BFC0435, 0x60000000, 0x7C630734, 0x7FC00734, 0x7C001800, 0x41800028, 0x7FE3FB78, 0x4BFC0419, 0x60000000, 0x38030000, 0x387D0000,
             0x7FC0F050, 0x4BF72615, 0x60000000, 0x48000024, 0x7FE3FB78, 0x4BFC03F5, 0x60000000, 0x7C9E1850, 0x387F0000, 0x4BFC0275, 0x60000000, 0x3BC00000],
@@ -184,7 +174,7 @@ const APP_FIXES = [
   // tail's two middle words swap places, so the timing store has a separate
   // entry, and the party member's branch is taken; the others, and
   // behaviour 146, which enters the tail at its start, are unchanged.
-  { id: 'target-hunger', kind: 'fix', title: 'A companion whose target is gone goes back to following without its hunger set to 30',
+  { id: 'target-hunger', kind: 'fix', title: 'A companion whose target is gone goes back to following, and the game leaves its hunger alone instead of setting it to 30',
     played: 'fork, PowerPC, 30 September 2026: two companions saved at behavior 113 follow again with their food as it was',
     bug: 'Followers\' hunger and poison clear on their own',
     sites: [
@@ -218,7 +208,7 @@ const APP_FIXES = [
   // free: the clrlwi. before sets cr0 for the branch at 0x34170, and both
   // ways from it write r0 before reading it (workbench GRIMOIRE-NOTES,
   // grimoire/roster-art-fnlojp).
-  { id: 'roster-pose', kind: 'fix', title: 'A party member whose type has no figure frame is drawn at its first frame, or blank, instead of the tile before its sheet',
+  { id: 'roster-pose', kind: 'fix', title: 'The game draws a party member whose type has no figure frame at its first frame, or blank, instead of the tile before its sheet',
     played: 'fork, PowerPC, 3 October 2026: Aeneas and Omen forced into the party, Aeneas drawn as his corpse and Omen blank, against a golem and static unpatched',
     sites: [{ at: 0x34160, was: [0x54632036, 0x7C632670, 0x7C630734],
       asm: ['srwi 0, 3, 23          ; 0 for a number, 160 for None, True or False', 'slw 3, 3, 0           ; the frame, or 0 when the shift is 32 or more', 'extsh 3, 3'] }] },
@@ -284,7 +274,7 @@ const APP_FIXES = [
   // its rows 4 pixels apart: DrawTheList offsets each row by the tallest
   // item's height at 28 of the mode plus 4. The code that makes the scroll
   // bar (0x3F9DC on, before its NewControl) counts the rows that fit by the
-  // height alone, the box's bottom less its top of 20 over 20 pixels, so it
+  // height alone, the box's bottom minus its top of 20 over 20 pixels, so it
   // needs 11 rows to fit where 9 are drawn and sets the bar's maximum two
   // short: the last two entries of any list longer than the box are never
   // shown. That is the board's "the last two" missing from Land King Hall's,
@@ -302,13 +292,198 @@ const APP_FIXES = [
     sites: [
       { at: 0x3F9DC, was: [0xA81F001C, 0xA8810048, 0xA8630004, 0x833F0014, 0x7C641850],
         asm: ['lha 4, 28(31)         ; a row’s height', 'addi 0, 4, 4          ; and the gap DrawTheList leaves', 'lha 3, 4(3)',
-              'lwz 25, 20(31)', 'addi 3, 3, -20        ; less the top, 20'] },
+              'lwz 25, 20(31)', 'addi 3, 3, -20        ; minus the top, 20'] },
       { at: 0x402C8, was: [0xA87D001C, 0x7C852050, 0x7C641BD6, 0x7C630734],
         asm: ['lha 3, 28(29)', 'sub 4, 4, 5', 'addi 3, 3, 4          ; the gap', 'divw 3, 4, 3          ; a page'] }] },
 
+  // TCachedSegFiles::RefindSegment, which CompileAIFile calls after it writes
+  // an imported combat AI into User Custom Data, freed the cached copy of
+  // entry 0 of the segment's page instead of the segment's, and kept the last
+  // archive it found the segment in, the oldest, so the scenario's default for
+  // user slots 1 to 7 came back. The first site finds the entry before the
+  // free; the second stops at the first archive found, the newest, as AddFile
+  // orders them (the workbench's bugs.md, Found reading the program's archive
+  // code).
+  { id: 'ai-import', kind: 'fix', title: 'A combat AI imported in the user behavior editor is used at once, instead of after the game starts again, and replaces the old copy in memory',
+    bug: 'A combat AI imported into user slots 1 to 7 is not used until the game is started again, and a recompiled AI can keep its old copy',
+    sites: [
+      { at: 0x7D9BC,
+        was: [0x801B0000, 0x28000000, 0x41820020, 0x807C0000, 0x38A00001, 0x809B0000, 0x4BFFEF7D, 0x60000000,
+              0x38000000, 0x901B0000, 0x57C01D78, 0x7F7B0214, 0x38000000, 0x901B0004],
+        asm: ['rlwinm 0, 30, 3, 21, 28 ; the entry of this segment', 'add 27, 27, 0', 'lwz 0, 0(27)', 'cmplwi 0, 0',
+              'beq @0x7D9EC', 'lwz 3, 0(28)', 'li 5, 1', 'lwz 4, 0(27)', 'bl @0x7C950            ; TCache::Free',
+              'nop', 'li 0, 0', 'stw 0, 0(27)', 'li 0, 0', 'stw 0, 4(27)          ; no archive yet'] },
+      { at: 0x7DA74,
+        was: [0x7FE00734, 0x5403103A, 0x38030004, 0x7C1C002E, 0x901B0004],
+        asm: ['slwi 3, 31, 2', 'addi 3, 3, 4', 'lwzx 0, 28, 3', 'stw 0, 4(27)', 'b @0x7DA98            ; the first found, the newest'] }] },
+
+  // SCombatAIEntry::CompileLine built the digits of a weight after `#` in
+  // byte 0 of the entry, so the value wrapped at 256: #300 compiled as 44
+  // and #356 as 100, and only what was left over 100 gave "Weight higher
+  // than 100%" (the workbench's bugs.md, Found reading the combat AI's
+  // compiler; seen on Mac OS 8.5). The loop's store is a call to a cave.
+  // When the sum, still a full word in r0, passes 100, the cave stores 101
+  // instead, every later digit leaves 101 there, and the test after the
+  // loop gives the error. The routine saved its return address on entry,
+  // so the bl is free.
+  { id: 'ai-weight', kind: 'fix', title: 'A combat AI file with a weight over 100 gives an error when imported, instead of compiling with the weight wrapped round (300 as 44)',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, a file with #300 imported in the user behavior editor gave “Weight higher than 100%”, where the stock program compiled it as 44',
+    bug: 'An imported combat AI weight over 255 wraps round instead of giving an error',
+    sites: [{ at: 0xAE4BC, was: [0x981F0000], asm: ['bl @cave              ; was stb 0, 0(31): the weight so far'] }],
+    cave: ['cmplwi 0, 100', 'ble @ok', 'li 0, 101             ; over 100, and stays over', 'ok:', 'stb 0, 0(31)', 'blr'] },
+
+  // SCombatAIEntry::CompileLine counted the modifiers of a chain such as
+  // enemy.ByStrongest.ByRange.Pick and gave "Maximum number of modifiers
+  // exceeded" at the fourth, though a compiled line has four bytes for
+  // them, 4 to 7, the evaluator (CalculateObject) applies four and
+  // DecompileObject reads four (bugs.md, as above). The modifier goes into
+  // byte 3 plus the count, so a fourth fills byte 7. The test is for a fifth.
+  { id: 'ai-mods', kind: 'fix', title: 'A combat AI file may chain four modifiers, as a compiled rule has room for, instead of three',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, a file with enemy.ByStrongest.ByRange.ByDamage.Pick imported in the user behavior editor compiled, and the rule the game wrote has all four modifiers, where the stock program gave “Maximum number of modifiers exceeded”. With status-wrap, a fifth modifier still gave that error',
+    bug: 'An imported combat AI file with four modifiers in a chain gives "Maximum number of modifiers exceeded"',
+    sites: [{ at: 0xAE72C, was: [0x2C000004], asm: ['cmpwi 0, 5            ; was cmpwi 0, 4, so a fifth modifier is the error'] }] },
+
+  // SCombatAIEntry::CalculateObject's Random and Pick steps choose the
+  // highest of a target's mark plus a roll of 0 to 63 or 0 to 15, but cut
+  // the running best in r23 to a byte, both where it is stored and where
+  // it is compared. A target still marked 255 (next to the creature after
+  // ByRange, unhurt after a health ordering) plus any roll above 0 wrapped
+  // to a small number, so every later target beat it and the choice was
+  // the last one in the monster list (bugs.md, Found by grimoire only).
+  // At each of the four sites the full sum, at most 255 + 63, stays in the
+  // register, and the signed compare after it already handles that range.
+  { id: 'ai-pick', kind: 'fix', title: 'A creature or companion whose combat AI picks among several equally good targets picks one at random, instead of always the last in the list',
+    played: 'Mac OS 8.5, PowerPC, 29 October 2026, a ruffian at Attack Nearest hatched beside RULEZ TRADEMARK, Hector and Timon. The stock program swung at Timon in all five runs, once each, and the ruffian then walked off. With the fix it swung at RULEZ TRADEMARK first in five runs and at Hector in one, swung again every turn and turned from one to the other within a run',
+    bug: 'A creature or companion choosing among several adjacent or unhurt targets picks the same one each time, by list order',
+    sites: [
+      { at: 0xAF630, was: [0x56E0063E], asm: ['mr 0, 23              ; was clrlwi 0, 23, 24, the best so far for Random'] },
+      { at: 0xAF65C, was: [0x5477063E], asm: ['mr 23, 3              ; was clrlwi 23, 3, 24'] },
+      { at: 0xAF6CC, was: [0x56E6063E], asm: ['mr 6, 23              ; was clrlwi 6, 23, 24, the best so far for Pick'] },
+      { at: 0xAF6F8, was: [0x54B7063E], asm: ['mr 23, 5              ; was clrlwi 23, 5, 24'] }] },
+
+  // GetToken copied a word of an AI file's line into its caller's buffer
+  // with no bound. CompileLine's buffer at 77(1) has 67 bytes before the
+  // registers it saved and CompileHeader's at 56(1) 64, so a long word ran
+  // over the frame: one of 200 letters in an imported file stopped the Mac
+  // with the letters in the program counter (bugs.md, as above). GetToken
+  // is a leaf with its return address in the link register, so both sites
+  // branch, not call. The first sets r7, free in the routine, to the 64th
+  // byte of the buffer. The second moves the copy's pointer on only while
+  // it is below r7, so a longer word is cut to 63 characters, the line
+  // goes on after it, and the 0 the routine ends with is the 64th byte.
+  { id: 'ai-token', kind: 'fix', title: 'A very long word in an imported combat AI file is cut short, instead of crashing the Mac',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with status-wrap, a file with a word of 200 letters gave “Unknown action” and the game went on, where the stock program stopped the Mac. A file whose first word, in place of NAME, has 200 letters gave “Expecting Script NAME”, where the stock program stopped the Mac the same way',
+    bug: 'A very long word in an imported combat AI file crashes the Mac',
+    sites: [{ at: 0xADE38, was: [0x38000000], asm: ['b @cave               ; was li 0, 0'] },
+            { at: 0xADF54, was: [0x38840001], asm: ['b @next               ; was addi 4, 4, 1'] }],
+    cave: ['addi 7, 4, 63         ; the last byte a word may use', 'li 0, 0', 'b @0xADE3C',
+           'next:', 'cmplw 4, 7', 'bge @full', 'addi 4, 4, 1', 'full:', 'b @0xADF58'] },
+
+  // TTextOut::SpewText wraps a status message onto new rows with
+  // StyledLineBreak. Its textOffset was 1 only on the pass that continues
+  // the last row, and 0 on every fresh row. Inside Macintosh gives a
+  // nonzero offset as the mark of a line's first run, the case in which a
+  // word wider than the line is broken at a character. With 0 such a word
+  // broke at offset 0, so the routine added an empty row and tried the
+  // same word again, without end: a word of 60 letters in an imported AI
+  // file's error line blanked the status pane and stopped the game on
+  // Mac OS 8.5, stock and patched alike (bugs.md, Found reading the combat
+  // AI's compiler). The offset is 1 on every pass, so a word too wide for
+  // a fresh row is split at the last character that fits.
+  { id: 'status-wrap', kind: 'fix', title: 'A word too wide for the status pane is split across lines, instead of stopping the game',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, an imported AI file’s error line with a word of 60 letters showed split over two rows, where the stock program blanked the pane and stopped answering',
+    bug: 'A status message with a word wider than the pane stops the game',
+    sites: [{ at: 0x39964, was: [0x38000000], asm: ['li 0, 1               ; textOffset: the first run on a row'] }] },
+
+  // TInteraction::GetResponse lays the conversation's topics out in rows and
+  // cuts the list at the first row that would pass the bottom of the area.
+  // The cut comes after the move to that row, so the typing field, which
+  // follows the last topic, was placed on the row that does not fit; a
+  // field too wide for the last row went to a new row with no test either.
+  // Twenty topics filled three rows and put the field on a fourth, under
+  // them and against the description below (Mac OS 8.5, 28 October 2026,
+  // with fifteen topics added to Alaric's description). Now a field whose
+  // row passes the bottom, or that would wrap to such a row, goes where the
+  // last topic was and that topic is left out, until the field fits. The
+  // routine already leaves out the topics of a row that does not fit.
+  // r28 and r24 are the field's left and top, r27 the count of topics, and
+  // 126(1) the area (top, left, bottom, right).
+  { id: 'conv-field', kind: 'fix', title: 'The conversation’s typing field stays inside the conversation, instead of going under a full list of topics',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with fifteen topics added to Alaric’s description the field showed on the third row in place of the last two topics, and “job” typed into it had his answer, where the stock program put the field on a fourth row under the area. Alaric’s shipped conversation showed as in the stock program',
+    bug: 'With a long list of topics, the typing field is drawn below the conversation area',
+    sites: [{ at: 0x3EF2C, was: [0x7EA30734], asm: ['b @cave               ; was extsh 3, 21'] }],
+    cave: ['check:', 'add 3, 24, 22         ; the field’s row', 'lha 4, 130(1)', 'cmpw 3, 4', 'bgt @drop',
+           'add 3, 28, 21', 'addi 3, 3, 128', 'lha 4, 132(1)', 'cmpw 3, 4', 'ble @done',
+           'add 3, 24, 22         ; a new row', 'add 3, 3, 22', 'lha 4, 130(1)', 'cmpw 3, 4', 'ble @wrap',
+           'drop:', 'cmpwi 27, 0', 'ble @done',
+           'addi 27, 27, -1       ; the last topic left out', 'slwi 3, 27, 3', 'addi 3, 3, 142',
+           'lhax 24, 1, 3', 'addi 3, 3, 2', 'lhax 28, 1, 3', 'b @check',
+           'wrap:', 'lha 28, 128(1)', 'add 24, 24, 22', 'done:', 'b @0x3EF54'] },
+
+  // TGameViewer::MagicMap, the overload the automap draws with, paints a
+  // thing on the map over the squares its picture spans. It sets one extent
+  // from the tile flag 0x80, two squares wide, and another from 0x40, two
+  // tall, and swaps them for a turned thing. The column loop reads the first
+  // at 120(1), and the row loop read the same one, so a wide thing painted a
+  // 2-by-2 block and a tall one a single square. The row loop reads the
+  // second, at 118(1).
+  { id: 'automap-span', kind: 'fix', title: 'Things two squares wide or tall show on the automap in their true shape',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with two things beside the hero given pictures two squares wide and two squares tall, the automap showed them as 2 by 1 and 1 by 2, where the stock program showed a 2-by-2 block and a single square',
+    bug: 'On the automap a thing two squares wide shows as a 2-by-2 block, and one two squares tall as one square',
+    sites: [{ at: 0x61084, was: [0xA8010078], asm: ['lha 0, 118(1)         ; was lha 0, 120(1): the rows’ extent'] }] },
+
+  // TTextOut::More puts the "more" button 5 pixels past the end of the last
+  // row's text and stops its right edge at the pane's right edge minus 2,
+  // cutting it to 32 pixels when there is more room. Nothing tests for a row
+  // whose text comes within 37 pixels of the edge, so the button narrows to
+  // a sliver, and past the edge its width is negative and it is not drawn at
+  // all. The right edge becomes the lesser of left plus 32 and the pane's
+  // edge, and the left edge then comes 32 to the left of it, so the button is
+  // always 32 wide and against the edge, over the end of the text, when the
+  // row is full. 72(1) is the button's rectangle (top, left, bottom, right),
+  // and r0 is the pane's edge minus 2.
+  { id: 'more-button', kind: 'fix', title: 'The status pane’s "more" button is always full width, instead of narrowing to nothing after a full row',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with the map’s description cut into twenty pieces that move the row’s end toward the edge a few pixels at a pause, the button stayed 32 pixels wide against the edge and a click on it went on, where the stock program narrowed it to a sliver and then drew none, and the same click did nothing. Pauses with room to spare showed the same pixels in both',
+    bug: 'After a row of text that reaches the status pane’s right edge, the "more" button is a sliver or is not drawn at all',
+    sites: [{ at: 0x39B8C, was: [0xB001004E, 0xA801004E, 0xA8840002, 0x7C040050, 0x2C000020, 0x40810010, 0xA881004A, 0x38040020, 0xB001004E],
+      asm: ['lha 4, 74(1)          ; was sth 0, 78(1): the left edge', 'addi 4, 4, 32', 'cmpw 0, 4', 'ble @0x39BA0',
+            'mr 0, 4               ; at most 32 wide', 'sth 0, 78(1)', 'li 4, 32', 'sub 4, 0, 4', 'sth 4, 74(1)          ; and 32 wide'] }] },
+
+  // TCachedSegFiles::RemoveFile skipped an entry of the removed archive that
+  // had no cached copy, so opening another saved game during play left it on
+  // the freed archive. The branch goes to the clearing instead of past it.
+  { id: 'open-during-play', kind: 'fix', title: 'Opening another saved game during play clears every reference to the game it closes, so nothing is read from memory it freed',
+    bug: 'Opening another saved game during play leaves the archive table on freed memory',
+    sites: [{ at: 0x7DC54, was: [0x41820028], asm: ['beq @0x7DC6C          ; no cached copy: clear the entry all the same'] }] },
+
+  // GetGlobStr, global string 1, the part of the day the scripts' greetings
+  // print after "Good ": "night" before 4 and from 22, "morning" before 12,
+  // and then "afternoon" below 6, which no hour of 12 to 21 is, so every
+  // greeting from noon to ten at night has "evening". The 6 becomes 18 (the
+  // workbench's bugs.md, Found reading the program's script callbacks).
+  { id: 'afternoon', kind: 'fix', title: 'People say "Good afternoon" from noon to six, instead of "Good evening" all afternoon',
+    bug: '"Good afternoon" is never printed',
+    played: 'fork, PowerPC and 68K, 24 October 2026, from the pinned save, with sixteen option-t presses to 13:00, a jump to the square south of Laodice in zone 13 and Talk. The stock program has "Good evening, citizen." and the fix alone and every fix "Good afternoon, citizen." At 19:00 the stock program and the fix alone both have "Good evening, citizen." Not played on Mac OS',
+    sites: [{ at: 0x93D70, was: [0x2C1F0006], asm: ['cmpwi 31, 18          ; was 6'] }] },
+
+  // GMSIdle, run at every idle, calls GMSTune::Idle to learn whether the spot
+  // tune has ended, and then resumes the ambient tune in either case, on the
+  // one tune player. So a spot tune is cut off at the next idle, and the
+  // ambient tune starts again from where it paused at every idle after (a
+  // stutter). No shipped script plays a spot tune (script call 0xD5,
+  // cbPlayMusic), so a player meets it only in a mod. With the fix the routine
+  // returns while the spot plays, and the ambient tune resumes once the spot
+  // has ended (the workbench's bugs.md, Found reading the program's music and
+  // list code).
+  { id: 'spot-tune', kind: 'fix', title: 'A tune a script plays once, over the zone’s music, plays to its end before the zone’s music comes back',
+    bug: 'A spot tune may be cut off by the ambient tune at the next idle',
+    played: 'fork, PowerPC and 68K, 24 October 2026, with Cythera Data changed so that zone 13’s entry script plays its tune as a spot tune (script call 0xD5 for 0xD6), and a jump into zone 13 from the pinned save, with the tune trace on. On the stock program the ambient tune is queued over the spot tune one tick after it starts and again at every idle (100,615 times in the 68K run). With the fix alone and with every fix the spot tune plays through, and on PowerPC the ambient tune comes back two ticks after the spot tune’s 159 seconds end. Not played on Mac OS',
+    sites: [{ at: 0x1ACC8, was: [0x41820018], asm: ['beq @0x1AD0C          ; the spot still playing, so the ambient tune stays paused'] }] },
+
   // ---- New code ---------------------------------------------------------------
-  { id: 'containers-weight', kind: 'fix', name: 'No free lunchbox', title: 'A thing put in a container someone carries counts against that carrier’s weight too',
-    bug: 'Containers let you carry any weight',
+  { id: 'containers-weight', name: 'No free lunchbox',kind: 'fix', title: 'A thing put in a container someone carries counts against that carrier’s weight too',
+    played: 'fork, 68K, 22 October 2026, alone: the hero’s Body set to 1 by an edit, a sack in the pack opened by a double-click and a flatbread dragged from the floor into it; with the fix "There isn’t room." and the bread stays on the floor, against the bread put in the sack unpatched; with the hero’s Body as it was, the fix lets the bread in. The PowerPC half was not played, nor Mac OS',
+    bug: 'Containers let the hero carry any weight',
     sites: [{ at: 0x5423C, was: [0x40810018], asm: ['b @cave               ; was ble 0x54254'] }],
     cave: [
       'bgt @fail              ; over the container’s limit',
@@ -379,9 +554,9 @@ const APP_FIXES = [
   // click was on a thing (312(1)), to the square the click named (318(1),
   // 316(1), which the branch passes to the Attack of a square), and ends
   // as before, which disarms the command: press the key again to go on.
-  { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach makes the hero step toward it, instead of doing nothing; so does a touch spell, which is still canceled',
+  { id: 'walk-to', kind: 'fix', title: 'A command clicked on something out of reach makes the hero step toward it, instead of doing nothing, and so does a touch spell, which the game still cancels',
     played: 'fork, PowerPC, 30 September 2026: Use from the popup and by U, Take by G; Paralyze on a student two squares off steps once and cancels, as the unpatched game cancels without the step',
-    bug: 'Touch spells only work on someone next to you',
+    bug: 'Touch spells only work on someone next to the caster',
     sites: [{ at: 0x50E5C, was: [0x38600000], asm: ['b @cave               ; was li 3, 0 (and blr)'] },
             { at: 0x5A9AC, was: [0x2C0000FF], asm: ['cmpwi 0, -1           ; the start square, as FindPath marks it'] },
             { at: 0x272CC, was: [0x418200AC], asm: ['b @useKey             ; was beq 0x27378'] },
@@ -414,27 +589,62 @@ const APP_FIXES = [
   // the PDF), so past about 2,730 rows LSetCell fails and the new lines draw
   // as blank rows, 453's "lots of big empty spaces". Both of AppendEntry's
   // LAddRow calls go through a cave now that, with 2,688 rows or more, first
-  // deletes the list's top row, the oldest line, and moves the row about to
-  // be added, and the caller's copy of it at 92(1) (156 from the cave's
-  // frame), up by one. The journal file has every entry; only the window
+  // deletes the list's top entry, its header row and every text row under it
+  // (the rows whose cell has 255 in its second byte), and moves the row about
+  // to be added, and the caller's copy of it at 92(1) (172 from the cave's
+  // frame), up by as many. Until 28 October 2026 it deleted one row, which
+  // could leave text rows with no header above them, and a click on one made
+  // TJournal::MouseRoutine walk up past row 0 looking for its header. A
+  // cell's data is at its offset in cellArray (86 of the list, a halfword a
+  // cell, the top bit the selection) into the cells handle (80); the count
+  // stops at the last row. The cave's arguments go at 56 and up, above the
+  // parameter area, since a callee may store its arguments there. The
+  // journal file has every entry; only the window
   // shows the newest 2,688 lines. The call replaced was a glue call, after
   // which AppendEntry reloads its TOC from 20(1); for the first LAddRow
   // nothing has stored it there yet, so the cave does, as a glue stub would.
   // Packing a row into fewer bytes was the other design, and only moves the
   // limit.
-  { id: 'journal-rows', kind: 'fix', title: 'In a long journal the newest lines stay readable, the oldest dropped from the window, instead of new ones drawn blank',
+  { id: 'journal-rows', kind: 'fix', title: 'In a long journal every row in the window is readable and the oldest entries leave it, instead of the oldest rows showing the wrong day, speaker and no text',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, with a save given 1,500 journal notes, about 3,000 rows, the window began at note 157 and every row read right to note 1,500, and a note taken then showed at the end, where the stock program drew its top rows with "Day 0", the cave as the speaker and no text, and its later rows right',
     bug: 'The journal breaks when it gets too long',
     sites: [
       { at: 0x78684, was: [0x4804A4B5], asm: ['bl @cave              ; was bl LAddRow, the entry’s header'] },
       { at: 0x78784, was: [0x4804A3B5], asm: ['bl @cave              ; was bl LAddRow, a line of its text'] }],
-    cave: ['stw 2, 20(1)          ; where the caller reloads its TOC from', 'mflr 0', 'stw 0, 8(1)', 'stwu 1, -64(1)',
-           'stw 3, 40(1)', 'stw 4, 44(1)', 'stw 5, 48(1)',
-           'lwz 6, 0(5)', 'lha 6, 76(6)          ; the rows, dataBounds.bottom', 'cmpwi 6, 2688', 'blt @add',
-           'li 3, 1', 'li 4, 0', 'bl @0xC2B20            ; LDelRow(1, 0, list): the oldest line', 'lwz 2, 20(1)',
-           'lwz 4, 44(1)', 'addi 4, 4, -1', 'stw 4, 44(1)',
-           'lha 7, 156(1)         ; the caller’s row', 'addi 7, 7, -1', 'sth 7, 156(1)',
-           'add:', 'lwz 3, 40(1)', 'lwz 4, 44(1)', 'lwz 5, 48(1)', 'bl @0xC2B38            ; LAddRow', 'lwz 2, 20(1)',
-           'addi 1, 1, 64', 'lwz 0, 8(1)', 'mtlr 0', 'blr'] },
+    cave: ['stw 2, 20(1)          ; where the caller reloads its TOC from', 'mflr 0', 'stw 0, 8(1)', 'stwu 1, -80(1)',
+           'stw 3, 56(1)', 'stw 4, 60(1)', 'stw 5, 64(1)',
+           'lwz 6, 0(5)', 'lha 7, 76(6)          ; the rows, dataBounds.bottom', 'cmpwi 7, 2688', 'blt @add',
+           'li 8, 1               ; the header row',
+           'count:', 'cmpw 8, 7', 'bge @del              ; the last row',
+           'slwi 9, 8, 1', 'addi 9, 9, 86', 'lhzx 9, 6, 9          ; the cell’s offset, cellArray', 'andi. 9, 9, 32767',
+           'lwz 10, 80(6)', 'lwz 10, 0(10)', 'add 10, 10, 9', 'lbz 10, 1(10)', 'cmpwi 10, 255         ; a text row', 'bne @del',
+           'addi 8, 8, 1', 'b @count',
+           'del:', 'stw 8, 68(1)', 'mr 3, 8', 'li 4, 0', 'lwz 5, 64(1)', 'bl @0xC2B20            ; LDelRow(n, 0, list): the oldest entry', 'lwz 2, 20(1)',
+           'lwz 8, 68(1)', 'lwz 4, 60(1)', 'subf 4, 8, 4', 'stw 4, 60(1)',
+           'lha 7, 172(1)         ; the caller’s row', 'subf 7, 8, 7', 'sth 7, 172(1)',
+           'add:', 'lwz 3, 56(1)', 'lwz 4, 60(1)', 'lwz 5, 64(1)', 'bl @0xC2B38            ; LAddRow', 'lwz 2, 20(1)',
+           'addi 1, 1, 80', 'lwz 0, 8(1)', 'mtlr 0', 'blr'] },
+
+  // TInventoryWindow::CanUseBackingStore makes an 8-bit GWorld the size of
+  // the window at +20 the first time a bag or character window draws, and
+  // nothing frees it: ~TInventoryWindow and TWindow::~TWindow never call
+  // DisposeGWorld, and closing a window deletes the object, so every opening
+  // leaks one. On Mac OS 8.5 with the game's 13 MB partition the hero's
+  // window opened and closed about 95 times brought "Sorry - out of memory"
+  // (bugs.md, 28 October 2026). The destructor's test of this at 0x310E0
+  // can never be true there, since the routine has already used this, so
+  // its two words call a cave that disposes of the GWorld at +20, when there
+  // is one, and clears the field. The cave runs before the TWindow
+  // destructor, which reads r0 and r3 again; DisposeGWorld is called at its
+  // glue, and the TOC is reloaded from the cave's frame after it.
+  { id: 'window-leak', kind: 'fix', title: 'A closed bag or character window frees its drawing buffer, instead of a hundred openings running the game out of memory',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, the hero’s window opened and closed 150 times with no alert, where the stock program ran out of memory near the 95th',
+    bug: 'Opening and closing bag or character windows about a hundred times runs the game out of memory',
+    sites: [{ at: 0x310E0, was: [0x281E0000, 0x4182001C], asm: ['bl @cave              ; was cmplwi 30, 0, which is never 0 here', 'nop                   ; was bt 2, 0x31100'] }],
+    cave: ['mflr 0', 'stw 0, 8(1)', 'stwu 1, -64(1)',
+           'lwz 3, 20(30)         ; the backing-store GWorld', 'cmplwi 3, 0', 'beq @none',
+           'bl @0xC2F70            ; DisposeGWorld', 'lwz 2, 20(1)', 'li 0, 0', 'stw 0, 20(30)',
+           'none:', 'addi 1, 1, 64', 'lwz 0, 8(1)', 'mtlr 0', 'blr'] },
 
   // Both TActiveMonster constructors store ObjToMonst's answer as the new
   // creature's unit (4 of the object) and nothing checks it; for a prop
@@ -508,7 +718,7 @@ const APP_FIXES = [
   // constant 0, which the first build of this did and so read record 0,
   // the night guards keeping the hero's unit until a trace showed r12 at
   // 0x3FF; add and a displacement load take r0 as the register it is.
-  { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit is given one, the night guard a guard’s, instead of reading its stats and corpse from nowhere',
+  { id: 'unit-guard', kind: 'fix', title: 'A creature whose type has no unit gets one (the night guard gets a guard’s), instead of reading its stats and corpse from nowhere',
     played: 'fork, PowerPC, 30 September 2026: Odemia’s night guards hatch with a guard’s stats and side and leave a guard’s body, where they had 1 health and left none',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [
@@ -590,7 +800,7 @@ const APP_FIXES = [
            'cmp:', 'cmpw 0, 3', 'blr     ; both routines saved LR on entry'] },
 
   { id: 'widget-renumber', kind: 'fix', title: 'A scripted window’s buttons follow their owner to its new number on a zone change',
-    bug: 'You have to reopen the strange device after changing zones',
+    bug: 'The hero has to reopen the strange device after changing zones',
     sites: [{ at: 0x87B94, was: [0x4E800020], asm: ['b @cave               ; was a bare blr'] }],
     cave: ['lwz 6, 4(3)           ; the owner copy', 'clrlwi 7, 6, 16', 'cmpw 7, 4             ; the old number', 'bnelr',
            'rlwimi 6, 5, 0, 16, 31 ; the new one', 'stw 6, 4(3)', 'blr'] },
@@ -615,22 +825,36 @@ const APP_FIXES = [
   // lock and every path through it, music-revert's too, are unchanged.
   // Read, not reproduced (no moved block was forced): the board's "wrong instruments, distorted timing"
   // after long play fits it and nothing here shows it is the cause.
-  { id: 'music-lock', kind: 'fix', title: 'The music a zone starts is held in place before the old tune is let go, so it is never played from memory that has moved',
+  { id: 'music-lock', kind: 'fix', title: 'The game holds the music a zone starts in place before it lets the old tune go, so it never plays music from memory that has moved',
     bug: 'Music stops after a revert, and MIDI gets corrupted in long play',
     sites: [{ at: 0x1BBE4, was: [0x4BFFEF75], asm: ['b @hold               ; was bl GMSPlayAmbient'] }],
     cave: ['hold:', 'lwz 3, -30396(2)      ; the cache, as GMSPlayAmbient finds it', 'lwz 3, 0(3)', 'lwz 3, 0(3)', 'mr 4, 31              ; the tune\'s data',
            'bl @0x7CAA0            ; TCache::Lock', 'mr 3, 31', 'bl @0x1AB58            ; GMSPlayAmbient',
            'lwz 3, -30396(2)', 'lwz 3, 0(3)', 'lwz 3, 0(3)', 'mr 4, 31', 'bl @0x7CB28            ; TCache::Unlock', 'b @0x1BBE8'] },
 
-  { id: 'hero-square', kind: 'fix', title: 'The hero stays on its square in the creature grid, so a follower on it no longer hides the hero from a drag',
-    bug: 'You cannot drag the player onto a follower\'s square',
+  // TViewer::SetStage empties the creature grid and fills it again from the
+  // neighborhood on every turn and redraw. Its two stores (0x65A18, four cells
+  // of the finer grid, and 0x65B40, the square) write over the cell's old
+  // value, so the creature later in the list ends up in the square. The first
+  // form of this fix changed only SetMonstStage, the store of a single step,
+  // which the next SetStage undid; on 68K it was played three times and never
+  // showed (cross-check of 28 October 2026). The two SetStage stores now pass
+  // over a cell with the player's creature in it.
+  { id: 'hero-square', kind: 'fix', title: 'The hero stays in its square of the creature grid when a follower stands on it, so a press there picks up the hero',
+    played: 'Mac OS 8.5, PowerPC, 28 October 2026, from RULEZ TRADEMARK with Hector set to wait and the hero walked onto his square, Look there gave “you see RULEZ TRADEMARK” and a press dragged east walked the hero, where the stock program gave “you see Hector” and the drag moved nobody. With the hero elsewhere both gave Hector',
+    bug: 'The player cannot drag the hero onto a follower\'s square',
     sites: [
       { at: 0x6B14C, was: [0x40820008], asm: ['b @one                ; was bne 0x6B154'] },
-      { at: 0x6B020, was: [0x40820010], asm: ['b @four               ; was bne 0x6B030'] }],
+      { at: 0x6B020, was: [0x40820010], asm: ['b @four               ; was bne 0x6B030'] },
+      { at: 0x65A18, was: [0x7FBC1B2E], asm: ['b @stage4             ; was sthx 29, 28, 3'] },
+      { at: 0x65B40, was: [0xB3A40000], asm: ['b @stage1             ; was sth 29, 0(4)'] }],
     cave: ['one:', 'beq @take1             ; empty: as before', 'lwz 5, -30356(2)      ; the player', 'lha 5, 0(5)', 'cmpw 4, 5', 'bne @done1',
            'take1:', 'sth 4, 0(23)', 'done1:', 'b @0x6B154',
            'four:', 'beq @take4', 'lwz 5, -30356(2)', 'lha 5, 0(5)', 'cmpw 4, 5', 'bne @done4',
-           'take4:', 'extsh 0, 31', 'slwi 0, 0, 1', 'sthx 4, 30, 0', 'done4:', 'b @0x6B030'] },
+           'take4:', 'extsh 0, 31', 'slwi 0, 0, 1', 'sthx 4, 30, 0', 'done4:', 'b @0x6B030',
+           'stage4:', 'add 4, 28, 3          ; the cell', 'lha 0, 0(4)', 'lwz 3, -30356(2)      ; the player', 'lha 3, 0(3)', 'cmpw 0, 3',
+           'beq @kept4            ; the player\'s: left as it is', 'sth 29, 0(4)', 'kept4:', 'b @0x65A1C',
+           'stage1:', 'lha 0, 0(4)', 'lwz 3, -30356(2)', 'lha 3, 0(3)', 'cmpw 0, 3', 'beq @kept1', 'sth 29, 0(4)', 'kept1:', 'b @0x65B44'] },
 
   { id: 'spell-glow', kind: 'fix', name: 'Magical misdirection', title: 'The game draws a creature’s spell glow on the creature, not on an unrelated thing that shares its number',
     bug: 'A lich\'s spell glow and lightning come out of a chair',
@@ -646,33 +870,24 @@ const APP_FIXES = [
   // the portrait's GWorld, the current port, whose txSize is the halfword at
   // 74; r23 is dead once the routine has set its port, and stores the size to
   // put back. The imports are called at their glue: TextWidth 0xC2AC0,
-  // TextSize 0xC35B8, CharExtra 0xC3630; 0xB6CE8 is strlen.
-  { id: 'name-fit', kind: 'fix', name: 'Too long; didn\u2019t shrink', title: 'A long name under a conversation portrait shrinks until it fits, instead of squeezing until its letters overlap',
-    played: 'Mac OS 8.5 in Infinite Mac, applied alone',
+  // TextSize 0xC35B8, CharExtra 0xC3630; 0xB6CE8 is strlen. The limit is 90
+  // pixels: a name centred on x 64 then ends by 110 with its outline, short
+  // of the clears from 111 (name-clear) and 112 (speech-clear). It was 104
+  // until 21 October 2026, which reached 116 and lost its end to both, and
+  // to the shipped clears.
+  { id: 'name-fit', name: 'Too long; didn’t shrink',kind: 'fix', title: 'A long name under a conversation portrait shrinks until it fits, instead of squeezing until its letters overlap',
     bug: 'A long name under a conversation portrait squeezes until its letters overlap',
     sites: [
       { at: 0x3DE90, was: [0x38800054, 0x4BFFDAA1], asm: ['b @fit                ; was li 4, 84', 'nop                   ; was bl FitText'] },
       { at: 0x3DF68, was: [0x38600000, 0x480856C5, 0x80410014], asm: ['b @restore            ; was li 3, 0', 'nop                   ; was bl CharExtra', 'nop                   ; was lwz 2, 20(1)'] }],
     cave: ['fit:', 'lha 23, 74(28)        ; the size, to put back after',
            'measure:', 'addi 3, 1, 56', 'bl @0xB6CE8', 'mr 5, 3', 'addi 3, 1, 56', 'li 4, 0', 'bl @0xC2AC0', 'lwz 2, 20(1)',
-           'extsh 3, 3', 'cmpwi 3, 104', 'ble @fits              ; clear of the other speaker\'s text',
+           'extsh 3, 3', 'cmpwi 3, 90', 'ble @fits               ; ends by x 110, clear of every clear and the speech',
            'lha 3, 74(28)', 'cmpwi 3, 9', 'ble @squeeze', 'addi 3, 3, -1', 'bl @0xC35B8', 'lwz 2, 20(1)', 'b @measure',
-           'squeeze:', 'addi 3, 1, 56', 'li 4, 104', 'bl @FitText__FPCcs   ; at 9 points and still too wide: the shipped squeeze',
+           'squeeze:', 'addi 3, 1, 56', 'li 4, 90', 'bl @FitText__FPCcs    ; at 9 points and still too wide: the shipped squeeze',
            'fits:', 'b @0x3DE98',
            'restore:', 'li 3, 0', 'bl @0xC3630', 'lwz 2, 20(1)', 'mr 3, 23', 'bl @0xC35B8', 'lwz 2, 20(1)', 'b @0x3DF74'] },
 
-  // In TConversation::ShowTalking. The speech is cleared by copying the
-  // background over one rectangle, SetRect(103, 12, 488, 276) offset 12
-  // across, and the same rectangle, copied to 2136(31) with its bottom set
-  // to 80, is the box the text is laid out in from its left edge at 115.
-  // Argos's P, R, j, Y and g draw up to a twelfth of an em left of the pen,
-  // 1.9 pixels for P in the speech's 22 points (TxSt 134), so a line that
-  // began with one left that sliver of ink outside the next clear (seen in
-  // the Spanish on 29 September 2026; the English does it too). The clear
-  // now starts three pixels further left, at 112, a pixel to spare. The
-  // names under the portraits lie inside the same rectangle: fitted to 84
-  // pixels about x 64 they end by 107 with their outline and are not
-  // reached; drawn up to 104 pixels by the name-fit fix they can reach 116,
   // In TConversation::WriteJournal, the click that writes a line of the
   // conversation to the journal. A spoken line (this+82, NUL put at its
   // length, 1106(30)) goes to TJournal::SaidToJournal with its speaker, and
@@ -700,10 +915,21 @@ const APP_FIXES = [
            'strip:', 'lbz 7, 0(4)', 'addi 4, 4, 1', 'cmpwi 7, 64            ; "@"', 'beq @strip', 'stb 7, 0(6)', 'addi 6, 6, 1',
            'cmpwi 7, 0', 'bne @strip', 'blr'] },
 
-  // and the shipped clear from 115 already took that tip, so the three
-  // pixels more cost such a name what lies between 112 and 115 whenever the
-  // speech is cleared without the portraits being drawn again. The copy to
-  // 2136(31) is written as the constants it always
+  // In TConversation::ShowTalking. The speech is cleared by copying the
+  // background over one rectangle, SetRect(103, 12, 488, 276) offset 12
+  // across, and the same rectangle, copied to 2136(31) with its bottom set
+  // to 80, is the box the text is laid out in from its left edge at 115.
+  // Argos's P, R, j, Y and g draw up to a twelfth of an em left of the pen,
+  // 1.9 pixels for P in the speech's 22 points (TxSt 134), so a line that
+  // began with one left that sliver of ink outside the next clear (seen in
+  // the Spanish on 29 September 2026; the English does it too). The clear
+  // now starts three pixels further left, at 112, a pixel to spare. The
+  // names under the portraits lie inside the same rectangle: fitted to 84
+  // pixels about x 64 they end by 107 with their outline, and at the 90
+  // pixels the name-fit fix allows, by 110, so neither is reached. (The
+  // fix allowed 104 until 21 October 2026, which this clear and the
+  // shipped one from 115 both cut.) The copy to 2136(31) is written as the
+  // constants it always
   // was (top 12, left 115, bottom 80, right 500) in the same eight words,
   // so the text stays in place; r3 and r4 are the OffsetRect arguments
   // that follow, and r5 and r6 were only the copy's.
@@ -715,6 +941,29 @@ const APP_FIXES = [
         asm: ['lis 0, 12              ; top 12', 'ori 0, 0, 115          ; left 115, where the text has always begun', 'stw 0, 2136(31)',
               'lis 0, 80              ; bottom 80', 'ori 0, 0, 500          ; right 500', 'stw 0, 2140(31)',
               'addi 3, 31, 2136       ; OffsetRect(2136(31), 0, ...), as before', 'li 4, 0'] }] },
+
+  // In TConversation::GetWorkRect and ShowTalking. ShowPortrait clears the
+  // band under a portrait from x 12 to 116 before it draws a name there, so
+  // that is the name's column. The conversation's work area, where a menu,
+  // a count or a field is laid out while it is open, is the window from
+  // x 104 (GetWorkRect, which TInteraction::GetWorkRect reaches through the
+  // vtable), and ShowTalking, with no speech to show (1106(31) zero), copies
+  // the background over (103, 0, 536, 276) with no offset, which crosses
+  // every name's band. A name wider than about 78 pixels lost its end there
+  // until the conversation was drawn again: the hero's "Bellerophon" read
+  // "Bellerophor" from a training menu or a line of narration on (the 2019
+  // livestream, the 2025 StormThalion video, and the 68K fork from the
+  // kit's cp1-intro-done, Hadrian's training). A menu's items begin at 105,
+  // so the clear cannot just start further right and leave the work area
+  // where it was: the work area's left edge moves to 113 and the clear to
+  // 111, three pixels short of it for the ink a swash letter draws left of
+  // the pen, as speech-clear leaves. A name fitted to 84 pixels ends by 107
+  // with its outline, and one of name-fit's 90 by 110.
+  { id: 'name-clear', kind: 'fix', title: 'A long name under a conversation portrait stays whole when a menu or a line of narration appears, instead of being cut short',
+    bug: 'The end of a long name under a conversation portrait is cut off when a menu or a line of narration appears',
+    sites: [
+      { at: 0x3C988, was: [0x38000068], asm: ['li 0, 113             ; was 104: the work area\'s left edge'] },
+      { at: 0x3D714, was: [0x38800067], asm: ['li 4, 111             ; was 103: the clear with no speech, from 111'] }] },
 
   // ---- Hooks ----------------------------------------------------------------
   { id: 'hook-take', kind: 'hook', method: 241, title: 'Scripts can refuse a thing being moved somewhere, or let it in without weighing it',
@@ -740,7 +989,7 @@ const APP_FIXES = [
       'lwz 3, 4(31)          ; the unit, as NewProp is handed it', 'srwi. 4, 0, 28', 'beq @number', 'b @0x46B74            ; not a number: the unit’s default',
       'number:', 'sth 0, 130(1)', 'b @0x46B7C'] },
 
-  { id: 'hook-load', kind: 'hook', method: 243, title: 'Scripts can act each time you begin, open or revert to a game',
+  { id: 'hook-load', kind: 'hook', method: 243, title: 'Scripts can act each time the player begins, opens or reverts to a game',
     script: 'Method 243, sent to the hero',
     played: 'fork, PowerPC, 28 September 2026: a 0x30F3 script set a flag',
     sites: [{ at: 0x14654, was: [0x80010068], asm: ['b @cave               ; was lwz 0, 104(1)'] }],
@@ -802,7 +1051,7 @@ const APP_FIXES = [
   // clear; and it never goes down the door path, branching to the Seek that
   // stays in step with the stream. The second branches past ChainFreeProps's
   // deletion, so what is still flagged stays, flag and all.
-  { id: 'level-keep-place', kind: 'change', title: 'Entering a level leaves its doors, and the things it began with that moved in play, as you left them, instead of setting them back',
+  { id: 'level-keep-place', kind: 'change', title: 'Entering a level leaves its doors, and the things it began with that moved in play, as the hero left them, instead of setting them back',
     played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a door left open stays open and a slid chair stays where it was; a rock made in play is still removed, as on the stock program, which also shuts the door and puts the chair back',
     sites: [
       { at: 0x7588, was: [0x80610060, 0x80010064, 0x907F0000, 0x901F0004, 0x80610068, 0x8001006C, 0x907F0008, 0x901F000C],
@@ -812,6 +1061,83 @@ const APP_FIXES = [
   { id: 'level-keep-made', kind: 'change', title: 'Entering a level leaves in place what play made or left there, corpses among them, instead of removing what the level did not begin with',
     played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a rock made in play stays where the stock program removes it; the patched program sets the door and the slid chair back, as the stock one does',
     sites: [{ at: 0x788C, was: [0x41820038], asm: ['b @0x78C4             ; never delete what play made or moved'] }] },
+  // A thing the story needs can be lost by setting it down. TGameSys::
+  // DropCommand and SlideItemCommand both end by flagging the thing 0x20,
+  // made or moved in play, unless its class's cached flags have 0x08
+  // (ClassFlags 8: the glowing crystals, keys, the strange staff, the
+  // panpipes, the grimoire, the amulet, the map). A thing flagged 0x20 is
+  // overwritten by the scenario's record or deleted when its level is
+  // entered again (LoadLevelProps, ChainFreeProps, above), and in Cademia
+  // deleted by THood::ResetHood once the hero is more than 32 squares from
+  // it. So kelp dropped on a beach, or a Sapphire Book set down to free a
+  // hand, is gone the next time the hero comes back, and the scripts that
+  // need it (Charax, Selinus) then never complete. Here the two routines'
+  // test of the class flag goes to a cave, which also passes over the mark
+  // for the things below, as for a key. They can be dropped, slid, stored
+  // and picked up again as before, and nothing tidies them away.
+  //
+  // WHICH THINGS. Each is a thing a script looks for with WhoHasItem or
+  // removes with RemoveItem or TakeItem, by type, picture and Data1 as
+  // cbwhohas matches them (Data1 0 there is any): the Sapphire Books (book,
+  // picture 0, Data1 11 to 20, Selinus 0x1851) and Charax's book (Data1 5,
+  // 0x184F); deep-sea kelp (270) and the eartheart mushroom (271), any
+  // (0x184F); Eudoxus's note (paper, picture 0, Data1 1, Halos 0x183E);
+  // Periphas's flour (bag of flour, Data1 1, made by 0x1841, removed by
+  // 0x182A); the net for Stentor (fishing net, Data1 1, made by 0x1849,
+  // removed by 0x186C); the half-disks (232, any, made by Sabinate and
+  // Magpie, set on the void bridge's pedestals); Thersites's ring (ring,
+  // picture 2, Data1 4, 0x1865); and the ring that gives its wearer
+  // ability 28 (Data2 28), which Tavara's stronghold tests on entry
+  // (0x1424, 0x1001). And a person's body: a corpse (78 or 283) whose
+  // Data1 is not 0. Data1 is the character's number (TActiveMonster::Die
+  // writes it below 256, and 0 for the creatures above). The amulet and
+  // Resurrection raise that character (0x10F4, 0x1A2F): Ariadne, whose body
+  // goes to Philinus (0x1832), and Jhiaxus, without whom Magpie never
+  // gives the second half-disk (0x1803). A body is made with flags 0x01, so
+  // it is safe where it fell; only a drop after picking it up marks it.
+  // Left out: eggs, which there are dozens of, and Omen's ring (Data1 3),
+  // which changes a line of his and nothing else (0x1CC3). Not covered: a
+  // quest thing inside a container that is dropped, which retains whatever
+  // flags it had.
+  //
+  // The cave's test is a separate routine, called with the record in r3,
+  // and answers with cr0 not equal for a quest thing. It changes r0, r3,
+  // r4 and r5, which both routines write again before reading, and the
+  // link register, which both saved on entry, since both make calls.
+  { id: 'quest-items-kept', kind: 'change', title: 'A quest item or a person’s body that the hero drops stays where the hero left it, instead of being cleared away with the level',
+    played: 'fork, PowerPC, 1 November 2026, alone and with every fix. Kelp dragged from the inventory to the floor of Omen’s Test, or slid a square west, is still there after a jump to Land King Hall and back, where the stock program removes it. A paper slid the same way is put back where the level had it, on both programs',
+    sites: [
+      { at: 0x5502C, was: [0x40820010], asm: ['b @cave               ; was bne 0x5503C, DropCommand’s class flag'] },
+      { at: 0x5308C, was: [0x40820010], asm: ['b @slide              ; was bne 0x5309C, SlideItemCommand’s class flag'] }],
+    cave: ['bne @drop0             ; class flag 8, no mark',
+           'mr 3, 30', 'bl @quest', 'bne @drop0             ; a quest thing, no mark',
+           'lbz 0, 0(30)', 'ori 0, 0, 32', 'stb 0, 0(30)',
+           'drop0:', 'b @0x5503C',
+           'slide:', 'bne @slide0', 'mr 3, 27', 'bl @quest', 'bne @slide0',
+           'lbz 0, 0(27)', 'ori 0, 0, 32', 'stb 0, 0(27)',
+           'slide0:', 'b @0x5309C',
+           'quest:', 'lhz 4, 4(3)            ; the picture and the type',
+           'andi. 5, 4, 1023        ; the type',
+           'rlwinm 4, 4, 0, 17, 31  ; the picture and the type, the rotation aside',
+           'lbz 0, 6(3)             ; Data1',
+           'cmpwi 5, 270', 'beq @yes              ; deep-sea kelp',
+           'cmpwi 5, 271', 'beq @yes              ; the eartheart mushroom',
+           'cmpwi 5, 232', 'beq @yes              ; a half-disk',
+           'cmpwi 5, 78', 'beq @body',
+           'cmpwi 5, 283', 'beq @body',
+           'cmpwi 4, 26', 'beq @book',
+           'cmpwi 4, 134', 'beq @one              ; Eudoxus’s note',
+           'cmpwi 4, 166', 'beq @one              ; Periphas’s flour',
+           'cmpwi 4, 214', 'beq @one              ; the net for Stentor',
+           'cmpwi 5, 307', 'bne @no',
+           'cmpwi 4, 2355', 'bne @ring', 'cmpwi 0, 4', 'beq @yes              ; Thersites’s ring',
+           'ring:', 'lbz 0, 7(3)             ; Data2, the ability the ring gives', 'cmpwi 0, 28', 'beq @yes              ; the stronghold’s ring', 'b @no',
+           'body:', 'cmpwi 0, 0', 'bne @yes              ; a person’s body', 'b @no',
+           'book:', 'cmpwi 0, 5', 'beq @yes              ; Charax’s book', 'cmpwi 0, 11', 'blt @no',
+           'cmpwi 0, 20', 'ble @yes              ; a Sapphire Book', 'b @no',
+           'one:', 'cmpwi 0, 1', 'beq @yes',
+           'no:', 'li 0, 0', 'cmpwi 0, 0', 'blr',
+           'yes:', 'li 0, 1', 'cmpwi 0, 0', 'blr'] },
   // A start of play costs fifteen ticks. TDelverApp::BeginPlay, which a new
   // game, Open and a revert all come through, ends by handing 15 to
   // TGameSys::HeartBeat: the hero is busy for fifteen ticks, the clock goes
@@ -834,6 +1160,109 @@ const APP_FIXES = [
   { id: 'load-cost', kind: 'change', title: 'Starting or opening a game costs no time, so a game opens on the moment it was saved, instead of fifteen ticks later with everyone moved',
     played: 'fork, PowerPC, 9 October 2026: a save of Cademia opened and saved again has the same clock, where the unpatched program writes it fifteen units on; a new game opens on the king\u2019s welcome as before',
     sites: [{ at: 0x14634, was: [0x3880000F], asm: ['li 4, 0                ; nothing for HeartBeat to spend'] }] },
+  // The difficulty level, as the game was made to have it. Alaric's
+  // keywords (0x1802) set the script global DifficultyLevel, 17, to 0 for
+  // "very easy", 1 "easy", 2 "norm", 3 "hard" and 4 "very hard", and the
+  // hero's creation (0x1801) sets 2. Two things read a difficulty. The
+  // level-up script (0xE86) gives 6 minus the global in training points.
+  // TActiveMonster's constructor, for a creature made from a map's list or
+  // an egg (prop 256 and up; named characters keep their stats), draws a
+  // percentage from a band named by the short at TOC +8562, the third short
+  // of a save's Char block (10 to 49, 25 to 99, 50 to 149, 100 to 199,
+  // 150 to 299) and makes the creature's body, reflex, mind and health that
+  // percentage of its type's, and its level from those, scaled again.
+  //
+  // THE SHIPPED FAULT. SetGlobal stores 12 (karma, into the short at
+  // TOC +8560, beside the difficulty's) and 14 (the languages) and drops
+  // every other number, and GetGlobal's jump table sends 17 to its default,
+  // None. So the keywords change nothing, a level-up gives 6 minus None,
+  // which is 6, the very easy figure (seen on the 2019 livestream: 6 a
+  // level twice), and the short stays at the 2 every save begins with, so
+  // creatures are always made at 50 to 149. The workbench's bugs.md has
+  // the reading.
+  //
+  // THE CHANGE. SetGlobal stores 17, held to 0 to 4, into the short at
+  // TOC +8562, and GetGlobal answers 17 from it, so both readers see the
+  // one value, and SaveToFile writes the short into a save. Normal is then
+  // 4 training points a level, not the 6 every game has given, which is
+  // why this is a design change and not a fix.
+  //
+  // THE CAP. Each scaled stat is stored as a byte with the low eight bits
+  // of the product, so at 150 to 299 a type's 100 health can come out as
+  // 300 and be stored as 44, and the level, scaled twice, passes 255 for
+  // the larger types at hard and very hard. Each of the six stores is
+  // capped at 255 first; the test for 0 after it is untouched. Byte 31,
+  // where the percentage goes, is written and read by nothing else in the
+  // program, and the change leaves its store as shipped.
+  //
+  // SetGlobal is a leaf with no frame; its global's number is in r0 and
+  // the value in its caller's slot at 28(1), and the cave uses r0 alone.
+  // GetGlobal's number is in r0 and its answer goes through r31. The
+  // constructor saved its return address on entry, so the bl at each store
+  // is free, and each store's cave changes nothing but the stored
+  // register, which the code after it reads from the record again.
+  { id: 'difficulty', kind: 'change', name: 'Hardly Normal', title: 'Telling Alaric “very easy”, “easy”, “normal”, “hard” or “very hard” sets the training points a level brings and how strong new creatures are, instead of being forgotten',
+    bug: 'The difficulty level is never stored',
+    played: 'fork, PowerPC, 1 November 2026, a new game on a Cythera Data that raises the hero a level after each of Alaric’s five answers, each keyword typed and the game saved. The unpatched program gave 6 training points for “very hard” and left the save’s difficulty at 2. The patched one gave 6, 5, 4, 3 and 2 for very easy to very hard and saved 0 to 4. A played save set to very hard and opened outside Land King Hall made the same creatures on both programs, and one drawn at 214%, whose level came to 259, was stored as 3 by the unpatched program and as 255 by the patched one',
+    sites: [
+      { at: 0x93A84, was: [0x40800058], asm: ['b @set                ; was bge 0x93ADC, every global from 15 dropped'] },
+      { at: 0x9379C, was: [0x28000013], asm: ['b @get                ; was cmplwi 0, 19, the jump table’s bound'] },
+      ...[[0x44E18, 0x98030009, 'body'], [0x44E68, 0x9803000A, 'reflex'], [0x44EB8, 0x9803000B, 'mind'],
+          [0x44F08, 0x9803000E, 'health'], [0x44FF8, 0x98640013, 'base'], [0x45020, 0x98030013, 'level']]
+        .map(([at, was, l]) => ({ at, was: [was], asm: ['bl @' + l + '              ; the store, capped at 255'] }))],
+    cave: ['set:', 'blt @set14             ; 14, the languages, as shipped', 'cmpwi 0, 17', 'bne @setout',
+           'lwz 0, 28(1)', 'slwi 0, 0, 4', 'srawi 0, 0, 4         ; the number, as karma reads it',
+           'cmpwi 0, 0', 'bge @setlow', 'li 0, 0', 'setlow:', 'cmpwi 0, 4', 'ble @sethigh', 'li 0, 4', 'sethigh:',
+           'sth 0, 8562(2)        ; the short beside karma’s', 'setout:', 'b @0x93ADC', 'set14:', 'b @0x93AC4',
+           'get:', 'cmpwi 0, 17', 'bne @getjt', 'lha 0, 8562(2)', 'clrlwi 0, 0, 4        ; a number',
+           'stw 0, 0(31)', 'b @0x93A28', 'getjt:', 'cmplwi 0, 19', 'bgt @getnone', 'b @0x937A4', 'getnone:', 'b @0x93A20',
+           ...[['body', 0, 9, 3], ['reflex', 0, 10, 3], ['mind', 0, 11, 3], ['health', 0, 14, 3], ['base', 3, 19, 4], ['level', 0, 19, 3]]
+             .flatMap(([l, r, off, base]) => [l + ':', 'cmplwi ' + r + ', 255', 'ble @' + l + 'st', 'li ' + r + ', 255',
+                                              l + 'st:', 'stb ' + r + ', ' + off + '(' + base + ')', 'blr'])] },
+  /* The Halloween mod's conversation colors (the Utility Mods' 'halloween',
+     js/delv-halloween.js, is the rest of it): a black tint in place of the
+     blue, orange text in place of the yellow, and white keywords in place
+     of the cyan. The workbench's tools/sprites/halloween/halloween_app.mjs
+     made them first, on 29 October 2026.
+
+     The tint. A conversation, question or prompt window shows the game
+     behind it under a 50% pattern painted in color 1 of the game's palette,
+     clut 256, which is (0, 0, 168). TInteraction::MyCopyBitsBevel and
+     TInteraction::MyCopyBits each read that color's red and green as a word
+     at 18 into the table and its blue as a half-word at 22, for
+     RGBForeColor. Entry n's color starts at 10 + 8n, so 2050 and 2054 read
+     entry 255, black.
+
+     The text. TConversation::ShowTalking (speech), TConversation::ShowMessage
+     (narration) and the TSimpleInteraction constructor pass
+     TTextContext::Draw a text color of 69, QuickDraw's yellow, and a keyword
+     color of 273, cyan. The answer choices and the entry marker
+     (TInteraction::GetResponse, TConvResponseMode) and the pick list
+     (TPickMode::DrawRoutine) pass 69 to TTextContext::DrawTextOutlined. In
+     DrawTextOutlined a color below 0 is entry -n of the palette, and
+     TStyleRun::Draw reaches DrawTextOutlined for every text color but
+     black. So -228 is entry 228, (252, 124, 0), the palette's closest to
+     orange. The keyword color becomes 30, QuickDraw's white. The red of a
+     choice under the mouse (205) and the names under the portraits (30)
+     stay as shipped. PowerPC only: the 68K program has no counterpart here.
+
+     Seen on Mac OS 8.5 in SheepShaver: the black tint and the orange speech
+     and narration of Alaric's opening. The keywords and the answer choices
+     were not on screen in that run. */
+  { id: 'halloween-colors', kind: 'change', name: 'Halloween colors',
+    title: 'A conversation darkens the game behind it in black, with orange text and white keywords, instead of blue, yellow and cyan',
+    played: 'in part, SheepShaver, Mac OS 8.5, 29 October 2026, the black tint and the orange speech and narration in Alaric’s opening. The white keywords and the orange answer choices were not on screen',
+    sites: [
+      { at: 0x3A428, was: [0x80040012], asm: ['lwz 0, 2050(4)        ; was 18(4): entry 255, not 1'] },
+      { at: 0x3A430, was: [0xA0040016], asm: ['lhz 0, 2054(4)        ; was 22(4)'] },
+      { at: 0x3A738, was: [0x80040012], asm: ['lwz 0, 2050(4)        ; was 18(4): entry 255, not 1'] },
+      { at: 0x3A740, was: [0xA0040016], asm: ['lhz 0, 2054(4)        ; was 22(4)'] },
+      // ShowTalking, ShowMessage, TSimpleInteraction: the text, then the keywords.
+      ...[0x3D6C0, 0x3D954, 0x41004].map(at => ({ at, was: [0x39000045], asm: ['li 8, -228             ; was li 8, 69'] })),
+      ...[0x3D6C4, 0x3D97C, 0x41008].map(at => ({ at, was: [0x39200111], asm: ['li 9, 30               ; was li 9, 273'] })),
+      // TConvResponseMode::DrawRoutine and MouseRoutine, GetResponse, TPickMode::DrawRoutine.
+      ...[0x3E21C, 0x3E2C8, 0x3E4F0, 0x3E5AC, 0x3EF8C, 0x3F0DC, 0x3F174, 0x3FE64].map(at => ({ at, was: [0x38E00045], asm: ['li 7, -228             ; was li 7, 69'] })),
+    ] },
 ];
 
 /* Which of the Patches tab's lists (DATA_FIX_GROUPS, js/delv-datafixes.js)
@@ -844,13 +1273,14 @@ const APP_FIXES = [
    that resolves to no list. */
 const APP_FIX_KIND_GROUP = { hook: 'hidden', text: 'text', menu: 'interface', change: 'design' };
 const APP_FIX_GROUP = {
-  'option-p': 'interface', 'option-x': 'interface', 'drag-northwest': 'interface', 'books-window': 'interface',
+  'option-p': 'interface', 'drag-northwest': 'interface', 'books-window': 'interface',
   'take-window': 'interface', 'roster-pose': 'interface', 'tab-pane': 'interface', 'gamepad-keys': 'interface',
-  'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'widget-renumber': 'interface',
-  'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface',
+  'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'window-leak': 'interface', 'status-wrap': 'interface', 'widget-renumber': 'interface',
+  'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
-  'corpse-light': 'rules', 'spell-glow': 'rules',
-  'menu-scroll': 'talk', 'menu-items': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk',
+  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'ai-mods': 'rules', 'ai-pick': 'rules', 'conv-field': 'interface', 'automap-span': 'interface', 'more-button': 'interface',
+  'menu-scroll': 'talk', 'menu-items': 'talk', 'afternoon': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
+  'halloween-colors': 'mods',
 };
 function appFixGroup(f) { return APP_FIX_GROUP[f.id] || APP_FIX_KIND_GROUP[f.kind] || null; }

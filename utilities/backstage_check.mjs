@@ -38,8 +38,8 @@ for (const f of fixes) {
   sandbox.__back = back;
   for (const e of f.rsrc) {
     edits++;
-    const got = run(`(() => { const s = resourceForkSpec(openResourceFork(__back)).resources.find(x => x.type === ${JSON.stringify(e.type)} && x.id === ${e.id}); return s ? decodeMacRoman(appStrList(s.data)[${e.index - 1}]) : null; })()`);
-    if (got !== e.now) fail(`${f.id}: ${e.type} ${e.id} string ${e.index} reads "${got}", wanted "${e.now}"`);
+    const actual = run(`(() => { const s = resourceForkSpec(openResourceFork(__back)).resources.find(x => x.type === ${JSON.stringify(e.type)} && x.id === ${e.id}); return s ? decodeMacRoman(appStrList(s.data)[${e.index - 1}]) : null; })()`);
+    if (actual !== e.now) fail(`${f.id}: ${e.type} ${e.id} string ${e.index} reads "${actual}", not "${e.now}"`);
   }
   const touched = new Set(f.rsrc.map(e => e.type + ' ' + e.id));
   const same = run(`(() => { const a = resourceForkSpec(openResourceFork(__rsrc)).resources, b = resourceForkSpec(openResourceFork(__back)).resources; const t = new Set(${JSON.stringify([...touched])});
@@ -47,9 +47,9 @@ for (const f of fixes) {
     for (const x of a) { if (t.has(x.type + ' ' + x.id)) continue; const y = b.find(z => z.type === x.type && z.id === x.id); if (!y) return x.type + ' ' + x.id + ' is gone'; if (y.data.length !== x.data.length || y.data.some((v, i) => v !== x.data[i])) return x.type + ' ' + x.id + ' changed'; }
     return ''; })()`);
   if (same) fail(f.id + ': ' + same);
-  let refused = false;
-  try { run(`applyDataRsrcFixes(__fixed, [${JSON.stringify(f.id)}])`); } catch (e) { refused = true; }
-  if (!refused) fail(f.id + ': applied a second time and not rejected');
+  let didThrow = false;
+  try { run(`applyDataRsrcFixes(__fixed, [${JSON.stringify(f.id)}])`); } catch (e) { didThrow = true; }
+  if (!didThrow) fail(f.id + ': applied a second time and not rejected');
 }
 console.log(failures ? `\nFAIL — ${failures} problem(s)` : `${fixes.length} fix, ${edits} strings, written and read back; everything else unchanged; a second run refused`);
 process.exit(failures ? 1 : 0);

@@ -66,16 +66,16 @@ const allFiles = dz => {
 };
 const dataZ = ev('qtInstallerDataZ(EXE)');
 const entries = ev('parseInstallShield3')(dataZ).entries;
-const got = allFiles(dataZ);
-if (got !== ALL_FILES) fail('unpacking', `the 21 files hash to ${got}, dclimplode's to ${ALL_FILES}`);
+const actual = allFiles(dataZ);
+if (actual !== ALL_FILES) fail('unpacking', `the 21 files hash to ${actual}, dclimplode's to ${ALL_FILES}`);
 else ok('unpacking', `${entries.length} files exploded as dclimplode explodes them`);
 
 // The controls.
 const qtx = entries.find(e => /QuickTimeMusicalInstruments\.qtx$/.test(e.path));
 const packed = dataZ.subarray(qtx.offset, qtx.offset + qtx.packedLen);
-const throws = (what, fn, want) => {
+const throws = (what, fn, expected) => {
   try { fn(); fail(what, 'did not throw'); }
-  catch (e) { if (want && !want.test(e.message)) fail(what, 'threw "' + e.message + '"'); }
+  catch (e) { if (expected && !expected.test(e.message)) fail(what, 'threw "' + e.message + '"'); }
 };
 throws('a stream cut short', () => ev('dclExplode')(packed.subarray(0, packed.length >> 1), qtx.len), /ran out of input/);
 const coded = packed.slice(0, 64); coded[0] = 1;
@@ -102,7 +102,7 @@ if (lib.ids.length !== 235) fail('instruments', `${lib.ids.length}, where QuickT
 if (ranges !== 1544) fail('key ranges', `${ranges}, where QuickTime 3 has 1544`);
 
 // The tunes.
-let tuneNote = 'no game, so no tune played';
+let tuneNote = 'No game, so no tune played';
 if (dataPath && existsSync(dataPath)) {
   ctx.DATA = new Uint8Array(readFileSync(dataPath));
   ev('ARC = openDelverArchive(DATA)');
@@ -115,9 +115,9 @@ if (dataPath && existsSync(dataPath)) {
   if (missing.length) fail('parts', 'no instrument for ' + missing.join(', '));
   ctx.LIB = lib;
   const wav = ev('(() => { const i = qtmaToMidi(getResourceBytes(ARC, 0x9000)); return qtmaWav(qtmaRender(i.events, i.tones, LIB)); })()');
-  tuneNote = `every part of 11 tunes has an instrument; the theme ${((wav.length - 44) / 4 / 44100).toFixed(1)} s, TUNE ${sha(wav).toString('hex').slice(0, 12)}`;
+  tuneNote = `Every part of 11 tunes has an instrument, the theme ${((wav.length - 44) / 4 / 44100).toFixed(1)} s, TUNE ${sha(wav).toString('hex').slice(0, 12)}`;
 }
 
 if (failures) process.exit(1);
-console.log(`QuickTime 3: ${entries.length} files unpacked${controls ? ', the controls refused' : ''}; ` +
-  `${lib.ids.length} instruments, ${ranges} key ranges, every sample found; ${tuneNote}`);
+console.log(`QuickTime 3: ${entries.length} files unpacked${controls ? ' and the controls caught' : ''}. ` +
+  `${lib.ids.length} instruments, ${ranges} key ranges, every sample found. ${tuneNote}`);

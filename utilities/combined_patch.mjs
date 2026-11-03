@@ -55,7 +55,7 @@ const {ctx} = pageContext(htmlPath, dataPath);
 const ids = everyFix(htmlPath, 'us').filter(id => !['karma', 'resurrection', 'peirithous'].includes(id));
 const res = vm.runInContext(`(() => {
   const ids = ${JSON.stringify(ids)}, typos = ${JSON.stringify(readCollection(collDir))};
-  const stages = DATA_FIX_STAGES.filter(st => st !== 'apart' && st !== 'cost');
+  const stages = DATA_FIX_STAGES.filter(st => st !== 'apart' && st !== 'cost' && st !== 'mods');
   const chainStages = ${JSON.stringify(CONTROL)} ? stages.filter(st => st !== 'found') : stages;
   const opts = st => ({ stages: st, communityTypos: typos });
   const chain = applyDataFixes(__a, ids, opts(chainStages));
@@ -64,10 +64,10 @@ const res = vm.runInContext(`(() => {
   const eq = (a, b) => a && b && a.length === b.length && a.every((x, i) => x === b[i]);
   const shared = [], wrong = [];
   for (const id of chain.changed) {
-    const who = alone.map((a, i) => a.changed.includes(id) ? i : -1).filter(i => i >= 0);
-    if (who.length > 1) shared.push({ id, who });
-    else if (who.length === 1 && !eq(data(chain, id), data(alone[who[0]], id))) wrong.push(id);
-    else if (!who.length) wrong.push(id);
+    const character = alone.map((a, i) => a.changed.includes(id) ? i : -1).filter(i => i >= 0);
+    if (character.length > 1) shared.push({ id, character });
+    else if (character.length === 1 && !eq(data(chain, id), data(alone[character[0]], id))) wrong.push(id);
+    else if (!character.length) wrong.push(id);
   }
   const missing = [];
   alone.forEach((a, i) => { for (const id of a.changed) if (!chain.changed.includes(id)) missing.push({ id, stage: i }); });
@@ -82,7 +82,7 @@ const res = vm.runInContext(`(() => {
   const named = id => { try { return typeof labelFor === 'function' ? labelFor(id) : ''; } catch (e) { return ''; } };
   const label = id => '0x' + id.toString(16).toUpperCase() + (named(id) ? ' ' + named(id) : '');
   return { patch: Array.from(w.bytes), bin: Array.from(bin), patched: Array.from(patched), count: chain.changed.length, same, stages,
-           shared: shared.map(s => label(s.id) + ' (' + s.who.map(i => stages[i]).join(', ') + ')'), wrong: wrong.map(label),
+           shared: shared.map(s => label(s.id) + ' (' + s.character.map(i => stages[i]).join(', ') + ')'), wrong: wrong.map(label),
            missing: missing.map(m => label(m.id) + ' of stage ' + stages[m.stage]),
            perStage: alone.map((a, i) => stages[i] + ': ' + a.changed.length + ' resources') };
 })()`, ctx);

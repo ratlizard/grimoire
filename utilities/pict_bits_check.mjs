@@ -58,9 +58,9 @@ function build(opcode) {
 
 for (const [opcode, label] of [[0x0090, 'BitsRect'], [0x0091, 'BitsRgn']]) {
   sandbox.__pict = build(opcode);
-  let got;
+  let actual;
   try {
-    got = vm.runInContext(`(() => {
+    actual = vm.runInContext(`(() => {
       const found = findPictImageOpcode(__pict);
       if (!found) return { err: 'no image opcode found' };
       const r = decodePictPackBits(__pict, found);
@@ -77,13 +77,13 @@ for (const [opcode, label] of [[0x0090, 'BitsRect'], [0x0091, 'BitsRgn']]) {
     fail(label, `decoding threw: ${e.message}`);
     continue;
   }
-  if (got.err) { fail(label, got.err); continue; }
-  if (got.op !== opcode) fail(label, `walked to 0x${got.op.toString(16)} instead of 0x${opcode.toString(16)}`);
-  if (got.width !== W || got.height !== H) fail(label, `got ${got.width}x${got.height}, wanted ${W}x${H}`);
-  if (got.pixelSize !== 1) fail(label, `pixelSize ${got.pixelSize}, wanted 1`);
+  if (actual.err) { fail(label, actual.err); continue; }
+  if (actual.op !== opcode) fail(label, `walked to 0x${actual.op.toString(16)} instead of 0x${opcode.toString(16)}`);
+  if (actual.width !== W || actual.height !== H) fail(label, `the picture is ${actual.width}x${actual.height}, not ${W}x${H}`);
+  if (actual.pixelSize !== 1) fail(label, `pixelSize ${actual.pixelSize}, not 1`);
   // Exactly one black pixel per row, marching two to the right each row.
   for (let y = 0; y < H; y++) {
-    const on = (got.dark[y] || []).reduce((a, v, x) => v ? a.concat(x) : a, []);
+    const on = (actual.dark[y] || []).reduce((a, v, x) => v ? a.concat(x) : a, []);
     if (on.length !== 1 || on[0] !== y * 2)
       fail(label, `row ${y} has black at [${on}], wanted [${y * 2}] -- a set bit must be black and rows must not be packed`);
   }

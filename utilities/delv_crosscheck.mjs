@@ -69,7 +69,7 @@ function pyIntList(src, name) {
   return new Set(m[1].split(',').map(s => s.trim()).filter(Boolean).map(Number));
 }
 // `name = { 0x0210: False }`
-function pySingleKnown(src, name) {
+function pySingleSet(src, name) {
   const m = new RegExp(`${name}\\s*=\\s*\\{([^}]*)\\}`).exec(src);
   if (!m) throw new Error(`${name} not found`);
   const out = new Map();
@@ -106,7 +106,7 @@ function pyNameMap(src, name, {valueIsName = false} = {}) {
 const scenario = archivePy.slice(archivePy.indexOf('class Scenario'));
 const REF_ENCRYPTED = pyIntList(scenario, 'known_encrypted');
 const REF_CLEAR = pyIntList(scenario, 'known_clear');
-const REF_SINGLE = pySingleKnown(scenario, 'single_known');
+const REF_SINGLE = pySingleSet(scenario, 'single_known');
 
 const REF_SYSCALL = pyNameMap(symbolsPy, 'ASM_SYSCALL_NAMES');
 const REF_FIELD = pyNameMap(symbolsPy, 'ASM_STRUCT_HINTS');
@@ -147,9 +147,9 @@ const setsEqual = (a, b) => a && b && a.size === b.size && [...a].every(v => b.h
     if (setsEqual(vClear, REF_CLEAR)) ok('clear subindexes', `${vClear.size} match delvmod`);
     else fail('clear subindexes', `viewer ${[...vClear].sort((a,b)=>a-b)} vs delvmod ${[...REF_CLEAR].sort((a,b)=>a-b)}`);
 
-    const wantClear = new Set([...REF_SINGLE].filter(([, enc]) => !enc).map(([rid]) => rid));
-    if (setsEqual(vSingle, wantClear)) ok('per-resource exceptions', [...wantClear].map(r => '0x' + r.toString(16).toUpperCase()).join(', ') || 'none');
-    else fail('per-resource exceptions', `viewer ${[...(vSingle || [])]} vs delvmod ${[...wantClear]}`);
+    const expectedClear = new Set([...REF_SINGLE].filter(([, enc]) => !enc).map(([rid]) => rid));
+    if (setsEqual(vSingle, expectedClear)) ok('per-resource exceptions', [...expectedClear].map(r => '0x' + r.toString(16).toUpperCase()).join(', ') || 'none');
+    else fail('per-resource exceptions', `viewer ${[...(vSingle || [])]} vs delvmod ${[...expectedClear]}`);
 
     const overlap = [...REF_ENCRYPTED].filter(s => REF_CLEAR.has(s));
     if (overlap.length) fail('delvmod tables', 'a subindex is in both lists: ' + overlap.join(', '));
@@ -484,6 +484,34 @@ if (dataPath && existsSync(dataPath) && typeof ctx.mapRoofSections === 'function
   else if (offMap > 2) fail('roofs', `${offMap} sections run past the map edge — more than the two known`);
   else ok('roofs', `${maps} roofed maps, ${sections} sections placed, ${unplaced} declared blocks ` +
                    `never placed, ${offMap} clipped at the map edge`);
+}
+
+// ---- the sound names from delvmod's wiki -----------------------------------
+// js/page-labels.js copies the wiki's names for the archive's sounds
+// (DELVMOD_SOUND_NAMES), shown with the names from outside the game's text. The
+// copy is typed, so it is compared with the wiki page each run: the same ids,
+// each name the wiki's without its "*" marks and bracketed notes (and a "[sic]"
+// the copy adds), the "?" and "??" entries included. A wiki page that changes,
+// or a slip in the copy, fails here.
+{
+  const page = `${delvPath}/wiki/Cythera Data Subindex 144.md`;
+  const mine = peek('DELVMOD_SOUND_NAMES');
+  if (!existsSync(page)) ok('sound names', 'no wiki page in this delvmod, not compared');
+  else if (!mine) fail('sound names', 'DELVMOD_SOUND_NAMES not found in the viewer');
+  else {
+    const clean = s => s.replace(/\*\[[^\]]*\]/g, '').replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+    const wiki = new Map();
+    for (const line of readFileSync(page, 'utf8').split('\n')) {
+      const m = /^Index \d+, ID ([0-9A-F]{4}) Length: \d+ bytes\s*(.*)$/.exec(line.trim());
+      if (m) wiki.set(parseInt(m[1], 16), clean(m[2]));
+    }
+    const bad = [];
+    for (const [id, name] of wiki) if ((mine[id] || '').replace(/ \[sic\]$/, '') !== name) bad.push(`0x${id.toString(16).toUpperCase()} wiki "${name}", here "${mine[id] || ''}"`);
+    for (const id of Object.keys(mine).map(Number)) if (!wiki.has(id)) bad.push(`0x${id.toString(16).toUpperCase()} here and not on the wiki`);
+    if (!wiki.size) fail('sound names', 'no entries parsed from the wiki page');
+    else if (bad.length) fail('sound names', bad.slice(0, 5).join('; ') + (bad.length > 5 ? ` (+${bad.length - 5})` : ''));
+    else ok('sound names', `${wiki.size} match the wiki page`);
+  }
 }
 
 console.log(failures ? `\nFAIL — ${failures} problem(s)` : '\ndelvmod cross-check: clean');

@@ -69,12 +69,12 @@ else {
 const rs = ctx.pefTracebacks(pef, bytes);
 if (rs.length < 100) fail('only ' + rs.length + ' routines found');
 for (let i = 1; i < rs.length; i++) if (rs[i].offset < rs[i - 1].offset + rs[i - 1].length) { fail(`routines overlap at ${rs[i].offset.toString(16)}`); break; }
-for (const want of ['TGameViewer::DoTicks(', 'TBark::SetBark(', 'TMapWindow::KeyRoutine(', 'TCachedSegFiles::SaveEncryptedSegment('])
-  if (!rs.some(r => r.name.startsWith(want))) fail('routine not found: ' + want);
+for (const routinePrefix of ['TGameViewer::DoTicks(', 'TBark::SetBark(', 'TMapWindow::KeyRoutine(', 'TCachedSegFiles::SaveEncryptedSegment('])
+  if (!rs.some(r => r.name.startsWith(routinePrefix))) fail('routine not found: ' + routinePrefix);
 // The demangler on shapes the file has.
 const dm = ctx.pefDemangle;
-for (const [m, want] of [['SetFont__9TApWidgetFss', 'TApWidget::SetFont(short, short)'], ['__ct__5TBarkFv', 'TBark::TBark()'], ['__dt__5TBarkFv', 'TBark::~TBark()'], ['main', 'main'], ['Foo__FPCcRi', 'Foo(const char*, int&)']])
-  if (dm(m) !== want) fail(`demangle ${m}: ${dm(m)}`);
+for (const [m, expected] of [['SetFont__9TApWidgetFss', 'TApWidget::SetFont(short, short)'], ['__ct__5TBarkFv', 'TBark::TBark()'], ['__dt__5TBarkFv', 'TBark::~TBark()'], ['main', 'main'], ['Foo__FPCcRi', 'Foo(const char*, int&)']])
+  if (dm(m) !== expected) fail(`demangle ${m}: ${dm(m)}`);
 
 // ---- the loader --------------------------------------------------------------
 const lx = vm.createContext({});
@@ -135,9 +135,9 @@ let oracle = 'no symbol list given';
 if (symPath && existsSync(symPath)) {
   const ref = readFileSync(symPath, 'utf8').split('\n').map(l => /^0x([0-9A-Fa-f]+)\s+(\d+)\s+\d+\s+(\S+)/.exec(l)).filter(Boolean)
     .map(m => ({ addr: parseInt(m[1], 16), bytes: +m[2], mangled: m[3] }));
-  const mine = new Map(rs.map(r => [r.offset + 4, r]));
+  const pageRelocs = new Map(rs.map(r => [r.offset + 4, r]));
   let missing = 0, wrong = 0;
-  for (const r of ref) { const t = mine.get(r.addr); if (!t) missing++; else if (t.length !== r.bytes || t.mangled !== r.mangled) wrong++; }
+  for (const r of ref) { const t = pageRelocs.get(r.addr); if (!t) missing++; else if (t.length !== r.bytes || t.mangled !== r.mangled) wrong++; }
   if (!ref.length) fail('the symbol list is empty');
   if (missing || wrong) { fail(`against the workbench's list: ${missing} missing, ${wrong} differ, of ${ref.length}`); oracle = `${missing} of the workbench's ${ref.length} routines missing and ${wrong} differ`; }
   else oracle = `all ${ref.length} of the workbench's routines found at the same offset, length and name; ${rs.length - ref.length} more here`;

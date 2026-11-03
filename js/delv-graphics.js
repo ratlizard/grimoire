@@ -87,7 +87,7 @@ function decompressDCG(data, width, height) {
   decompressDCG.lastWarning = null;
   while (dcursor < len) {
     if (++iterations > 300000) {
-      decompressDCG.lastWarning = 'Stopped after 300000 opcodes; image may be incomplete.';
+      decompressDCG.lastWarning = 'Stopped after 300,000 opcodes, so the image may be incomplete.';
       break;
     }
     const opcode = data[dcursor];
@@ -119,8 +119,8 @@ function decompressDCG(data, width, height) {
       const literals = opcode & 0x03;
       if (opcode & 0x0C) {
         decompressDCG.lastWarning = 'Short Data opcode 0x' + opcode.toString(16) +
-          ' at 0x' + (dcursor-1).toString(16) + ' sets the two undocumented bits; ' +
-          'literal count read as ' + literals + ' (low 2 bits only).';
+          ' at 0x' + (dcursor-1).toString(16) + ' sets the two undocumented bits. ' +
+          'The page reads the literal count as ' + literals + ' (low 2 bits only).';
       }
       cdata(data.slice(dcursor, dcursor+literals)); dcursor += literals;
     } else if (opcode < 0xF0) {
@@ -146,7 +146,7 @@ function decompressDCG(data, width, height) {
       // Return what decoded successfully rather than discarding the whole
       // image; a single bad byte used to blank the entire resource.
       decompressDCG.lastWarning = 'Unknown opcode 0x' + opcode.toString(16) +
-        ' at 0x' + dcursor.toString(16) + '; showing partial image.';
+        ' at 0x' + dcursor.toString(16) + ', so this is only part of the image.';
       break;
     }
   }
@@ -309,7 +309,7 @@ const UD = {
   radius:1, sens:0.67, lock:true, diagonals:false, strength:0.67, edge:64, passes:3,
   detail:0.5, speck:0, speckPasses:2, speckLiterals:false, stray:40, strayRegion:0.65,
   nlm:0, nlmPatch:2, nlmSearch:4, upscale:2, supersample:true, scaler:"guided",
-  filter:"notch", quantise:"off", quantiseK:2, lockAnimated:true, protectCutout:true,
+  filter:"notch", quantize:"off", quantizeK:2, lockAnimated:true, protectCutout:true,
   lockSharedArt:true
 };
 
@@ -552,7 +552,59 @@ function sharedPortraitFrames(arc){
       }
       let hole = -1; regions.forEach((r, i) => { if (hole < 0 || r.length > regions[hole].length) hole = i; });
       regions.forEach((r, i) => { if (i !== hole) for (const k of r) out[k] = 1; });
+      trimDarkArt(out, img);
       return { image: img, frame: out };
+    };
+    /* Dark art inside the border. In the guards' frame and two others
+       every member has the same dark patch inside the border (a shadow
+       behind the head, a dark backdrop). It touches the border, so the
+       rule above counts it as frame. Painted over a new picture it is a
+       black blot (the maintainer, 28 October 2026). The border's band on
+       each side is the median depth of the frame from that edge, over the
+       rows or columns. A piece of the frame inside the band whose pixels
+       are four in five near-black is backdrop, and goes back to the hole.
+       Art in color inside the band (the grapes, the vines, an arch's
+       curve) stays frame. */
+    const trimDarkArt = (frame, img) => {
+      const depth = at => { const d = []; for (let i = 0; i < W; i++) { let k = 0; while (k < W && frame[at(i, k)]) k++; d.push(k); } d.sort((a, b) => a - b); return d[W >> 1]; };
+      const L = depth((i, k) => i * W + k), Rt = depth((i, k) => i * W + W - 1 - k), T = depth((i, k) => k * W + i), B = depth((i, k) => (W - 1 - k) * W + i);
+      const inside = k => { const x = k % W, y = (k - x) / W; return x >= L && x <= W - 1 - Rt && y >= T && y <= W - 1 - B; };
+      const dark = v => { const h = PALETTE[v] || '000000'; return parseInt(h.slice(0, 2), 16) + parseInt(h.slice(2, 4), 16) + parseInt(h.slice(4, 6), 16) < 120; };
+      const seen = new Uint8Array(N);
+      for (let k0 = 0; k0 < N; k0++) {
+        if (!frame[k0] || seen[k0] || !inside(k0)) continue;
+        const list = [k0]; seen[k0] = 1;
+        for (let q = 0; q < list.length; q++) {
+          const k = list[q], x = k % W;
+          for (const j of [k - 1, k + 1, k - W, k + W]) {
+            if (j < 0 || j >= N || seen[j] || !frame[j] || !inside(j)) continue;
+            if ((j === k - 1 && x === 0) || (j === k + 1 && x === W - 1)) continue;
+            seen[j] = 1; list.push(j);
+          }
+        }
+        let n = 0; for (const k of list) n += dark(img[k]) ? 1 : 0;
+        if (n * 5 >= list.length * 4) for (const k of list) frame[k] = 0;
+      }
+      // What is left of a patch joins the border's pixels, so the piece
+      // is not four in five dark. A near-black pixel within two of the
+      // band with no lighter frame pixel among its eight neighbors is
+      // backdrop too. That leaves at most a line one pixel wide along the
+      // border, the width of an outline.
+      const near = k => { const x = k % W, y = (k - x) / W; return x >= L - 2 && x <= W + 1 - Rt && y >= T - 2 && y <= W + 1 - B; };
+      const before = new Uint8Array(frame), drop = [];
+      for (let k = 0; k < N; k++) {
+        if (!before[k] || !dark(img[k]) || !near(k)) continue;
+        const x = k % W, y = (k - x) / W;
+        let lit = false;
+        for (let dy = -1; dy <= 1 && !lit; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx, yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= W || yy >= W) continue;
+          const j = yy * W + xx;
+          if (before[j] && !dark(img[j])) { lit = true; break; }
+        }
+        if (!lit) drop.push(k);
+      }
+      for (const k of drop) frame[k] = 0;
     };
     return groups.filter(g => g.length > 1)
       .map(g => { g.sort((x, y) => ps[x].resid - ps[y].resid); const o = offered(g); return { members: g.map(m => ps[m].resid), image: o.image, frame: o.frame }; })
@@ -848,7 +900,7 @@ function checkerNotch(src, guide, out, W, H, r, edge, alpha){
    deliberate patch of colour — a gem, a coloured highlight — survives: only a
    pixel with no neighbour of its hue is treated as an accident.
    ------------------------------------------------------------ */
-function fixStrayColours(src, W, H, rgba, T, locked, dLocal, dMin){
+function fixStrayColors(src, W, H, rgba, T, locked, dLocal, dMin){
   const N=W*H, out=new Float32Array(src), fixed=new Uint8Array(N);
   const cr=new Float32Array(N), cb=new Float32Array(N);
   for(let i=0;i<N;i++){
@@ -973,7 +1025,7 @@ function undither(rgba, W, H, p, locked, cls){
   boxBlur1(d, dLocal, W, H, 3, alpha);
 
   if(p.stray>0){
-    const sf=fixStrayColours(src, W, H, rgba, p.stray, locked, dLocal, p.strayRegion);
+    const sf=fixStrayColors(src, W, H, rgba, p.stray, locked, dLocal, p.strayRegion);
     src=sf.out; strayCount=sf.count;
   }
 
@@ -1507,7 +1559,7 @@ function badArtCanvas(image, W, H) {
   return c;
 }
 // The two indices a region has most of, see-through left out; null when it has none.
-function badArtColours(image, W, x0, y0, w, h) {
+function badArtColors(image, W, x0, y0, w, h) {
   const n = new Uint32Array(256);
   for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) n[image[y * W + x]]++;
   n[0] = 0;
@@ -1518,7 +1570,7 @@ function badArtColours(image, W, x0, y0, w, h) {
 }
 function badArtHash(n) { let v = (n + 0x9E3779B9) >>> 0; v = Math.imul(v ^ (v >>> 15), 0x85EBCA6B); v = Math.imul(v ^ (v >>> 13), 0xC2B2AE35); return (v ^ (v >>> 16)) >>> 0; }
 function badArtTile(old, tileId, figure, ink) {
-  const out = new Uint8Array(1024), c = badArtCanvas(out, 32, 32), cols = badArtColours(old, 32, 0, 0, 32, 32);
+  const out = new Uint8Array(1024), c = badArtCanvas(out, 32, 32), cols = badArtColors(old, 32, 0, 0, 32, 32);
   if (!cols) return out;
   const [main, second] = cols, h = badArtHash(tileId);
   if (figure) {
@@ -1551,7 +1603,7 @@ function badArtTile(old, tileId, figure, ink) {
   return out;
 }
 function badArtPicture(d, subn, resid, ink) {
-  const { W, H } = d, cols = badArtColours(d.image, W, 0, 0, W, H);
+  const { W, H } = d, cols = badArtColors(d.image, W, 0, 0, W, H);
   if (!cols) return d.image;
   const out = new Uint8Array(W * H).fill(cols[0]), c = badArtCanvas(out, W, H), h = badArtHash(resid);
   if (subn === 135) {
@@ -1565,7 +1617,7 @@ function badArtPicture(d, subn, resid, ink) {
     const bend = [3, 0, -3][(h >> 4) % 3];
     c.line(cx - r * 0.45, cy + r * 0.45, cx, cy + r * 0.45 + bend, ink.red, 2); c.line(cx, cy + r * 0.45 + bend, cx + r * 0.45, cy + r * 0.45, ink.red, 2);
   } else if (subn === 131) {
-    const low = badArtColours(d.image, W, 0, H >> 1, W, H - (H >> 1));
+    const low = badArtColors(d.image, W, 0, H >> 1, W, H - (H >> 1));
     if (low) c.box(0, H >> 1, W, H - (H >> 1), low[0]);
     c.disc(20 + (h % (W - 40)), 8, 6, 6, ink.yellow);
     for (let k = 0; k < 3; k++) { const x = 30 + (badArtHash(h + k) % (W - 60)); c.line(x, 6, x + 3, 9, ink.black); c.line(x + 3, 9, x + 6, 6, ink.black); }
@@ -1784,8 +1836,8 @@ function heroRemapTables(image, labels, def, choices) {
   const labOf = new Array(256);
   const lab = i => labOf[i] || (labOf[i] = heroLab(PAL_RGB[i]));
   return def.parts.map((part, pi) => {
-    const want = choices && choices[part.key];
-    if (!want) return null;
+    const choice = choices && choices[part.key];
+    if (!choice) return null;
     let sum = 0, n = 0, lo = 100, hi = 0;
     const used = new Set();
     for (let i = 0; i < image.length; i++) if (labels[i] === pi) {
@@ -1796,7 +1848,7 @@ function heroRemapTables(image, labels, def, choices) {
     }
     if (!n) return null;
     const mean = sum / n;
-    const t = heroLab(want);
+    const t = heroLab(choice);
     const spread = Math.max(0.35, Math.min(1,
       hi > mean ? (96 - t[0]) / (hi - mean) : 1,
       mean > lo ? (t[0] - 6) / (mean - lo) : 1));
@@ -1906,11 +1958,11 @@ function heroWearFrames(body, perFacing) {
    the order the joins happened in. */
 function heroShadeDef(image, W, frameH, opts) {
   // How alike two touching shades must be to be one family: hue within
-  // `hue` degrees and chroma within `chroma`, and two greys within `greyL`
+  // `hue` degrees and chroma within `chroma`, and two greys within `grayL`
   // of lightness. The defaults are the sprites' readings; a portrait's
   // caller tightens them, since a face's skin, hair and clothes are painted
   // in neighbouring browns that a sprite's smaller art separates.
-  const O = Object.assign({ hue: 18, chroma: 32, greyL: 100, small: 50 }, opts || {});
+  const O = Object.assign({ hue: 18, chroma: 32, grayL: 100, small: 50 }, opts || {});
   const skip = new Set([0, 0xFF, 0x1D, 0x1E]);
   const count = new Uint32Array(256);
   const touch = new Map();
@@ -1933,7 +1985,7 @@ function heroShadeDef(image, W, frameH, opts) {
   for (let i = 1; i < 256; i++) {
     if (!count[i] || skip.has(i)) continue;
     const [, a, b] = heroLab(PAL_RGB[i]);
-    groups.set(i, { members: [i], pixels: count[i], sa: a * count[i], sb: b * count[i], sl: heroLab(PAL_RGB[i])[0] * count[i], grey: Math.hypot(a, b) < 10 });
+    groups.set(i, { members: [i], pixels: count[i], sa: a * count[i], sb: b * count[i], sl: heroLab(PAL_RGB[i])[0] * count[i], gray: Math.hypot(a, b) < 10 });
   }
   const owner = new Map([...groups.keys()].map(k => [k, k]));
   const root = k => { while (owner.get(k) !== k) k = owner.get(k); return k; };
@@ -1945,13 +1997,13 @@ function heroShadeDef(image, W, frameH, opts) {
     const ra = root(j.a), rb = root(j.b);
     if (ra === rb) continue;
     const A = groups.get(ra), B = groups.get(rb);
-    if (A.grey !== B.grey) continue;
-    if (!A.grey) {
+    if (A.gray !== B.gray) continue;
+    if (!A.gray) {
       const ma = meanOf(A), mb = meanOf(B);
       let dh = Math.abs(ma.h - mb.h);
       if (dh > 180) dh = 360 - dh;
       if (dh > O.hue || Math.abs(ma.C - mb.C) > O.chroma) continue;
-    } else if (Math.abs(A.sl / A.pixels - B.sl / B.pixels) > O.greyL) continue;
+    } else if (Math.abs(A.sl / A.pixels - B.sl / B.pixels) > O.grayL) continue;
     owner.set(rb, ra);
     A.members.push(...B.members); A.pixels += B.pixels; A.sa += B.sa; A.sb += B.sb; A.sl += B.sl;
     groups.delete(rb);

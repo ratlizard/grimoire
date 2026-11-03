@@ -79,16 +79,16 @@ for (let r = 0x9000; r <= 0x900A; r++) {
   // Through MIDI and back.
   const made = ev('midiToQtma(SRC.midi, { like: RAW })');
   ctx.MADE = made.data;
-  const got = ev('qtmaToMidi(MADE)');
+  const actual = ev('qtmaToMidi(MADE)');
   // A part is followed through the MIDI file by its channel, and must come
   // back requesting the same instrument: the kit, or the same General MIDI
   // number.
   const instOf = (tones, part) => { const t = tones[part]; return t ? (t.instrument >= 16384 ? 'kit' : 'gm' + t.gm) : '?'; };
-  const chanOfGot = {};
-  for (const p of made.parts) chanOfGot[p.part] = p.midiChannel;
+  const channelOfActual = {};
+  for (const p of made.parts) channelOfActual[p.part] = p.midiChannel;
   const label = (res, chanOf, part) => 'channel ' + (chanOf[part] + 1) + ' ' + instOf(res.tones, part);
   const byInst = (res, chanOf, k) => { const m = new Map(); for (const e of res.events) if (e.k === k) { const key = label(res, chanOf, e.part); if (!m.has(key)) m.set(key, []); m.get(key).push(e); } return m; };
-  const a = byInst(src, src.chanOf, 'note'), b = byInst(got, chanOfGot, 'note');
+  const a = byInst(src, src.chanOf, 'note'), b = byInst(actual, channelOfActual, 'note');
   // A note is held to where it begins and how hard, and the ends to where
   // they fall. Two notes on one key that overlap cannot be distinguished by
   // their ends in a MIDI file (a note-off identifies a key, not a note), so which
@@ -105,7 +105,7 @@ for (let r = 0x9000; r <= 0x900A; r++) {
   // Controllers: the same count of each on each instrument, values within
   // a step of what seven bits hold (a level's fraction is lost; pan and
   // the wheel are rounded twice).
-  const ca = byInst(src, src.chanOf, 'ctl'), cb = byInst(got, chanOfGot, 'ctl');
+  const ca = byInst(src, src.chanOf, 'ctl'), cb = byInst(actual, channelOfActual, 'ctl');
   const signed = v => v >= 0x8000 ? v - 0x10000 : v;
   for (const [inst, list] of ca) {
     for (const ctl of new Set(list.map(e => e.ctl))) {
@@ -130,18 +130,37 @@ for (let r = 0x9000; r <= 0x900A; r++) {
   const on = bentMidi.findIndex((v, i) => i > 30 && (v & 0xF0) === 0x90 && bentMidi[i + 2] > 0 && bentMidi[i + 1] < 120);
   bentMidi[on + 1] += 1;
   ctx.BENT = bentMidi;
-  const bentGot = ev('qtmaToMidi(midiToQtma(BENT, { like: RAW }).data)');
+  const bentActual = ev('qtmaToMidi(midiToQtma(BENT, { like: RAW }).data)');
   const keys = res => res.events.filter(e => e.k === 'note').map(noteKey).sort();
-  if (same(keys(bentGot), keys(got))) { controlsOk = false; fail(name + ' midi control', 'a changed key came back unchanged'); }
+  if (same(keys(bentActual), keys(actual))) { controlsOk = false; fail(name + ' midi control', 'a changed key came back unchanged'); }
   tunes++;
 }
 
 // What a rejection reports.
-const throws = (what, code, want) => { try { ev(code); fail(what, 'did not throw'); } catch (e) { if (!want.test(e.message)) fail(what, 'threw "' + e.message + '"'); } };
+const throws = (what, code, expected) => { try { ev(code); fail(what, 'did not throw'); } catch (e) { if (!expected.test(e.message)) fail(what, 'threw "' + e.message + '"'); } };
 throws('not a MIDI file', 'midiRead(new Uint8Array(32))', /MThd/);
 ctx.R = 0x9000;
 throws('no tune to copy from', 'midiToQtma(qtmaToMidi(getResourceBytes(ARC, R)).midi, {})', /synthesizer/);
 
+// A tune added under a new number (midiFileAdded and addResource): the file
+// written with tune 0's MIDI as 0x900B must give that tune back from 0x900B,
+// stored enciphered as 0x9000 is, and leave 0x9000 as it was. The page's
+// path goes through parseArchiveBytes and the DOM, and this check covers the
+// archive layer under it.
+ev(`ADDED = (() => {
+  const spec = delverArchiveSpec(DATA);
+  const model = spec.resources.find(r => r.resid === 0x9000);
+  const made = midiToQtma(qtmaToMidi(getResourceBytes(ARC, 0x9000)).midi, { like: getResourceBytes(ARC, 0x9000) }).data;
+  spec.resources.push({ resid: 0x900B, data: made, encrypted: !!model.encrypted });
+  const back = openDelverArchive(writeDelverArchive(spec));
+  return { made, back: getResourceBytes(back, 0x900B), first: getResourceBytes(back, 0x9000), was: getResourceBytes(ARC, 0x9000) };
+})()`);
+const added = ev('ADDED');
+if (!added.back) fail('added tune', '0x900B is not in the written file');
+else if (!same(Array.from(added.back), Array.from(added.made))) fail('added tune', '0x900B does not read back as written');
+if (!same(Array.from(added.first), Array.from(added.was))) fail('added tune', 'adding 0x900B changed 0x9000');
+
 if (failures) process.exit(1);
 console.log(`midi import: ${tunes} shipped headers rebuilt byte for byte; ${notes} notes and ${ctls} controllers back from MIDI where they were` +
   ` (a controller's value within ${worst} of 65536)${controlsOk ? '; the controls caught' : ''}`);
+console.log('added tune: 0x900B reads back from the written file, and 0x9000 is unchanged');

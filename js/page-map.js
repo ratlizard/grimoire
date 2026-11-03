@@ -482,7 +482,7 @@ function scheduleHoldsAtStart(e, state) {
    condition is true. Philinus, Timon and Eudoxus open with one. */
 function scheduleIsHead(e) { return e.level === 0 && e.x === 0 && e.y === 0 && e.cond !== 1; }
 /* Why ScheduleTime would not schedule a character at all, from the record
-   as the file has it and the tests read off the routine (exeScheduleWho):
+   as the file has it and the tests read off the routine (exeScheduleRules):
    in the party, dead, or waiting. Null when the character is scheduled,
    and null with no application open, since the tests are the program's
    and the page states nothing of them without it. The fourth test, the
@@ -490,13 +490,13 @@ function scheduleIsHead(e) { return e.level === 0 && e.x === 0 && e.y === 0 && e
 function scheduleSkipReason(i) {
   const state = scheduleState();
   const c = state && state.chars && state.chars[i] ? state.chars[i] : loadCharacterTable()[i];
-  const who = c && appImage() ? exeScheduleWho() : null;
-  if (!who) return null;
+  const character = c && appImage() ? exeScheduleRules() : null;
+  if (!character) return null;
   const raw = c.raw;
-  if (raw[who.partyBit.byte.v] & who.partyBit.bit.v) return 'in the party';
-  const hw = (raw[who.aliveBit.byte.v] << 8) | raw[who.aliveBit.byte.v + 1];
-  if (!(hw & who.aliveBit.mask.v)) return 'dead';
-  if (raw[who.waiting.byte.v] === who.waiting.value.v) return 'waiting';
+  if (raw[character.partyBit.byte.v] & character.partyBit.bit.v) return 'in the party';
+  const hw = (raw[character.aliveBit.byte.v] << 8) | raw[character.aliveBit.byte.v + 1];
+  if (!(hw & character.aliveBit.mask.v)) return 'dead';
+  if (raw[character.waiting.byte.v] === character.waiting.value.v) return 'waiting';
   return null;
 }
 
@@ -709,7 +709,13 @@ function drawCharacterLayer(lensCtx, lensTS) {
       ctx.fillText(c.name, px, py);
     }
   }
-  if (window.SHOW_BARKS) drawBarks(ctx, people, TS, 0, 0);
+  // Barks are part of Walk the Day. A balloon shows only while the day
+  // walks, and over a speaker only where its schedule fits the line
+  // (barkFits).
+  if (window.SHOW_BARKS && window.MAP_WALK) {
+    const hour = Math.floor(window.MAP_TIME) % 24;
+    drawBarks(ctx, people.filter(c => barkFits(c, hour)), TS, 0, 0);
+  }
   if (lbl) {
     lbl.textContent = people.length + (people.length === 1 ? ' inhabitant' : ' inhabitants');
   }
@@ -900,6 +906,7 @@ const MAP_TIME_IDS = { walk: ['chkWalk'], speed: ['walkSpeed'],
 function syncMapTimeControls() {
   const set = (ids, f) => { for (const id of ids) { const el = document.getElementById(id); if (el) f(el); } };
   set(MAP_TIME_IDS.walk, el => { el.checked = !!window.MAP_WALK; });
+  set(['chkBarks'], el => { el.disabled = !window.MAP_WALK; });
   set(MAP_TIME_IDS.speed, el => { el.value = String(window.MAP_WALK_SPEED || 1); });
   const t = window.MAP_WALK ? window.MAP_TIME : window.MAP_HOUR;
   set(MAP_TIME_IDS.slider, el => { el.value = Math.floor(t); });
@@ -1105,7 +1112,7 @@ function nightAlpha(hour) {
 window.MAP_MARKS = { doors: false, secret: false, chest: false, exits: false, grid: false, rooms: false, eggs: false, path: false, save: false };
 function toggleMapMarks(kind, on) { window.MAP_MARKS[kind] = on; drawMapMarks(); }
 // The Path mark's state, its picker and its drawing are in
-// js/delv-mapview.js: MAP_PATH_WHO, setMapPathWho, refreshPathPicker and
+// js/delv-mapview.js: MAP_PATH_CHARACTER, setMapPathCharacter, refreshPathPicker and
 // drawSchedulePath.
 
 // Prop types that are a way through something rather than a thing: the ones
@@ -1252,9 +1259,9 @@ function propTravelsTo(rec, mapResid) {
   // named -- mousehole, crack, loose board -- have no class or no such
   // member, and their zone change is an egg's. The settlement scoping
   // above is the one judgement left.
-  const known = classTravels(rec.proptype) &&
+  const isZoneport = classTravels(rec.proptype) &&
                 (mapResid === WORLD_MAP_RESID || !SETTLEMENT_PROPS.test((propTypeName(rec.proptype) || '').toLowerCase()));
-  return known ? zoneportInfo(rec.d2) : null;
+  return isZoneport ? zoneportInfo(rec.d2) : null;
 }
 
 /* Every gateway off the world map, as a footprint with a destination.
@@ -1687,7 +1694,7 @@ function drawMapMarks(lensCtx, lensTS) {
     ctx.clearRect(0, 0, mc.width, mc.height);
     TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at the layer's scale
   }
-  const colours = { doors: '#ffd166', secret: '#8fd4ff', chest: '#a8e06a', exits: '#ff9ad5', path: '#7ef0c0' };
+  const colors = { doors: '#ffd166', secret: '#8fd4ff', chest: '#a8e06a', exits: '#ff9ad5', path: '#7ef0c0' };
   // A line on every square's edge, so a coordinate can be counted off the map.
   if (M.grid) {
     const cols = Math.round(cm.width / cm.TS), rows = Math.round(cm.height / cm.TS);
@@ -1817,7 +1824,7 @@ function drawMapMarks(lensCtx, lensTS) {
   // One character's day, as the line they walk (drawSchedulePath in
   // js/delv-mapview.js, which explains why it is the whole day and not the
   // hour).
-  const drawnPath = M.path ? drawSchedulePath(ctx, TS, cm, colours.path) : null;
+  const drawnPath = M.path ? drawSchedulePath(ctx, TS, cm, colors.path) : null;
   const pathStops = drawnPath ? drawnPath.stops : 0;
   const pathName = drawnPath ? drawnPath.name : '';
 
@@ -1835,8 +1842,8 @@ function drawMapMarks(lensCtx, lensTS) {
     // The inspector still explains them when their square is clicked.
     for (const e of mapExitEdges(cm.resid, cm.m)) {
       edges++;
-      wash(e.cells, colours.exits, 0.18);
-      ring(e.cells, colours.exits, true);
+      wash(e.cells, colors.exits, 0.18);
+      ring(e.cells, colors.exits, true);
     }
   }
 
@@ -1866,8 +1873,8 @@ function drawMapMarks(lensCtx, lensTS) {
       let buried = false;
       if (kind === 'secret' || isExitProp(r.proptype, cm.resid)) {
         const later = (stack.get(r.y * 4096 + r.x) || []);
-        const mine = later.indexOf(d);
-        for (let i = mine + 1; i < later.length; i++)
+        const laterIndex = later.indexOf(d);
+        for (let i = laterIndex + 1; i < later.length; i++)
           if (tileOpacity(later[i].tileId) > 0.75) { buried = true; break; }
       }
       // Concealment beats exit-ness: a crack or a mousehole leads somewhere,
@@ -1878,7 +1885,7 @@ function drawMapMarks(lensCtx, lensTS) {
       const isExit = isExitProp(r.proptype, cm.resid) && !isConcealedProp(r.proptype);
       const isHidden = kind === 'secret' && (isConcealedProp(r.proptype) || buried ||
                                              isWallProp(r.proptype));
-      const needsRope = ropes_.has(r.x + ',' + r.y);
+      const requiresRope = ropes_.has(r.x + ',' + r.y);
 
       // One ring per square per kind, on the record's square only. A
       // door is doorway + metal door stacked on one square, each spanning
@@ -1893,8 +1900,8 @@ function drawMapMarks(lensCtx, lensTS) {
       };
       if (M.exits && isExit && !seen('e')) {
         counts.exits++;
-        ring(base, colours.exits, false);
-        wash(base, colours.exits, 0.14);
+        ring(base, colors.exits, false);
+        wash(base, colors.exits, 0.14);
       }
       if (M.secret && isHidden && !seen('s')) {
         counts.secret++;
@@ -1904,11 +1911,11 @@ function drawMapMarks(lensCtx, lensTS) {
         // climbing), so the type is the how.
         const tn = (propTypeName(r.proptype) || (buried ? 'buried' : 'other')).toLowerCase();
         secretTypes.set(tn, (secretTypes.get(tn) || 0) + 1);
-        ring(base, colours.secret, true);
+        ring(base, colors.secret, true);
         if (buried) ring(base, '#ffffff', true);
       }
-      if (M.doors && kind === 'doors' && !seen('d')) { counts.doors++; ringBox(d.cells, colours.doors); }
-      if (M.chest && kind === 'chest' && !seen('c')) { counts.chest++; ring(base, colours.chest, false); }
+      if (M.doors && kind === 'doors' && !seen('d')) { counts.doors++; ringBox(d.cells, colors.doors); }
+      if (M.chest && kind === 'chest' && !seen('c')) { counts.chest++; ring(base, colors.chest, false); }
       // A locked door or container wears a keyhole over its ring: the lock
       // id is the record's first data byte (see buildKeyLockIndex).
       if (((M.doors && kind === 'doors') || (M.chest && kind === 'chest')) &&
@@ -1916,7 +1923,7 @@ function drawMapMarks(lensCtx, lensTS) {
           !seen('l')) {
         locked++;
         ctx.save();
-        ctx.fillStyle = '#111'; ctx.strokeStyle = colours.doors;
+        ctx.fillStyle = '#111'; ctx.strokeStyle = colors.doors;
         ctx.lineWidth = Math.max(1, TS / 20);
         const cxp = r.x * TS + TS * 0.5, cyp = r.y * TS + TS * 0.32;
         ctx.beginPath(); ctx.arc(cxp, cyp, TS * 0.14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -1925,7 +1932,7 @@ function drawMapMarks(lensCtx, lensTS) {
         ctx.stroke();
         ctx.restore();
       }
-      if ((M.exits || M.secret) && needsRope && (isExit || isHidden)) {
+      if ((M.exits || M.secret) && requiresRope && (isExit || isHidden)) {
         ropes++; ropeGlyph(r.x, r.y); ropeDone.add(r.x + ',' + r.y);
       }
     }
@@ -1938,7 +1945,7 @@ function drawMapMarks(lensCtx, lensTS) {
         if (ropeDone.has(k)) continue;
         const [rx, ry] = k.split(',').map(Number);
         ropes++;
-        if (M.exits) { counts.exits++; ring([[rx, ry]], colours.exits, false); wash([[rx, ry]], colours.exits, 0.14); }
+        if (M.exits) { counts.exits++; ring([[rx, ry]], colors.exits, false); wash([[rx, ry]], colors.exits, 0.14); }
         ropeGlyph(rx, ry);
       }
     }
@@ -1971,7 +1978,7 @@ function drawMapMarks(lensCtx, lensTS) {
   let saveLegend = null;
   if (M.save) {
     const sb = window.SAVE_BESIDE;
-    if (!sb) saveLegend = 'no save open alongside this file; compare one under Tools';
+    if (!sb) saveLegend = 'no save is open alongside this file (compare one under Tools)';
     else {
       const listId = 0x8100 + cm.level;
       const sres = sb.spec.resources.find(r => r.resid === listId);
@@ -2050,7 +2057,7 @@ function drawMapMarks(lensCtx, lensTS) {
     const LINE = '<span class="legendSwatch line"></span>';
     const ROPE = '<svg class="legendSwatch" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">' +
       '<path d="M5 1.6V8.4M3.2 3.8H6.8M3.2 6.2H6.8" stroke="currentColor" stroke-width="1.3" fill="none"/></svg>';
-    const chip = (k, label) => parts.push('<span style="color:' + colours[k] + '">' + BOX + counts[k] + ' ' + label + '</span>');
+    const chip = (k, label) => parts.push('<span style="color:' + colors[k] + '">' + BOX + counts[k] + ' ' + label + '</span>');
     if (M.doors) chip('doors', 'doors' + (locked ? ', ' + locked + ' locked' : ''));
     if (M.secret) {
       const breakdown = [...secretTypes.entries()].sort((a, b) => b[1] - a[1])
@@ -2067,10 +2074,10 @@ function drawMapMarks(lensCtx, lensTS) {
     }
     if (M.exits) chip('exits', (counts.exits === 1 ? 'zone exit' : 'zone exits') +
       (edges ? ' + ' + edges + (edges === 1 ? ' open edge' : ' open edges') : ''));
-    if (M.path && pathStops) parts.push('<span style="color:' + colours.path + '">' + LINE +
+    if (M.path && pathStops) parts.push('<span style="color:' + colors.path + '">' + LINE +
       svEsc(pathName) + ', ' + pathStops + (pathStops === 1 ? ' post' : ' posts') +
-      ' on this map, joined by the route the game would walk; the color of each part of the route' +
-      ' shows the hour it starts, and each part takes its own line where the game' +
+      ' on this map, joined by the route the game would walk. The color of each part of the route' +
+      ' shows the hour it starts, and each part has a line of its own where the game' +
       ' walks the same way twice</span>');
     if (ropes) parts.push('<span style="color:#fff">' + ROPE + ropes +
       (ropes === 1 ? ' needs a rope' : ' need a rope') + '</span>');
@@ -2078,9 +2085,9 @@ function drawMapMarks(lensCtx, lensTS) {
       svEsc(propDisplayName(spots.pt) || ('0x' + spots.pt.toString(16).toUpperCase())) + '</span>');
     if (saveLegend) parts.push('<span style="color:#a8e06a">' + BOX + 'save: ' + saveLegend + '</span>');
     legend.innerHTML = parts.length
-      ? parts.join(' &nbsp; ') + ' <span style="color:#dcd8cc">. Doors are the classes whose open or shut state the game sets back to the zone’s setting whenever the party enters the zone, ' +
-        'containers are the classes with IsContainer, and the page finds hidden ways by prop-type name. Zone exits are visible ways out (holes, stairs, cave mouths) plus the map’s ' +
-        'open edges, which you leave by walking off at any row or column; the page marks concealed passages as ' +
+      ? parts.join(' &nbsp; ') + ' <span style="color:#dcd8cc">. Doors are the classes whose open or shut state the game resets to the zone’s setting whenever the party enters the zone. ' +
+        'Containers are the classes with IsContainer. The page finds hidden ways by prop-type name. Zone exits are visible ways out (holes, stairs, cave mouths) plus the map’s ' +
+        'open edges, where walking off at any row or column leaves the map. The page marks concealed passages as ' +
         'hidden ways instead.</span>'
       : '';
   }
@@ -2539,7 +2546,7 @@ function toggleCharNames(on) { window.SHOW_CHAR_NAMES = on; drawCharacterLayer()
 /* Barks on the map (the maintainer's list, 22 September 2026).
 
    A bark is a line a script puts in a character's talk balloon
-   (buildBarkCatalogue has every one). The ones drawn here are the lines a
+   (buildBarkCatalog has every one). The ones drawn here are the lines a
    character's conversation script gives it -- the vendors' cries,
    Alaric's "Yum", the diners calling for wine -- which is twelve people;
    the shared lines (sleep, hunger, a fight, a theft) are anyone's and wait
@@ -2556,10 +2563,10 @@ function barksByCharacter() {
   if (DERIVED.BARKS_BY_CHAR) return DERIVED.BARKS_BY_CHAR;
   const by = new Map();
   try {
-    for (const e of buildBarkCatalogue()) {
-      if (e.who === null || e.who === undefined) continue;
-      if (!by.has(e.who)) by.set(e.who, []);
-      for (const w of e.words) if (!by.get(e.who).includes(w)) by.get(e.who).push(w);
+    for (const e of buildBarkCatalog()) {
+      if (e.character === null || e.character === undefined) continue;
+      if (!by.has(e.character)) by.set(e.character, []);
+      for (const w of e.words) if (!by.get(e.character).includes(w)) by.get(e.character).push(w);
     }
   } catch (e) { quiet(e, 'the barks by speaker'); }
   return (DERIVED.BARKS_BY_CHAR = by);
@@ -2577,6 +2584,45 @@ function barkRulesRead() {
 // Which of a speaker's lines is up now: a new one every balloon's life.
 function barkMillis() { const r = barkRulesRead(); return r && r.ticks ? r.ticks.v / 60 * 1000 : 0; }
 function barkBucket() { const ms = barkMillis(); return ms ? Math.floor(Date.now() / ms) : 0; }
+/* Which lines a speaker has up at a place and an hour. The speaker's
+   EveryTurn sets a line under tests of its behavior (147 eating, 146
+   sitting) and sometimes of the hour ("current hour is 12 or current hour
+   is 18"), with a roll and a flag or two besides. The schedule gives the
+   first two for every hour, so a line shows only where the schedule puts
+   its speaker doing what the line needs (the maintainer, 28 October 2026:
+   barks part of Walk the Day, shown where the scheduled place fits). Each
+   line's tests are the Read view's, the chain of ifs above the clause that
+   sets the balloon or runs a balloon helper (0xC84, 0xC85). A speaker
+   whose tests name neither shows its lines at any hour. */
+function barkConditions() {
+  if (DERIVED.BARK_CONDS) return DERIVED.BARK_CONDS;
+  const out = new Map();
+  for (const i of barksByCharacter().keys()) {
+    const resid = 0x1800 + i, list = [];
+    try {
+      const raw = getResourceBytes(ARCHIVE, resid);
+      const fns = raw ? dvmReadRender(ARCHIVE, smartDecrypt(raw, resid).data, resid) : [];
+      const walk = (cl, chain) => { for (const c of cl || []) {
+        if (/talk balloon to|\brun 0xC8[45]\b/.test(c.text)) {
+          const all = chain.join(' and ');
+          const behaviors = [...all.matchAll(/its behavior is (\d+)/g)].map(m => +m[1]);
+          const hours = [...all.matchAll(/current hour is (\d+)/g)].map(m => +m[1]);
+          list.push({ behaviors: behaviors.length ? new Set(behaviors.slice(-1)) : null, hours: hours.length ? new Set(hours) : null });
+        }
+        walk(c.kids, /^if /.test(c.text) ? chain.concat([c.text]) : chain);
+      } };
+      for (const f of fns) if (/EveryTurn/.test(f.name || '')) walk(f.clauses, []);
+    } catch (e) { quiet(e, 'the barks’ conditions'); }
+    out.set(i, list);
+  }
+  return (DERIVED.BARK_CONDS = out);
+}
+function barkFits(c, hour) {
+  const list = barkConditions().get(c.index);
+  if (!list || !list.length) return true;
+  if (c.walking) return false;
+  return list.some(k => (!k.behaviors || k.behaviors.has(c.mode)) && (!k.hours || k.hours.has(hour)));
+}
 function toggleBarks(on) {
   window.SHOW_BARKS = !!on;
   for (const id of ['chkBarks']) { const el = document.getElementById(id); if (el) el.checked = !!on; }
@@ -2851,7 +2897,7 @@ function seatsOnMap(resid, m) {
             .filter(([dx, dy]) => solid(r.x + dx, r.y + dy));
           if (tables.length) { face = tables[0][2]; why = 'faces the table beside it'; }
           else if (walls.length === 1) { face = walls[0][2]; why = 'wall behind it'; }
-          else { face = SPR_S; why = 'not known, this seat has ' + own +
+          else { face = SPR_S; why = 'not known, because this seat has ' + own +
                    ' frame' + (own === 1 ? '' : 's') + ', so its aspect does not give one of four directions, ' +
                    'and nothing behind it shows which way it faces'; }
         }

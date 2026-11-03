@@ -111,17 +111,17 @@ const run = forget => ev(`(() => {
             const op = ops[i];
             if (op[2] === '??') continue;
             const end = i + 1 < ops.length ? ops[i + 1][0] : seg.length;
-            const want = seg.subarray(op[0], end);
+            const expected = seg.subarray(op[0], end);
             const text = lineOf(op, seg);
             listing.push({ at: st + op[0], mn: op[2], text });
             out.ops++;
-            let got;
+            let actual;
             try {
               const a = dvmAssemble(text, resid);
-              got = a.bytes.slice();
-              for (const s of a.sites) { got[s.at] = (s.value >> 8) & 0xFF; got[s.at + 1] = s.value & 0xFF; }
-            } catch (err) { got = null; if (out.roundTripBad.length < 12) out.roundTripBad.push(resid.toString(16) + '@' + (st + op[0]).toString(16) + ' ' + text.slice(0, 60) + ': ' + err.message); continue; }
-            if (hex(got) !== hex(want) && out.roundTripBad.length < 12) out.roundTripBad.push(resid.toString(16) + '@' + (st + op[0]).toString(16) + ' ' + text.slice(0, 60) + ': ' + hex(got) + ' for ' + hex(want));
+              actual = a.bytes.slice();
+              for (const s of a.sites) { actual[s.at] = (s.value >> 8) & 0xFF; actual[s.at + 1] = s.value & 0xFF; }
+            } catch (err) { actual = null; if (out.roundTripBad.length < 12) out.roundTripBad.push(resid.toString(16) + '@' + (st + op[0]).toString(16) + ' ' + text.slice(0, 60) + ': ' + err.message); continue; }
+            if (hex(actual) !== hex(expected) && out.roundTripBad.length < 12) out.roundTripBad.push(resid.toString(16) + '@' + (st + op[0]).toString(16) + ' ' + text.slice(0, 60) + ': ' + hex(actual) + ' for ' + hex(expected));
           }
         }
         // 2: a splice of nothing.

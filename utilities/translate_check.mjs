@@ -69,7 +69,7 @@ const {sandbox, ctx} = pageContext(htmlPath, dataPath);
 sandbox.__r = new Uint8Array(readFileSync(rsrcPath));
 for (const f of ['js/mac-geneva.js', 'js/delv-es.js']) new vm.Script(readFileSync(new URL('../' + f, import.meta.url), 'utf8'), {filename: f}).runInContext(ctx);
 
-const got = vm.runInContext(`(() => {
+const runResult = vm.runInContext(`(() => {
   const T = DELV_TRANSLATION_ES;
   const t0 = Date.now();
   const r = translateCytheraData(__a, __r, T);
@@ -113,9 +113,9 @@ const got = vm.runInContext(`(() => {
     if (A.out.length !== B.out.length) { fails.push(hex(resid) + ': ' + A.out.length + ' keyword lists in English, ' + B.out.length + ' translated'); continue; }
     const kwsAt = new Map();   // English offset of a list -> the words the table requested
     A.out.forEach((q, i) => {
-      const want = placeAt.has(q.at + 1) ? placeAt.get(q.at + 1) : q.list;
-      if (B.out[i].list !== want) fails.push(hex(resid) + ': keyword list ' + i + ' is ' + JSON.stringify(B.out[i].list) + ', the table requested ' + JSON.stringify(want));
-      kwsAt.set(q.at, want);
+      const expected = placeAt.has(q.at + 1) ? placeAt.get(q.at + 1) : q.list;
+      if (B.out[i].list !== expected) fails.push(hex(resid) + ': keyword list ' + i + ' is ' + JSON.stringify(B.out[i].list) + ', the table requested ' + JSON.stringify(expected));
+      kwsAt.set(q.at, expected);
     });
     // Chains: a list's "next" is the list tried after it. A head is a list no
     // other list leads to; a top-level head is one in no response.
@@ -171,8 +171,8 @@ const got = vm.runInContext(`(() => {
       // Spanish may put a run's words in another order ("mina de hierro"
       // for "iron mine"), so the run's answers are compared as a set.
       const at = run.at + a[0].index;
-      const wantAll = a.map(m => resolve(resid, lower(m[1]), at, 'en'));
-      const gotAll = b.map(m => resolve(resid, lower(m[1]), at, 'es'));
+      const expectedAll = a.map(m => resolve(resid, lower(m[1]), at, 'en'));
+      const actualAll = b.map(m => resolve(resid, lower(m[1]), at, 'es'));
       const key = xs => xs.map(x => x || 'nothing').sort().join(' ');
       words += a.length;
       // A highlight the English leaves unanswered (the vineyard's "viny" is
@@ -180,13 +180,13 @@ const got = vm.runInContext(`(() => {
       // failed: there is no English answer for it to differ from. So every
       // English answer must be among the Spanish ones, and what is left over
       // is where the English reached nothing.
-      const left = gotAll.slice();
-      const kept = wantAll.every(w => { if (w === null) return true; const i = left.indexOf(w); if (i < 0) return false; left.splice(i, 1); return true; });
-      if (key(wantAll) === key(gotAll)) reached += a.length;
-      else if (kept && left.filter(x => x !== null).length <= wantAll.filter(x => x === null).length) notes.push(hex(resid) + ': ' + b.map((m, i) => '"@' + m[1] + '" reaches ' + (gotAll[i] || 'nothing')).join(', ') + ', where ' + a.map((m, i) => '"@' + m[1] + '" reaches ' + (wantAll[i] || 'nothing')).join(', '));
-      else fails.push(hex(resid) + ': ' + a.map((m, i) => '"@' + m[1] + '" reaches ' + (wantAll[i] || 'nothing')).join(', ') + '; ' + b.map((m, i) => '"@' + m[1] + '" reaches ' + (gotAll[i] || 'nothing')).join(', '));
+      const left = actualAll.slice();
+      const kept = expectedAll.every(w => { if (w === null) return true; const i = left.indexOf(w); if (i < 0) return false; left.splice(i, 1); return true; });
+      if (key(expectedAll) === key(actualAll)) reached += a.length;
+      else if (kept && left.filter(x => x !== null).length <= expectedAll.filter(x => x === null).length) notes.push(hex(resid) + ': ' + b.map((m, i) => '"@' + m[1] + '" reaches ' + (actualAll[i] || 'nothing')).join(', ') + ', where ' + a.map((m, i) => '"@' + m[1] + '" reaches ' + (expectedAll[i] || 'nothing')).join(', '));
+      else fails.push(hex(resid) + ': ' + a.map((m, i) => '"@' + m[1] + '" reaches ' + (expectedAll[i] || 'nothing')).join(', ') + '; ' + b.map((m, i) => '"@' + m[1] + '" reaches ' + (actualAll[i] || 'nothing')).join(', '));
       // The control: the Spanish words against the English lists alone.
-      b.forEach((m, i) => { if (wantAll[i] !== null && resolve(resid, lower(m[1]), at, 'en') !== wantAll[i]) control++; });
+      b.forEach((m, i) => { if (expectedAll[i] !== null && resolve(resid, lower(m[1]), at, 'en') !== expectedAll[i]) control++; });
     }
   }
 
@@ -213,10 +213,10 @@ const got = vm.runInContext(`(() => {
   const widthFails = [];
   let widthControl = 0;
   for (const [ch, base] of Object.entries(BASE)) {
-    const want = wEn(base.charCodeAt(0));
+    const expected = wEn(base.charCodeAt(0));
     for (const code of [TRANSLATE_CODES[ch], TRANSLATE_MACROMAN[ch]]) {
-      if (wEs(code) !== want) widthFails.push(ch + ' at ' + code + ' is ' + wEs(code) + ', ' + base + ' is ' + want);
-      if (wEn(code) !== want) widthControl++;
+      if (wEs(code) !== expected) widthFails.push(ch + ' at ' + code + ' is ' + wEs(code) + ', ' + base + ' is ' + expected);
+      if (wEn(code) !== expected) widthControl++;
     }
   }
 
@@ -251,8 +251,8 @@ const got = vm.runInContext(`(() => {
       strikeGlyphs++;
     }
     for (const [ch, base] of Object.entries(BASE)) for (const code of [TRANSLATE_CODES[ch], TRANSLATE_MACROMAN[ch]]) {
-      const adv = f.ow[code - f.firstChar] & 0xFF, want = M.adv[base.charCodeAt(0) - 0x20];
-      if (adv !== want) strikeFails.push(size + ' pt ' + ch + ' at ' + code + ' is ' + adv + ' wide, ' + base + ' is ' + want);
+      const adv = f.ow[code - f.firstChar] & 0xFF, expected = M.adv[base.charCodeAt(0) - 0x20];
+      if (adv !== expected) strikeFails.push(size + ' pt ' + ch + ' at ' + code + ' is ' + adv + ' wide, ' + base + ' is ' + expected);
     }
   }
   for (const id of S.styles) {
@@ -305,21 +305,21 @@ if (appDataPath && existsSync(appDataPath) && appRsrcPath && existsSync(appRsrcP
       return q ? q.offset + extra : null;
     };
     const pooled = appPooledStrings(__pd);
-    const want = new Map();       // code address -> { text, pascal }
+    const expected = new Map();       // code address -> { text, pascal }
     for (const q of pooled) {
-      const en = bin(q.bytes), sec = q.pascal ? P.P : P.C, got = sec && sec[translateHash(en)];
-      const pieces = got === undefined || got === '=' ? null : (Array.isArray(got) ? got : [got]);
-      if (!pieces) { if (!want.has(q.at)) want.set(q.at, { text: en, pascal: q.pascal, es: false }); continue; }
+      const en = bin(q.bytes), sec = q.pascal ? P.P : P.C, translation = sec && sec[translateHash(en)];
+      const pieces = translation === undefined || translation === '=' ? null : (Array.isArray(translation) ? translation : [translation]);
+      if (!pieces) { if (!expected.has(q.at)) expected.set(q.at, { text: en, pascal: q.pascal, es: false }); continue; }
       const offs = [0].concat(q.inner);
-      pieces.forEach((x, k) => want.set(q.at + offs[k], { text: bin(encodeMacRoman(pieces.slice(k).join(''))), pascal: q.pascal, es: true }));
+      pieces.forEach((x, k) => expected.set(q.at + offs[k], { text: bin(encodeMacRoman(pieces.slice(k).join(''))), pascal: q.pascal, es: true }));
     }
     let loads = 0, spanish = 0, control = 0;
     for (let site = 0; site + 4 <= ca.length; site += 4) {
       const w = pefU32(ca, site);
       if ((w >>> 26) !== 32 || ((w >>> 16) & 31) !== 2) continue;
       const q = pefPointerAt(a, a.toc.section, toc + ((w << 16) >> 16));
-      if (!q || !want.has(q.offset)) continue;
-      const wnt = want.get(q.offset); loads++;
+      if (!q || !expected.has(q.offset)) continue;
+      const wnt = expected.get(q.offset); loads++;
       const to = follow(b, cb, site), s = to === null ? null : bin(readAt(cb, to, wnt.pascal));
       if (s !== wnt.text) fails.push('the load at 0x' + site.toString(16) + ' reaches ' + JSON.stringify(s) + ', not ' + JSON.stringify(wnt.text));
       else if (wnt.es) spanish++;
@@ -370,25 +370,25 @@ let failures = 0;
 const fail = (what, why) => { failures++; console.error(`FAIL ${what}: ${why}`); };
 const ok = (what, detail) => console.log(`  ok   ${what}${detail ? '  — ' + detail : ''}`);
 
-if (got.missing) fail('coverage', `${got.missing} pieces have no entry (utilities/translate_build.mjs --missing prints them)`);
-else ok('coverage', `${got.done} pieces and ${got.keys} keyword lists, built in ${got.ms} ms`);
-if (got.unused.length) fail('stale entries', got.unused.join(', '));
+if (runResult.missing) fail('coverage', `${runResult.missing} pieces have no entry (utilities/translate_build.mjs --missing prints them)`);
+else ok('coverage', `${runResult.done} pieces and ${runResult.keys} keyword lists, built in ${runResult.ms} ms`);
+if (runResult.unused.length) fail('stale entries', runResult.unused.join(', '));
 else ok('stale entries', 'none');
-ok('disassembly', `${got.disasm} script resources`);
-ok('face', got.fontNote);
-if (got.widthFails.length) fail('family widths', got.widthFails.join('; '));
-else if (got.widthControl !== 32) fail('family widths', 'the shipped FOND already has the width at ' + (32 - got.widthControl) + ' of the 32 codes, so the control proves nothing');
+ok('disassembly', `${runResult.disasm} script resources`);
+ok('face', runResult.fontNote);
+if (runResult.widthFails.length) fail('family widths', runResult.widthFails.join('; '));
+else if (runResult.widthControl !== 32) fail('family widths', 'the shipped FOND already has the width at ' + (32 - runResult.widthControl) + ' of the 32 codes, so the control proves nothing');
 else ok('family widths', 'the 16 letters at their 32 codes take their base letter\'s width; the shipped table has none of them');
-if (got.strikeFails.length) fail('Geneva strikes', got.strikeFails.slice(0, 12).join('; '));
-else if (!got.strikeControl) fail('Geneva strikes', "the font's widths are already Geneva's, so the control proves nothing");
-else ok('Geneva strikes', `${got.strikeGlyphs} ASCII glyphs at Geneva's widths and frame, each the font's letter, the accents at their letters' widths; the font's widths differ at ${got.strikeControl}`);
-for (const f of got.fails) fail('conversation', f);
-for (const n of got.notes) console.log('  note ' + n);
-if (!got.fails.length) ok('highlights', `${got.reached} of ${got.words} highlighted words reach the English word's answer`);
+if (runResult.strikeFails.length) fail('Geneva strikes', runResult.strikeFails.slice(0, 12).join('; '));
+else if (!runResult.strikeControl) fail('Geneva strikes', "the font's widths are already Geneva's, so the control proves nothing");
+else ok('Geneva strikes', `${runResult.strikeGlyphs} ASCII glyphs at Geneva's widths and frame, each the font's letter, the accents at their letters' widths; the font's widths differ at ${runResult.strikeControl}`);
+for (const f of runResult.fails) fail('conversation', f);
+for (const n of runResult.notes) console.log('  note ' + n);
+if (!runResult.fails.length) ok('highlights', `${runResult.reached} of ${runResult.words} highlighted words reach the English word's answer`);
 // Most highlighted words are not their English spelling, so without the
 // stems they must mostly miss.
-if (got.control < got.words / 2) fail('negative control', `only ${got.control} of ${got.words} highlighted words stop reaching their answer without the Spanish stems`);
-else ok('negative control', `${got.control} of ${got.words} miss without the Spanish stems`);
+if (runResult.control < runResult.words / 2) fail('negative control', `only ${runResult.control} of ${runResult.words} highlighted words stop reaching their answer without the Spanish stems`);
+else ok('negative control', `${runResult.control} of ${runResult.words} miss without the Spanish stems`);
 
 if (prog) {
   if (prog.missing.length) fail('program coverage', prog.missing.length + ' pieces of the program have no entry: ' + prog.missing.slice(0, 8).join(', '));
@@ -401,5 +401,5 @@ if (prog) {
   if (prog.bareArt) fail('articles control', prog.bareArt + ' names have an article in the data file written alone');
   else ok('articles control', 'the data file written alone has no article in a name');
 }
-console.log(`\n  ${got.reached} of ${got.words} highlighted words answer as in English; ${got.missing} pieces untranslated; SPANISH ${got.hash}` + (prog ? `; the program ${prog.spanish} loads in Spanish` : ''));
+console.log(`\n  ${runResult.reached} of ${runResult.words} highlighted words answer as in English; ${runResult.missing} pieces untranslated; SPANISH ${runResult.hash}` + (prog ? `; the program ${prog.spanish} loads in Spanish` : ''));
 process.exit(failures ? 1 : 0);
