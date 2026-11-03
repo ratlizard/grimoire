@@ -1405,6 +1405,14 @@ const APP_FIXES = [
   // 4 training points a level, not the 6 every game has given, which is
   // why this is a design change and not a fix.
   //
+  // WHEN IT CAN BE SET. The five keywords are in 0x1802's one list with
+  // "job" and "bye", with no condition, and each branch goes back to the
+  // list, so the level can be set in any talk with Alaric, any number of
+  // times. AddConversationKeyword is never called for them, so they are
+  // typed. Every save read has 2 in the short, so the change works on a
+  // game already under way, at normal. A creature's stats are bytes of its
+  // record, made once, so a new level reaches creatures made after it.
+  //
   // THE CAP. Each scaled stat is stored as a byte with the low eight bits
   // of the product, so at 150 to 299 a type's 100 health can come out as
   // 300 and be stored as 44, and the level, scaled twice, passes 255 for
@@ -1421,6 +1429,7 @@ const APP_FIXES = [
   // register, which the code after it reads from the record again.
   { id: 'difficulty', kind: 'change', name: 'Hardly Normal', title: 'Telling Alaric “very easy”, “easy”, “normal”, “hard” or “very hard” sets the training points a level brings and how strong new creatures are, instead of being forgotten',
     bug: 'The difficulty level is never stored',
+    note: 'Type the word to Alaric whenever you talk to him, as often as you like. He does not list the words as topics. Until you give him one, the level is normal, and a game saved before the patch is at normal too. A new level applies to later level-ups and to creatures made after the change. Creatures already made keep their stats.',
     played: 'fork, PowerPC, 1 November 2026, a new game on a Cythera Data that raises the hero a level after each of Alaric’s five answers, each keyword typed and the game saved. The unpatched program gave 6 training points for “very hard” and left the save’s difficulty at 2. The patched one gave 6, 5, 4, 3 and 2 for very easy to very hard and saved 0 to 4. A played save set to very hard and opened outside Land King Hall made the same creatures on both programs, and one drawn at 214%, whose level came to 259, was stored as 3 by the unpatched program and as 255 by the patched one',
     sites: [
       { at: 0x93A84, was: [0x40800058], asm: ['b @set                ; was bge 0x93ADC, every global from 15 dropped'] },
