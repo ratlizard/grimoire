@@ -1197,15 +1197,15 @@ function renderCheatsSheet() {
       '<li>Map 0 is ' + heap.w + ' by ' + heap.h + ', with no roof, no exits, ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') + ' and no name. The map window’s title reads Untitled there.</li>' +
       '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory. The program made the map and never filled it in.</li>' +
       '<li>The hero can reach it by accident, from a bed in Cademia and from beneath Pnyx. ' +
-      'It has a figure with a guard’s sprite called Nothing, or Omen if killed twice. ' +
-      'That figure is character record 0, which is empty, and option-x writes to that record. ' +
+      'A character with a guard’s sprite stands there, called Nothing, or Omen if killed twice. ' +
+      'That character is character record 0, which is empty, and option-x writes to that record. ' +
       actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li></ul></div>';
   }
 
   const sprites = cheatSpriteClasses();
   if (sprites.length) {
     h += '<div class="mechSec"><h4 class="cheatH4">Another Body for the Hero</h4>' +
-      '<div class="cheatNote">The classic Cythera cheat: use Pandora’s Box, a program that edits another program’s memory while it runs, to find ' +
+      '<div class="cheatNote">Pandora’s Box, a program that edits another program’s memory while it runs, can find ' +
       'the number <b>32</b>, the hero’s sprite, in the running game and write another number over it. ' +
       'The Saved Game page does the same with the <b>sprite class</b> field. ' +
       'These are the ' + sprites.length + ' sprites someone in the game uses. ' +
@@ -1233,7 +1233,7 @@ function renderCheatsSheet() {
     const fh = find(0xFA);
     if (fh) items.push('<li><b>option-h empties the enemy list.</b> ' + facts(fh).peaceShort() + '</li>');
     if (cl && !c1) items.push('<li><b>The speed limiter is ' + srcNum(cl.keys[0], 'option-l') + '</b>, not option-1.</li>');
-    if (items.length) h += '<div class="mechSec"><h4 class="cheatH4">Figures Read from the Program</h4><ul class="ruleList">' + items.join('') + '</ul></div>';
+    if (items.length) h += '<div class="mechSec"><h4 class="cheatH4">Numbers Read from the Program</h4><ul class="ruleList">' + items.join('') + '</ul></div>';
   }
 
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
@@ -1947,7 +1947,7 @@ function renderSaveSheet() {
   h += '<h4 class="saveH4">The Records</h4>' +
     '<div class="saveNote">' + inUse.length + ' of the 512 character slots are in use' +
     (marked ? ', and ' + marked + ' more hold only a zone' : '') +
-    '. Slot 0 is the figure called Nothing on the nothing map. ' + actionChip('Cheats', "showCategory('CHEATS')") + ' ' +
+    '. Slot 0 is the character called Nothing on the nothing map. ' + actionChip('Cheats', "showCategory('CHEATS')") + ' ' +
     actionChip(window.SAVE_SHOW_ALL ? 'Only the ones in use' : 'Show every marked slot',
                'toggleSaveShowAll()') + '</div>';
   h += '<div class="tableScroll"><table class="forkTable"><thead><tr>' +
@@ -4044,7 +4044,7 @@ function renderRecordsSheet() {
   }
   out.textContent = shown + ' of the tables that make up the scenario' +
     (q ? ' matching “' + q + '”' : '') +
-    '. A figure on a Scenario page opens its record here, and every record links on to its bytes in the file.';
+    '. A number on a Scenario page opens its record here, and every record links on to its bytes in the file.';
 }
 
 /* One record, field by field, with the byte a jump requested ringed. The

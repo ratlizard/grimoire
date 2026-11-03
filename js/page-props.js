@@ -1841,7 +1841,7 @@ function propWordAspectSentence(pt) {
   if (!ar) return 'This prop type has no class script, so the aspect changes only the picture and the name.';
   if (ar.reads) return w('This class’s script reads its aspect') + ' (' + ar.reads + (ar.reads === 1 ? ' place' : ' places') + '): what a ' + own + ' does depends on it, not just how it looks.' + (ar.writes ? ' It also changes it, to keep a state.' : '');
   if (ar.writes) return 'This class’s script ' + w('writes its aspect') + ' to keep a state and never reads it; the pictures after the base tile are what it turns into.';
-  return w('This class’s script never reads its aspect') + ', so at any aspect it is the same ' + own + ' in every figure, with a different picture and name.';
+  return w('This class’s script never reads its aspect') + ', so at any aspect it is the same ' + own + ' in every number, with a different picture and name.';
 }
 // What using the item at this aspect does, for the classes that read the
 // aspect at use: a food's nutrition and its line, a potion's effect.
@@ -1866,7 +1866,7 @@ function propWordRender() {
   let wear = [];
   try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
   if (wear.length) h += ' At ' + wear.map(x => 'aspect ' + w(x.aspect) + ' it is a ' + w(svEsc(x.name)) + ' (' + propWordHex(x.word) + ')').join(', ') +
-    ', pictures no other item uses, with this item’s figures.';
+    ', pictures no other item uses, with this item’s numbers.';
   h += '</div><div class="pwBits">';
   for (let i = 0; i < 16; i++) {
     if (i === 1 || i === 6) h += '<span class="pwGap"></span>';
@@ -2038,7 +2038,7 @@ function renderItemSheet() {
   if (orphans.length) {
     const h = document.createElement('div');
     h.className = 'propHead';
-    h.innerHTML = '<span class="groupTitle">Unused Art</span><span class="groupNote">Named pictures no item uses. An item placed at one of them has its picture and name, and its figures stay the same.</span>';
+    h.innerHTML = '<span class="groupTitle">Unused Art</span><span class="groupNote">Named pictures no item uses. An item placed at one of them has its picture and name, and its numbers stay the same.</span>';
     grid.appendChild(h);
     for (const o of orphans) {
       const cell = document.createElement('div');
@@ -2436,7 +2436,7 @@ function showItemDetail(pt) {
       fold('aimed', 'Aimed at', words.join(', '),
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">Its prompt is “' + svEsc(t.prompt) + '”, and its answer is ' + srcNum(t.val, propWordHex(t.word)) +
         ', which accepts <b>' + words.map(svEsc).join(', ') + '</b>.' + ((t.word & 0x8000) ? ' Within reach means the user’s square and the eight around it.' : '') + '</div>' +
-        '<div class="sv-note">' + mechLink('target', 'Mechanics › What Each Use Can Target') + '</div>');
+        '<div class="sv-note">' + mechLink('target', 'Mechanics › What the ‘Use’ Command Can Target') + '</div>');
     }
   }
   // The one thing that damages a square rather than a target.

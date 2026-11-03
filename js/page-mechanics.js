@@ -286,7 +286,7 @@ function diceSimHtml() {
     t ? 'After <b>' + t.games.toLocaleString() + '</b> games the total is <b>' + (t.net > 0 ? '+' : '') + t.net.toLocaleString() +
         '</b> obols, <b>' + (t.mean >= 0 ? '+' : '') + t.mean.toFixed(3) + '</b> a game against the exact <b>' +
         (exact.mean >= 0 ? '+' : '') + exact.mean.toFixed(3) + '</b>.'
-      : 'No games played. The exact figure is <b>' + (exact.mean >= 0 ? '+' : '') + exact.mean.toFixed(3) + '</b> obols a game.');
+      : 'No games played. The exact average is <b>' + (exact.mean >= 0 ? '+' : '') + exact.mean.toFixed(3) + '</b> obols a game.');
   if (t && t.curve.length > 2) {
     const ys = t.curve.map(p => p[1]);
     const lo = Math.min(-0.6, Math.min.apply(null, ys)), hi = Math.max(0.9, Math.max.apply(null, ys));
@@ -301,7 +301,7 @@ function diceSimHtml() {
         .concat(Math.abs(exact.mean) / (hi - lo) > 0.09 ? [{ v: 0, label: '0' }] : [])
         .concat([{ v: lo, label: lo.toFixed(1) }]) },
       series: [
-        { points: [[1, exact.mean], [t.games, exact.mean]], color: 'rgba(249,248,111,.45)', dash: '3 3', name: 'the exact figure' },
+        { points: [[1, exact.mean], [t.games, exact.mean]], color: 'rgba(249,248,111,.45)', dash: '3 3', name: 'the exact average' },
         { points: t.curve, color: MECH_INK.cool, name: 'the games played here' }
       ]
     }), 'An edge this small takes hundreds of games to show.');
@@ -527,7 +527,8 @@ function mechHungerFigure(belly, clock) {
       { points: pt(ring), color: MECH_INK.cool, name: 'health with Omen’s ring' }
     ],
     marks: empty <= hours ? [{ x: empty, y: 8, label: 'the belly is empty', color: MECH_INK.warm }] : []
-  }), 'Health rises <b>' + mechHealRate(6, clock) + '</b> times an hour at this level and stops when nutrition reaches zero. With Omen’s ring health still rises <b>' + mechRegenRate(clock) + '</b> an hour after that.');
+  }), 'At level 6 health rises by 1 every <b>' + mechHealPeriodMinutes(6, clock) + ' minutes</b>, ' + mechHealRate(6, clock) + ' an hour, until nutrition reaches zero. ' +
+    'Omen’s ring adds ' + clock.regenStep + ' more every <b>' + mechPeriodMinutes(clock, clock.poisonIndex) + ' minutes</b>, ' + mechRegenRate(clock) + ' an hour, fed or hungry.');
 }
 
 // The staircase. A lock's difficulty is divided by twenty before it is used,
@@ -659,7 +660,7 @@ function mechSleepFigure(sl, clock) {
     mechBars(bars, { max: Math.max.apply(null, withRing.map(w => w.value)) }) +
     '<div class="mechSub">With Omen’s ring</div>' +
     mechBars(withRing, { max: Math.max.apply(null, withRing.map(w => w.value)) }),
-    'The bed multiplies the usual ' + mechHealRate(level, clock) + ' an hour by <b>1 + quality ÷ ' + div + '</b>.');
+    'Asleep, health rises by the usual ' + mechHealRate(level, clock) + ' an hour times <b>1 + quality ÷ ' + div + '</b>.');
 }
 
 // The clock, on one line and logarithmic, because the numbers it deals in
@@ -3981,7 +3982,7 @@ function renderMechanicsSheet(value) {
        : 'This file has no combat scripts.',
     cb ? [
       ar && ar.reach && ar.meleeFirst ? 'The attack picks the weapon first. It swings the first thing wielded whose <b>reach</b> covers the distance' +
-        (ar.range && ar.beyondAdjacent ? '. If nothing reaches, and the target is not adjacent but is in sight, it <b>throws</b> the first thing with a thrown figure as a missile' : '') + '.' +
+        (ar.range && ar.beyondAdjacent ? '. If nothing reaches, and the target is not adjacent but is in sight, it <b>throws</b> the first thing with thrown damage as a missile' : '') + '.' +
         (ar.squared && ar.lessOne && ar.reachAt ? ' A weapon reaches when' +
           mechEq(srcNum(ar.reachAt, 'reach') + '² ≥ across² + down² − ' + srcNum(ar.lessOneVal)) +
           (ar.rangeAt || ar.launcherAt ? 'A throw tests ' + [ar.rangeAt ? 'the ' + srcNum(ar.rangeAt, 'thrown range') : '', ar.launcherAt ? 'a launcher’s ' + srcNum(ar.launcherAt, 'range') : ''].filter(Boolean).join(' or ') + ' in place of reach.' : '') : '') +
@@ -3996,13 +3997,13 @@ function renderMechanicsSheet(value) {
         (cb.bodyForReflex ? 'Some attackers use their <b>' + srcNum(cb.bodyForReflex, 'body') + '</b> instead of their reflex' + combatBodyUnitsText(cb.bodyForReflex.v) + '.' : 'A monster’s flags can make it use its body in place of its reflex.'),
       cb.skillOffLoop ? '<b>A weapon’s skill adds nothing</b>, because of a bug. The script ' +
         srcNum(cb.skillOffLoop[0], 'reads it from the wrong place') + ' and always finds 0, so Sword, Axe and Mace make no difference to an armed blow.' : '',
-      'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. Then, <b>in this order</b>, a margin of nothing or less <b>misses</b>. ' +
-        (cb.parry ? 'Otherwise each blocking item the defender wears gives <b>a random number from 0 to its block figure plus the Shield skill</b>, and the shields <b>parry</b> a margin below the sum of these' : 'Otherwise what is left lands') +
+      'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. A margin of 0 or less then <b>misses</b>. ' +
+        (cb.parry ? 'Otherwise each blocking item the defender wears gives <b>a random number from 0 to its block rating plus the Shield skill</b>, and the shields <b>parry</b> a margin below the sum of these' : 'Otherwise the blow lands') +
         '.',
-      cb.dmgAdd ? 'A hit does' + mechEq('damage = ' + srcNum(cb.dmgAdd) + ' + ' + mechRand('figure − 1') + ' + enchantment') +
-        (cb.skillOffLoop ? '' : 'The skill goes on the figure first. ') + 'The defender’s resistance comes off afterward, so the game’s word for a blow can overstate it.' : '',
-      ar && ar.bodyRoll && ar.scale ? 'The damage figure of a blow is' + mechEq('figure = weapon’s figure + ' + rollFrom('body')) +
-        (ar.reflexRoll ? 'A throw’s figure is' + mechEq('figure = throw entry’s figure + ' + rollFrom('reflex')) : '') : '',
+      ar && ar.bodyRoll && ar.scale ? 'The most damage a blow can do is' + mechEq('maximum = weapon’s damage + ' + rollFrom('body')) +
+        (ar.reflexRoll ? 'For a throw it is' + mechEq('maximum = weapon’s thrown damage + ' + rollFrom('reflex')) : '') : '',
+      cb.dmgAdd ? 'A hit does' + mechEq('damage = ' + srcNum(cb.dmgAdd) + ' + ' + mechRand('maximum − 1') + ' + enchantment') +
+        (cb.skillOffLoop ? '' : 'The skill goes on the maximum first. ') + 'The defender’s resistance comes off afterward, so the game’s word for a blow can overstate it.' : '',
       ar && ar.lodges && ar.drops ? (wrongCarryFlags().some(w => w.resid === 0x3042)
         ? 'A thrown weapon that <b>hits or meets a parry</b> is lost, because of a bug. The game puts it inside the target without marking it as carried. One that misses lands on the target’s square.'
         : 'A thrown weapon that <b>hits or meets a parry</b> goes into the target’s possessions, where the hero finds it once the target dies. One that misses lands on the target’s square. Nothing else brings it back.') + (ar.ammoSpent ? ' A launcher uses up one piece of ammunition per shot.' : '') : '',
@@ -4034,7 +4035,7 @@ function renderMechanicsSheet(value) {
         oneTable ? typed.map(nm).join(', ') + ' take ' +
           typed[0].types.map((t, i, all) => '<b>' + opWord(t) + '</b> from ' + srcNum(t.mask, carriers(all, i) ? svEsc(carriers(all, i)) : 'type ' + t.mask.v)).join('; ') +
           '. Fire and other damage is unchanged.' : '',
-        door && door.destroy && doors.length ? 'A locked door’s strength is its lock figure: ' + listStrength(doors) + '. A blow above <b>' + srcNum(door.destroy.factor) + ' times the strength</b> destroys it' + q(door.messageDestroyed) + '.' +
+        door && door.destroy && doors.length ? 'Each locked door has a strength (' + listStrength(doors) + '). A blow above <b>' + srcNum(door.destroy.factor) + ' times the strength</b> destroys it' + q(door.messageDestroyed) + '.' +
           (door.opens ? ' Below that, a blow greater than what is left of the strength ' + srcNum(door.opens, 'bashes it open') + q(door.messageOpened) : '') +
           (door.wear && door.step ? ', and one above what is left ÷ ' + srcNum(door.wear) + ' wears it down by ' + srcNum(door.step) + q(door.messageWorn) : '') + '.' +
           (door.magicOnlyDestroyed ? ' The only way past a magically locked door is to destroy it.' : '') + ' A blow opens a closed, unlocked door, and does nothing to an open one.' : '',
@@ -4047,7 +4048,7 @@ function renderMechanicsSheet(value) {
         (function () {
           const bl = blastRules();
           if (!bl || !bl.center) return '';
-          return 'A <b>bomb</b> is the one thing that damages a square rather than a target. When its fuse runs out, it hands <b>' + srcNum(bl.center) + '</b> to everything on its square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ', as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '. A locked door whose strength is below a fifth of that drops to a strength of 1.';
+          return 'A <b>bomb</b> is the one thing that damages a square rather than a target. When its fuse runs out, it does <b>' + srcNum(bl.center) + '</b> damage to everything on its square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ', as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '. A locked door whose strength is below a fifth of that drops to a strength of 1.';
         })()
       ].filter(Boolean) : [],
       rows.length ? table(['thing', 'when struck', 'message'], rows.map(r => '<tr><td>' + propChip(r.pt, r.name) + '</td><td>' + damageRowWords(r) + ' ' + srcNum({ resid: r.resid, at: r.at }, 'script') + '</td><td>' +
@@ -4059,12 +4060,12 @@ function renderMechanicsSheet(value) {
   const kind = r => r.melee ? 0 : r.thrown ? 1 : r.ranged ? 2 : r.ammo ? 3 : r.armor ? 4 : 5;
   gear.sort((a, b) => kind(a) - kind(b) || ((b.damage || 0) - (a.damage || 0)) || ((b.protection || b.block || 0) - (a.protection || a.block || 0)) || a.name.localeCompare(b.name));
   add('gear', 'Weapons and Armor', null, src('the classes', 0x1000),
-    gear.length ? 'The combat figures of ' + gear.length + ' weapons, launchers, ammunition and armor.' : 'No item in this file has combat figures.',
+    gear.length ? 'Combat values of ' + gear.length + ' weapons, launchers, ammunition and armor.' : 'No item in this file has combat values.',
     gear.length ? [
-      'A blow that lands does a random amount from 1 to the <b>damage</b> figure. <b>Reach</b> and a launcher’s <b>range</b> work as under Combat.',
-      gear.some(r => r.thrownDamage !== null) ? 'A character throws a weapon with a <b>thrown</b> figure for that damage, up to that <b>range</b>, when nothing they wield reaches the target.' : '',
+      'A blow that lands does up to the weapon’s <b>damage</b>, plus a bonus for a high body (see Combat). <b>Reach</b> and a launcher’s <b>range</b> work as under Combat.',
+      gear.some(r => r.thrownDamage !== null) ? 'A character throws a weapon with <b>thrown</b> damage up to its <b>range</b> when nothing they wield reaches the target.' : '',
       'A launcher fires the arrows or stones of its <b>ammunition class</b>.',
-      'Armor gives <b>protection</b> in points. A shield <b>blocks</b> a random amount from 0 to its figure plus the Shield skill.'
+      'Armor gives <b>protection</b> in points. A shield <b>blocks</b> a random amount from 0 to its block rating plus the Shield skill.'
     ].filter(Boolean) : [],
     table(['item', '#weight', '#damage', '#reach', '#thrown', '#range', '#type', 'skill', '#ammo class', '#protection', '#block'],
       gear.map(r => {
@@ -4117,7 +4118,7 @@ function renderMechanicsSheet(value) {
     for (const t of tg) { if (!byWord.has(t.word)) byWord.set(t.word, []); byWord.get(t.word).push(t); }
     const reach = tg.filter(t => t.word & 0x8000);
     const nameLink = t => srcNum(t.val, t.name);
-    add('target', 'What Each Use Can Target', null, '',
+    add('target', 'What the ‘Use’ Command Can Target', null, '',
       tg.length ? 'What each of the ' + tg.length + ' spells and items that need a target can aim at.'
                 : 'No script in this file prompts for a target.',
       tg.length ? [
@@ -4240,7 +4241,7 @@ function renderMechanicsSheet(value) {
       const rows = pc.rows.map(r => '<tr><td>' + sw(r.color.v) + ' ' + srcNum(r.color) + '</td><td>' +
         (r.hunger ? 'hungry: nutrition below ' + (pc.hungry ? srcNum(pc.hungry) : 'a threshold') : (dvmFlagName(r.flag.v) || 'flag') + ' ' + srcNum(r.flag, 'flag ' + r.flag.v)) + '</td></tr>');
       if (pc.plain) rows.push('<tr><td>' + sw(0) + ' ' + srcNum(pc.plain) + '</td><td>none of these</td></tr>');
-      return '<div class="mechSub">The Party Bar</div><p>The party bar draws each party member\u2019s figure on a color that shows their state. It shows the first of these that applies.</p>' +
+      return '<div class="mechSub">The Party Bar</div><p>The party bar draws each party member on a color that shows their state. It shows the first of these that applies.</p>' +
         table(['color', 'when'], rows);
     })(), '');
 
@@ -4279,7 +4280,7 @@ function renderMechanicsSheet(value) {
   // ---- locks ----
   const lk = lockRules();
   add('locks', 'Locks and Lockpicks', null, src('a key or a pick', 0xE43) + src('the lockpick', 0x1109),
-    lk.rule ? 'A lock opens to its key, or to a lockpick in skilled hands.' : 'This file has no lock script.',
+    lk.rule ? 'How a key or a lockpick opens a lock.' : 'This file has no lock script.',
     lk.rule ? [
       lk.rule.keyFits ? 'A key fits when the lock’s number matches the key’s.' : '',
       lk.rule.formula ? (function () {
@@ -4309,7 +4310,7 @@ function renderMechanicsSheet(value) {
   const sh = shopRules();
   add('shops', 'Shops', null, src('the counter', 0xEA5),
     sh.shops.length ? sh.shops.length + ' shops, what each sells, and at what price.' : 'No script in this file opens a shop.',
-    sh.shops.length ? ['Each vendor bargains down from the listed price by four figures set for each, under terms' + (sh.haggling ? '. <b>Haggling</b> lowers it by a further random amount from 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
+    sh.shops.length ? ['Each vendor bargains down from the listed price by four amounts set for that vendor, listed under terms' + (sh.haggling ? '. <b>Haggling</b> lowers it by a further random amount from 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
     mechShopFigure(sh) +
     table(['vendor', 'goods and listed prices in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.character !== null && characterRecord(spn.character) ? characterChip(spn.character) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
@@ -4386,7 +4387,7 @@ function renderMechanicsSheet(value) {
     const grantsOf = flag => { let g = []; try { g = grantRules().filter(x => x.flag && x.flag.v === flag); } catch (e) { g = []; } return g; };
     const wearers = flag => { const g = grantsOf(flag).map(x => svLink(x.name, 'showItemDetail(' + x.pt + ')')); return g.length > 1 ? g.slice(0, -1).join(', ') + ' or ' + g[g.length - 1] : g.join(''); };
     add('ground', 'Swamp and Lava', null, src('the ground', 0x301F),
-      tn ? 'Swamp bites now and then. Lava burns on every step.'
+      tn ? 'What swamp and lava do to a character who steps on them.'
          : 'This file has no ground script.',
       tn ? [
         swamp ? 'On <b>' + srcNum(swamp.from, 'swamp') + '</b>, one step in ' + srcNum(swamp.chance ? swamp.chance.is : null, swamp.chance ? (swamp.chance.hi.v - swamp.chance.lo.v) : '') +
@@ -4848,7 +4849,7 @@ function renderMechanicsSheet(value) {
     const twoErrands = [...bySharedLine.values()].filter(list => new Set(list.map(a => a.slot.v)).size > 1);
     // The resolver's weapon-skill term, read in combatRules (`cb` above).
     const skillOff = cb && cb.skillOffLoop;
-    if (skillOff) rows.push('<tr><td>a value read from the wrong thing</td><td>The script that settles a blow adds the weapon’s skill to the margin and to the damage figure, but reads it from a value that its check of the shields leaves at 0 instead of from the weapon, so Sword, Axe and Mace add nothing to an armed blow.</td><td>' +
+    if (skillOff) rows.push('<tr><td>a value read from the wrong thing</td><td>The script that settles a blow adds the weapon’s skill to the margin and to the maximum damage, but reads it from a value that its check of the shields leaves at 0 instead of from the weapon, so Sword, Axe and Mace add nothing to an armed blow.</td><td>' +
       where(skillOff) + '</td></tr>');
     // Four readers of 17 September 2026's fourth batch (page-rules.js).
     for (const d of goesDarkStillLit().filter(x => x.light > 0)) rows.push('<tr><td>a light that stays on</td><td>The ' + svEsc(propDisplayName(d.pt) || ('prop ' + d.pt)) +
@@ -4856,9 +4857,9 @@ function renderMechanicsSheet(value) {
       svLink('tile 0x' + d.tile.toString(16).toUpperCase(), 'showPropTypeDetail(' + d.pt + ')') + '</td></tr>');
     for (const c of scheduleCollisions()) rows.push('<tr><td>two people scheduled into one place</td><td>' + (chipOf(c.a) || svEsc(characterName(c.a))) + ' and ' + (chipOf(c.b) || svEsc(characterName(c.b))) +
       ' are both scheduled to (' + c.x + ', ' + c.y + ') on map ' + c.level + ' in the same mode from ' + c.from + ':00 to ' + c.to + ':00.</td><td>' + svLink('the schedules', "showCategory('SCHEDULES')") + '</td></tr>');
-    for (const n of nameNeverKept()) rows.push('<tr><td>a name told and not kept</td><td>' + (chipOf(n.character) || svEsc(characterName(n.character))) +
+    for (const n of nameNeverKept()) rows.push('<tr><td>a name answer that sets no name flag</td><td>' + (chipOf(n.character) || svEsc(characterName(n.character))) +
       ' answers “name” but never sets their character flag 7, which every other name topic sets, so they are still called by what they look like.</td><td>' + where([n]) + '</td></tr>');
-    for (const a of askedOfNobody()) rows.push('<tr><td>answers written for someone never asked</td><td>' + a.items.length + ' item classes write an Ask About answer for ' + (chipOf(a.character) || svEsc(characterName(a.character))) +
+    for (const a of askedOfNobody()) rows.push('<tr><td>Ask About answers that are never given</td><td>' + a.items.length + ' item classes write an Ask About answer for ' + (chipOf(a.character) || svEsc(characterName(a.character))) +
       ', whose script never passes a question to the shared Ask About script, so none of these answers is ever given.</td><td>' + a.items.slice(0, 6).map(pt => svLink(svEsc(propDisplayName(pt) || ('prop ' + pt)), 'showItemDetail(' + pt + ')')).join(', ') + (a.items.length > 6 ? ' and ' + countLink((a.items.length - 6) + ' more', 'The ' + a.items.length + ' item classes with an answer for ' + characterName(a.character), a.items.map(pt => svLink(svEsc(propDisplayName(pt) || ('prop ' + pt)), 'showItemDetail(' + pt + ')'))) : '') + '</td></tr>');
     for (const r of answersThatRunOn()) rows.push('<tr><td>an answer that runs on</td><td>The answer to “' + svEsc(r.list) + '” has no instruction to stop after it, so ' +
       (r.then ? 'the answer to “' + svEsc(r.then.list) + '” further on follows for the same reply straight away, and replaces the first answer before the player can read it.'
@@ -4869,7 +4870,7 @@ function renderMechanicsSheet(value) {
       (r.oneString ? lastPart(r.line) + ' and ' + lastPart(r.next) + ' are back to back in one string, with no * between them to wait for a click, so the second replaces the first as soon as the game draws it.'
         : lastPart(r.line) + ' ends without a * to wait for a click, and the next line the script can come to, ' + lastPart(r.next) + (r.speaker ? ', said by someone the script has just named to speak,' : '') + ' replaces it as soon as the game draws it.') +
       '</td><td>' + where([r]) + '</td></tr>');
-    for (const t of selfToldByGroup()) rows.push('<tr><td>a character told about by their group</td><td>' + (chipOf(t.character) || svEsc(characterName(t.character))) +
+    for (const t of selfToldByGroup()) rows.push('<tr><td>a character’s name answered by their dialogue group</td><td>' + (chipOf(t.character) || svEsc(characterName(t.character))) +
       ' has no answer to “' + svEsc(t.key) + '”, so the question passes to a dialogue group their script uses, which answers as if about someone else: ' + svEsc(t.message) + '</td><td>' + where([t]) + '</td></tr>');
     {
       const bySkill = new Map();
@@ -4893,7 +4894,7 @@ function renderMechanicsSheet(value) {
       (h.character.length > 1 ? ': ' + h.character.slice(0, 8).map(n => chipOf(n) || svEsc(characterName(n))).join(', ') + (h.character.length > 8 ? ' and ' + countLink((h.character.length - 8) + ' more', 'The ' + h.character.length + ' characters who can say “' + h.word + '”', h.character.map(n => chipOf(n) || svLink(characterName(n), 'showCharacterDetail(' + n + ')'))) : '') : '') + '.</td><td>' + where([h]) + '</td></tr>');
     for (const r of refusalOnEveryCheck()) rows.push('<tr><td>a line repeated on every check</td><td>The ' + svEsc(propDisplayName(r.pt) || ('prop ' + r.pt)) +
       '’s answer to whether a thing can go inside it prints “' + svEsc(r.message.trim()) + '” before it answers no, and the inventory window runs it each time it checks a drop, so the line repeats while the player drags a thing over it.</td><td>' + where([r]) + '</td></tr>');
-    for (const l of leaveNeverLeaves()) rows.push('<tr><td>a companion who agrees to leave and stays</td><td>' + (chipOf(l.character) || svEsc(characterName(l.character))) +
+    for (const l of leaveNeverLeaves()) rows.push('<tr><td>a companion who cannot leave the party</td><td>' + (chipOf(l.character) || svEsc(characterName(l.character))) +
       ' can join the party and answers “leave”, and nothing in the script ever removes them from it.</td><td>' + where([l]) + '</td></tr>');
     for (const t of tileReadWithSeenBit()) rows.push('<tr><td>a map tile read with its seen bit</td><td>' + where([t]) + ' compares the map’s tile at a square with ' + t.compared.join(' and ') +
       ' without removing the automap’s marker, bit 0x8000, which is set on every square the player has seen, so the comparison never matches for a square the player can see.</td><td>' + where([t]) + '</td></tr>');
@@ -4906,7 +4907,7 @@ function renderMechanicsSheet(value) {
       (r.pixels ? 'differ by ' + r.pixels + ' pixel' + (r.pixels === 1 ? '' : 's') : 'are identical') + ', whereas a sheet’s poses otherwise differ by hundreds of pixels.</td><td>' +
       svLink('tile 0x' + r.a.toString(16).toUpperCase(), 'showPropTypeDetail(' + r.pt + ')') + '</td></tr>');
     // A character asking whether they themselves are alive.
-    for (const a of le.selfAlive) rows.push('<tr><td>a character asking if they are alive</td><td>' + (chipOf(a.character) || svEsc(characterName(a.character))) +
+    for (const a of le.selfAlive) rows.push('<tr><td>a check that the speaker is alive</td><td>' + (chipOf(a.character) || svEsc(characterName(a.character))) +
       ' checks whether ' + svEsc(characterName(a.character)) + ' is alive, which is always true while they are talking, so the other answer is never given.</td><td>' + where([a]) + '</td></tr>');
     // A local tested for truth and only ever set false.
     for (const l of le.localOnlyFalse) rows.push('<tr><td>a check of something that is always false</td><td>The script checks a local variable for true or false, but its function only ever sets it to false, so the code for the true case never runs.</td><td>' +
@@ -4923,7 +4924,7 @@ function renderMechanicsSheet(value) {
       k.spaced.map(w => '“' + svEsc(w) + '”').join(' and ') + ' follow' + (k.spaced.length === 1 ? 's' : '') + ' a comma and a space, and the space stays part of the keyword, so it only matches an answer the player types with a space in front.</td><td>' +
       where([k]) + '</td></tr>');
     // A quest value only a thing that does not exist sets, read in looseEnds.
-    for (const d of le.dataCaseNoThing) rows.push('<tr><td>a thing nobody has</td><td>' + svEsc(propDisplayName(d.pt) || ('prop ' + d.pt)) +
+    for (const d of le.dataCaseNoThing) rows.push('<tr><td>a Data1 value no item has</td><td>' + svEsc(propDisplayName(d.pt) || ('prop ' + d.pt)) +
       ' sets quest value ' + d.state + ' when its Data1 is ' + srcNum(d.v) + ', and no ' + svEsc(propDisplayName(d.pt) || 'such thing') +
       ' anywhere has that Data1, so quest value ' + d.state + ' never changes. The scripts that read it: ' + where(d.readers) + '.</td><td>' + where([d.v]) + '</td></tr>');
     // Character flags tested and never set, read in looseEnds.
@@ -5293,7 +5294,7 @@ function renderMechanicsSheet(value) {
     if (tu && tu.bells) {
       const bl = tu.bells;
       bellsHtml += '<div class="partsTitle">The bells and the orders to ring them in</div>' +
-        '<ul class="ruleList"><li>' + srcNum(bl.base, 'Only the last four rings count') + ', so after a wrong ring just carry on.</li></ul>' +
+        '<ul class="ruleList"><li>' + srcNum(bl.base, 'Only the last four rings count') + ', so a wrong ring needs no fresh start.</li></ul>' +
         (bl.bells.length ? table(['#bell', 'square'], bl.bells.map(b =>
           '<tr>' + num(b.number) + '<td>' + b.x + ', ' + b.y + '</td></tr>')) : '') +
         table(['rung in this order', '#signals'], bl.orders.map(o =>
@@ -5386,7 +5387,7 @@ function renderMechanicsSheet(value) {
     }
     const mz = (function () { try { return teleportMazes(); } catch (e) { quiet(e); return []; } })();
     if (mz.length) add('mazes', 'The Teleporting Mazes', null, '',
-      'Squares that move the hero elsewhere in the same zone, so the way through is a matter of stepping on the right ones.',
+      'Squares that move the hero to another square of the same zone.',
       ['Each is an invisible trigger that sends the hero to a square of the zone. The map shows both ends.'],
       mz.map(m => '<div class="partsTitle">' + (m.titles.length ? m.titles.map(t => srcNum(t, t.v)).join(' or ') : svEsc(zoneDisplayName(m.zone) || ('zone ' + m.zone))) + ', ' + m.jumps.length + ' squares</div>' +
         table(['step on', 'and land on'], m.jumps.map(j => '<tr><td>' + at(m.zone, j.x, j.y, j.x + ', ' + j.y) + '</td><td>' + at(m.zone, j.to.x, j.to.y, j.to.x + ', ' + j.to.y) + '</td></tr>'))).join(''), '');

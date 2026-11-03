@@ -283,7 +283,7 @@ if (take()) try {
   const missing = requiredWords.filter(w => !words.has(w));
   if (barks.length < 40 || missing.length) fail('mechanics', `${barks.length} balloon sites; missing ${missing.join(', ') || 'nothing'}`);
   else if (!dice || dice.wins !== 96 || dice.pushes !== 50 || dice.losses !== 70) fail('mechanics', 'the dice enumeration is not 96/50/70: ' + JSON.stringify(dice && [dice.wins, dice.pushes, dice.losses]));
-  else if (!/win (?:<button[^>]*>)?2(?:<\/button>)? oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
+  else if (!/pays (?:<button[^>]*>)?2(?:<\/button>)? oboloi/.test(html) || !/216/.test(html)) fail('mechanics', 'the dice section does not state the rules');
   // The spells card moved to the Spells sheet on 13 September 2026; sphtml
   // is that sheet, captured above.
   else if (!/resist non-magical weapons: [^<]*lich/.test(sphtml)) fail('mechanics', 'the spells card does not show the monsters immune to non-magical damage')
@@ -292,7 +292,7 @@ if (take()) try {
   // No application in this run, so none of its figures: the clock, the
   // balloon and the enemy table say where they come from and state nothing.
   // The installer section below opens the application and requires them.
-  else if (!/to read the program’s figures here/.test(html) || /jumpToExeAt\(/.test(html) || /4096 is one hour|four seconds|one off every game hour|128×32/.test(html)) fail('mechanics', 'with no application open the sheet states a figure of the program, or does not say where the figures come from');
+  else if (!/to read the program’s numbers here/.test(html) || /jumpToExeAt\(/.test(html) || /4096 is one hour|four seconds|one off every game hour|128×32/.test(html)) fail('mechanics', 'with no application open the sheet states a figure of the program, or does not say where the figures come from');
   else if (mechFolds < mechSecs || (html.match(/mechOpenAll\(/g) || []).length < 2) fail('mechanics', `the sections do not fold: ${mechFolds} of ${mechSecs} are details, open/close all ${(html.match(/mechOpenAll\(/g) || []).length}`);
   // The dice game's numbers are read off 0x812 with their offsets, v1.31.0:
   // three dice of six, the skill's roll of six, a match paying 2 at 0x0506,
@@ -453,7 +453,7 @@ if (take()) try {
   else if (!unguent || unguent.word !== 8) fail('aim', 'the unguent’s prompt was not reached: a script whose Examine returns first is being dropped');
   else if (!reach.length || reach.length === tg.length) fail('aim', 'every target or none needs a neighbour: ' + reach.length + ' of ' + tg.length);
   else if (!link(unguent).test(html) || !link(reach[0]).test(html)) fail('aim', 'a target word is not a link to the line it is on');
-  else if (!/What Each Use Can Target/.test(html) || !/within reach/.test(html)) fail('aim', 'the Mechanics sheet does not state what a use is aimed at');
+  else if (!/What the ‘Use’ Command Can Target/.test(html) || !/within reach/.test(html)) fail('aim', 'the Mechanics sheet does not state what a use is aimed at');
   else if (!tn || !tn.swamp || !tn.lava) fail('ground', 'the ground script was misread: ' + JSON.stringify([!!(tn && tn.swamp), !!(tn && tn.lava)]));
   else if (!tn.swamp.flag || tn.swamp.flag.v !== 31 || tn.swamp.flagName !== null || tn.lava.flagName !== 'Lava Proof') fail('ground', 'the flags that protect were misread: ' + JSON.stringify([tn.swamp.flagName, tn.lava.flagName]));
   else if (!new RegExp(String(swampChance)).test(html) || !/Ouch! Something bit me!/.test(html) || !/Ouch! That's hot!/.test(html)) fail('ground', 'the sheet does not state the swamp and the lava in the file’s words');
@@ -646,7 +646,7 @@ if (take()) try {
   /* Lines replaced before they can be read: the board's Crito, Borus,
      Niobe (two), Ake and bartender lines, and the rest the same walk finds. */
   else if (ctx.linesReplacedAtOnce().map(r => r.resid.toString(16) + '@' + r.at.toString(16)).sort().join() !== '1820@60e,1828@252,1829@375,1829@440,1829@463,182a@13f,182a@190,182a@f5,1857@52,1859@55,1859@9b,1867@251,1878@181,812@12,812@383') fail('loose', 'the lines replaced at once are not the fifteen known: ' + JSON.stringify(ctx.linesReplacedAtOnce().map(r => r.resid.toString(16) + '@' + r.at.toString(16))));
-  else if (!/a line replaced before you can read it/.test(html)) fail('loose', 'the replaced-line row is missing from the card');
+  else if (!/a line replaced before the player can read it/.test(html)) fail('loose', 'the replaced-line row is missing from the card');
   /* The run-on answers. The reader's first form linked the chain through the
      object's start as well as the jump target, which is already a resource
      offset, and so walked no character's chain; the wishing fountain's four
@@ -656,7 +656,7 @@ if (take()) try {
      prompt, so nothing follows them. */
   else if (ctx.answersThatRunOn().map(r => r.resid.toString(16) + '/' + r.list).sort().join('|') !== '1036/3,thre|1036/coff|1036/pony|1036/tequ|1811/n|1824/n|184e/n|807/atus|808/hist') fail('loose', 'the answers without a return are not the fountain\'s four wishes, Atussa\'s, the mages\' history, and Ennomus\'s, Antenor\'s and Pheres\'s second "n" (no other yes-or-no answer, not Neoptolemus\'s "demo", and not Magpie\'s "baho" or "jhia", may be listed), the reader found ' + JSON.stringify(ctx.answersThatRunOn().map(r => r.resid.toString(16) + '/' + r.list)));
   else if (ctx.leaveNeverLeaves().map(l => l.character).join() !== '97') fail('loose', 'Aethon, who agrees to leave and stays, was not the one companion found: ' + JSON.stringify(ctx.leaveNeverLeaves().map(l => l.character)));
-  else if (!/an answer that runs on/.test(html) || !/a companion who agrees to leave and stays/.test(html)) fail('loose', 'the run-on answer or the companion who stays is not on the card');
+  else if (!/an answer that runs on/.test(html) || !/a companion who cannot leave the party/.test(html)) fail('loose', 'the run-on answer or the companion who stays is not on the card');
   /* Characters answered about by their own group: without the test that the
      group's answer has their name, Paris (told about Parium) comes in too. */
   else if (ctx.selfToldByGroup().map(t => t.character).join() !== '30,39,50,60,62,79,88,120') fail('loose', 'the characters whose group answers their own name are not Milcom, Eioneus, Philinus, Propontis, Halos, Charax, Helen and Sabinate: ' + JSON.stringify(ctx.selfToldByGroup().map(t => t.character)));
@@ -669,15 +669,15 @@ if (take()) try {
   else if (!/a highlighted word nobody answers/.test(html)) fail('loose', 'the highlighted-word row is missing from the card');
   else if (ctx.stateNoSaveKeeps().map(w => w.resource.toString(16) + ':' + w.offset.toString(16) + ':' + w.writers.map(x => x.resid.toString(16)).join('/')).join() !== '500:10:1801' || !/a value no saved game stores/.test(html)) fail('loose', 'the word written before the game has a file is not the hero\'s gender alone (the inn room, written in play, is saved), or its row is missing: ' + JSON.stringify(ctx.stateNoSaveKeeps().map(w => [w.resource, w.offset, w.writers.length, w.readers.length])));
   else if (ctx.deletedAcrossZoneChange().map(d => d.pt.toString(16) + ':' + d.skill.toString(16) + ':' + d.zones.join('/')).join() !== '4b:1a00:3' || !/a delete after the zone has changed/.test(html)) fail('loose', 'the scroll deleting after Directed Nexus has moved the party is not the one found, or its row is missing: ' + JSON.stringify(ctx.deletedAcrossZoneChange()));
-  else if (!/a character told about by their group/.test(html) || !/a search that passes over what is inside things/.test(html) || !/a line repeated on every check/.test(html)) fail('loose', 'the own-group, contained-search or repeated-line row is missing from the card');
-  else if (!/a light that stays on/.test(html) || !/two people scheduled into one place/.test(html) || !/a name told and not kept/.test(html) || !/answers written for someone never asked/.test(html)) fail('loose', 'a fourth-batch row is missing from the card');
+  else if (!/a character’s name answered by their dialogue group/.test(html) || !/a search that passes over what is inside things/.test(html) || !/a line repeated on every check/.test(html)) fail('loose', 'the own-group, contained-search or repeated-line row is missing from the card');
+  else if (!/a light that stays on/.test(html) || !/two people scheduled into one place/.test(html) || !/a name answer that sets no name flag/.test(html) || !/Ask About answers that are never given/.test(html)) fail('loose', 'a fourth-batch row is missing from the card');
   else if (!/a sprite frame that repeats another pose/.test(html)) fail('loose', 'the repeated sprite frames are not on the card');
-  else if (!/a character asking if they are alive/.test(html)) fail('loose', 'the self-alive test is not on the card');
+  else if (!/a check that the speaker is alive/.test(html)) fail('loose', 'the self-alive test is not on the card');
   else if (!/a check of something that is always false/.test(html)) fail('loose', 'the local only ever set false is not on the card');
   else if (!/an answer hidden by an earlier one/.test(html)) fail('loose', 'the shadowed answers are not on the card');
   else if (!/a value checked where the flag is meant/.test(html)) fail('loose', 'the value-for-flag slip is not on the card');
   else if (!/a keyword that needs a space typed first/.test(html)) fail('loose', 'the keywords that need a space are not on the card');
-  else if (!/a thing nobody has/.test(html)) fail('loose', 'the kesh vial nobody has is not on the card');
+  else if (!/a Data1 value no item has/.test(html)) fail('loose', 'the kesh vial nobody has is not on the card');
   else if (!/a character flag checked and never set/.test(html)) fail('loose', 'the character flags tested and never set are not on the card');
   else if (!/killing a townsperson raises karma by/.test(html)) fail('karma', 'the karma section does not say what killing an alignment-0 townsperson does, off the character table');
   else if (le.unusedCast.map(u => u.task).sort((a, b) => a - b).join() !== '78,79,80') fail('loose', 'the use, use-on and use-at tasks were not found as exactly three: ' + JSON.stringify(le.unusedCast.map(u => u.task)));

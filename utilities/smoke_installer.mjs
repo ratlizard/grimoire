@@ -208,7 +208,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if ([[4, {}, 12], [4, { regenerating: true }, 42], [4, { fed: false, regenerating: true }, 30], [3, {}, 10], [3, { regenerating: true }, 35]]
         .some(([q, o, expected]) => ctx.mechBedRate(6, q, Object.assign({ fed: true, div: ctx.sleepRules().div.v, clock: m }, o)) !== expected))
         fail('program figures', 'the bed rates on the program’s clock do not reproduce the 2012 measurements');
-      else if (/to read the program’s figures here/.test(mh) || !new RegExp('jumpToExeAt\\(' + clk.hourShift.exe + '\\)').test(mh) || !/flag <button[^>]*>9<\/button>, Poisoned/.test(mh) || !/every <button[^>]*>30 minutes<\/button> at levels 2 and 3/.test(mh))
+      else if (/to read the program’s numbers here/.test(mh) || !new RegExp('jumpToExeAt\\(' + clk.hourShift.exe + '\\)').test(mh) || !/flag <button[^>]*>9<\/button>, Poisoned/.test(mh) || !/every <button[^>]*>30 minutes<\/button> at levels 2 and 3/.test(mh))
         fail('program figures', 'the Mechanics sheet does not state the program’s figures as links');
       else if (!/<b>4 seconds<\/b>/.test(bh) || !new RegExp('jumpToExeAt\\(' + bark.ticks.exe + '\\)').test(bh))
         fail('program figures', 'the Barks sheet does not state the balloon’s figures as links');

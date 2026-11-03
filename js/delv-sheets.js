@@ -58,7 +58,7 @@ const mechTable = (heads, rows, cls) => rows.length
 const mechNum = v => '<td class="num">' + (v === null || v === undefined || v === '' ? '' : svEsc(String(v))) + '</td>';
 const mechStat = (n, what) => '<span class="mechStat"><b>' + svEsc(String(n)) + '</b> ' + svEsc(what) + '</span>';
 const mechSrc = (label, resid) => refExists(resid) ? partChip(label, resid) : '';
-const MECH_NO_APP = 'Open the game from its installer, under Settings, to read the program’s figures here.';
+const MECH_NO_APP = 'Open the game from its installer, under Settings, to read the program’s numbers here.';
 
 /* The sections that belong on another sheet.
 
@@ -88,7 +88,7 @@ function spellsMechSection() {
     // figures, and the roll is the first line here.
     sp.spells.length ? '' : 'No spell in this file is cast through the shared script.',
     sp.spells.length ? [
-      'The game adds two random numbers below the caster’s Casting figure, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>, because the only number below 1 is 0. The caster spends the magic points even when the cast fails.',
+      'The game adds two random numbers below the caster’s Casting skill, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>, because the only number below 1 is 0. The caster spends the magic points even when the cast fails.',
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
       sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' plus ' + srcNum(sp.rule.timeMult) + ' times the level</b> in time.' : 'The caster pays the cost.',
       'Spell damage works like a blow’s. The victim’s resistance applies, and the caster earns experience as usual.',
@@ -109,7 +109,7 @@ function spellsMechSection() {
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
         if (!t.length) return '';
         const reach = t.filter(x => x.word & 0x8000);
-        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that need a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>. The target has to be in one of the eight squares around the caster. The rest can go anywhere. ' + mechLink('target', 'What Each Use Can Target') : '';
+        return reach.length ? '<b>' + countLink(reach.length + ' of the ' + t.length + ' spells that need a target', 'The ' + reach.length + ' spells that must touch their target', reach.map(x => srcNum(x.val, x.name))) + ' must touch it</b>. The target has to be in one of the eight squares around the caster. The rest can go anywhere. ' + mechLink('target', 'What the ‘Use’ Command Can Target') : '';
       })()
     ].filter(Boolean) : [],
     '', '');
@@ -298,7 +298,7 @@ const MECH_GROUPS = [
     note: 'What things cost, and what a wager pays.',
     ids: ['shops', 'dice'] },
   { value: 'HACKERY', title: 'Hackery', tile: 0x207,
-    note: 'How the scenario works underneath, and the places where it does not add up.',
+    note: 'Prop records, flags, eggs, the palette, built-in calls, what calls what, and mistakes in the scripts.',
     ids: ['propword', 'charflags', 'classflags', 'eggs', 'palette', 'syscalls', 'leans', 'loose'] },
 ];
 /* The sections that write a file rather than read a rule: a patch opened

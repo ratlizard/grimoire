@@ -73,7 +73,7 @@ if (savePath && !onlyCat) {
     else {
       const where = ctx.zoneDisplayName(heroBefore.zone);
       if (!sheet.includes(where)) fail('saved game sheet', 'the head does not say where the player is: ' + where);
-      if (!ctx.namesAreBorrowed() || !/come from the scenario you opened earlier/.test(sheet))
+      if (!ctx.namesAreBorrowed() || !/come from the scenario opened earlier/.test(sheet))
         fail('saved game sheet', 'the borrowed names are not admitted');
       if (!sheet.includes('0xF307')) fail('saved game sheet', 'the parts table does not show the persistent store');
       // I.M.Cheater is the community's cheated save and its hero has 255
@@ -247,7 +247,7 @@ if (savePath && !onlyCat) {
     // On the scenario the price gives the two shop helpers' starting values,
     // each a link to its line: 0xEA5's for selling to you, 0xEA9's for
     // buying from you.
-    if (!/shops start at <button[^>]*jumpToScriptAt\(3749,\d+\)[^>]*>20<\/button> to sell to you and <button[^>]*jumpToScriptAt\(3753,\d+\)[^>]*>10<\/button> to buy from you/.test(ctx.charEditHTML(1)))
+    if (!/prices starting at <button[^>]*jumpToScriptAt\(3749,\d+\)[^>]*>20<\/button> when the hero buys and <button[^>]*jumpToScriptAt\(3753,\d+\)[^>]*>10<\/button> when the hero sells/.test(ctx.charEditHTML(1)))
       fail('record form', 'on the scenario byte 23 does not give the shops’ starting values off their lines');
   } catch (e) { fail('saved game', e); }
 }
