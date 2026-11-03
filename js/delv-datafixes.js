@@ -2628,7 +2628,7 @@ const DATA_FIXES = [
   // slideshow and goes straight to that conversation. Flag 100 is free: the
   // scripts use 0 to 4, 15 to 17, 64 to 66 and 253 to 255, the schedules 0,
   // and the conditional eggs 64 to 66. The dark ending still ends the game.
-  { id: 'play-on', group: 'mods', stage: 'mods',
+  { id: 'play-on', group: 'mods', stage: 'mods', name: 'Victory Lap',
     title: 'After Alaric is cured and the ending is shown, the game now goes on, instead of closing',
     plan: (s) => {
       // Both jumps go to the branch after the uncured greeting, which leads
