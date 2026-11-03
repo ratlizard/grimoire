@@ -3958,7 +3958,7 @@ function renderMechanicsSheet(value) {
          : 'This file has no dice game.',
     dice ? [
       'The innkeeper throws one die and the hero throws the white one. <b>A match pays ' + srcNum(dice.vals.matchPay) + ' obol' + (dice.matchPay === 1 ? '' : 'oi') + '.</b>',
-      'Otherwise the innkeeper throws the second die. If the white die is <b>outside</b> the two black dice, the innkeeper pays the difference to the nearer one. If it is <b>between</b> them, or equal to one, the hero loses ' +
+      'Otherwise, the innkeeper throws the second die. If the white die is <b>outside</b> the two black dice, the innkeeper pays the difference to the nearer one. If it is <b>between</b> them, or equal to one, the hero loses ' +
         (dice.vals.lose ? srcNum(dice.vals.lose) + ' obol' + (dice.vals.lose.v === 1 ? '' : 'oi') : 'the stake') + '.',
       dice.vals.draw ? 'A win of ' + srcNum(dice.vals.draw) + ' is a draw, and the two play again.' : '',
       dice.vals.stake ? 'The hero’s stake is ' + srcNum(dice.vals.stake) + ' obol' + (dice.vals.stake.v === 1 ? '' : 'oi') + ', so a win pays that much less than the innkeeper announces.' : '',
@@ -4005,8 +4005,8 @@ function renderMechanicsSheet(value) {
         (cb.bodyForReflex ? 'Some attackers use their <b>' + srcNum(cb.bodyForReflex, 'body') + '</b> instead of their reflex' + combatBodyUnitsText(cb.bodyForReflex.v) + '.' : 'A monster’s flags can make it use its body in place of its reflex.'),
       cb.skillOffLoop ? '<b>A weapon’s skill adds nothing</b>, because of a bug. The script ' +
         srcNum(cb.skillOffLoop[0], 'reads it from the wrong place') + ' and always finds 0, so Sword, Axe and Mace make no difference to an armed blow.' : '',
-      'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. A margin of 0 or less then <b>misses</b>. ' +
-        (cb.parry ? 'Otherwise each blocking item the defender wears gives <b>a random number from 0 to its block rating plus the Shield skill</b>, and the shields <b>parry</b> a margin below the sum of these' : 'Otherwise the blow lands') +
+      'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. Then a margin of 0 or less <b>misses</b>. ' +
+        (cb.parry ? 'Otherwise, each blocking item the defender wears gives <b>a random number from 0 to its block rating plus the Shield skill</b>, and the shields <b>parry</b> a margin below the sum of these' : 'Otherwise the blow lands') +
         '.',
       ar && ar.bodyRoll && ar.scale ? 'The most damage a blow can do is' + mechEq('maximum = weapon’s damage + ' + rollFrom('body')) +
         (ar.reflexRoll ? 'For a throw it is' + mechEq('maximum = weapon’s thrown damage + ' + rollFrom('reflex')) : '') : '',

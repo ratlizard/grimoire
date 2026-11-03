@@ -254,7 +254,10 @@ function searchShopSentences(sh) {
   for (const s of sh.shops) {
     const who = s.character !== null ? searchPersonAt(s.character) : (labelFor(s.resid) || null);
     for (const g of s.goods) {
-      const line = 'The hero can buy ' + (g.count > 1 ? g.count + ' ' : /^[aeiou]/i.test(g.name) ? 'an ' : 'a ') + g.name + (who ? ' from ' + who : '') + ' for ' + g.price + ' obol' + (g.price === 1 ? '' : 's') + '.';
+      // No article before a plural or a mass noun ("Ribs", "Sandals", "Bread"),
+      // which LanguageTool caught as "a Ribs" (2 November 2026).
+      const noArticle = (/s$/i.test(g.name) && !/ss$/i.test(g.name)) || /^(bread|cheese|fish|flax|meat)$/i.test(g.name);
+      const line = 'The hero can buy ' + (g.count > 1 ? g.count + ' ' : noArticle ? '' : /^[aeiou]/i.test(g.name) ? 'an ' : 'a ') + g.name + (who ? ' from ' + who : '') + ' for ' + g.price + ' obol' + (g.price === 1 ? '' : 's') + '.';
       if (!seen.has(line)) { seen.add(line); out.push(line); }
     }
   }
