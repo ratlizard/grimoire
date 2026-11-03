@@ -1215,7 +1215,7 @@ const APP_FIXES = [
   // r4 and r5, which both routines write again before reading, and the
   // link register, which both saved on entry, since both make calls.
   { id: 'quest-items-kept', kind: 'change', title: 'A quest item or a person’s body that the hero drops stays where the hero left it, instead of being cleared away with the level',
-    played: 'fork, PowerPC, 1 November 2026, alone and with every fix. Kelp dragged from the inventory to the floor of Omen’s Test, or slid a square west, is still there after a jump to Land King Hall and back, where the stock program removes it. A paper slid the same way is put back where the level had it, on both programs',
+    played: 'fork, PowerPC, 1 and 3 November 2026, alone and with every fix. Kelp dragged from the inventory to the floor of Omen’s Test, or slid a square west, is still there after a jump to Land King Hall and back, where the stock program removes it. A paper slid the same way goes back to its place on both programs. Aethon’s body slid a square in Omen’s Test is still there after the same jumps, and the amulet raises him from it (played alone). Kelp slid a square in Cademia is still there after a walk of 40 squares north and back, where the stock program deletes it',
     sites: [
       { at: 0x5502C, was: [0x40820010], asm: ['b @cave               ; was bne 0x5503C, DropCommand’s class flag'] },
       { at: 0x5308C, was: [0x40820010], asm: ['b @slide              ; was bne 0x5309C, SlideItemCommand’s class flag'] }],
