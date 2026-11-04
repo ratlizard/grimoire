@@ -3298,7 +3298,7 @@ function todoHTML(words) {
     h += '<div class="propEdit"><label>add <select id="todo-add">' +
       words.todo.pairs.map(p => '<option value="' + p.slot + ':' + p.line + '">' + svEsc('slot ' + p.slot + ': ' + (lines.get(p.line) || 'line ' + p.line)) + '</option>').join('') +
       '</select></label>' + actionChip('Add', 'addTodoFromForm()') + '</div>' +
-      '<div class="inspDim">Each line here is one the game can add to the list, in the slot the game puts it in. If that slot has a line already, adding changes only the words. The day and the strike-off stay as they were, as in the game.</div>';
+      '<div class="inspDim">These are the lines the game's scripts add to the To Do list, each in the slot shown. Adding a line to an empty slot sets its day to the current day. Adding a line to a slot in use replaces the old line but keeps its day and its strike-through, as in the game.</div>';
   }
   return h;
 }
