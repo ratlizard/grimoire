@@ -2739,9 +2739,9 @@ function renderDataFixMaker() {
   }
   host.appendChild(presets);
   const offLists = DATA_FIX_GROUPS.filter(g => g.off).map(g => g.title);
-  const leftToYou = (offLists.length > 1 ? offLists.slice(0, -1).join(', ') + ' and ' + offLists[offLists.length - 1] : offLists.join('')) + ' are off until chosen.';
-  host.appendChild(el('p', 'mechSub', now === 'all' ? 'Every fix, including the untested ones. ' + leftToYou
-    : now === 'tested' ? 'Every fix seen working in the game. ' + leftToYou : ''));
+  const offListsNote = (offLists.length > 1 ? offLists.slice(0, -1).join(', ') + ' and ' + offLists[offLists.length - 1] : offLists.join('')) + ' are off until chosen.';
+  host.appendChild(el('p', 'mechSub', now === 'all' ? 'Every fix, including the untested ones. ' + offListsNote
+    : now === 'tested' ? 'Every fix seen working in the game. ' + offListsNote : ''));
   const q = el('input', 'fixSearch');
   q.type = 'search'; q.id = 'fixSearch';
   q.placeholder = 'Search the fixes';
@@ -4875,7 +4875,7 @@ function renderMechanicsSheet(value) {
     ov.appendChild(ovBtn);
     const ovHint = document.createElement('span');
     ovHint.className = 'mechSub';
-    ovHint.textContent = ' Find where parts of the Patch in Progress change the same thing, and which changes installing each with Magpie as a separate file would lose.';
+    ovHint.textContent = ' Find the resources that more than one part of the Patch in Progress changes. When Magpie installs the parts as separate files, only one part’s change to each of them stays.';
     ov.appendChild(ovHint);
     sec.appendChild(ov);
     const ovHost = document.createElement('div');

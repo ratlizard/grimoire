@@ -1386,7 +1386,7 @@ const DATA_FIXES = [
   // Thuria's mine task (0x1814): "You've heard first hand" is said only once
   // she has given the task, so hearing Amphidamas first no longer shuts it
   // out; her report greeting already has a line for that order.
-  { id: 'thuria-mine', group: 'quests', stage: 'further', title: 'Thuria now still gives the mine task after the hero has been to the mine, instead of never giving it',
+  { id: 'thuria-mine', group: 'quests', stage: 'further', title: 'Thuria still gives the mine task after the hero has been to the mine, instead of never giving it',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Amphidamas’s flag 1 set by an edit, "rumo" to Thuria, her offer, Yes, and the task saved in the To Do list, against "You’ve heard first hand of the issues involved at the mine." and no task unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: her offer, "Perhaps you might be interested investigating this matter more?", against "You’ve heard first hand of the issues involved at the mine." unpatched; Yes was not answered',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thuria gives the mine task', 0x1814,
@@ -1749,7 +1749,7 @@ const DATA_FIXES = [
   // creation's write, which nothing reads once this applies, and the
   // creation's read just after it, which comes before field 0x25 has
   // anything.
-  { id: 'gender', group: 'talk', stage: 'further', title: 'Characters no longer address the hero using the gender of the hero created previously (e.g. in February of last year)',
+  { id: 'gender', group: 'talk', stage: 'further', title: 'Characters no longer address the hero by the gender of a hero made in an earlier game',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: a heroine (the hero’s figure 33) loaded where no hero had been created, "bye" to Hebe, "Ma’am, one last thing...", against "Sir, one last thing..." unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: "Ma’am, one last thing...", against "Sir, one last thing..." unpatched',
     plan: (s) => {
       const edits = [];
@@ -1776,7 +1776,7 @@ const DATA_FIXES = [
   // fall through to the first greeting. So a stranger was greeted as an
   // acquaintance and the reverse, and Eurybates, whose first greeting sets
   // the flag, set it only on the second meeting. Each test is made `if`.
-  { id: 'greetings-backwards', group: 'talk', stage: 'further', title: 'Eurybates and Sardis introduce themselves at the first meeting and greet the hero as an acquaintance after, instead of the other way round',
+  { id: 'greetings-backwards', group: 'talk', stage: 'further', title: 'Eurybates and Sardis introduce themselves at the first meeting and greet the hero as an acquaintance after, instead of the other way around',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Eurybates’s first greeting', 0x1818, ['if_not', 'call_resource 0xF02', 'arg Arg00', 'byte 0x07', 'end', 'then ->', 'string(implicit) "\\"You\'re new around here'], 0, 'if'),
       dataFixReplaceOp(s, 'Sardis’s first greeting', 0x181F, ['if_not', 'call_resource 0xF02', 'arg Arg00', 'byte 0x07', 'end', 'then ->', 'string(implicit) "\\"Hello, "'], 0, 'if'),
@@ -2170,7 +2170,7 @@ const DATA_FIXES = [
           return out;
       } },
     ] },
-  { id: 'resurrection', group: 'design', stage: 'apart', title: 'Resurrection and the Land King Amulet now revive the character with party membership intact and with the same nesting of items inside containers in their inventory, instead of taking everything out of the containers in their inventory and removing them from the party',
+  { id: 'resurrection', group: 'design', stage: 'apart', title: 'Resurrection and the Land King Amulet now bring a character back still in the party and with everything still inside their bags and containers, instead of emptying the containers and dropping the character from the party',
     played: 'Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie over “All Fixes”. Hector, dead while in the party (staged by an edit), raised from his corpse beside the hero, is in the party again and stands beside the hero, against saved three squares off and out of the party unpatched. The hero was given Casting 15 by an edit, without which the cast failed about ten times in eleven. Nobody looked at his belongings. A dagger put inside his corpse is his after the raising, patched and unpatched alike. Fork, PowerPC, 3 November 2026, the Land King Amulet with this fix. Aethon, not in the party, killed by the hero and raised from his body, stands on his body’s square with his inventory, as unpatched. With the program fix party-at-death he stays outside the party. With the stock program his body has Data2 0, the fix reads his behavior instead, and the hero’s attacks had set it to 8, so he joins the party (played before the Data2 test, with the behavior test alone). Aethon in the party, poisoned to death, is raised into the party with the stock program and with party-at-death, alone and with every fix',
     // Its offsets are the shipped file's; nobody-corpse, an earlier stage,
     // inserts before them in both scripts, so the plan measures where the
@@ -2442,7 +2442,7 @@ const DATA_FIXES = [
         { what: 'the mushroom steak is used on the hero', resid: 0x10D5, at: 0x00E0, to: 0x00F8, expect: { ...at(0x00E0, feed), 0x00F5: 'byte 0x01', 0x00F8: 'return' }, code: use },
       ];
     })() },
-  { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'A targeted spell now costs its magic only once the caster chooses the target, so a canceled cast costs nothing, instead of before',
+  { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'A targeted spell now costs its magic once the caster chooses the target, instead of before, so a canceled cast costs nothing',
     played: 'fork, 68K, 10 October 2026, alone: Awaken, given as an ability by an edit, performed and cancelled with Escape at "Cast ‘Awaken’ on whom?"; the hero’s magic saved as 30 of 60, untouched, against 29 unpatched; cast on its target, 29 on both. One spell of the 33; Mac OS 8.5, 11 October 2026, a patch of the design changes installed by Magpie over “All Fixes”: Awaken cancelled at its question leaves 30 of 60 magic, against 29 unpatched',
     plan: (s) => {
       const edits = [];
@@ -2529,7 +2529,7 @@ const DATA_FIXES = [
   // which the defaults bear out (0x3020 EveryTurn, 0x3041 TakeDamage); the
   // archive's symbol for it, "CanWear", is from a numbering the scripts do
   // not use. workbench doc/bugs.md, *Found tracing the missile sounds*.
-  { id: 'gong-sound', group: 'hidden', title: 'A gong, a painting showing the gong’s picture, now sounds when used, instead of doing nothing',
+  { id: 'gong-sound', group: 'hidden', title: 'A painting that shows the gong’s picture now sounds the gong when used, instead of doing nothing',
     parts: [
       { stage: 'further', plan: (s) => ({ dataEdits: [{ what: 'the painting’s class, from the bell’s', resid: 0x1158, create: true, fn: b => dataFixGongClass(b, s.bytesOf(0x10C1)) }] }) },
       { stage: 'apart', edits: [{ what: 'the painting’s Use sounds the gong', resid: 0x1158, at: 0x000F, to: 0x0099,
@@ -2603,7 +2603,7 @@ const DATA_FIXES = [
   // cry at a theft sets the guards on the hero.
   { id: 'love-bellerophon', newGame: true, group: 'mods', stage: 'mods', name: 'Everybody loves Bellerophon',
     played: 'in part, fork, 68K, 31 October 2026, Hector attacked twice in Land King Hall and the turns passed, the hero losing 69 of 255 health to him on the shipped file and none with the fix, and a skeleton on behavior 8 two squares off hit a hero of alignment 2 and left a hero of alignment 0 alone (a save edited by hand, with the new game’s hero at 0 in the saved game). The guards’ answer to a theft and the three area spells are unplayed',
-    title: 'Nobody now turns on the hero whatever the hero does, instead of creatures hunting the hero and people fighting back or calling the guards (a new game)',
+    title: 'In a new game nobody turns on the hero, whatever the hero does, instead of creatures hunting the hero and people fighting back or calling the guards',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'a hit character answers the hero', 0x3043, ['set_field 0x2A', 'arg Arg00', 'end', 'arg Arg01', 'end', 'set_field behavior'], 0,
         ['if_not', 'arg Arg01', 'word Character.Hero', 'eq', 'then -> answers', 'return', 'byte 0x00', 'end', 'answers:'].join('\n')),

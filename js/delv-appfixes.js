@@ -329,7 +329,7 @@ const APP_FIXES = [
   // instead, every later digit leaves 101 there, and the test after the
   // loop gives the error. The routine saved its return address on entry,
   // so the bl is free.
-  { id: 'ai-weight', kind: 'fix', title: 'A combat AI file with a weight over 100 gives an error when imported, instead of compiling with the weight wrapped round (300 as 44)',
+  { id: 'ai-weight', kind: 'fix', title: 'A combat AI file with a weight over 100 gives an error when imported, instead of compiling with the weight wrapped around (300 as 44)',
     played: 'Mac OS 8.5, PowerPC, 28 October 2026, a file with #300 imported in the user behavior editor gave “Weight higher than 100%”, where the stock program compiled it as 44',
     bug: 'An imported combat AI weight over 255 wraps round instead of giving an error',
     sites: [{ at: 0xAE4BC, was: [0x981F0000], asm: ['bl @cave              ; was stb 0, 0(31): the weight so far'] }],
@@ -626,7 +626,7 @@ const APP_FIXES = [
   // returns, so the applier requires walk-to beside it (needs). With both,
   // walk-to's step at 0x272CC and 0x27348 still runs when the walk ends
   // short of the thing; that step goes nowhere the walk could not reach.
-  { id: 'walk-path', kind: 'change', title: 'A command chosen by its key and clicked on something out of reach walks the hero there, a turn a step, and then acts, instead of one step a click',
+  { id: 'walk-path', kind: 'change', title: 'A command chosen by its key and clicked on something out of reach walks the hero there one step a turn and then acts, instead of taking one step a click',
     needs: ['walk-to'],
     sites: [{ at: 0x2722C, was: [0x80A28B28], asm: ['b @cave               ; was lwz 5, -29912(2)'] },
             { at: 0x55418, was: [0x48000014], asm: ['b @tooFar             ; was b 0x5542C'] },
@@ -1429,7 +1429,7 @@ const APP_FIXES = [
   // register, which the code after it reads from the record again.
   { id: 'difficulty', kind: 'change', name: 'Hardly Normal', title: 'Telling Alaric “very easy”, “easy”, “normal”, “hard” or “very hard” sets the training points a level brings and how strong new creatures are, instead of being forgotten',
     bug: 'The difficulty level is never stored',
-    note: 'Type the word to Alaric whenever you talk to him, as often as you like. He does not list the words as topics. Until you give him one, the level is normal, and a game saved before the patch is at normal too. A new level applies to later level-ups and to creatures made after the change. Creatures already made keep their stats.',
+    note: 'The player can type the word to Alaric in any conversation with him, as often as they like. He does not list the words as topics. Until the player gives him one, the level is normal, and a game saved before the patch is at normal too. A new level applies to later level-ups and to creatures made after the change. Creatures already made keep their stats.',
     played: 'fork, PowerPC, 1 November 2026, a new game on a Cythera Data that raises the hero a level after each of Alaric’s five answers, each keyword typed and the game saved. The unpatched program gave 6 training points for “very hard” and left the save’s difficulty at 2. The patched one gave 6, 5, 4, 3 and 2 for very easy to very hard and saved 0 to 4. A played save set to very hard and opened outside Land King Hall made the same creatures on both programs, and one drawn at 214%, whose level came to 259, was stored as 3 by the unpatched program and as 255 by the patched one',
     sites: [
       { at: 0x93A84, was: [0x40800058], asm: ['b @set                ; was bge 0x93ADC, every global from 15 dropped'] },
