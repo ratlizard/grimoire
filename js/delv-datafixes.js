@@ -2603,7 +2603,7 @@ const DATA_FIXES = [
   // cry at a theft sets the guards on the hero.
   { id: 'love-bellerophon', newGame: true, group: 'mods', stage: 'mods', name: 'Everybody loves Bellerophon',
     played: 'in part, fork, 68K, 31 October 2026, Hector attacked twice in Land King Hall and the turns passed, the hero losing 69 of 255 health to him on the shipped file and none with the fix, and a skeleton on behavior 8 two squares off hit a hero of alignment 2 and left a hero of alignment 0 alone (a save edited by hand, with the new game’s hero at 0 in the saved game). The guards’ answer to a theft and the three area spells are unplayed',
-    title: 'In a new game nobody turns on the hero, whatever the hero does, instead of creatures hunting the hero and people fighting back or calling the guards',
+    title: 'Nobody turns on the hero, whatever the hero does, instead of creatures hunting the hero and people fighting back or calling the guards',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'a hit character answers the hero', 0x3043, ['set_field 0x2A', 'arg Arg00', 'end', 'arg Arg01', 'end', 'set_field behavior'], 0,
         ['if_not', 'arg Arg01', 'word Character.Hero', 'eq', 'then -> answers', 'return', 'byte 0x00', 'end', 'answers:'].join('\n')),

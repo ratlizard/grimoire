@@ -1127,7 +1127,7 @@ const ITEM_FIELD_INFO = {
   0x32: { gloss:'Light this item casts.' },
   0x34: { gloss:'Lock settings: what the game tests a key or a lockpick against.' },
   0x3B: { gloss:'Sounds. A prop plays the first one where it stands; a creature’s are the sounds of its fights.' },
-  0x3C: { scalar:true, unit:'obols', gloss:'Money value. Only the coin itself has one; scripts work out shop prices.' }
+  0x3C: { scalar:true, unit:'oboloi', gloss:'Money value. Only the coin itself has one, and scripts work out shop prices.' }
 };
 // Keys that mark an item as gear rather than goods, used only for grouping.
 const ITEM_COMBAT_KEYS = [0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F];

@@ -248,7 +248,8 @@ function searchPersonAt(i) {
   if (!d) return null;
   return d.homeZone ? d.name + ' in ' + d.homeZone : d.name;
 }
-// "a Sword ... for 45 obols", or "3 Arrows ... for 5 obols".
+// "a Sword ... for 45 oboloi", or "3 Arrows ... for 5 oboloi", the plural the
+// game's text uses.
 function searchShopSentences(sh) {
   const out = [], seen = new Set();
   for (const s of sh.shops) {
@@ -257,7 +258,7 @@ function searchShopSentences(sh) {
       // No article before a plural or a mass noun ("Ribs", "Sandals", "Bread"),
       // which LanguageTool caught as "a Ribs" (2 November 2026).
       const noArticle = (/s$/i.test(g.name) && !/ss$/i.test(g.name)) || /^(bread|cheese|fish|flax|meat)$/i.test(g.name);
-      const line = 'The hero can buy ' + (g.count > 1 ? g.count + ' ' : noArticle ? '' : /^[aeiou]/i.test(g.name) ? 'an ' : 'a ') + g.name + (who ? ' from ' + who : '') + ' for ' + g.price + ' obol' + (g.price === 1 ? '' : 's') + '.';
+      const line = 'The hero can buy ' + (g.count > 1 ? g.count + ' ' : noArticle ? '' : /^[aeiou]/i.test(g.name) ? 'an ' : 'a ') + g.name + (who ? ' from ' + who : '') + ' for ' + g.price + ' obol' + (g.price === 1 ? '' : 'oi') + '.';
       if (!seen.has(line)) { seen.add(line); out.push(line); }
     }
   }

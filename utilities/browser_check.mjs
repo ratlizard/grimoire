@@ -259,6 +259,23 @@ const SELDANE_ROUND_TRIP = `(async () => { try {
    and a detail page the Characters gallery opened is searched for, a
    phrase with its words out of order must match nothing, and the view the
    crawl drew over must be back with the tabs shown. */
+/* The glossary (installGlossary, js/page-labels.js) on a sheet with prose:
+   the first mention of each term is bold once, never inside a link, a
+   button or a heading, and a click shows its meaning and a click elsewhere
+   hides it. The control is the count: a sheet with no term bold fails, so
+   an observer that never ran cannot pass. */
+const GLOSSARY_RUN = `(async () => { try {
+  showCategory('MECH_PUZZLES');
+  await new Promise(r => setTimeout(r, 800));
+  const grid = document.getElementById('sheetGrid');
+  const glossed = [...grid.querySelectorAll('.gloss')].map(e => e.getAttribute('data-term'));
+  const inside = grid.querySelectorAll('a .gloss, button .gloss, h3 .gloss, h4 .gloss, summary .gloss').length;
+  const first = grid.querySelector('.gloss'), tip = document.getElementById('glossTip');
+  let shown = '', hidden = false;
+  if (first && tip) { first.click(); shown = tip.style.display === 'block' ? tip.textContent : ''; document.body.click(); hidden = tip.style.display === 'none'; }
+  return { glossed, twice: glossed.length - new Set(glossed).size, inside, shown, hidden };
+} catch (e) { return { error: String(e) }; } })()`;
+
 const SITE_SEARCH_RUN = `(async () => { try {
   const before = document.getElementById('categorySelect').value;
   const t0 = performance.now();
@@ -364,7 +381,7 @@ let opened = 'no archive given', seldane = 'not run', spanish = 'not run', plaqu
 if (archive && existsSync(resolve(ROOT, archive))) {
   const r = await load(base + indexPage + '?cache=skip&loud=1&src=' + encodeURIComponent(archive),
     '/^(Title: |Archive error)/.test(document.getElementById("output").textContent) || document.getElementById("sourceStatus").classList.contains("failed")', 90000,
-    { then: async ({evaluate}) => Object.assign({}, await evaluate(SELDANE_ROUND_TRIP), { spanish: await evaluate(SPANISH_BUILD), plaques: await evaluate(START_BUTTONS_RUN), search: await evaluate(SITE_SEARCH_RUN) }) });
+    { then: async ({evaluate}) => Object.assign({}, await evaluate(SELDANE_ROUND_TRIP), { spanish: await evaluate(SPANISH_BUILD), plaques: await evaluate(START_BUTTONS_RUN), glossary: await evaluate(GLOSSARY_RUN), search: await evaluate(SITE_SEARCH_RUN) }) });
   const errs = errors(r.console), quiet = quietOnes(r.console);
   const title = text((/id="output"[^>]*>([\s\S]*?)<\/pre>/.exec(r.dom) || ['', ''])[1]).trim();
   const status = text((/id="sourceStatus"[^>]*>([\s\S]*?)<\/(?:pre|div|span)>/.exec(r.dom) || ['', ''])[1]).trim();
@@ -395,6 +412,12 @@ if (archive && existsSync(resolve(ROOT, archive))) {
     else if (!ss.early.back || !ss.early.shown) fail('search', 'closed before the pages were all read, the page is ' + (ss.early.shown ? 'shown' : 'still hidden under its copy') + (ss.early.back ? '' : ', on another view'));
     else if (!ss.back || !ss.shown || ss.open !== 'block') fail('search', 'after reading the pages the view is ' + (ss.back ? '' : 'not ') + 'back, the tabs are ' + (ss.shown ? 'shown' : 'hidden') + ' and the panel is ' + ss.open);
     else console.log('  search: ' + ss.pages + ' pages read in ' + ss.ms + ' ms, ' + ss.details + ' of them detail pages, the Credits, a Mechanics sentence and a character’s line found, the view put back, and the kept copy opened in ' + ss.again.ms + ' ms the second time');
+    const gl = r.more.glossary;
+    if (!gl || gl.error) fail('glossary', 'it did not run (' + (gl ? gl.error : 'no result') + ')');
+    else if (!gl.glossed.length) fail('glossary', 'no term is bold on Mechanics › Puzzles');
+    else if (gl.twice || gl.inside) fail('glossary', gl.twice + ' terms bold twice, and ' + gl.inside + ' inside a link, a button or a heading');
+    else if (!gl.shown || !gl.hidden) fail('glossary', 'a click on a term ' + (gl.shown ? 'showed its meaning, and a click elsewhere did not hide it' : 'did not show its meaning'));
+    else console.log('  glossary: ' + gl.glossed.length + ' terms bold on Mechanics › Puzzles (' + gl.glossed.join(', ') + '), and a click shows "' + gl.shown.slice(0, 60) + '…"');
     const sb = r.more.plaques;
     if (!sb || sb.error) fail('start buttons', 'they were not carved in the browser: ' + (sb ? sb.error : 'no result'));
     else {

@@ -669,6 +669,14 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 /* Nothing in the open file for this view (tabHasData). Not gold, since it
    does not respond to a click. */
 .navChip.off { color:#f0ede4; opacity:.35; cursor:default; }
+/* The glossary (installGlossary): a term's first mention in a view is bold,
+   with a dotted line under it, and its meaning shows on hover, tap or focus. */
+.gloss { font-weight:700; text-decoration:underline dotted rgba(240,237,228,.65); text-underline-offset:2px; cursor:help; }
+.gloss:focus-visible { outline:2px solid var(--gold); outline-offset:1px; }
+#glossTip { position:fixed; z-index:220; box-sizing:border-box; max-width:min(320px, calc(100vw - 32px)); background:#1a1712;
+  border:1px solid var(--edge); border-radius:8px; padding:8px 11px; color:#fff; font-size:0.8125rem; line-height:1.4;
+  box-shadow:0 6px 18px rgba(0,0,0,.5); pointer-events:none; }
+#glossTip b { color:#fff; }
 /* A chip that is a span is a name, not a link, and wears white. */
 span.navChip { color:#fff; }
 #propFilterWrap { margin:8px 0 2px; }
@@ -2782,7 +2790,7 @@ wiki, not from the file. Turn these names on or off in Settings.</div>
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.372.1';
+const GRIMOIRE_VERSION = '1.373.0';
 /* The name at the top, and the tab's icon. The grimoire's tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);
