@@ -26,6 +26,9 @@
                  section and app_patch.mjs leave it out unless it is chosen
      bug         the entry's title in the workbench's bugs.md, where there
                  is one
+     needs       [ids]: fixes that must be chosen with this one, because it
+                 calls code they change (walk-path and walk-to's
+                 FindFirstStep); the applier stops without them
      script      a hook's method and what it is sent, for a script's
                  writer, shown under the fix; the title states what it lets a
                  script do (19 October 2026)
@@ -326,7 +329,7 @@ const APP_FIXES = [
   // instead, every later digit leaves 101 there, and the test after the
   // loop gives the error. The routine saved its return address on entry,
   // so the bl is free.
-  { id: 'ai-weight', kind: 'fix', title: 'A combat AI file with a weight over 100 gives an error when imported, instead of compiling with the weight wrapped round (300 as 44)',
+  { id: 'ai-weight', kind: 'fix', title: 'A combat AI file with a weight over 100 gives an error when imported, instead of compiling with the weight wrapped around (300 as 44)',
     played: 'Mac OS 8.5, PowerPC, 28 October 2026, a file with #300 imported in the user behavior editor gave “Weight higher than 100%”, where the stock program compiled it as 44',
     bug: 'An imported combat AI weight over 255 wraps round instead of giving an error',
     sites: [{ at: 0xAE4BC, was: [0x981F0000], asm: ['bl @cave              ; was stb 0, 0(31): the weight so far'] }],
@@ -581,6 +584,113 @@ const APP_FIXES = [
            'lwz 3, 0(21)', 'lha 4, 318(1)', 'lha 5, 316(1)', 'li 6, 0',
            'bl @WalkToLocation__8TGameSysFssUc',
            'keyDone:', 'b @0x27378'] },
+
+  // With walk-to, a click on a thing out of reach moves the hero one
+  // square. walk-path is the other choice, made for the Board's player
+  // (ratlizard.github.io's board-native), where a game piece set down on
+  // the map presses a command's key and then a single click under the
+  // piece. The map stays centered on the hero, so after one step the piece
+  // no longer sits over its target, and a second click would name another
+  // square. With walk-path, a command armed by its key and clicked on a
+  // thing walks the hero there, a turn a step, and then the command acts:
+  // - Use (3) and Take (5), when the branch found the thing out of reach
+  //   (308(1) is 0), walk until the hero stands beside it, then continue
+  //   with 308(1) set, so UseCommand or TakeCommand acts as in the shipped
+  //   game. For a thing already in the hero's pack, Take goes to the branch
+  //   unchanged, which prints its line.
+  // - Talk (2), on a character (TActiveMonster::GetCharacter), walks until
+  //   the hero stands beside them, then the talk opens. The shipped game
+  //   talks at any distance in sight. A shopkeeper behind a counter, whom no
+  //   path reaches, is talked to from the nearest square the path finder
+  //   finds.
+  // - Attack (1) on a thing attacks first, as the shipped game does, so a
+  //   missile weapon or a spell still acts from where the hero stands.
+  //   AttackCommand(s) calls the attack script (DoInterp, method 28). When
+  //   the answer is not a number and the target is a character, it prints
+  //   "It is too far away to attack" (0x55408) and returns without a turn.
+  //   In the shipped program it returns nothing: r3 is whatever its last
+  //   call left there. Here it returns 1 after that line and 0 otherwise,
+  //   and on 1 the hero walks and attacks again. No caller of it reads r3.
+  // The walk is XDirection's keyboard step, repeated: SyncTaskMaster, then
+  // MoveCommand in the direction walk-to's step finds (FindPath, then
+  // FindFirstStep through the cursor table at TOC -3258), then MoveAll,
+  // which moves everyone else and draws. It stops beside the target, when
+  // FindPath finds nothing nearer (32767), when a step leaves the hero on
+  // the same square, when the mouse button is down (ISButton, as the held
+  // walk of MouseRoutine reads it, so a tap stops the walk), or after 40
+  // steps. FindPath looks no further than 15 squares from the view's
+  // center, which ends a long walk before the count does. A fight does not
+  // stop it: MoveAll lets every creature act each step, as walking by the
+  // keys does, and a tap stops the walk.
+  // It needs walk-to's word at 0x5A9AC, without which FindFirstStep never
+  // returns, so the applier requires walk-to beside it (needs). With both,
+  // walk-to's step at 0x272CC and 0x27348 still runs when the walk ends
+  // short of the thing; that step goes nowhere the walk could not reach.
+  { id: 'walk-path', kind: 'change', title: 'A command chosen by its key and clicked on something out of reach walks the hero there one step a turn and then acts, instead of taking one step a click',
+    needs: ['walk-to'],
+    sites: [{ at: 0x2722C, was: [0x80A28B28], asm: ['b @cave               ; was lwz 5, -29912(2)'] },
+            { at: 0x55418, was: [0x48000014], asm: ['b @tooFar             ; was b 0x5542C'] },
+            { at: 0x5542C, was: [0x800100A8], asm: ['b @attackEnd          ; was lwz 0, 168(1)'] }],
+    cave: ['lha 6, 312(1)', 'cmpwi 6, 0', 'beq @back             ; not on a thing, the shipped path',
+           'lwz 5, -29912(2)', 'lha 5, 0(5)           ; the command armed',
+           'cmpwi 5, 1', 'beq @attack', 'cmpwi 5, 2', 'beq @talk', 'cmpwi 5, 3', 'beq @use', 'cmpwi 5, 5', 'beq @take',
+           'b @back',
+           'take:', 'lha 3, 312(1)', 'bl @GetPropParent__Fs', 'extsh 3, 3', 'lha 4, 0(22)', 'cmpw 3, 4',
+           'beq @back             ; in the hero’s pack already',
+           'use:', 'lwz 7, 308(1)', 'cmpwi 7, 0', 'bne @back             ; in reach, the shipped path',
+           'lha 3, 318(1)', 'lha 4, 316(1)', 'lwz 5, 4(29)', 'li 6, 0', 'bl @approach',
+           'cmpwi 3, 1', 'bne @back             ; no walk ended beside it',
+           'li 7, 1', 'stw 7, 308(1)         ; in reach now', 'b @back',
+           'talk:', 'lha 3, 312(1)', 'bl @GetCharacter__14TActiveMonsterFs', 'cmpwi 3, 0', 'beq @back',
+           'lha 3, 318(1)', 'lha 4, 316(1)', 'lwz 5, 4(29)', 'lha 6, 312(1)', 'bl @approach', 'b @back',
+           'attack:', 'lwz 3, 0(21)', 'lha 4, 312(1)', 'bl @AttackCommand__8TGameSysFs',
+           'cmpwi 3, 1', 'bne @done              ; attacked, or failed for another reason',
+           'lha 3, 318(1)', 'lha 4, 316(1)', 'lwz 5, 4(29)', 'lha 6, 312(1)', 'bl @approach',
+           'cmpwi 3, 0', 'beq @done',
+           'lwz 3, 0(21)', 'lha 4, 312(1)', 'bl @AttackCommand__8TGameSysFs',
+           'done:', 'b @0x27378',
+           'back:', 'lwz 5, -29912(2)', 'b @0x27230',
+           'tooFar:', 'li 3, 1', 'lwz 0, 168(1)', 'b @0x55430',
+           'attackEnd:', 'li 3, 0', 'lwz 0, 168(1)', 'b @0x55430',
+           // approach(x, y, port, follow) walks the character in control
+           // toward the square and returns 0 if they end away from it, 1 if
+           // they walked beside it, 2 if they stood beside it already. With
+           // follow a thing's number (Talk and Attack pass the character's),
+           // the square is read again from that thing's map record each
+           // step, since a person moves while the hero walks. It sets the
+           // port back to the window's before it returns.
+           'approach:', 'mflr 0', 'stw 0, 8(1)', 'stwu 1, -96(1)', 'stmw 26, 72(1)',
+           'mr 30, 3', 'mr 31, 4                ; the target', 'stw 5, 64(1)          ; the window’s port',
+           'mr 29, 6                ; the character to follow, or 0', 'li 28, 40              ; steps at most',
+           'step:', 'cmpwi 29, 0', 'beq @fixed', 'mr 3, 29', 'bl @squareOf', 'mr 30, 3', 'mr 31, 4',
+           'fixed:', 'bl @here', 'mr 26, 3', 'mr 27, 4',
+           'subf 5, 30, 3', 'srawi 6, 5, 31', 'xor 5, 5, 6', 'subf 5, 6, 5', 'cmpwi 5, 1', 'bgt @far',
+           'subf 5, 31, 4', 'srawi 6, 5, 31', 'xor 5, 5, 6', 'subf 5, 6, 5', 'cmpwi 5, 1', 'bgt @far',
+           'li 3, 1', 'cmpwi 28, 40', 'bne @out', 'li 3, 2', 'b @out',
+           'far:', 'cmpwi 28, 0', 'beq @stop', 'addi 28, 28, -1',
+           'bl @ISButton__Fv', 'clrlwi. 3, 3, 24', 'bne @stop             ; a tap',
+           'lwz 3, -30412(2)', 'li 4, 0', 'mr 5, 26', 'mr 6, 27', 'mr 7, 30', 'mr 8, 31',
+           'bl @FindPath__11TPathFinderFP14TActiveMonsterssss',
+           'extsh 3, 3', 'cmpwi 3, 32767', 'beq @stop',
+           'lwz 3, -30412(2)', 'addi 4, 1, 56', 'addi 5, 1, 58', 'bl @FindFirstStep__11TPathFinderFRsRs',
+           'lha 4, 56(1)', 'lha 5, 58(1)', 'addi 5, 5, 2', 'mulli 5, 5, 5', 'add 4, 4, 5', 'addi 4, 4, 2', 'slwi 4, 4, 1',
+           'addi 3, 2, -3258', 'lhax 4, 3, 4          ; the direction', 'cmplwi 4, 7', 'bgt @stop',
+           'sth 4, 60(1)',
+           'bl @SyncTaskMaster__11TTaskMasterFv',
+           'lwz 3, -30128(2)', 'lwz 3, 0(3)', 'lha 4, 60(1)', 'bl @MoveCommand__8TGameSysFQ28TGameSys10EDirection',
+           'bl @MoveAll__14TActiveMonsterFv',
+           'bl @here', 'cmpw 3, 26', 'bne @step', 'cmpw 4, 27', 'bne @step',
+           'stop:', 'li 3, 0',
+           'out:', 'mr 26, 3', 'lwz 3, 64(1)', 'bl @0xC2118           ; SetPort', 'lwz 2, 20(1)', 'mr 3, 26',
+           'lmw 26, 72(1)', 'addi 1, 1, 96', 'lwz 0, 8(1)', 'mtlr 0', 'blr',
+           // here: the square of the character in control, read as walk-to
+           // reads it; squareOf: the square of the thing numbered r3, from
+           // the same table (0x271C4 reads a thing's record there too)
+           'here:', 'lwz 3, -30356(2)', 'lha 3, 0(3)',
+           'squareOf:', 'slwi 3, 3, 4',
+           'lwz 6, -30268(2)', 'lwz 6, 0(6)', 'add 6, 6, 3',
+           'lwz 3, 0(6)', 'rlwinm 3, 3, 8, 0, 12', 'srawi 3, 3, 20',
+           'lha 4, 2(6)', 'rlwinm 4, 4, 20, 0, 12', 'srawi 4, 4, 20', 'blr'] },
 
   // TJournalList::AppendEntry adds one List Manager row a wrapped line and
   // sets 12 bytes of cell data in it, and the List Manager stores its cell
@@ -1096,16 +1206,27 @@ const APP_FIXES = [
   // gives the second half-disk (0x1803). A body is made with flags 0x01, so
   // it is safe where it fell; only a drop after picking it up marks it.
   // Left out: eggs, which there are dozens of, and Omen's ring (Data1 3),
-  // which changes a line of his and nothing else (0x1CC3). Not covered: a
-  // quest thing inside a container that is dropped, which retains whatever
-  // flags it had.
+  // which changes a line of his and nothing else (0x1CC3).
+  //
+  // A CONTAINER with a quest thing anywhere inside it, a sack in a sack
+  // included, counts as a quest thing too. A
+  // thing inside another has flags 8 to 11 and its container's index in
+  // the low half of its first word (GetPropParent reads it so), and is
+  // never marked itself, so a sack cleared away with the level took the
+  // kelp in it out of reach. The test walks the level's records from 256,
+  // the first that is not a character's, up to the count at TOC -30276,
+  // and for each quest thing inside something follows its containers up
+  // while they are inside something too, as far as the thing dropped.
   //
   // The cave's test is a separate routine, called with the record in r3,
-  // and answers with cr0 not equal for a quest thing. It changes r0, r3,
-  // r4 and r5, which both routines write again before reading, and the
-  // link register, which both saved on entry, since both make calls.
+  // and answers with cr0 not equal for a quest thing. It changes r0 and r3
+  // to r12. Both routines write r0 and r3 to r6 again before reading them,
+  // and read none of r7 to r12 before their next call (AddToHood,
+  // FindSurface), read 3 November 2026. The link register goes to r12
+  // while the test calls the type test, and both routines saved theirs on
+  // entry, since both make calls.
   { id: 'quest-items-kept', kind: 'change', title: 'A quest item or a person’s body that the hero drops stays where the hero left it, instead of being cleared away with the level',
-    played: 'fork, PowerPC, 1 November 2026, alone and with every fix. Kelp dragged from the inventory to the floor of Omen’s Test, or slid a square west, is still there after a jump to Land King Hall and back, where the stock program removes it. A paper slid the same way is put back where the level had it, on both programs',
+    played: 'fork, PowerPC, 1 and 3 November 2026, alone and with every fix. Kelp dragged from the inventory to the floor of Omen’s Test, or slid a square west, is still there after a jump to Land King Hall and back, where the stock program removes it. A paper slid the same way goes back to its place on both programs. Aethon’s body slid a square in Omen’s Test is still there after the same jumps, and the amulet raises him from it (played alone). Kelp slid a square in Cademia is still there after a walk of 40 squares north and back, where the stock program deletes it. A sack with kelp in it, dragged from the inventory to the floor of Omen’s Test, is still there with the kelp in it after the jumps, where the stock program and this fix without its container test remove the sack and leave the kelp inside a freed record',
     sites: [
       { at: 0x5502C, was: [0x40820010], asm: ['b @cave               ; was bne 0x5503C, DropCommand’s class flag'] },
       { at: 0x5308C, was: [0x40820010], asm: ['b @slide              ; was bne 0x5309C, SlideItemCommand’s class flag'] }],
@@ -1116,7 +1237,22 @@ const APP_FIXES = [
            'slide:', 'bne @slide0', 'mr 3, 27', 'bl @quest', 'bne @slide0',
            'lbz 0, 0(27)', 'ori 0, 0, 32', 'stb 0, 0(27)',
            'slide0:', 'b @0x5309C',
-           'quest:', 'lhz 4, 4(3)            ; the picture and the type',
+           'quest:', 'mflr 12', 'mr 11, 3                ; the thing dropped',
+           'bl @kind', 'bne @found              ; a quest thing itself',
+           'lwz 6, -30268(2)', 'lwz 6, 0(6)             ; the level’s records',
+           'lwz 7, -30276(2)', 'lha 7, 0(7)             ; how many',
+           'li 9, 256', 'addi 8, 6, 4096         ; record 256',
+           'scan:', 'cmpw 9, 7', 'bge @none',
+           'lbz 0, 0(8)', 'andi. 0, 0, 220', 'cmpwi 0, 8', 'bne @next              ; not inside anything',
+           'mr 3, 8', 'bl @kind', 'beq @next              ; not a quest thing',
+           'mr 10, 8',
+           'up:', 'lhz 0, 2(10)            ; its container', 'slwi 0, 0, 4', 'add 10, 6, 0',
+           'cmpw 10, 11', 'beq @found              ; inside the thing dropped',
+           'lbz 0, 0(10)', 'andi. 0, 0, 220', 'cmpwi 0, 8', 'beq @up                 ; that container is inside another',
+           'next:', 'addi 8, 8, 16', 'addi 9, 9, 1', 'b @scan',
+           'none:', 'mtlr 12', 'li 0, 0', 'cmpwi 0, 0', 'blr',
+           'found:', 'mtlr 12', 'li 0, 1', 'cmpwi 0, 0', 'blr',
+           'kind:', 'lhz 4, 4(3)            ; the picture and the type',
            'andi. 5, 4, 1023        ; the type',
            'rlwinm 4, 4, 0, 17, 31  ; the picture and the type, the rotation aside',
            'lbz 0, 6(3)             ; Data1',
@@ -1138,6 +1274,88 @@ const APP_FIXES = [
            'one:', 'cmpwi 0, 1', 'beq @yes',
            'no:', 'li 0, 0', 'cmpwi 0, 0', 'blr',
            'yes:', 'li 0, 1', 'cmpwi 0, 0', 'blr'] },
+  // What a character wore at death is worn again when they are raised.
+  // TActiveMonster::Die moves every thing in a character's inventory (kind
+  // 16), worn (24) or inside them (9) into the corpse as kind 9, so the
+  // corpse has no record of what was worn, and Resurrection (0x1A2F) and the
+  // Land King Amulet (0x10F4) give everything back with flags 16, in the
+  // inventory. Death runs no UnWear script either, so what a Wear script
+  // did stays done: the belt's Body +5 (0x1154), the gator boots' flags 31
+  // and 23 (0x1135), the ring's ability in its Data2 (0x1133). A raised
+  // character had such a thing in the inventory with its effect still on
+  // them, and wearing it again ran Wear a second time (Body +10). Worn
+  // again, the thing matches its effect, as before the death; Wear is not
+  // run again.
+  //
+  // THE MARK. Byte 1 of a thing in an inventory or inside something is not
+  // part of its holder: holders are read from the low 16 bits
+  // (GetPropParent) or the low 12 (WieldCommand's scan), and the byte
+  // retains what the thing's x left there (saves have 0 to 3 and 0x42).
+  // Die, as it moves a thing into the corpse, writes 255 there for a worn
+  // thing and 0 for the rest. SetField's write of a thing's flags (field
+  // 0), when a script writes 16 to a thing inside something (kind 9) whose
+  // byte 1 is 255, writes 24 and clears the byte. Both raise scripts write
+  // the container first and the flags second. SetField's write of the
+  // container (field 11) ORs the value's low 24 bits into the old byte 1,
+  // and a character's value has its class, 0x40, there, so the mark stays
+  // 255 and the 0 of a thing not worn becomes 0x40 (played: the kelp beside
+  // the worn belt). A script's x of a thing inside something
+  // reads its outermost container's square, so the scripts cannot read the
+  // mark themselves. TakeCommand writes the new holder into the low 16 bits
+  // at both its writes (a character, a container), and with this fix it
+  // clears byte 1 there as well, so a thing taken out of the corpse and
+  // put back is in the inventory when the person is raised. WieldCommand,
+  // DropCommand and SlideItemCommand write all 24 bits already.
+  //
+  // REGISTERS. At 0x46C98 Die has 9 in r0 and the prop table in r3; r4 and
+  // r0 are loaded again before they are read, and cr0 is set again before
+  // it is tested. At 0x92EB4 SetField has the value in r0 and ForceReset's
+  // argument in r3; r5 is free, and the call that follows ends r5 and cr0
+  // anyway.
+  { id: 'worn-at-death', kind: 'fix', title: 'A character raised by Resurrection or the Land King Amulet wears again what they wore when they died, instead of having it in the inventory',
+    played: 'fork, PowerPC, 3 November 2026, alone and with every fix. Aethon, wearing a belt and with kelp in his inventory, killed by the hero and raised with the Land King Amulet, wears the belt again and has the kelp in his inventory, where the stock program puts both in his inventory. The belt in his body has byte 1 at 255 and the kelp 0. The belt taken out of the body into the hero’s inventory has byte 1 at 0. Taken out and put back into the body, it is in Aethon’s inventory after the raise, not worn',
+    sites: [
+      { at: 0x46C98, was: [0x981C0000], asm: ['b @death               ; was stb 0, 0(28), the kind made 9'] },
+      { at: 0x54410, was: [0x5405021E], asm: ['li 5, 0                ; was rlwinm 5, 0, 0, 8, 15, byte 1 left as it was'] },
+      { at: 0x54438, was: [0x5405021E], asm: ['li 5, 0                ; was rlwinm 5, 0, 0, 8, 15, byte 1 left as it was'] },
+      { at: 0x92EB4, was: [0x981E0000], asm: ['b @flags               ; was stb 0, 0(30), a thing’s flags'] }],
+    cave: ['death:', 'lbz 4, 0(28)            ; the kind before: 16 inventory, 24 worn, 9 inside',
+           'stb 0, 0(28)            ; kind 9, inside the corpse',
+           'li 0, 0', 'cmpwi 4, 24', 'bne @mark', 'li 0, 255',
+           'mark:', 'stb 0, 1(28)            ; 255 for a worn thing, 0 for the rest',
+           'b @0x46C9C',
+           'flags:', 'cmpwi 0, 16', 'bne @plain             ; not to the inventory',
+           'lbz 5, 0(30)', 'cmpwi 5, 9', 'bne @plain             ; not inside something',
+           'lbz 5, 1(30)', 'cmpwi 5, 255', 'bne @plain             ; not worn at death',
+           'li 0, 24                ; worn', 'li 5, 0', 'stb 5, 1(30)            ; the mark cleared',
+           'plain:', 'stb 0, 0(30)', 'b @0x92EB8'] },
+  // Whether a character was in the party when they died, written on the
+  // corpse for the Resurrection fix (the data fix resurrection), which puts
+  // a companion back in the party. TActiveMonster::Die clears the party
+  // bit, byte 8's 0x40, and rebuilds the party (0x46B38 to 0x46B68) before
+  // it makes the corpse, so nothing after the death had the membership, and
+  // the data fix had read a party behavior at death, 1 to 13, which the
+  // hero's attacks also give a joiner outside the party (8 for Aethon). Die
+  // writes the corpse's Data2, byte 7, as 0 (0x46BE8); here it is 2 for a
+  // character in the party and 1 for one outside it, and the data fix reads
+  // 0 as a corpse made without this fix. No script reads a corpse's Data2
+  // (the classes of types 78 and 283 have no method that does).
+  //
+  // THE SLOT. Die's frame word at 100(1) is written once, at 0x46B54 on the
+  // party branch, read at once and never again, so the answer stays there
+  // across the two calls between (RebuildParty, NewProp). 0x46B3C, which
+  // every character below 256 passes, writes 1 there; the party branch
+  // writes 2 after its clear. r0 is loaded again after each site before it
+  // is read (0x46B44, the call at 0x46B68, 0x46BEC).
+  { id: 'party-at-death', kind: 'fix', title: 'A character’s corpse records whether they were in the party when they died, which the Resurrection fix reads to put a companion back in the party',
+    played: 'fork, PowerPC, 3 November 2026, alone and with every fix, with the Resurrection fix. Aethon killed by the hero outside the party leaves a body with Data2 1, and the Land King Amulet raises him outside the party. Aethon in the party, poisoned to death, leaves a body with Data2 2, and the amulet raises him into the party',
+    sites: [
+      { at: 0x46B3C, was: [0x90010068], asm: ['b @start               ; was stw 0, 104(1)'] },
+      { at: 0x46B64, was: [0x98030008], asm: ['b @left                ; was stb 0, 8(3), the party bit cleared'] },
+      { at: 0x46BE8, was: [0x98170007], asm: ['b @corpse              ; was stb 0, 7(23), the corpse’s Data2 made 0'] }],
+    cave: ['start:', 'stw 0, 104(1)', 'li 0, 1', 'stw 0, 100(1)           ; outside the party, until the branch below', 'b @0x46B40',
+           'left:', 'stb 0, 8(3)', 'li 0, 2', 'stw 0, 100(1)           ; in the party', 'b @0x46B68',
+           'corpse:', 'lwz 0, 100(1)', 'stb 0, 7(23)            ; Data2, 1 or 2', 'b @0x46BEC'] },
   // A start of play costs fifteen ticks. TDelverApp::BeginPlay, which a new
   // game, Open and a revert all come through, ends by handing 15 to
   // TGameSys::HeartBeat: the hero is busy for fifteen ticks, the clock goes
@@ -1187,6 +1405,14 @@ const APP_FIXES = [
   // 4 training points a level, not the 6 every game has given, which is
   // why this is a design change and not a fix.
   //
+  // WHEN IT CAN BE SET. The five keywords are in 0x1802's one list with
+  // "job" and "bye", with no condition, and each branch goes back to the
+  // list, so the level can be set in any talk with Alaric, any number of
+  // times. AddConversationKeyword is never called for them, so they are
+  // typed. Every save read has 2 in the short, so the change works on a
+  // game already under way, at normal. A creature's stats are bytes of its
+  // record, made once, so a new level reaches creatures made after it.
+  //
   // THE CAP. Each scaled stat is stored as a byte with the low eight bits
   // of the product, so at 150 to 299 a type's 100 health can come out as
   // 300 and be stored as 44, and the level, scaled twice, passes 255 for
@@ -1203,6 +1429,7 @@ const APP_FIXES = [
   // register, which the code after it reads from the record again.
   { id: 'difficulty', kind: 'change', name: 'Hardly Normal', title: 'Telling Alaric “very easy”, “easy”, “normal”, “hard” or “very hard” sets the training points a level brings and how strong new creatures are, instead of being forgotten',
     bug: 'The difficulty level is never stored',
+    note: 'The player can type the word to Alaric in any conversation with him, as often as they like. He does not list the words as topics. Until the player gives him one, the level is normal, and a game saved before the patch is at normal too. A new level applies to later level-ups and to creatures made after the change. Creatures already made keep their stats.',
     played: 'fork, PowerPC, 1 November 2026, a new game on a Cythera Data that raises the hero a level after each of Alaric’s five answers, each keyword typed and the game saved. The unpatched program gave 6 training points for “very hard” and left the save’s difficulty at 2. The patched one gave 6, 5, 4, 3 and 2 for very easy to very hard and saved 0 to 4. A played save set to very hard and opened outside Land King Hall made the same creatures on both programs, and one drawn at 214%, whose level came to 259, was stored as 3 by the unpatched program and as 255 by the patched one',
     sites: [
       { at: 0x93A84, was: [0x40800058], asm: ['b @set                ; was bge 0x93ADC, every global from 15 dropped'] },
@@ -1275,11 +1502,11 @@ const APP_FIX_KIND_GROUP = { hook: 'hidden', text: 'text', menu: 'interface', ch
 const APP_FIX_GROUP = {
   'option-p': 'interface', 'drag-northwest': 'interface', 'books-window': 'interface',
   'take-window': 'interface', 'roster-pose': 'interface', 'tab-pane': 'interface', 'gamepad-keys': 'interface',
-  'right-click': 'interface', 'walk-to': 'interface', 'journal-rows': 'interface', 'window-leak': 'interface', 'status-wrap': 'interface', 'widget-renumber': 'interface',
+  'right-click': 'interface', 'walk-to': 'interface', 'walk-path': 'interface', 'journal-rows': 'interface', 'window-leak': 'interface', 'status-wrap': 'interface', 'widget-renumber': 'interface',
   'music-revert': 'interface', 'music-lock': 'interface', 'hero-square': 'interface', 'open-during-play': 'interface', 'spot-tune': 'interface',
   'theft-moved': 'items', 'weight-contents': 'items', 'empty-zone-save': 'items', 'containers-weight': 'items',
   'target-hunger': 'world', 'sleep-hidden': 'world', 'corner-body': 'world', 'sleeper-unit': 'world', 'unit-guard': 'world', 'hood-size': 'world',
-  'corpse-light': 'rules', 'spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'ai-mods': 'rules', 'ai-pick': 'rules', 'conv-field': 'interface', 'automap-span': 'interface', 'more-button': 'interface',
+  'corpse-light': 'rules', 'worn-at-death': 'rules', 'party-at-death': 'hidden','spell-glow': 'rules', 'ai-import': 'rules', 'ai-weight': 'rules', 'ai-token': 'rules', 'ai-mods': 'rules', 'ai-pick': 'rules', 'conv-field': 'interface', 'automap-span': 'interface', 'more-button': 'interface',
   'menu-scroll': 'talk', 'menu-items': 'talk', 'afternoon': 'talk', 'name-fit': 'talk', 'journal-at': 'talk', 'speech-clear': 'talk', 'name-clear': 'talk',
   'halloween-colors': 'mods',
 };

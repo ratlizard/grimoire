@@ -840,6 +840,106 @@ function syncInstallerTabs() {
   for (const id of ['apprsrc', 'interface']) { const n = TAB_BY_ID.get(id); if (n) n.wip = !window.APP_RSRC; }
 }
 
+/* Which tabs have something to show for the open file. A saved game has 8
+   of the scenario's 34 subindexes and no world map, and a Magpie patch
+   opened alone has a handful of resources, so without this most of the
+   tree opens onto "This subindex has no indexed resources in this file" or
+   a sheet of noughts. A tab whose views all have nothing is a disabled
+   button (renderTabRow), and a branch whose tabs all have nothing is one
+   too.
+
+   A numbered view is a subindex, and it has data when the master index
+   gives it an offset, the test the gallery itself makes
+   (onCategoryChangeImpl). A named view is tested by the resource or the
+   reader its sheet starts from:
+
+   - the world map, the character table (0xF009), the unit table (0xF008)
+     and the composition table (0xF013) by the resource;
+   - the prop sheets by the prop table (0xF000) and the tiles they are
+     drawn from (subindex 141), since a save has the first and not the
+     second, and its prop sheets are empty;
+   - Spells by the casting script (0xEA1), which spellRules reads first;
+   - Skills, Schedules and Barks by their readers, which are cached on
+     DERIVED and so cost nothing when the tab is opened afterwards;
+   - the rules sheets by any script at all, since each reads rules out of
+     whatever scripts the file has;
+   - the resource fork's views by the fork, and the installer's by the
+     installer.
+
+   A view not named here is a tool or a form (Saved Game's Save File
+   Generator, Preferences, Tools) or reads the program, which loads when
+   the tab is opened, and it is always on.
+
+   The archive's half is worked out once per file, after the page has drawn
+   it (scheduleTabData), because Skills and Barks read every script, some
+   120 ms on a desktop; until then every tab is on. The installer's and the
+   fork's are read each time, since the program's fork can load later. */
+const SCRIPT_SUBINDEXES = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 23, 24, 25, 26, 27, 29, 47];
+function subindexHasData(n) {
+  const m = ARCHIVE && ARCHIVE.index && ARCHIVE.index[n];
+  return !!(m && m[0]);
+}
+const propsDrawn = () => subindexHasData(141) && refExists(0xF000);
+const anyScripts = () => SCRIPT_SUBINDEXES.some(subindexHasData);
+const VIEW_DATA_FROM_ARCHIVE = {
+  WORLD: () => refExists(WORLD_MAP_RESID),
+  CHEATS: () => subindexHasData(127),
+  CHARACTERS: () => refExists(0xF009),
+  MONSTERS: () => refExists(0xF008),
+  ITEMS: propsDrawn, PROPS: propsDrawn, SCENERY: propsDrawn,
+  COMPOSITE: () => subindexHasData(141) && refExists(0xF013),
+  RSRC: () => subindexHasData(141) && refExists(0xF013),
+  SPELLS: () => refExists(0xEA1),
+  SKILLS: () => skillCatalog().length > 0,
+  SCHEDULES: () => loadSchedules().length > 0,
+  BARKS: () => buildBarkCatalog().length > 0,
+  RECORDS: () => refExists(0xF000) || refExists(0xF008) || refExists(0xF009),
+  MECHANICS: anyScripts, HACKERY: anyScripts,
+  MECH_PROGRESS: anyScripts, MECH_STATUS: anyScripts, MECH_INTERACT: anyScripts,
+  MECH_PUZZLES: anyScripts, MECH_COMBAT: anyScripts, MECH_ECONOMY: anyScripts
+};
+const VIEW_DATA_FROM_PAGE = {
+  STRINGS: () => !!window.CYTHERA_RSRC, FONTS: () => !!window.CYTHERA_RSRC,
+  SCREENS: () => !!window.CYTHERA_RSRC, MACRSRC: () => !!window.CYTHERA_RSRC,
+  INSTALLER: () => !!window.INSTALLER, AISCRIPTS: () => !!window.INSTALLER,
+  AIRULES: () => !!(window.INSTALLER || window.APP_RSRC)
+};
+function viewHasData(v) {
+  const table = DERIVED.TAB_DATA;
+  const live = VIEW_DATA_FROM_PAGE[v];
+  try {
+    if (live) return !!live();
+    // Every tab is on until the archive's half has been worked out.
+    if (!table) return true;
+    return table.get(v) !== false;
+  } catch (e) { quiet(e, 'whether the ' + v + ' view has data'); return true; }
+}
+function workOutTabData() {
+  const table = new Map();
+  for (const v of TAB_LEAF_FOR.keys()) {
+    let has = true;
+    try {
+      if (/^\d+$/.test(v)) has = subindexHasData(+v);
+      else if (VIEW_DATA_FROM_ARCHIVE[v]) has = !!VIEW_DATA_FROM_ARCHIVE[v]();
+    } catch (e) { quiet(e, 'whether the ' + v + ' view has data'); }
+    table.set(v, has);
+  }
+  DERIVED.TAB_DATA = table;
+}
+function tabHasData(node) {
+  if (node.children) return node.children.some(tabHasData);
+  return (node.values || []).some(viewHasData);
+}
+// After the page has drawn the file, so the first view is not held up.
+function scheduleTabData() {
+  const arc = ARCHIVE;
+  setTimeout(() => {
+    if (ARCHIVE !== arc) return;
+    workOutTabData();
+    try { syncTabsTo(document.getElementById('categorySelect').value); } catch (e) { quiet(e); }
+  }, 0);
+}
+
 // Every node learns its parent and depth, and every category value learns
 // which leaf it is in. A value in two leaves would make the tabs ambiguous,
 // so the first is used and the tree is written not to do that.
@@ -944,11 +1044,15 @@ function renderTabRow(row, nodes, selectedId) {
   const watched = () => { try { scrollHintWatch(row); } catch (e) { quiet(e); } };
   for (const n of nodes) {
     const b = document.createElement('button');
-    b.className = 'ftab' + (n.id === selectedId ? ' sel' : '') + (n.wip ? ' wip' : '');
+    // The tab that is open stays on even with nothing in it, which only a
+    // link straight to it can reach.
+    const off = n.id !== selectedId && !tabHasData(n);
+    b.className = 'ftab' + (n.id === selectedId ? ' sel' : '') + (off ? ' off' : n.wip ? ' wip' : '');
     b.id = 'tab_' + n.id;
     b.setAttribute('role', 'tab');
     b.setAttribute('aria-selected', n.id === selectedId ? 'true' : 'false');
-    if (n.wip) b.title = 'Not yet linked to the rest. Shows the raw view where there is one';
+    if (off) { b.disabled = true; b.setAttribute('aria-disabled', 'true'); b.title = 'Nothing in the open file for this tab'; }
+    else if (n.wip) b.title = 'Not yet linked to the rest. Shows the raw view where there is one';
     // The whole icon spec, not just the tile: a Data tab may give the file
     // type or the cursor its picture comes from, with the tile as the
     // fallback for before the application is open.
@@ -1039,8 +1143,10 @@ function syncTabsTo(v) {
       const name = (m ? m[1] : full).replace(/\s+Scripts?$/, '') || full;
       return svEsc(name) + (m ? '<span class="navHex">' + svEsc(m[2]) + '</span>' : '');
     };
+    // A chip for a view with nothing in the open file is disabled, as its
+    // tab would be (tabHasData).
     sub.innerHTML = vals.length > 1 ? vals.map(x =>
-      '<button class="navChip' + (x === v ? ' active' : '') + '" data-v="' + x +
+      '<button class="navChip' + (x === v ? ' active' : '') + (x !== v && !viewHasData(x) ? ' off" disabled="disabled' : '') + '" data-v="' + x +
       '" title="' + svEsc(optionLabel(x)) + '" onclick="pickCategory(\'' + x + '\')">' + chipLabel(x) + '</button>').join('') : '';
   }
   // One line under the sections describing what the open one contains.

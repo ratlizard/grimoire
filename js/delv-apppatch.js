@@ -174,6 +174,8 @@ function applyAppFixes(app, fixes, opts) {
 
   const ids = new Set();
   for (const f of fixes) { if (ids.has(f.id)) throw appPatchError(f, 'chosen twice'); ids.add(f.id); }
+  for (const f of fixes) for (const n of f.needs || [])
+    if (!ids.has(n)) throw appPatchError(f, 'works only with ' + n + ', so choose that too');
   const routines = appRoutineAddresses(pef, data);
   const word = a => pefU32(data, code.containerOffset + a);
 

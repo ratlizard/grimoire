@@ -320,8 +320,9 @@ function exePlainLines(r) {
   });
   return (r.plain = out);
 }
-// The listing's three views: 'words', 'pseudo' and 'code'.
-window.EXE_VIEW = 'words';
+// The listing's three views: 'pseudo', 'words' and 'code'. A routine opens
+// in pseudo-code, the maintainer's choice.
+window.EXE_VIEW = 'pseudo';
 function exeSetView(v) {
   window.EXE_VIEW = v;
   renderAppPefSheet();
@@ -696,7 +697,7 @@ function renderAppPefSheet() {
     const hexv = n => '0x' + (n >>> 0).toString(16).toUpperCase();
     const note = routineNoteAt(view.offset);
     box.innerHTML = '<div class="foldAll" style="justify-content:flex-start">' + svLink('All routines', 'pefBackToList()') + ' ' +
-      [['words', 'Plain Words'], ['pseudo', 'Pseudo-code'], ['code', 'Code']].map(v => window.EXE_VIEW === v[0]
+      [['pseudo', 'Pseudo-code'], ['words', 'Plain Words'], ['code', 'Code']].map(v => window.EXE_VIEW === v[0]
         ? '<span class="inspDim">' + v[1] + '</span>' : svLink(v[1], 'exeSetView(\'' + v[0] + '\')')).join(' ') + '</div>' +
       '<div class="changesHead">' + svEsc(view.name) + '</div>' +
       '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +

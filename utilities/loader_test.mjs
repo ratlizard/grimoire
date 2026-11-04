@@ -219,6 +219,9 @@ ctx.location.hash = '';
   // Since v1.13.0 a gate stands between the local candidates and the
   // network and waits for a click; the harness answers it in advance.
   ctx.LANDING_GATE_ANSWER = 'download';
+  // A file opened over another waits on Compare, Open or Cancel
+  // (openOrCompare); the drops below are opens.
+  ctx.OPEN_CHOICE_ANSWER = 'open';
   let threw = null;
   try { await peek('loadDefaultArchive')(); }
   catch (e) { threw = e; }
@@ -264,6 +267,18 @@ ctx.location.hash = '';
   try { await peek('ingestArchiveFile')({ name: 'junk.bin', size: 9, arrayBuffer: async () => new Uint8Array(9).buffer }); }
   catch (e) { threw2 = e; }
   check('a rejected file reports rather than throwing', !threw2, threw2 ? threw2.message : 'reported cleanly');
+
+  // Cancel on a file opened over the open one leaves the open one. The
+  // control is the same drop answered Open, which replaces the archive
+  // object, so a choice that was never consulted would fail the first check.
+  const openBefore = peek('ARCHIVE');
+  const dropSame = { name: 'Cythera Data copy', size: refData.length, arrayBuffer: async () => refData.slice().buffer };
+  ctx.OPEN_CHOICE_ANSWER = 'cancel';
+  await peek('ingestArchiveFile')(dropSame);
+  check('Cancel on a second file leaves the open one', peek('ARCHIVE') === openBefore, String(ctx.window.ARCHIVE_SOURCE_NAME));
+  ctx.OPEN_CHOICE_ANSWER = 'open';
+  await peek('ingestArchiveFile')(dropSame);
+  check('and Open replaces it', peek('ARCHIVE') !== openBefore && ctx.window.ARCHIVE_SOURCE_NAME === 'Cythera Data copy', String(ctx.window.ARCHIVE_SOURCE_NAME));
 }
 
 // ---- 6b. the installer -----------------------------------------------------

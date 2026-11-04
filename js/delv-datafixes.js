@@ -199,9 +199,14 @@ function dataFixLocals(s, what, resid, containing, from, to) {
 // A line that waits for a click: a `*` after it.
 function dataFixClick(what, resid, line) { return { what, resid, find: line, replace: line + '*', count: 1 }; }
 
-// The resurrection fix's edits, as the shipped file has them; the fix's
-// plan moves them to where an earlier stage left the code.
-const DATA_FIX_RESURRECTION = {
+// The resurrection fix's edits, as the shipped file has them, for one of
+// the two scripts that raise: the spell (0x1A2F, the walk at 0x0112) and
+// the Land King Amulet (0x10F4, the walk at 0x0200), whose code from the
+// walk to the corpse's Delete is the spell's, instruction for instruction.
+// The fix's plan moves them to where an earlier stage left the code, and
+// gives each UseOn its fifth local.
+function dataFixResurrection(resid, base) {
+  return {
   edits: (() => {
       // Hector, Meleager, Ariadne, Timon, Aethon, Dryas.
       const JOINERS = [0x06, 0x22, 0x35, 0x4A, 0x61, 0x62];
@@ -209,10 +214,10 @@ const DATA_FIX_RESURRECTION = {
       const setField = (field, target, value) => ['set_field ' + field, target, 'end'].concat(value, ['end']);
       return [{
         what: 'the raised stand where the corpse lay, sacks packed, companions back in the party',
-        resid: 0x1A2F, at: 0x0112, to: 0x014B,
-        expect: { 0x0112: 'set_local 0x01', 0x0114: 'sys RecursiveContainerIterator', 0x011C: 'arg Arg01',
-                  0x012C: 'set_field container', 0x0132: 'set_field flags', 0x0136: 'byte 0x10',
-                  0x0145: 'branch', 0x0148: 'sys Delete', 0x0149: 'arg Arg01', 0x014B: 'branch' },
+        resid, at: base, to: base + 0x39,
+        expect: { [base]: 'set_local 0x01', [base + 0x02]: 'sys RecursiveContainerIterator', [base + 0x0A]: 'arg Arg01',
+                  [base + 0x1A]: 'set_field container', [base + 0x20]: 'set_field flags', [base + 0x24]: 'byte 0x10',
+                  [base + 0x33]: 'branch', [base + 0x36]: 'sys Delete', [base + 0x37]: 'arg Arg01', [base + 0x39]: 'branch' },
         code: [
           // 1: one level of the corpse.
           'set_local 0x01', 'sys ContainerIterator', 'word &Var1', 'byte 0x00', 'arg Arg01', 'end', 'end',
@@ -230,10 +235,14 @@ const DATA_FIX_RESURRECTION = {
           ...setField('flags (0x0)', 'local Var04', ['byte 0x42']),
           ...setField('x (0x1)', 'local Var00', ['arg Arg01', 'get_field x (0x1)']),
           ...setField('y (0x2)', 'local Var00', ['arg Arg01', 'get_field y (0x2)']),
-          // 3: a companion who died in the party rejoins it.
+          // 3: a companion who died in the party rejoins it: the corpse's
+          // Data2 2 (party-at-death), or with Data2 0 a party behavior.
           'if_not', ...isJoiner,
+          'arg Arg01', 'get_field data2 (0x7)', 'byte 0x02', 'eq',
+          'arg Arg01', 'get_field data2 (0x7)', 'byte 0x00', 'eq',
           'local Var00', 'get_field behavior (0x15)', 'byte 0x01', 'ge', 'and',
           'local Var00', 'get_field behavior (0x15)', 'byte 0x0D', 'le', 'and',
+          'or', 'and',
           'then -> gone',
           'sys JoinParty', 'local Var00', 'end',
           'gone:',
@@ -241,11 +250,18 @@ const DATA_FIX_RESURRECTION = {
         ].join('\n'),
       }];
     })(),
-    dataEdits: [{ what: 'UseOn has a fifth local', resid: 0x1A2F, fn: (b) => {
-      if (b[0xA2] !== 4) throw new Error('UseOn has ' + b[0xA2] + ' locals, not 4');
-      b[0xA2] = 5; return 'locals 4 to 5';
-    } }] };
+  };
+}
 
+// `newGame`: a fix that changes something a save has a copy of reaches a
+// saved game only in part (the maintainer, 3 November 2026: tag the patches
+// that need a new game). A save has the character records (0xF009), the
+// characters' map records (0xF306), the rooms entered (0xF00E) and the
+// store 0x301 always: a fix to them is `newGame: true`. It has a zone's
+// thing list (0x81zz) and explored map (0x82zz) from the hero's first visit
+// on: a fix to them is the zones' numbers, and reaches a save whose hero
+// has not been to them. utilities/data_fix_check.mjs works the field out
+// from what each fix alone changes and fails on a fix whose field differs.
 const DATA_FIXES = [
 
   /* ---- Found in the files (the stage "found"; found_fixes_patch.mjs,
@@ -637,7 +653,7 @@ const DATA_FIXES = [
     ] },
   // Only Philinus's panpipes work (0x8108): the two placed sets get Data1 1,
   // the set that can play PHJMD.
-  { id: 'panpipes', group: 'items', stage: 'community', name: 'Piping not', title: 'Every set of panpipes can now play the tune, instead of Philinus\u2019s alone',
+  { id: 'panpipes', newGame: [8], group: 'items', stage: 'community', name: 'Piping not', title: 'Every set of panpipes can now play the tune, instead of Philinus\u2019s alone',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the set on the table at (62,24) of Cademia, used, shows the notes P M J H D, against P M J G D unpatched; the tune itself was not played; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the set at (62,24) of Cademia shows P M J H D, its picture drawn as pipes',
     dataEdits: [
       { what: 'the placed panpipes', resid: 0x8108, fn: (b) => {
@@ -749,13 +765,13 @@ const DATA_FIXES = [
   // 1, so it draws the desk's tile and has no Use, where a desk's opens it:
   // the desk beside Paris that "is immovable and unusable". Each is given
   // the type whose picture it wears, at that type's first aspect.
-  { id: 'furniture-types', group: 'items', stage: 'community', name: 'Faux furniture', title: 'Three end tables that were chairs underneath can no longer be carried off, and a desk in Pnyx that was an end table underneath now opens',
+  { id: 'furniture-types', newGame: [3, 6, 12], group: 'items', stage: 'community', name: 'Faux furniture', title: 'Three end tables that were chairs underneath can no longer be carried off, and a desk in Pnyx that was an end table underneath now opens',
     played: 'Mac OS 8.5, 12 October 2026, the fix alone and with every fix, each installed by Magpie, a save that had never held Catamarca or Pnyx: Take on the end table at (26,37) of Catamarca, "You can\u2019t take an end table!" and the record on the floor in the save, against "Your deeds stain your soul." and the record carried, unpatched; Use on the desk at (16,51) of Pnyx opens its drawer, against nothing unpatched. Fork, 68K, the same day and the same two, the stock file, the fix alone and every fix: the same lines, and the desk\u2019s window. In a save that already has a zone, that zone\u2019s records stay as they were, so the end table in Land King Hall stayed a chair in a save made there; the hall\u2019s and the second of Catamarca\u2019s were not played',
     dataEdits: [[0x8103, 34, 0x100C, 0x000D, 'the end table in Land King Hall'], [0x8106, 46, 0x100C, 0x000D, 'an end table in Catamarca'],
                 [0x8106, 48, 0x100C, 0x000D, 'another end table in Catamarca'], [0x810C, 321, 0x040D, 0x0011, 'the desk in Pnyx']].map(([resid, rec, was, now, what]) => (
       { what, resid, fn: new Function('b', `const p = ${rec} * 16; if ((b[p + 4] << 8 | b[p + 5]) !== ${was}) throw new Error('record ${rec} is not the type and aspect the page read'); b[p + 4] = ${now >> 8}; b[p + 5] = ${now & 0xFF}; return 'record ${rec} given the type its picture is of';`) })) },
 
-  { id: 'arrow-stacks', group: 'items', stage: 'community', name: 'Lasik', title: 'The magic arrow in Land King Hall now looks like one arrow, instead of a stack, and two stacks in Cademia look right',
+  { id: 'arrow-stacks', newGame: [3, 8], group: 'items', stage: 'community', name: 'Lasik', title: 'The magic arrow in Land King Hall now looks like one arrow, instead of a stack, and two stacks in Cademia look right',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the crate at (103,58) of Cademia, opened, shows its arrows with the count 30, against one arrow and no count unpatched; the Land King Hall arrow and the second Cademia stack were not looked at; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the crate at (103,58) of Cademia shows its arrows with the count 30',
     dataEdits: [
       { what: 'the Cademia arrow stacks', resid: 0x8108, fn: (b) => {
@@ -793,7 +809,7 @@ const DATA_FIXES = [
   // are tile 0, so the party never stands beside it to tie a rope, and it is
   // freed with the rest. It was not looked at in the game, so the fix reads
   // "in part".
-  { id: 'castoffs', group: 'hidden', stage: 'community', title: 'Fifteen things left outside the walls of Land King Hall and the Underground are now gone, instead of standing where nobody can go',
+  { id: 'castoffs', newGame: [3, 9], group: 'hidden', stage: 'community', title: 'Fifteen things left outside the walls of Land King Hall and the Underground are now gone, instead of standing where nobody can go',
     played: 'in part. In the fork on 68K, 13 October 2026, alone and on “All Fixes”, with the hero on the void beside each group of the Underground, the pedestal, armor and spear at (34,57) and the standing stones, force walls and pedestal of the north-west corner are drawn unpatched and gone with the fix. In the fork on PowerPC with the fix alone, a new game, saved, has Land King Hall’s dresser and crystal ball as free records, against both on the floor unpatched. Nobody looked at Land King Hall on “All Fixes”, nor at any of it on Mac OS, nor at the rock outcropping at (39,96), which joined the fix on 28 October 2026',
     dataEdits: [
       { what: 'Land King Hall’s castoffs', resid: 0x8103, fn: (b) => {
@@ -815,7 +831,7 @@ const DATA_FIXES = [
     ] },
   // Sacas's kesh on Eudoxus (0x8104): the five vials in the Abandoned
   // Farmhouse coffer get Data1 2, the value his line waits for.
-  { id: 'eudoxus-kesh', group: 'quests', stage: 'community', title: 'Now the hero can tell Sacas of the kesh on Eudoxus, instead of the vials never counting',
+  { id: 'eudoxus-kesh', newGame: [4], group: 'quests', stage: 'community', title: 'Now the hero can tell Sacas of the kesh on Eudoxus, instead of the vials never counting',
     played: 'fork, 68K, 10 October 2026, alone: a vial as it is in the file (Data1 2, against 0 unpatched) put on the floor by an edit and looked at; the save has quest value 13 set, against unset unpatched. Sacas’s line was not played, nor the vial taken from Eudoxus’s coffer; Mac OS 8.5, 11 October 2026, “All Fixes” installed by Magpie: the Abandoned Farmhouse’s five vials are loaded with Data1 2, against 0 unpatched. Read from a save copied out of the machine. The same day, a save staged with quest value 1 at 1 and the clock a moment before the hour, which is what posts Eudoxus outside the farmhouse door: killed, his corpse and the coffer in it opened and a vial looked at, the save has quest value 13 set; then, in that save with the hero put beside Sacas and the prisoner’s flags set, Sacas’s “yes” ends in “I found some on the band leader himself.” The same saves and steps with no patch installed: the look leaves quest value 13 unset, and Sacas stops at “this might be an important clue.”',
     dataEdits: [
       { what: 'Eudoxus’s kesh', resid: 0x8104, fn: (b) => {
@@ -832,7 +848,7 @@ const DATA_FIXES = [
   // the four kilts into record 673, taking it for the dresser: they came out
   // of the tunic and into the cape, as far from reach as before, which
   // showed when the fix was first played.
-  { id: 'kilts', group: 'items', stage: 'community', name: 'Fold your laundry', title: 'The tunics and kilts in a Kosha dresser are now in the dresser, instead of inside a cape and a tunic',
+  { id: 'kilts', newGame: [13], group: 'items', stage: 'community', name: 'Fold your laundry', title: 'The tunics and kilts in a Kosha dresser are now in the dresser, instead of inside a cape and a tunic',
     played: 'fork, 68K, 8 October 2026, alone and on “All Fixes”: the dresser at (48,17) of Kosha, opened, contains a cape, three tunics and four kilts, against the cape alone unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the dresser at (48,17) of Kosha contains a cape, three tunics and four kilts',
     dataEdits: [
       { what: 'the tunics and kilts', resid: 0x810D, fn: (b) => {
@@ -915,7 +931,7 @@ const DATA_FIXES = [
   // Data1 is 0; the camp's sign, record 14, has Data1 0 and Data2 15, and
   // entry 15 is "Iron Mines". It is the only sign of the 27 with anything in
   // Data2; the number moves to Data1.
-  { id: 'mining-camp-sign', name: 'Camp stamp',group: 'world', stage: 'community', title: 'The hero can now read the Mining Camp\u2019s sign, instead of it showing nothing',
+  { id: 'mining-camp-sign', newGame: [24], name: 'Camp stamp',group: 'world', stage: 'community', title: 'The hero can now read the Mining Camp\u2019s sign, instead of it showing nothing',
     played: 'fork, 28 September 2026: the sign reads Iron Mines; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: the sign reads Iron Mines',
     dataEdits: [
       { what: 'the Mining Camp’s sign', resid: 0x8118, fn: (b) => {
@@ -1334,6 +1350,7 @@ const DATA_FIXES = [
   // keyword, and are left alone.
   { id: 'misheard-topics', group: 'design', stage: 'further', title: 'A topic Polydamas or Alcestris mishears stays on the list, instead of disappearing',
     note: 'A word typed that was not on the list joins it when misheard.',
+    played: 'fork, PowerPC, 3 November 2026, Polydamas and Alcestris, alone and with every fix. A topic either mishears ("Eh?  Could you speak up a bit?", "Could you speak up a bit?  It\'s rude to speak so I can\'t hear you...") stays on the list until it is answered, where the stock game removes it. Alcestris misheard Job in three runs of each. A misheard word that was never a topic joins the list',
     plan: (s) => ({ edits: [
       ['Polydamas', 0x185F, 'byte 0x04', '"\\"Eh?  Could you speak up'],
       ['Alcestris', 0x1855, 'byte 0x06', '"\\"Could you speak up'],
@@ -1366,7 +1383,7 @@ const DATA_FIXES = [
   // Thuria's mine task (0x1814): "You've heard first hand" is said only once
   // she has given the task, so hearing Amphidamas first no longer shuts it
   // out; her report greeting already has a line for that order.
-  { id: 'thuria-mine', group: 'quests', stage: 'further', title: 'Thuria now still gives the mine task after the hero has been to the mine, instead of never giving it',
+  { id: 'thuria-mine', group: 'quests', stage: 'further', title: 'Thuria still gives the mine task after the hero has been to the mine, instead of never giving it',
     played: 'fork, 68K, 10 October 2026, alone and on “All Fixes”: Amphidamas’s flag 1 set by an edit, "rumo" to Thuria, her offer, Yes, and the task saved in the To Do list, against "You’ve heard first hand of the issues involved at the mine." and no task unpatched; Mac OS 8.5, 10 October 2026, “All Fixes” installed by Magpie: her offer, "Perhaps you might be interested investigating this matter more?", against "You’ve heard first hand of the issues involved at the mine." unpatched; Yes was not answered',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'Thuria gives the mine task', 0x1814,
@@ -1756,7 +1773,7 @@ const DATA_FIXES = [
   // fall through to the first greeting. So a stranger was greeted as an
   // acquaintance and the reverse, and Eurybates, whose first greeting sets
   // the flag, set it only on the second meeting. Each test is made `if`.
-  { id: 'greetings-backwards', group: 'talk', stage: 'further', title: 'Eurybates and Sardis introduce themselves at the first meeting and greet the hero as an acquaintance after, instead of the other way round',
+  { id: 'greetings-backwards', group: 'talk', stage: 'further', title: 'Eurybates and Sardis introduce themselves at the first meeting and greet the hero as an acquaintance after, instead of the other way around',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Eurybates’s first greeting', 0x1818, ['if_not', 'call_resource 0xF02', 'arg Arg00', 'byte 0x07', 'end', 'then ->', 'string(implicit) "\\"You\'re new around here'], 0, 'if'),
       dataFixReplaceOp(s, 'Sardis’s first greeting', 0x181F, ['if_not', 'call_resource 0xF02', 'arg Arg00', 'byte 0x07', 'end', 'then ->', 'string(implicit) "\\"Hello, "'], 0, 'if'),
@@ -1878,7 +1895,7 @@ const DATA_FIXES = [
   // nine unlit torches not at 0, so it burned down in the crate, and was
   // spent or whole by how long the test had run. It is given 0, as the
   // others have.
-  { id: 'omens-torch', group: 'items', stage: 'found', title: 'The torch in the crate at the end of Omen’s Test is no longer spent before the hero finds it',
+  { id: 'omens-torch', newGame: [40], group: 'items', stage: 'found', title: 'The torch in the crate at the end of Omen’s Test is no longer spent before the hero finds it',
     played: 'in part: fork, 68K, 22 October 2026, the behaviour in a save from Omen’s Test: with the torch’s Data1 3, as shipped, 110 passed turns leave it saved spent, aspect 2, still unlit in its crate; with Data1 0 set by an edit, saved whole. A save made inside the test already has the zone’s list, so the patched file changes the torch only for a new game, which was not played. Not played on Mac OS',
     dataEdits: [
       { what: 'the torch in Omen’s crate', resid: 0x8128, fn: (b) => {
@@ -2064,18 +2081,24 @@ const DATA_FIXES = [
   // THE SHIPPED SPELL: on a corpse whose Data1 points at a character it sets the
   // alive bit, a quarter of full health plus one, gives the character every
   // record inside the corpse at any depth with flags 16, and deletes the
-  // corpse. Death (TActiveMonster::Die) had taken them out of the party and
-  // hidden their map record (flags 255), and the spell undoes neither, so a
-  // raised person is nowhere until the next hour's schedule (ScheduleOne,
-  // RepositionChar) puts them back at their post. And since death put only
+  // corpse. Death (TActiveMonster::Die) had taken them out of the party, and
+  // the spell does not put them back. The spell's write of the alive bit
+  // goes through SetField, which hatches the person (HatchEgg) on the square
+  // in their character record, in the hero's zone (bugs.md, the raise's
+  // correction of 3 November 2026). In play that square is the corpse's,
+  // since a creature's every step is written into its record
+  // (TActiveMonster::HandleMove); after a death staged by an edit it can be
+  // elsewhere. And since death put only
   // what they held directly into the corpse, a sack went in with its
   // contents inside it, and the walk to any depth brings the sack back empty
-  // and its contents loose. THE CHANGE, three parts, all in the spell's
-  // UseOn: 1. The corpse is walked one level (ContainerIterator for
+  // and its contents loose. THE CHANGE, three parts, all in UseOn: 1. The
+  // corpse is walked one level (ContainerIterator for
   // RecursiveContainerIterator), so a sack comes back with what is in it.
-  // 2. The person's map record, the prop of their own number, is put on the
+  // 2. The person's map record, the prop of their number, is put on the
   // corpse's square with flags 66, and their character record's square set
-  // to match. 66 is the state RepositionChar leaves a character in when it
+  // to match. In play that square is the corpse's already; after a staged
+  // death, or with the corpse moved, this puts the person by the corpse.
+  // 66 is the state RepositionChar leaves a character in when it
   // puts them at a post nobody is watching: the draw loop
   // (TGameViewer::DrawRoutine) hands any character below 256 whose record is
   // 66 and near the party straight to TActiveMonster::HatchEgg, which makes
@@ -2085,9 +2108,18 @@ const DATA_FIXES = [
   // another give its holder's square, so a corpse carried in a pack raises
   // its person beside whoever carries it. 3. A person who can join the party
   // -- the six JoinParty is ever called for: Hector 6, Meleager 34, Ariadne
-  // 53, Timon 74, Aethon 97, Dryas 98 -- and whose behaviour when they died
-  // was a party one, 1 to 13, is put back in it with JoinParty, whose
-  // RebuildParty hatches them immediately. Death does not touch the behaviour
+  // 53, Timon 74, Aethon 97, Dryas 98 -- and who was in the party when they
+  // died is put back in it with JoinParty, whose RebuildParty hatches them
+  // immediately. Die clears the party bit (byte 8, 0x40) before it makes
+  // the corpse, so the program fix party-at-death writes the corpse's Data2,
+  // which Die otherwise leaves 0: 2 for a character in the party, 1 for a
+  // character outside it. The test reads that Data2, and with Data2 0, a
+  // corpse made without that program fix, it reads the behavior at death
+  // instead, 1 to 13 counting as a party one. The behavior test is wrong
+  // for a joiner killed in a fight outside the party. The hero's attacks
+  // set Aethon's to 8, and the amulet with this fix took him into a party
+  // he had never been in (the workbench's log, 3 November 2026). Death does
+  // not touch the behavior
   // byte (neither Die nor CharEntry::DeathRites writes it), and with no
   // creature on the map the `behavior` field reads it straight from the
   // record. The party writes 1 (following) and 2 (leading) when it rebuilds,
@@ -2098,13 +2130,15 @@ const DATA_FIXES = [
   // killed in the party is. The one overlap: Dryas has a post at behaviour
   // 12, so Dryas killed while standing at it would rejoin. JoinParty rejects
   // a ninth member; then the person stands where the corpse lay, out of the
-  // party, until the hour sends them home. NOT CHANGED: the Land King Amulet
-  // used on a corpse (0x10F4), which runs the same code, and the hero's own
-  // return to Land King Hall when the amulet is worn at death (0x1801), both
-  // left as shipped at the maintainer's word, but for the corpse of nobody,
-  // which nobody-corpse turns away in both. The map record needs a fifth
-  // local; a function's locals are the third byte of its header, and UseOn's
-  // header is at 0xA0.
+  // party, until the hour sends them home. THE AMULET: the Land King Amulet
+  // used on a corpse (0x10F4) runs the same code, and has the same change,
+  // at the maintainer's word of 3 November 2026 that the two behave alike.
+  // NOT CHANGED: the hero's return to Land King Hall when the amulet is
+  // worn at death (0x1801), left as shipped at the maintainer's word. What
+  // was worn at death is worn again by the program fix worn-at-death, which
+  // both scripts reach as shipped. The map record needs a fifth local; a
+  // function's locals are the third byte of its header, and UseOn's header
+  // is at 0xA0 in the spell and 0x15A in the amulet.
   // The radio button (tile 0x1AC, sheet 0x8E1A, tile 12 of it): DrawCheck
   // in the program shows the tile's top-left quarter for a button not
   // chosen and its top-right for the chosen one, and the art has a dark,
@@ -2133,16 +2167,23 @@ const DATA_FIXES = [
           return out;
       } },
     ] },
-  { id: 'resurrection', group: 'design', stage: 'apart', title: 'Resurrection now brings the person back where the corpse lay, with their belongings and in the party, instead of nowhere until a later hour',
-    played: 'Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie over “All Fixes”: Hector, dead while in the party, raised from his corpse beside the hero; he is in the party again and stands beside the hero, against saved three squares off and out of the party unpatched. The hero was given Casting 15 by an edit: without it the cast failed about ten times in eleven. His belongings were not looked at; a dagger put inside his corpse is his after the raising, patched and unpatched alike',
+  { id: 'resurrection', group: 'design', stage: 'apart', title: 'Resurrection and the Land King Amulet now bring a character back still in the party and with everything still inside their bags and containers, instead of emptying the containers and dropping the character from the party',
+    played: 'Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie over “All Fixes”. Hector, dead while in the party (staged by an edit), raised from his corpse beside the hero, is in the party again and stands beside the hero, against saved three squares off and out of the party unpatched. The hero was given Casting 15 by an edit, without which the cast failed about ten times in eleven. Nobody looked at his belongings. A dagger put inside his corpse is his after the raising, patched and unpatched alike. Fork, PowerPC, 3 November 2026, the Land King Amulet with this fix. Aethon, not in the party, killed by the hero and raised from his body, stands on his body’s square with his inventory, as unpatched. With the program fix party-at-death he stays outside the party. With the stock program his body has Data2 0, the fix reads his behavior instead, and the hero’s attacks had set it to 8, so he joins the party (played before the Data2 test, with the behavior test alone). Aethon in the party, poisoned to death, is raised into the party with the stock program and with party-at-death, alone and with every fix',
     // Its offsets are the shipped file's; nobody-corpse, an earlier stage,
-    // inserts before them, so the plan measures where the corpse's things
-    // are now walked and moves every offset by the difference.
+    // inserts before them in both scripts, so the plan measures where the
+    // corpse's things are walked in each and moves every offset by the
+    // difference.
     plan: (s) => {
-      const d = dataPatchPlace(s, 'the corpse\u2019s things', 0x1A2F, ['set_local 0x01', 'sys RecursiveContainerIterator', 'word &Var1', 'byte 0x00']).at(0) - 0x0112;
-      const move = e => Object.assign({}, e, { at: e.at + d, to: e.to + d,
-        expect: Object.fromEntries(Object.entries(e.expect).map(([k, v]) => [+k + d, v])) });
-      return { edits: DATA_FIX_RESURRECTION.edits.map(move), dataEdits: DATA_FIX_RESURRECTION.dataEdits };
+      const edits = [], dataEdits = [];
+      for (const [resid, base] of [[0x1A2F, 0x0112], [0x10F4, 0x0200]]) {
+        const walk = dataPatchPlace(s, 'the corpse\u2019s things', resid, ['set_local 0x01', 'sys RecursiveContainerIterator', 'word &Var1', 'byte 0x00']).at(0);
+        const d = walk - base;
+        const move = e => Object.assign({}, e, { at: e.at + d, to: e.to + d,
+          expect: Object.fromEntries(Object.entries(e.expect).map(([k, v]) => [+k + d, v])) });
+        edits.push(...dataFixResurrection(resid, base).edits.map(move));
+        dataEdits.push(dataFixLocals(s, 'UseOn has a fifth local', resid, walk, 4, 5));
+      }
+      return { edits, dataEdits };
     } },
   // Peirithous, Judge Sacas's majordomo, alive (0xF009; 28 September 2026,
   // "Cythera Peirithous Fix", a separate patch since it puts a person into
@@ -2163,7 +2204,7 @@ const DATA_FIXES = [
   // set. Every release from 1.0.1 is the same. THE CHANGE: the one bit, set.
   // A saved game has a separate character table, so this reaches new games
   // only.
-  { id: 'peirithous', group: 'design', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is now alive in a new game, instead of dead',
+  { id: 'peirithous', newGame: true, group: 'design', stage: 'apart', title: 'Peirithous, Judge Sacas\u2019s majordomo, is now alive in a new game, instead of dead',
     played: 'fork, 10 October 2026, alone: a new game on the PowerPC slice saves character 96 alive in Odemia at (55,40), against dead at (0,0) unpatched; that record put into a saved Odemia by an edit and placed, on the 68K slice, he stands at his post and answers "I am called Peirithous." and "I am the majordomo of Judge Sacas.". He was not met in the new game itself; Mac OS 8.5, 11 October 2026, the fix’s patch installed by Magpie: a new game saves him alive in Odemia at (55,40). Read from a save copied out of the machine; he was not met',
     dataEdits: [
       { what: 'Peirithous alive', resid: 0xF009, fn: (b) => {
@@ -2207,7 +2248,7 @@ const DATA_FIXES = [
   //    the one thing of type 0 a player could Look at. The table is four
   //    bytes shorter; this comes after hydra-name, whose place it finds by
   //    offset, in the stage order.
-  { id: 'nobody-speakers', group: 'talk', stage: 'apart', name: 'Never seen Nothing like it', title: 'The Abydos ghost, the vision, the wishing fountain, the riddle switch and Omen are no longer called \u201cNothing\u201d when they speak',
+  { id: 'nobody-speakers', newGame: true, group: 'talk', stage: 'apart', name: 'Never seen Nothing like it', title: 'The Abydos ghost, the vision, the wishing fountain, the riddle switch and Omen are no longer called \u201cNothing\u201d when they speak',
     dataEdits: [
       { what: 'speakers 187, 188, 189 and 191 known by name', resid: 0xF009, fn: (b) => {
           for (const n of [187, 188, 189, 191]) {
@@ -2398,7 +2439,7 @@ const DATA_FIXES = [
         { what: 'the mushroom steak is used on the hero', resid: 0x10D5, at: 0x00E0, to: 0x00F8, expect: { ...at(0x00E0, feed), 0x00F5: 'byte 0x01', 0x00F8: 'return' }, code: use },
       ];
     })() },
-  { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'A targeted spell now costs its magic only once the caster chooses the target, so a canceled cast costs nothing, instead of before',
+  { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'A targeted spell now costs its magic once the caster chooses the target, instead of before, so a canceled cast costs nothing',
     played: 'fork, 68K, 10 October 2026, alone: Awaken, given as an ability by an edit, performed and cancelled with Escape at "Cast ‘Awaken’ on whom?"; the hero’s magic saved as 30 of 60, untouched, against 29 unpatched; cast on its target, 29 on both. One spell of the 33; Mac OS 8.5, 11 October 2026, a patch of the design changes installed by Magpie over “All Fixes”: Awaken cancelled at its question leaves 30 of 60 magic, against 29 unpatched',
     plan: (s) => {
       const edits = [];
@@ -2485,7 +2526,7 @@ const DATA_FIXES = [
   // which the defaults bear out (0x3020 EveryTurn, 0x3041 TakeDamage); the
   // archive's symbol for it, "CanWear", is from a numbering the scripts do
   // not use. workbench doc/bugs.md, *Found tracing the missile sounds*.
-  { id: 'gong-sound', group: 'hidden', title: 'A gong, a painting showing the gong’s picture, now sounds when used, instead of doing nothing',
+  { id: 'gong-sound', group: 'hidden', title: 'A painting that shows the gong’s picture now sounds the gong when used, instead of doing nothing',
     parts: [
       { stage: 'further', plan: (s) => ({ dataEdits: [{ what: 'the painting’s class, from the bell’s', resid: 0x1158, create: true, fn: b => dataFixGongClass(b, s.bytesOf(0x10C1)) }] }) },
       { stage: 'apart', edits: [{ what: 'the painting’s Use sounds the gong', resid: 0x1158, at: 0x000F, to: 0x0099,
@@ -2557,9 +2598,9 @@ const DATA_FIXES = [
   // 0xD06 for the party). Both are skipped when the attacker is the hero, and
   // 0xD07 ignores signals 320 and 321 altogether, which is how a companion's
   // cry at a theft sets the guards on the hero.
-  { id: 'love-bellerophon', group: 'mods', stage: 'mods', name: 'Everybody loves Bellerophon',
+  { id: 'love-bellerophon', newGame: true, group: 'mods', stage: 'mods', name: 'Everybody loves Bellerophon',
     played: 'in part, fork, 68K, 31 October 2026, Hector attacked twice in Land King Hall and the turns passed, the hero losing 69 of 255 health to him on the shipped file and none with the fix, and a skeleton on behavior 8 two squares off hit a hero of alignment 2 and left a hero of alignment 0 alone (a save edited by hand, with the new game’s hero at 0 in the saved game). The guards’ answer to a theft and the three area spells are unplayed',
-    title: 'Nobody now turns on the hero whatever the hero does, instead of creatures hunting the hero and people fighting back or calling the guards (a new game)',
+    title: 'Nobody turns on the hero, whatever the hero does, instead of creatures hunting the hero and people fighting back or calling the guards',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'a hit character answers the hero', 0x3043, ['set_field 0x2A', 'arg Arg00', 'end', 'arg Arg01', 'end', 'set_field behavior'], 0,
         ['if_not', 'arg Arg01', 'word Character.Hero', 'eq', 'then -> answers', 'return', 'byte 0x00', 'end', 'answers:'].join('\n')),
@@ -2608,7 +2649,7 @@ const DATA_FIXES = [
   // The Halloween mod, at the maintainer's request of 28 to 31 October 2026
   // and put here on the 31st. js/delv-halloween.js has every edit and why.
   // Its conversation colors are the program's change 'halloween-colors'.
-  { id: 'halloween', group: 'mods', stage: 'mods', name: 'Halloween',
+  { id: 'halloween', newGame: true, group: 'mods', stage: 'mods', name: 'Halloween',
     played: 'in part, SheepShaver, Mac OS 8.5, 31 October 2026, the same patched file, byte for byte, installed through Magpie. A new game shows the one slide, skeletons with skull portraits, the rattling opening scene, Magpie’s cracked face and his heap of bones, and the gray windows over the spiderwebs. Nobody has judged the waltz by ear in the game, and the rest of the game is unplayed with character 206 alive',
     title: 'Every person is a skeleton with a skull portrait, Alaric and Magpie rattle through the opening scene, Land King Hall plays a spooky waltz, and the windows are gray over a desktop of spiderwebs',
     plan: (s, ctx) => halloweenPlan(s, ctx) },

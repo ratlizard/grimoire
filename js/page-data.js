@@ -844,7 +844,7 @@ const CHEAT_KEY_WORDS = {
   0xC3: ['Magic map', x => 'Shows the ' + x.via('MagicMap', 'magic map') + ' around the hero until the next click.'],
   0xBD: ['Show the hero’s room', x => x.via('CopyBits', 'Shows') + ' the ground the hero can reach from where they stand, until the next click. The magic map starts from it.'],
   0xB5: ['Show the walls', x => x.walls()],
-  0xB7: ['Walk through anything', x => 'Nothing blocks the hero while it is on (' + x.flip() + ').'],
+  0xB7: ['Walk through anything', x => 'Nothing blocks the hero while the switch is on (' + x.flip() + ').'],
   0xFA: ['Nobody is anybody’s enemy', x => x.peace()],
   0xFE: ['See in the dark', x => 'Switches flag ' + x.flag() + ' on and off for the hero.'],
   0xA8: ['Regenerate', x => 'Switches flag ' + x.flag() + ' on and off for the hero. It is the healing every six minutes that Omen’s ring gives.'],
@@ -3298,7 +3298,7 @@ function todoHTML(words) {
     h += '<div class="propEdit"><label>add <select id="todo-add">' +
       words.todo.pairs.map(p => '<option value="' + p.slot + ':' + p.line + '">' + svEsc('slot ' + p.slot + ': ' + (lines.get(p.line) || 'line ' + p.line)) + '</option>').join('') +
       '</select></label>' + actionChip('Add', 'addTodoFromForm()') + '</div>' +
-      '<div class="inspDim">The lines offered are the ones that some script adds, in the slot it adds them to. When a slot already has a line, the new wording replaces it, and the day and whether it is struck off stay, as in the game.</div>';
+      '<div class="inspDim">These are the lines the game’s scripts add to the To Do list, each in the slot shown. Adding a line to an empty slot sets its day to the current day. Adding a line to a slot in use replaces the old line, and the day and the strike-through stay the same, as in the game.</div>';
   }
   return h;
 }

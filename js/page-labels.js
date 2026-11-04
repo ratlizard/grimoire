@@ -1342,3 +1342,135 @@ function animateSpriteTile(host, info, rec, opts) {
   spriteTimers.push(setInterval(tick, stepMs));
   return c;
 }
+
+/* ---------------------------------------------------------------------------
+   The glossary
+   ---------------------------------------------------------------------------
+   The terms the file uses for its parts (aspect, prop, class, zone, Data1,
+   an egg, a subindex, a fork) were explained on some sheets and taken as
+   known on others. The maintainer asked for each to be bold with its
+   meaning on hover or tap (4 November 2026). installGlossary watches the
+   views as they are drawn and wraps the first mention of each term in each
+   view in b.gloss; hovering, tapping or focusing one shows its meaning in
+   #glossTip. The meanings are here and nowhere else, so every sheet gives
+   the same one.
+
+   Each meaning rests on what the site reads: a prop record's word has the
+   class in its low ten bits and the aspect above (byteMapPropRecord), so
+   0x0864 is a spear at aspect 2 that fights as a spear; class script 0x1133
+   is prop type 307, the ring; a bookshelf's Data1 is its book and a locked
+   door's the signal that opens it; a zone is a map, its prop list and the
+   scripts numbered like it; the egg kinds are page-rules.js's.
+
+   Left alone: links, buttons, chips, headings, labels, form controls, code
+   and listings, dialogue lines, and words between curly quotes, which are
+   the game's text. "class" is left alone on the program's pages, where it
+   means a class of the program's code. */
+const GLOSSARY = [
+  { key: 'resource fork', re: 'resource forks?', text: 'The second of a classic Mac file’s two parts. It has numbered resources such as icons, fonts, sounds and menus.' },
+  { key: 'data fork', re: 'data forks?', text: 'The first of a classic Mac file’s two parts, with the file’s main contents. Cythera Data’s data fork has the game’s world, scripts, pictures and sound.' },
+  { key: 'subindex', re: 'subindex(?:es)?', text: 'One of the 34 sections of Cythera Data. Each has one kind of resource, such as portraits or dialogue, and a resource’s number gives its section.' },
+  { key: 'resource', re: 'resources?', text: 'One numbered piece of a file, such as a picture, a script, a tune or a table.' },
+  { key: 'prop type', re: 'prop types?', text: 'Which kind of thing a prop is, a number from 0 to 1,023. The type gives the prop its first picture, its name and its class.' },
+  { key: 'prop', re: 'props?', text: 'Anything placed on a map, such as an item, a piece of furniture, a door, a creature or a person. Each zone has a list of its props.' },
+  { key: 'class', re: 'class(?:es)?', text: 'The script that makes a kind of thing behave as it does, such as what happens when the hero uses it, picks it up or wears it. Each prop type has its class.', skipOn: ['APPPEF', 'APPRSRC'] },
+  { key: 'aspect', re: 'aspects?', text: 'A number on a placed thing that picks which of its type’s pictures and names it shows. The thing behaves the same at any aspect unless its class reads the aspect.' },
+  { key: 'Data1', re: 'Data1', text: 'One of two numbers from 0 to 255 on each placed thing, with Data2. What they mean depends on the class. A bookshelf’s Data1 is the book on it, and a locked door’s Data1 is the signal that opens it.' },
+  { key: 'Data2', re: 'Data2', text: 'The second of two numbers from 0 to 255 on each placed thing, with Data1. What it means depends on the class.' },
+  { key: 'zone', re: 'zones?', text: 'One map of the game, with the props placed on it and the scripts that belong to it.' },
+  { key: 'egg', re: 'eggs?', text: 'An invisible trigger placed on a map. An egg can hatch a creature, mark a room, set the area’s name and music as the party comes near, or bring nearby things into view.' }
+];
+const GLOSSARY_RE = new RegExp('\\b(' + GLOSSARY.map(g => g.re).join('|') + ')\\b', 'gi');
+const GLOSSARY_ONE = GLOSSARY.map(g => [g, new RegExp('^(?:' + g.re + ')$', 'i')]);
+function glossaryEntry(word) {
+  for (const [g, re] of GLOSSARY_ONE) if (re.test(word)) return g;
+  return null;
+}
+// The first mention of each term not yet glossed in `root`, wrapped.
+function glossRoot(root) {
+  if (!root || !root.isConnected || !root.querySelectorAll) return;
+  const SKIP = 'a, button, pre, code, textarea, select, option, input, label, summary, h1, h2, h3, h4, th, svg, script, style, ' +
+    '.gloss, .hex, .resid, .dlgLine, .convOpt, .lbl, .sv-chip, .relChip, .navChip, .mechEq, .sr-where, #glossTip, [contenteditable]';
+  const done = new Set(Array.from(root.querySelectorAll('.gloss')).map(e => e.getAttribute('data-term')));
+  const skipHere = new Set(GLOSSARY.filter(g => g.skipOn && g.skipOn.includes(window.CUR_SUBN)).map(g => g.key));
+  if (GLOSSARY.every(g => done.has(g.key) || skipHere.has(g.key))) return;
+  const w = document.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */);
+  const work = [];
+  for (let n = w.nextNode(); n; n = w.nextNode()) {
+    const text = n.nodeValue;
+    if (!text || text.length < 3 || !n.parentNode || !n.parentNode.closest || n.parentNode.closest(SKIP)) continue;
+    GLOSSARY_RE.lastIndex = 0;
+    let m;
+    while ((m = GLOSSARY_RE.exec(text))) {
+      const g = glossaryEntry(m[0]);
+      if (!g || done.has(g.key) || skipHere.has(g.key)) continue;
+      // Inside curly quotes the words are the game's.
+      const before = text.slice(0, m.index);
+      if ((before.match(/“/g) || []).length > (before.match(/”/g) || []).length) continue;
+      done.add(g.key);
+      work.push([n, m.index, m[0], g]);
+    }
+  }
+  // Within one text node the later match goes first, so the earlier offsets
+  // still hold.
+  work.sort((a, b) => a[0] === b[0] ? b[1] - a[1] : 0);
+  for (const [n, at, word, g] of work) {
+    if (!n.parentNode) continue;
+    const tail = n.splitText(at);
+    tail.nodeValue = tail.nodeValue.slice(word.length);
+    const b = document.createElement('b');
+    b.className = 'gloss';
+    b.setAttribute('data-term', g.key);
+    b.setAttribute('tabindex', '0');
+    b.setAttribute('aria-describedby', 'glossTip');
+    b.textContent = word;
+    n.parentNode.insertBefore(b, tail);
+  }
+}
+function glossTipShow(el, pinned) {
+  const g = GLOSSARY.find(x => x.key === el.getAttribute('data-term'));
+  const tip = document.getElementById('glossTip');
+  if (!g || !tip) return;
+  tip.innerHTML = '<b>' + svEsc(g.key) + '</b> ' + svEsc(g.text);
+  tip.style.display = 'block';
+  tip.dataset.pinned = pinned ? '1' : '';
+  window.GLOSS_AT = el;
+  const r = el.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+  const left = Math.max(16, Math.min(r.left, window.innerWidth - tw - 16));
+  const below = r.bottom + 6 + th <= window.innerHeight - 8;
+  tip.style.left = left + 'px';
+  tip.style.top = (below ? r.bottom + 6 : Math.max(8, r.top - th - 6)) + 'px';
+}
+function glossTipHide() {
+  const tip = document.getElementById('glossTip');
+  if (tip) { tip.style.display = 'none'; tip.dataset.pinned = ''; }
+  window.GLOSS_AT = null;
+}
+function installGlossary() {
+  if (typeof MutationObserver !== 'function' || !document.createTreeWalker || !document.body) return;
+  const tip = document.createElement('div');
+  tip.id = 'glossTip';
+  tip.setAttribute('role', 'tooltip');
+  tip.style.display = 'none';
+  document.body.appendChild(tip);
+  const roots = ['sheetGrid', 'artUsage', 'mapInspect', 'atlasInspect'].map(id => document.getElementById(id)).filter(Boolean);
+  let due = false;
+  const run = () => { due = false; for (const r of roots) { try { glossRoot(r); } catch (e) { quiet(e, 'marking the glossary’s terms'); } } };
+  const queue = () => { if (!due) { due = true; setTimeout(run, 60); } };
+  for (const r of roots) new MutationObserver(queue).observe(r, { childList: true, subtree: true, characterData: true });
+  // Hover shows the meaning. A click or a tap pins it until a second one or a
+  // click elsewhere, and focus shows it for the keyboard.
+  const term = t => t && t.closest ? t.closest('.gloss') : null;
+  document.addEventListener('mouseover', e => { const el = term(e.target); if (el && !(tip.dataset.pinned && window.GLOSS_AT === el)) glossTipShow(el, false); });
+  document.addEventListener('mouseout', e => { const el = term(e.target); if (el && !tip.dataset.pinned) glossTipHide(); });
+  document.addEventListener('click', e => {
+    const el = term(e.target);
+    if (!el) { if (tip.style.display !== 'none') glossTipHide(); return; }
+    if (tip.dataset.pinned && window.GLOSS_AT === el) glossTipHide(); else glossTipShow(el, true);
+  });
+  document.addEventListener('focusin', e => { const el = term(e.target); if (el) glossTipShow(el, false); });
+  document.addEventListener('focusout', e => { if (term(e.target) && !tip.dataset.pinned) glossTipHide(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && tip.style.display !== 'none') glossTipHide(); });
+  window.addEventListener('scroll', () => { if (tip.style.display !== 'none') glossTipHide(); }, { passive: true, capture: true });
+  queue();
+}

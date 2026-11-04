@@ -548,6 +548,10 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 #tabShell[data-depth="0"] .folder { margin-top:0; }
 .ftab.wip { opacity:.45; }
 .ftab.wip.sel { opacity:.78; }
+/* A tab with nothing in the open file (tabHasData). It is a disabled
+   button, so a click does nothing, and it has no hover lift, so it does
+   not look like it responds. */
+.ftab.off, .ftab.off:hover { opacity:.3; cursor:default; transform:none; background:var(--cardDark) !important; color:#3a2a0c !important; }
 .ftab .tabBadge { font-size:0.625rem; line-height:1; padding:2px 5px; border-radius:8px;
   background:#3a2a0c; color:#fff; font-family:ui-monospace,Menlo,Consolas,monospace; }
 /* The folder's edge runs up and round the open tab: the tab wears the same
@@ -662,6 +666,17 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
   box-shadow:none; text-shadow:none; letter-spacing:0; }
 .navChip::after { display:none; }
 .navChip.active { background:#1d1a15; color:var(--gold); border:2px solid var(--gold); font-weight:600; }
+/* Nothing in the open file for this view (tabHasData). Not gold, since it
+   does not respond to a click. */
+.navChip.off { color:#f0ede4; opacity:.35; cursor:default; }
+/* The glossary (installGlossary): a term's first mention in a view is bold,
+   with a dotted line under it, and its meaning shows on hover, tap or focus. */
+.gloss { font-weight:700; text-decoration:underline dotted rgba(240,237,228,.65); text-underline-offset:2px; cursor:help; }
+.gloss:focus-visible { outline:2px solid var(--gold); outline-offset:1px; }
+#glossTip { position:fixed; z-index:220; box-sizing:border-box; max-width:min(320px, calc(100vw - 32px)); background:#1a1712;
+  border:1px solid var(--edge); border-radius:8px; padding:8px 11px; color:#fff; font-size:0.8125rem; line-height:1.4;
+  box-shadow:0 6px 18px rgba(0,0,0,.5); pointer-events:none; }
+#glossTip b { color:#fff; }
 /* A chip that is a span is a name, not a link, and wears white. */
 span.navChip { color:#fff; }
 #propFilterWrap { margin:8px 0 2px; }
@@ -1610,7 +1625,18 @@ details:not([open]) > summary .mechFrom { display:none; }
 .lessonList { color:#fff; font-style:italic; }
 #atlasPanel { margin:0; background:#000; }
 /* The gate: one screen before anything is downloaded. */
-#landingGate { position:fixed; inset:0; z-index:200; background:rgba(8,7,5,.92); display:flex; align-items:center; justify-content:center; padding:20px; }
+#landingGate, #openChoice { position:fixed; inset:0; z-index:200; background:rgba(8,7,5,.92); display:flex; align-items:center; justify-content:center; padding:20px; }
+/* The loading bar (loadProgress): above the gate, so a download started
+   from it shows. The unknown bar slides by a transform, so it goes on
+   moving while a parse has the page's thread. */
+#loadBar { position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:210; box-sizing:border-box;
+  width:min(420px, calc(100vw - 32px)); background:#1a1712; border:1px solid var(--edge); border-radius:10px;
+  padding:8px 14px 10px; color:#fff; font-size:0.8125rem; text-align:center; box-shadow:0 6px 20px rgba(0,0,0,.5); }
+#loadBarLabel { display:block; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.loadTrack { display:block; height:4px; border-radius:2px; background:rgba(240,237,228,.18); overflow:hidden; }
+#loadBarFill { display:block; height:100%; width:100%; background:#f0ede4; transform-origin:0 50%; transform:scaleX(0); transition:transform .12s linear; }
+#loadBar.unknown #loadBarFill { width:30%; transition:none; animation:loadSlide 1.1s ease-in-out infinite; }
+@keyframes loadSlide { from { transform:translateX(-100%); } to { transform:translateX(340%); } }
 .gateCard { max-width:520px; background:#1a1712; border:1px solid var(--edge); border-radius:12px; padding:22px 24px; color:#fff; line-height:1.45; box-shadow:0 8px 30px rgba(0,0,0,.6); text-align:center; }
 .gateCard .gateSpoiler { font-weight:600; color:#fff; }
 .gateCard h2 { margin:0 0 10px; color:#fff; font-size:1.625rem; font-weight:600; }
@@ -2170,6 +2196,22 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   </div>
 </div>
 <div id="editNotice" style="display:none" role="status"></div>
+<!-- The loading bar (loadProgress, js/page-archive.js). -->
+<div id="loadBar" style="display:none" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-labelledby="loadBarLabel">
+  <span id="loadBarLabel"></span>
+  <span class="loadTrack"><span id="loadBarFill"></span></span>
+</div>
+<!-- A file opened over another (openOrCompare, js/page-archive.js). -->
+<div id="openChoice" style="display:none" role="dialog" aria-modal="true" aria-labelledby="openChoiceText">
+  <div class="gateCard">
+    <p id="openChoiceText"></p>
+    <div class="gateRow">
+      <button onclick="openChoiceAnswer('compare')">Compare</button>
+      <button class="secondary" onclick="openChoiceAnswer('open')">Open in Its Place</button>
+      <button class="secondary" onclick="openChoiceAnswer('cancel')">Cancel</button>
+    </div>
+  </div>
+</div>
 <input type="file" id="fileInput" accept="*/*" onchange="loadArchive()" style="display:none">
 <div id="archiveMenu" role="dialog" aria-label="Settings">
   <div id="sourceStatus" role="status" aria-live="polite">Looking for the Cythera Data archive…</div>
@@ -2748,7 +2790,7 @@ wiki, not from the file. Turn these names on or off in Settings.</div>
    bumped by hand in the commit that changes what a visitor sees -- the
    middle number for a feature, the last for a fix -- and shown at the top
    of the page. Nothing else reads it. */
-const GRIMOIRE_VERSION = '1.370.1';
+const GRIMOIRE_VERSION = '1.373.0';
 /* The name at the top, and the tab's icon. The grimoire's tile (prop
    76, the book) stands before the name and is the page's icon once a file
    is open to draw it from (the maintainer, 9 September and 2 October 2026);

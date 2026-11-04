@@ -213,8 +213,10 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!/<b>4 seconds<\/b>/.test(bh) || !new RegExp('jumpToExeAt\\(' + bark.ticks.exe + '\\)').test(bh))
         fail('program figures', 'the Barks sheet does not state the balloon’s figures as links');
       else {
-        // The listing opens in words (EXE_VIEW, 6 October 2026): the ringed
+        // The listing opens in pseudo-code (EXE_VIEW). In words the ringed
         // line describes what the instruction does, and the code view names it.
+        if (ctx.EXE_VIEW !== 'pseudo') fail('program figures', 'a routine opens in ' + ctx.EXE_VIEW + ', not pseudo-code');
+        ctx.EXE_VIEW = 'words';
         const flagsText = ringOf(bark.ticks.exe);
         ctx.EXE_VIEW = 'code';
         const hit = ringOf(bark.ticks.exe), miss = ringOf(bark.ticks.exe + 4);
@@ -222,7 +224,6 @@ if (visePath && existsSync(visePath) && !onlyCat) {
         // has its figure, and a line of it is ringed.
         ctx.EXE_VIEW = 'pseudo';
         const folded = ringOf(bark.ticks.exe);
-        ctx.EXE_VIEW = 'words';
         if (!folded || !/240/.test(folded) || /addi 3, 3/.test(folded)) fail('program figures', 'the pseudo-code does not ring a statement holding the balloon’s figure: ' + JSON.stringify(folded));
         if (!flagsText || !/Add 240 to a value\./.test(flagsText) || /addi/.test(flagsText)) fail('program figures', 'the listing in words does not say what the balloon’s instruction does: ' + JSON.stringify(flagsText));
         else if (!hit || !/addi 3, 3, 240/.test(hit) || !miss || /240/.test(miss)) fail('program figures', 'following the balloon’s link does not ring its instruction: ' + JSON.stringify([hit, miss]));

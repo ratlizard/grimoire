@@ -197,7 +197,7 @@ function mechDiceMatrix(cells) {
       const cell = cells.find(x => x.a === a && x.c === c);
       h += '<span class="dCell">' + cell.row.map((n, b) =>
         '<i style="background:' + mechNetColor(n) + '" title="' + name(a) + ' and ' + name(c) + ' against the hero’s ' + (b + 1) + ': ' +
-        (n > 0 ? '+' + n : n) + ' obol' + (Math.abs(n) === 1 ? '' : 's') + '"></i>').join('') + '</span>';
+        (n > 0 ? '+' + n : n) + ' obol' + (Math.abs(n) === 1 ? '' : 'oi') + '"></i>').join('') + '</span>';
     }
   }
   return h + '</div>';
@@ -217,10 +217,10 @@ function mechDiceBytes(dice) {
   const fix = dice.bytes.find(b => /roll matched/.test(b.what));
   const rows = dice.bytes.map(b => '<tr><td>' + svEsc(b.what) + '</td>' + srcCell(b.val, hex4(b.at)) + '<td class="num">' + svEsc(String(b.now)) + '</td></tr>').join('');
   const tries = [];
-  if (pay) tries.push('Write <b>00</b> at ' + srcNum(pay.val, hex4(pay.at)) + ' and a match pays nothing. The hero then averages <b>' + mean({ matchPay: 0 }) + '</b> obols a game without the skill and <b>' + mean({ matchPay: 0, gambling: true }) + '</b> with it.');
-  if (pay) tries.push('Write <b>7F</b> there and a match pays 127, for an average of <b>' + mean({ matchPay: 127 }) + '</b> obols a game.');
+  if (pay) tries.push('Write <b>00</b> at ' + srcNum(pay.val, hex4(pay.at)) + ' and a match pays nothing. The hero then averages <b>' + mean({ matchPay: 0 }) + '</b> oboloi a game without the skill and <b>' + mean({ matchPay: 0, gambling: true }) + '</b> with it.');
+  if (pay) tries.push('Write <b>7F</b> there and a match pays 127, for an average of <b>' + mean({ matchPay: 127 }) + '</b> oboloi a game.');
   if (fix && fix.next !== null && gate && gate.next !== null && !dice.skillAlways)
-    tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + srcNum(fix.val, hex4(fix.at)) + ' and the Gambling skill moves the hero’s die whatever the roll, so every game played with the skill is a match, for an average of <b>' + mean({ skillAlways: true, gambling: true }) + '</b> obols a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + srcNum(gate.val, hex4(gate.at)) + ' as well, and every game is a match without the skill.');
+    tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + srcNum(fix.val, hex4(fix.at)) + ' and the Gambling skill moves the hero’s die whatever the roll, so every game played with the skill is a match, for an average of <b>' + mean({ skillAlways: true, gambling: true }) + '</b> oboloi a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + srcNum(gate.val, hex4(gate.at)) + ' as well, and every game is a match without the skill.');
   return '<div class="mechSub">What to edit</div>' +
     '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>byte</th><th class="num">at, in 0x812</th><th class="num">now</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     (tries.length ? '<ul class="ruleList">' + tries.map(t => '<li>' + t + '</li>').join('') + '</ul>' : '');
@@ -277,23 +277,23 @@ function diceSimHtml() {
     value: 100 * (exact.dist.get(n) || 0),
     mark: t ? 100 * ((t.dist.get(n) || 0) / t.games) : undefined,
     color: mechNetColor(n),
-    title: (n > 0 ? '+' + n : n) + ' obols: ' + (100 * (exact.dist.get(n) || 0)).toFixed(1) + '% of throws' + (t ? ', ' + (100 * (t.dist.get(n) || 0) / t.games).toFixed(1) + '% played' : '')
+    title: (n > 0 ? '+' + n : n) + ' oboloi: ' + (100 * (exact.dist.get(n) || 0)).toFixed(1) + '% of throws' + (t ? ', ' + (100 * (t.dist.get(n) || 0) / t.games).toFixed(1) + '% played' : '')
   }));
   let out = '';
   if (DICE_SIM.last) {
     const g = DICE_SIM.last;
     out += '<div class="mechDiceFaces">' + mechDieFace(g.a, 34, '#3b362b') + mechDieFace(g.b, 34) + mechDieFace(g.c, 34, '#3b362b') + '</div>' +
       '<div class="mechVerdict">' + (g.helped ? '<b>Gambling</b> set the hero’s die to the innkeeper’s first. ' : '') +
-      (g.net > 0 ? 'The innkeeper pays <b>' + g.net + '</b> obol' + (g.net === 1 ? '' : 's') + '.' : g.net === 0 ? 'A draw. The stake comes back.' : 'The hero pays <b>an obol</b>.') + '</div>';
+      (g.net > 0 ? 'The innkeeper pays <b>' + g.net + '</b> obol' + (g.net === 1 ? '' : 'oi') + '.' : g.net === 0 ? 'A draw. The stake comes back.' : 'The hero pays <b>an obol</b>.') + '</div>';
   }
   out += mechFig('Winnings per game',
     mechColumns(bins, { height: 84 }) +
     '<div class="mechKeys"><span><i style="background:' + MECH_INK.dim + '"></i>the columns are the exact chance of each result</span>' +
     (t ? '<span><i style="background:' + MECH_INK.gold + '"></i>the dashed line marks the ' + t.games.toLocaleString() + ' games played here</span>' : '') + '</div>',
     t ? 'After <b>' + t.games.toLocaleString() + '</b> games the total is <b>' + (t.net > 0 ? '+' : '') + t.net.toLocaleString() +
-        '</b> obols, <b>' + (t.mean >= 0 ? '+' : '') + t.mean.toFixed(3) + '</b> a game against the exact <b>' +
+        '</b> oboloi, <b>' + (t.mean >= 0 ? '+' : '') + t.mean.toFixed(3) + '</b> a game against the exact <b>' +
         (exact.mean >= 0 ? '+' : '') + exact.mean.toFixed(3) + '</b>.'
-      : 'No games played. The exact average is <b>' + (exact.mean >= 0 ? '+' : '') + exact.mean.toFixed(3) + '</b> obols a game.');
+      : 'No games played. The exact average is <b>' + (exact.mean >= 0 ? '+' : '') + exact.mean.toFixed(3) + '</b> oboloi a game.');
   if (t && t.curve.length > 2) {
     const ys = t.curve.map(p => p[1]);
     const lo = Math.min(-0.6, Math.min.apply(null, ys)), hi = Math.max(0.9, Math.max.apply(null, ys));
@@ -582,12 +582,12 @@ function mechShopFigure(sh) {
   const buckets = [[1, 2], [3, 5], [6, 10], [11, 25], [26, 50], [51, 100], [101, 250], [251, 1000], [1001, 1e9]];
   const bins = buckets.map(b => ({
     label: b[0] >= 1000 ? '1k' : String(b[0]), value: goods.filter(g => g.price >= b[0] && g.price <= b[1]).length,
-    color: MECH_INK.gold, title: b[0] + ' to ' + b[1] + ' obols: ' + goods.filter(g => g.price >= b[0] && g.price <= b[1]).length + ' items'
+    color: MECH_INK.gold, title: b[0] + ' to ' + b[1] + ' oboloi: ' + goods.filter(g => g.price >= b[0] && g.price <= b[1]).length + ' items'
   }));
   const dear = goods.slice().sort((a, b) => b.price - a.price).slice(0, 8)
     .map(g => ({ label: g.name, value: g.price, text: g.price + ' ob', color: MECH_INK.warm }));
   return mechFig('Shop prices of ' + goods.length + ' items', mechColumns(bins, { height: 80 }),
-    'Items by price in obols.') +
+    'Items by price in oboloi.') +
     mechFig('The most expensive things on any counter', mechBars(dear),
       'Prices before bargaining.');
 }
@@ -1878,6 +1878,17 @@ function appFixSource() {
 // played for four of its nineteen characters read as played.
 function fixPlayedInPart(f) { return /^in part\b/i.test(f.played || ''); }
 function untestedMark(f) { return !f.played ? ' (untested)' : fixPlayedInPart(f) ? ' (partially tested)' : ''; }
+// A data fix to something a save has a copy of (`newGame`, js/delv-datafixes.js
+// above DATA_FIXES) is marked so (the maintainer, 3 November 2026): one to
+// the characters needs a new game, one to a zone's things needs a new game
+// or a save that has not been to the zone.
+function newGameBadge(f) {
+  if (!f.newGame) return '';
+  if (f.newGame === true) return 'needs a new game';
+  const names = f.newGame.map(z => { try { return zoneDisplayName(z); } catch (e) { quiet(e, 'a zone name with no file open'); return 'zone ' + z; } });
+  const list = names.length < 2 ? names[0] : names.slice(0, -1).join(', ') + ' or ' + names[names.length - 1];
+  return 'needs a new game, or a first visit to ' + list;
+}
 // A program fix has two halves, the PowerPC program and the 68K one
 // (js/delv-app68k.js), played separately: `played` is the PowerPC half's,
 // APP_FIXES_68K.played has the fixes whose 68K part was shown. A fix seen
@@ -2728,9 +2739,9 @@ function renderDataFixMaker() {
   }
   host.appendChild(presets);
   const offLists = DATA_FIX_GROUPS.filter(g => g.off).map(g => g.title);
-  const leftToYou = (offLists.length > 1 ? offLists.slice(0, -1).join(', ') + ' and ' + offLists[offLists.length - 1] : offLists.join('')) + ' are off until chosen.';
-  host.appendChild(el('p', 'mechSub', now === 'all' ? 'Every fix, including the untested ones. ' + leftToYou
-    : now === 'tested' ? 'Every fix seen working in the game. ' + leftToYou : ''));
+  const offListsNote = (offLists.length > 1 ? offLists.slice(0, -1).join(', ') + ' and ' + offLists[offLists.length - 1] : offLists.join('')) + ' are off until chosen.';
+  host.appendChild(el('p', 'mechSub', now === 'all' ? 'Every fix, including the untested ones. ' + offListsNote
+    : now === 'tested' ? 'Every fix seen working in the game. ' + offListsNote : ''));
   const q = el('input', 'fixSearch');
   q.type = 'search'; q.id = 'fixSearch';
   q.placeholder = 'Search the fixes';
@@ -2785,7 +2796,7 @@ function renderDataFixMaker() {
       words.appendChild(t);
       const meta = el('span', 'fixMeta');
       meta.appendChild(el('span', 'fixFile', file));
-      if (badge) meta.appendChild(el('span', 'fixBadge', badge));
+      for (const b of [].concat(badge || [])) if (b) meta.appendChild(el('span', 'fixBadge', b));
       if (f.note) words.appendChild(el('span', 'fixNote', f.note));
       words.appendChild(meta);
       l.appendChild(words);
@@ -2794,7 +2805,7 @@ function renderDataFixMaker() {
       fold.d.appendChild(r);
     };
     const badgeOf = mark => mark.trim().replace(/^\(|\)$/g, '');
-    for (const f of list) row(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f, badgeOf(untestedMark(f)), 'Cythera Data', function (h) { fixDataChanges(f, h); });
+    for (const f of list) row(on.has(f.id), function (c) { dataFixToggle(f.id, c); }, f, [badgeOf(untestedMark(f)), newGameBadge(f)], 'Cythera Data', function (h) { fixDataChanges(f, h); });
     for (const f of rsrcs) row(window.BACKSTAGE_CHOSEN.has(f.id), function (c) { backstageToggle(f.id, c); }, f, badgeOf(untestedMark(f)), 'Cythera Data', function (h) {
       const ul = document.createElement('ul'); ul.className = 'ruleList';
       for (const e of f.rsrc) { const li = document.createElement('li'); li.textContent = 'The map editor\u2019s name \u201c' + e.was + '\u201d becomes \u201c' + e.now + '\u201d (' + e.type + ' ' + e.id + ', string ' + e.index + ')'; ul.appendChild(li); }
@@ -3495,6 +3506,25 @@ function compareWithRelease(name) {
     newer: String(name).localeCompare(String(inst.picked), undefined, { numeric: true }) > 0 });
 }
 
+/* A file opened over another, with Compare chosen (openOrCompare): the
+   File Comparison section on the Patch Generator page, opened and scrolled
+   to, with the report drawn. A saved game is also held for the map's Save
+   mark, and the status line names where that mark is, since nothing on the
+   comparison points there. */
+function compareWithOpenFile(bytes, name) {
+  showCategory('PATCHES');
+  const ok = compareOpenBytes(bytes, name);
+  // The section is the fold around its note (mechSectionEl).
+  let sec = document.getElementById('compareNote');
+  while (sec && sec.tagName !== 'DETAILS') sec = sec.parentNode;
+  if (sec) {
+    sec.open = true;
+    setTimeout(() => { if (sec.scrollIntoView) sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+  }
+  if (ok) setStatus('Compared ' + name + ' with the open file under Tools › Patch Generator › File Comparison.' +
+    (window.SAVE_BESIDE ? ' Its records show on a zone’s map with Save ticked under Mark.' : ''));
+  return ok;
+}
 function compareForget() { window.COMPARE_REPORT = null; window.COMPARE_APP = null; window.SAVE_BESIDE = null; renderCompareReport(); if (window.MAP_MARKS && window.MAP_MARKS.save) drawMapMarks(); }
 
 /* An application inside whatever file was chosen, with both its forks.
@@ -3967,7 +3997,7 @@ function renderMechanicsSheet(value) {
         : ''
     ].filter(Boolean) : [],
     dice ? '<div class="mechStats">' + stat(dice.wins, 'win') + stat(dice.pushes, 'draw') + stat(dice.losses, 'lose') + '<span class="mechStatNote">of ' + dice.total + ' throws</span>' +
-           stat((dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3), 'obols a game, without the skill') + stat((dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3), 'with it') + '</div>' +
+           stat((dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3), 'oboloi a game, without the skill') + stat((dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3), 'with it') + '</div>' +
            (dice.explain ? '<blockquote class="mechQuote">' + srcNum(dice.explainVal, dice.explain.replace(/\*/g, ' ')) + '<footer>the innkeeper, in the same script</footer></blockquote>' : '') +
            mechFig('All ' + dice.total + ' throws',
              mechDiceMatrix(mechDiceExact(dice.opts).cells),
@@ -4320,7 +4350,7 @@ function renderMechanicsSheet(value) {
     sh.shops.length ? sh.shops.length + ' shops, what each sells, and at what price.' : 'No script in this file opens a shop.',
     sh.shops.length ? ['Each vendor bargains down from the listed price by four amounts set for that vendor, listed under terms' + (sh.haggling ? '. <b>Haggling</b> lowers it by a further random amount from 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
     mechShopFigure(sh) +
-    table(['vendor', 'goods and listed prices in obols', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.character !== null && characterRecord(spn.character) ? characterChip(spn.character) : svChip(spn.resid)) +
+    table(['vendor', 'goods and listed prices in oboloi', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.character !== null && characterRecord(spn.character) ? characterChip(spn.character) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
       spn.goods.map(g => svEsc(g.name) + ' <span class="mechPrice">' + srcNum(g.src, g.price) + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') + '</td>' + (spn.terms ? srcCell(spn.termsSrc, spn.terms.join(' ')) : num('')) + '</tr>')) +
       searchSentences(searchShopSentences(sh)), '');
@@ -4845,7 +4875,7 @@ function renderMechanicsSheet(value) {
     ov.appendChild(ovBtn);
     const ovHint = document.createElement('span');
     ovHint.className = 'mechSub';
-    ovHint.textContent = ' Find where parts of the Patch in Progress change the same thing, and which changes installing each with Magpie as a separate file would lose.';
+    ovHint.textContent = ' Find the resources that more than one part of the Patch in Progress changes. When Magpie installs the parts as separate files, only one part’s change to each of them stays.';
     ov.appendChild(ovHint);
     sec.appendChild(ov);
     const ovHost = document.createElement('div');

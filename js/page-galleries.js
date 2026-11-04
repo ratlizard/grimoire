@@ -1701,6 +1701,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const queue = () => { if (due) return; due = true; (window.requestAnimationFrame || setTimeout)(sweep); };
     if (grid && typeof MutationObserver === 'function') new MutationObserver(queue).observe(grid, { childList: true, subtree: true });
     installHexSweep();
+    installGlossary();
     window.addEventListener('resize', () => { for (const el of document.querySelectorAll('[data-scroll-hint]')) scrollHintUpdate(el); });
   } catch (e) { quiet(e); }
   try { receiveFromCanvas(); } catch (e) { quiet(e); }
