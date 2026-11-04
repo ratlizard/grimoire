@@ -180,11 +180,19 @@ function idbTx(mode, fn, store) {
 }
 function archiveCacheGet() { return idbTx('readonly', s => s.get(ARCHIVE_KEY)); }
 function archiveCachePut(rec) { return idbTx('readwrite', s => s.put(rec, ARCHIVE_KEY)); }
+/* The button shows whenever this browser has a copy: one the page opened
+   from it, and one stored a moment ago by opening a file (adoptArchive).
+   Clearing does not reload the page, so a file opened this visit stays open
+   until the visitor closes the page, and the next visit starts at the gate. */
+function showForgetButton(on) {
+  const fb = document.getElementById('forgetArchiveBtn');
+  if (fb) fb.style.display = on ? '' : 'none';
+}
 function archiveCacheClear() {
   // The search's pages read from that copy go with it (js/page-search.js).
   try { indexedDB.deleteDatabase(SEARCH_DB); } catch (e) { quiet(e); }
   return idbTx('readwrite', s => s.delete(ARCHIVE_KEY))
-    .then(() => { setStatus('Remembered copy cleared. Reloading…'); location.reload(); })
+    .then(() => { showForgetButton(false); setStatus('Remembered copy cleared. The open file stays open until the page closes.'); })
     .catch(() => setStatus('There was nothing remembered to clear.'));
 }
 
@@ -203,8 +211,12 @@ async function fetchWithProgress(url, label) {
     const now = performance.now();
     if (now - painted > 120) {
       painted = now;
-      setStatus(label + ', ' + fmtBytes(receivedBytes) +
-        (total ? ' of ' + fmtBytes(total) + ' (' + Math.round(receivedBytes/total*100) + '%)' : ''));
+      const line = label + ', ' + fmtBytes(receivedBytes) +
+        (total ? ' of ' + fmtBytes(total) + ' (' + Math.round(receivedBytes/total*100) + '%)' : '');
+      setStatus(line);
+      // A local copy (LOCAL_ARCHIVE_CANDIDATES) answers within a paint or
+      // two, and the bar is for the network.
+      if (/^https?:/i.test(url)) loadProgress(line, total ? receivedBytes / total : null);
     }
   }
   const out = new Uint8Array(receivedBytes);
@@ -418,7 +430,8 @@ function adoptArchive(raw, sourceName, opts) {
       : found.container
       ? { name: sourceName, bytes: raw, via: found.via, rsrc: null, pick: found.container.picked }
       : { name: sourceName, bytes: found.bytes, via: found.via, rsrc: rsrc };
-    archiveCachePut(Object.assign(rec, { source: opts.url || 'local file', savedAt: Date.now() })).catch(() => {});
+    archiveCachePut(Object.assign(rec, { source: opts.url || 'local file', savedAt: Date.now() }))
+      .then(() => showForgetButton(true)).catch(e => quiet(e, 'storing the remembered copy'));
   }
   return true;
 }
@@ -438,11 +451,90 @@ async function ingestArchiveFile(f) {
   if (!f) return;
   await loadingFileNote();
   setStatus('Reading ' + f.name + ' (' + fmtBytes(f.size) + ')…');
-  let raw;
-  try { raw = new Uint8Array(await f.arrayBuffer()); }
-  catch (err) { archiveLoadFailed([f.name + ': ' + err.message]); return; }
-  await new Promise(r => setTimeout(r, 0));   // let the status line paint first
-  if (!adoptArchive(raw, f.name, { store: true })) archiveLoadFailed([f.name + ': ' + lastArchiveError]);
+  loadProgress('Reading ' + f.name, null);
+  try {
+    let raw;
+    try { raw = new Uint8Array(await f.arrayBuffer()); }
+    catch (err) { archiveLoadFailed([f.name + ': ' + err.message]); return; }
+    // With a file already open, the visitor chooses between opening this one
+    // in its place and comparing the two. A Magpie patch skips the choice,
+    // since adoptArchive sends it to the Patch Generator whatever the answer.
+    if (ARCHIVE && !delverArchivePatchPeek(raw)) {
+      loadProgress(null);
+      const choice = await openOrCompare(f.name);
+      if (choice === 'cancel') { setStatus('Nothing changed. The file that was open is still open.'); return; }
+      if (choice === 'compare') {
+        loadProgress('Comparing ' + f.name + ' with the open file', null);
+        await paintPause();
+        compareWithOpenFile(raw, f.name);
+        return;
+      }
+    }
+    loadProgress('Opening ' + f.name, null);
+    await paintPause();
+    if (!adoptArchive(raw, f.name, { store: true })) archiveLoadFailed([f.name + ': ' + lastArchiveError]);
+  } finally { loadProgress(null); }
+}
+
+/* The choice offered when a file is opened over another: Compare, Open or
+   Cancel. Resolves with 'compare', 'open' or 'cancel'. A harness that opens
+   a second file sets OPEN_CHOICE_ANSWER, as it sets LANDING_GATE_ANSWER for
+   the gate, and a page without the dialog opens the file. */
+let openChoiceResolve = null;
+function openOrCompare(name) {
+  if (window.OPEN_CHOICE_ANSWER) return Promise.resolve(window.OPEN_CHOICE_ANSWER);
+  const d = document.getElementById('openChoice');
+  if (!d) return Promise.resolve('open');
+  const t = document.getElementById('openChoiceText');
+  if (t) t.textContent = (window.ARCHIVE_SOURCE_NAME || 'A file') + ' is open. Compare ' + name +
+    ' with it, or open ' + name + ' in its place?';
+  d.style.display = 'flex';
+  try { document.body.classList.add('gated'); } catch (e) { quiet(e); }
+  return new Promise(res => { openChoiceResolve = res; });
+}
+function openChoiceAnswer(which) {
+  const d = document.getElementById('openChoice');
+  if (d) d.style.display = 'none';
+  try { document.body.classList.remove('gated'); } catch (e) { quiet(e); }
+  const r = openChoiceResolve; openChoiceResolve = null;
+  if (r) r(which);
+}
+
+/* The loading bar at the top of the page, over everything, gate included.
+   The status line it repeats sits inside the Settings panel, which is shut
+   while a file loads, so without the bar nothing on screen shows that a
+   download is under way or how far it has got. `fraction` is 0 to 1 for a
+   download whose length the server gives; null draws a bar that runs back
+   and forth, for the read and the parse, whose progress nothing reports.
+   That bar moves by a transform, which the browser animates off the page's
+   thread, so the bar moves on while the parse runs. loadProgress(null)
+   hides it. */
+function loadProgress(label, fraction) {
+  const bar = document.getElementById('loadBar');
+  if (!bar) return;
+  if (label === null) { bar.style.display = 'none'; return; }
+  bar.style.display = '';
+  const text = document.getElementById('loadBarLabel');
+  if (text) text.textContent = label;
+  const known = typeof fraction === 'number' && isFinite(fraction);
+  bar.classList.toggle('unknown', !known);
+  const fill = document.getElementById('loadBarFill');
+  if (fill) fill.style.transform = known ? 'scaleX(' + Math.max(0, Math.min(1, fraction)) + ')' : '';
+  if (known) bar.setAttribute('aria-valuenow', String(Math.round(fraction * 100)));
+  else bar.removeAttribute('aria-valuenow');
+}
+
+// A frame and then a task, so what was set is on screen before the parse
+// starts; or 20 ms, where nothing draws frames (the harness stub's
+// requestAnimationFrame never calls back, and a load that awaited it never
+// finished).
+function paintPause() {
+  return new Promise(r => {
+    let done = false;
+    const go = () => { if (!done) { done = true; r(); } };
+    setTimeout(go, 20);
+    try { requestAnimationFrame(() => setTimeout(go, 0)); } catch (e) { quiet(e); }
+  });
 }
 
 // The output line under the tabs reads "Load the file to begin..." until a
@@ -455,16 +547,7 @@ async function ingestArchiveFile(f) {
 async function loadingFileNote() {
   const out = document.getElementById('output');
   if (out && /Load the archive to begin/.test(out.textContent || '')) out.textContent = 'Loading\u2026';
-  // A frame and then a task, so the word is on screen before the parse
-  // starts; or 20 ms, where nothing draws frames (the harness stub's
-  // requestAnimationFrame never calls back, and a load that awaited it
-  // never finished).
-  await new Promise(r => {
-    let done = false;
-    const go = () => { if (!done) { done = true; r(); } };
-    setTimeout(go, 20);
-    try { requestAnimationFrame(() => setTimeout(go, 0)); } catch (e) { quiet(e); }
-  });
+  await paintPause();
 }
 function loadArchive() {
   ingestArchiveFile(document.getElementById('fileInput').files[0]);
@@ -489,7 +572,11 @@ function landingGateAnswer(which) {
   const r = landingGateResolve; landingGateResolve = null;
   if (r) r(which);
 }
+// The loading bar is up from the first step to the last, whichever returns.
 async function loadDefaultArchive() {
+  try { await loadDefaultArchiveSteps(); } finally { loadProgress(null); }
+}
+async function loadDefaultArchiveSteps() {
   const params = new URLSearchParams(location.search);
   const forced = params.get('src');
 
@@ -497,6 +584,7 @@ async function loadDefaultArchive() {
     try {
       const rec = await archiveCacheGet();
       if (rec && rec.bytes && rec.bytes.length) {
+        loadProgress('Opening ' + (rec.name || 'the remembered copy'), null);
         await loadingFileNote();
         const bytes = rec.bytes instanceof Uint8Array ? rec.bytes : new Uint8Array(rec.bytes);
         if (adoptArchive(bytes, rec.name || 'remembered archive',
@@ -520,8 +608,12 @@ async function loadDefaultArchive() {
     const label = remote ? 'Downloading the file' : 'Looking for ' + u;
     try {
       setStatus(label + '…');
+      if (remote) loadProgress(label, null);
       const raw = await fetchWithProgress(u, label);
-      if (adoptArchive(raw, decodeURIComponent(u.replace(/^.*\//, '')) || u, { url: u, store: true })) return true;
+      const name = decodeURIComponent(u.replace(/^.*\//, '')) || u;
+      loadProgress('Opening ' + name, null);
+      await paintPause();
+      if (adoptArchive(raw, name, { url: u, store: true })) return true;
       failures.push(u + ', ' + lastArchiveError);
     } catch (err) {
       failures.push(u + ', ' + err.message);
@@ -900,6 +992,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
     document.getElementById('pickerWrap').style.display = 'block';
     syncInstallerTabs();
     buildTabShell();
+    scheduleTabData();
     document.getElementById('searchWrap').style.display = 'none';
     document.getElementById('searchResults').innerHTML = '';
     document.getElementById('searchBox').value = '';
@@ -937,8 +1030,8 @@ function parseArchiveBytes(bytes, sourceName, meta) {
         }
       }
     }
-    const fb = document.getElementById('forgetArchiveBtn');
-    if (fb) fb.style.display = meta.cached ? '' : 'none';
+    // A file just opened shows the button once it is stored (adoptArchive).
+    showForgetButton(!!meta.cached);
     const btn = document.getElementById('archiveMenuBtn');
     if (btn) { btn.classList.remove('urgent'); btn.textContent = 'Settings'; }
     openArchiveMenu(false);

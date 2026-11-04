@@ -104,7 +104,7 @@ export function makeElement() {
     // and how loader_test reads it back.
     appendChild(c) { if (c && c.nodeType === 3) this.textContent += c.textContent; return c; },
     removeChild: noop, addEventListener: noop,
-    removeEventListener: noop, setAttribute: noop, getAttribute: () => null,
+    removeEventListener: noop, setAttribute: noop, removeAttribute: noop, getAttribute: () => null,
     querySelector: () => null, querySelectorAll: () => [], focus: noop, click: noop,
     remove: noop, insertBefore: noop, cloneNode: () => makeElement(),
     // <audio>. stopAllViewActivity() pauses whatever a view left playing, so

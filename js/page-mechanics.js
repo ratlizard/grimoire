@@ -3506,6 +3506,25 @@ function compareWithRelease(name) {
     newer: String(name).localeCompare(String(inst.picked), undefined, { numeric: true }) > 0 });
 }
 
+/* A file opened over another, with Compare chosen (openOrCompare): the
+   File Comparison section on the Patch Generator page, opened and scrolled
+   to, with the report drawn. A saved game is also held for the map's Save
+   mark, and the status line names where that mark is, since nothing on the
+   comparison points there. */
+function compareWithOpenFile(bytes, name) {
+  showCategory('PATCHES');
+  const ok = compareOpenBytes(bytes, name);
+  // The section is the fold around its note (mechSectionEl).
+  let sec = document.getElementById('compareNote');
+  while (sec && sec.tagName !== 'DETAILS') sec = sec.parentNode;
+  if (sec) {
+    sec.open = true;
+    setTimeout(() => { if (sec.scrollIntoView) sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+  }
+  if (ok) setStatus('Compared ' + name + ' with the open file under Tools › Patch Generator › File Comparison.' +
+    (window.SAVE_BESIDE ? ' Its records show on a zone’s map with Save ticked under Mark.' : ''));
+  return ok;
+}
 function compareForget() { window.COMPARE_REPORT = null; window.COMPARE_APP = null; window.SAVE_BESIDE = null; renderCompareReport(); if (window.MAP_MARKS && window.MAP_MARKS.save) drawMapMarks(); }
 
 /* An application inside whatever file was chosen, with both its forks.
