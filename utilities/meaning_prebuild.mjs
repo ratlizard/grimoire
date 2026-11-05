@@ -15,6 +15,14 @@
  * states which file it read. With window.MEANING_NO_PREBUILT set, the page
  * reads every piece afresh instead of reusing the file being remade.
  *
+ * REUSE=1 leaves that switch off. The numbers of a piece whose text is
+ * already in the file then come from there, and only the changed pieces go
+ * to the model: some minutes in place of an hour, and a lighter load on an
+ * 8 GB machine (5 November 2026, when some 880 of 7,484 pieces had
+ * changed). Nothing is lost by it. A piece's numbers come back as its 8-bit
+ * values times its scale, whose largest is 127 times the scale, so cutting
+ * them to 8 bits again gives the same values and the same scale.
+ *
  * What is written is each piece's 64-bit text hash (meaningHash), its
  * numbers cut to 8 bits and its scale, never the text. The maintainer
  * agreed on 28 October 2026 to publish numbers made from the game's text,
@@ -108,7 +116,7 @@ await send('Page.navigate', {url: base + 'index.html?cache=skip'}, sessionId);
 if (!await wait('/^Title: /.test(document.getElementById("output").textContent)', 600)) { console.log('the default file did not open'); finish(1); }
 const opened = await ev('DERIVED.OPENED_LINE');
 console.log(opened);
-await ev('window.MEANING_NO_PREBUILT = true; openSearch(); 1');
+await ev(`window.MEANING_NO_PREBUILT = ${process.env.REUSE !== '1'}; openSearch(); 1`);
 if (!await wait('!!(DERIVED.SITE_SEARCH && DERIVED.SITE_SEARCH.done)', 1800, 'document.getElementById("searchResults").textContent')) { console.log('the plain search did not finish reading'); finish(1); }
 await ev('setSearchMeaning(true); 1');
 if (!await wait('!!(_meaning.done || _meaning.error)', 3600, 'document.getElementById("searchResults").textContent')) { console.log('the reading by meaning did not finish'); finish(1); }
