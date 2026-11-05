@@ -4375,7 +4375,7 @@ function renderMechanicsSheet(value) {
   // ---- sleep ----
   const sl = sleepRules();
   add('sleep', 'Sleeping', null, src('the bed', 0x100E) + src('the night', 0xE93),
-    sl ? 'How much a night in each bed heals.' : 'This file has no beds, or no sleep script.',
+    sl ? 'How much a night in each bed heals' + (sl.inns.some(x => x.priceVal) ? ', and what a room at each inn costs' : '') + '.' : 'This file has no beds, or no sleep script.',
     sl ? [
       sl.own !== null ? 'The hero’s bed in Land King Hall has quality <b>' + srcNum(sl.ownVal) + '</b>. An inn’s bed has the quality of the room the hero pays for, and the hero cannot sleep in it before paying.' : '',
       sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (perHour && sl.quarterVal.v * sl.hoursVal.v === perHour ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + (sl.owner ? ', and if the bed’s owner turns up they throw the hero out (' + srcQuote(sl.owner) + ')' : '') + '.' : '',
@@ -4384,8 +4384,8 @@ function renderMechanicsSheet(value) {
       sl.magicGuard || sl.magicCap ? 'Because of a bug the game caps the magic bonus at ' + srcNum(sl.magicGuard || sl.magicCap, 'full health') + ', so a character can wake with more magic than their maximum.' : ''
     ].filter(Boolean) : [],
     (sl ? mechSleepFigure(sl, model) : '') +
-    (sl && sl.div && sl.inns.length ? table(['bed', 'where', '#quality', 'healing'], [(sl.own !== null ? '<tr><td>the hero’s</td><td>Land King Hall</td>' + srcCell(sl.ownVal) + '<td>× ' + (1 + sl.own / sl.div.v) + '</td></tr>' : '')].concat(
-      sl.inns.map(x => '<tr><td>' + (characterRecord(x.character) ? characterChip(x.character) : 'character ' + x.character) + '</td><td>' + svEsc((characterRecord(x.character) && zoneDisplayName(characterRecord(x.character).zone)) || '') + '</td>' + srcCell(x.qualitySrc, x.quality) + '<td>' + (x.quality !== null ? '× ' + (1 + x.quality / sl.div.v) : '') + '</td></tr>'))) : ''), '');
+    (sl && sl.div && sl.inns.length ? table(['bed', 'where', '#quality', 'healing', '#oboloi a person'], [(sl.own !== null ? '<tr><td>the hero’s</td><td>Land King Hall</td>' + srcCell(sl.ownVal) + '<td>× ' + (1 + sl.own / sl.div.v) + '</td><td></td></tr>' : '')].concat(
+      sl.inns.map(x => '<tr><td>' + (characterRecord(x.character) ? characterChip(x.character) : 'character ' + x.character) + '</td><td>' + svEsc((characterRecord(x.character) && zoneDisplayName(characterRecord(x.character).zone)) || '') + '</td>' + srcCell(x.qualitySrc, x.quality) + '<td>' + (x.quality !== null ? '× ' + (1 + x.quality / sl.div.v) : '') + '</td>' + (x.priceVal ? srcCell(x.priceVal) : '<td></td>') + '</tr>'))) : ''), '');
 
   // ---- the clock ----
   {

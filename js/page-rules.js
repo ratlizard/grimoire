@@ -6178,11 +6178,25 @@ function sleepRules() {
   const store = dvmScriptEntry(0x301);
   const am = store && /obj_0000 = \[([\d, ]+)\]/.exec(strip(store.text));
   const table = am ? am[1].split(',').map(x => parseInt(x.trim())) : null;
+  /* The room's price: after the innkeeper's answer to "room", the script
+     prints the number of people in the party times a figure, "A room for
+     the night, with one of my finest meals to boot, will run " ... "
+     oboloi", and tests the party's money against the same product. The
+     figure is the price for each person (5 to 7 oboloi in the shipped
+     file), read 5 November 2026 so the search could answer what a room
+     costs, which nothing on the site stated. */
   const inns = [];
   for (const e of idx) {
     if (e.resid < 0x1800 || e.resid >= 0x1A00) continue;
-    const g = dvmSeqFirst(dvmOpsOf(e), [/^write_far_word 0x03010016$/i, DVM_NUM]);
-    if (g) { const slot = dvmNum(g[1]); inns.push({ character: e.resid - 0x1800, slot, slotVal: dvmVal(e.resid, g[1]), quality: table && table[slot] !== undefined ? table[slot] : null, qualitySrc: table ? { resid: 0x301, at: 0 } : null }); }
+    const ops = dvmOpsOf(e);
+    const g = dvmSeqFirst(ops, [/^write_far_word 0x03010016$/i, DVM_NUM]);
+    if (!g) continue;
+    const slot = dvmNum(g[1]);
+    const k = ops.findIndex(o => /^conversation_response "(?:[^"]*,)?room(?:,[^"]*)?" ->/.test(o.text));
+    const p = k >= 0 ? dvmSeqFirst(ops.slice(k), [/^global CharactersInParty\b/, DVM_NUM, /^mul$/]) : null;
+    const priceVal = p ? dvmVal(e.resid, p[1]) : null;
+    inns.push({ character: e.resid - 0x1800, slot, slotVal: dvmVal(e.resid, g[1]), quality: table && table[slot] !== undefined ? table[slot] : null, qualitySrc: table ? { resid: 0x301, at: 0 } : null,
+      price: priceVal ? priceVal.v : null, priceVal });
   }
   inns.sort((a, b) => a.character - b.character);
   /* The magic half of the bonus reads full HEALTH twice where the health half
