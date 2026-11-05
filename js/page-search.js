@@ -631,6 +631,19 @@ function siteSearchRun() {
   if (S.cache === 'checking') return;
   // The hidden frame is reading the pages, and its message ends the wait.
   if (_searchFrame) { drawSearchResults(); return; }
+  /* Over http(s) the hidden frame reads the pages even when the panel is
+     open first, as it does when the panel opens after the file. Reading
+     them here draws every tab under the still copy, and closing the panel
+     draws the view again (siteSearchRestore). On the maintainer's phone
+     (5 November 2026) that redraw, the World tab's whole atlas among
+     them, showed as the page loading its data again and again while search
+     by meaning loaded. The page reads the pages itself only from file://,
+     or after a frame gave up (S.frameGaveUp). */
+  if (!SEARCH_CRAWL && !S.frameGaveUp && /^https?:$/.test(location.protocol) && typeof indexedDB !== 'undefined') {
+    searchCrawlInFrame(S);
+    drawSearchResults();
+    return;
+  }
   /* In the frame, a step waits while the visitor is using the page: the
      frame shares the page's thread, and one tab's drawing can hold it for
      up to a second (measured in headless Chrome), which a drag or a scroll
@@ -1203,14 +1216,14 @@ function searchCrawlInFrame(S) {
     if (_searchFrame === f) _searchFrame = null;
     S.frame = null;
   };
-  const quietFor = () => { clearTimeout(f._quiet); f._quiet = setTimeout(() => { end(); siteSearchResume(S); }, SEARCH_FRAME_WAIT); };
+  const quietFor = () => { clearTimeout(f._quiet); f._quiet = setTimeout(() => { end(); S.frameGaveUp = true; siteSearchResume(S); }, SEARCH_FRAME_WAIT); };
   const hear = e => {
     if (e.source !== f.contentWindow || !e.data || !e.data.grimoireSearch) return;
     const m = e.data.grimoireSearch;
     if (m.next !== undefined) { S.frame = { next: m.next, total: m.total }; quietFor(); drawSearchResults(); return; }
     end();
     if (m.done && m.key === S.key && DERIVED.SITE_SEARCH === S) siteSearchFromCache(S);
-    else siteSearchResume(S);
+    else { S.frameGaveUp = true; siteSearchResume(S); }
   };
   window.addEventListener('message', hear);
   f.src = 'index.html?searchcrawl=1';
