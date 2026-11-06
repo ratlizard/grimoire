@@ -371,6 +371,9 @@ if (take()) try {
   // hero's unit not among them.
   else if (!(function () { const b = ctx.combatRules().bodyForReflex; return b && b.v === 1 && b.resid === 0xE88; })()) fail('mechanics', 'body for reflex was not read off 0xE88: ' + JSON.stringify(ctx.combatRules().bodyForReflex));
   else if (!(function () { const f = ctx.exeMonsterFields().fields, h = n => (f.find(x => x.field === n) || {}).half; return h(50) === 'low' && h(51) === 'high'; })()) fail('mechanics', 'the two halves of the unit flags were not read off GetField');
+  // Field 52 reads no byte of the unit record and stores 0 (`li 5, 0`), the
+  // one such field; the records page names it under the unit table.
+  else if (!(function () { const c = ctx.exeMonsterFields().fields.filter(x => x.constant); return c.length === 1 && c[0].field === 52 && c[0].constant.v === 0; })()) fail('mechanics', 'field 52 of a unit is not read as a constant 0 (' + JSON.stringify(ctx.exeMonsterFields().fields.filter(x => x.constant)) + ')');
   else if (!(function () { const t = ctx.monsterTopFlagSites(), r = b => (t.get(b) || {}).resid; return r(1) === 0xE88 && r(2) === 0x3040 && r(4) === 0x3040 && r(8) === 0xE87 && t.size === 4; })()) fail('mechanics', 'the top half of the unit flags is not found tested where it is: ' + JSON.stringify([...ctx.monsterTopFlagSites()]));
   else if (ctx.unitsWithTopFlag(1).length !== 21 || !/use their <b>(?:<button[^>]*>)?body(?:<\/button>)?<\/b> instead of their reflex\./.test(html) ||
            !/use their <b>(?:<button[^>]*>)?body(?:<\/button>)?<\/b> instead of their reflex \((?:<button[^>]*>)?21(?:<\/button>)? of the \d+ units but not the hero’s\)/.test((function () { ctx.showCategory('MECHANICS'); return (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid')); })()))

@@ -4109,6 +4109,18 @@ function showRecordDetail(resid, byte) {
   const tbl = document.createElement('div');
   tbl.innerHTML = '<table class="mechTable" style="margin-top:12px"><thead><tr><th class="num">byte</th><th>field</th><th class="num">value</th><th class="num">hex</th></tr></thead><tbody>' + rows + '</tbody></table>';
   panel.appendChild(tbl);
+  // A unit field that reads no byte of the record has no row above, so it
+  // is named under the table (field 52, whose handler stores 0).
+  if (resid === 0xF008) {
+    const mf = appImage() ? exeMonsterFields() : null;
+    const fixed = mf ? mf.fields.filter(f => !f.offset && f.constant) : [];
+    if (fixed.length) {
+      const note = document.createElement('div');
+      note.className = 'sv-note';
+      note.innerHTML = fixed.map(f => 'Field ' + srcNum({ exe: f.at }, String(f.field)) + ' reads no byte of the record and is always ' + srcNum(f.constant) + '.').join(' ');
+      panel.appendChild(note);
+    }
+  }
 
   // Step to the record either side, so a table can be walked.
   const nav = document.createElement('div');

@@ -5526,7 +5526,18 @@ function exeMonsterFields() {
     // and called the top half unidentified, though three scripts test it.
     const li = ld ? hops.indexOf(ld) : -1;
     const cut = li >= 0 ? hops.slice(li + 1, li + 4).find(o => o.d && ((o.d.mn === 'clrlwi' && o.d.mb === 16) || (o.d.mn === 'srawi' && o.d.sh === 16))) : null;
-    fields.push({ field, at: p.offset, name: DVM_SYM.field[String(field)] || null,
+    // A handler that loads nothing from the record and stores a constant
+    // through the result pointer. Field 52's word is the routine's shared
+    // ending, `li 5, 0` and `stw 5, 0(4)`, so field 52 of a unit reads 0
+    // (read on 13 October 2026, shown on the page since 6 November). The
+    // `li` is kept for a link to it.
+    let constant = null;
+    if (!ld) {
+      const k = hops.findIndex(o => o.d && o.d.mn === 'li');
+      if (k >= 0 && hops.slice(k + 1, k + 4).some(o => o.d && o.d.mn === 'stw' && o.d.rt === hops[k].d.rd && o.d.d === 0))
+        constant = exeVal(hops[k], hops[k].d.imm);
+    }
+    fields.push({ field, at: p.offset, name: DVM_SYM.field[String(field)] || null, constant,
                   offset: ld ? exeVal(ld, ld.d.d) : null, width: ld ? (ld.d.mn === 'lbz' ? 1 : ld.d.mn === 'lwz' ? 4 : 2) : 0,
                   half: cut ? (cut.d.mn === 'clrlwi' ? 'low' : 'high') : null, halfAt: cut ? exeVal(cut, 16) : null });
   }
