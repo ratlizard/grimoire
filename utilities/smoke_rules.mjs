@@ -373,7 +373,7 @@ if (take()) try {
   else if (!(function () { const f = ctx.exeMonsterFields().fields, h = n => (f.find(x => x.field === n) || {}).half; return h(50) === 'low' && h(51) === 'high'; })()) fail('mechanics', 'the two halves of the unit flags were not read off GetField');
   else if (!(function () { const t = ctx.monsterTopFlagSites(), r = b => (t.get(b) || {}).resid; return r(1) === 0xE88 && r(2) === 0x3040 && r(4) === 0x3040 && r(8) === 0xE87 && t.size === 4; })()) fail('mechanics', 'the top half of the unit flags is not found tested where it is: ' + JSON.stringify([...ctx.monsterTopFlagSites()]));
   else if (ctx.unitsWithTopFlag(1).length !== 21 || !/use their <b>(?:<button[^>]*>)?body(?:<\/button>)?<\/b> instead of their reflex\./.test(html) ||
-           !/use their <b>(?:<button[^>]*>)?body(?:<\/button>)?<\/b> instead of their reflex \((?:<button[^>]*>)?21(?:<\/button>)? of the \d+ units, not the hero’s\)/.test((function () { ctx.showCategory('MECHANICS'); return (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid')); })()))
+           !/use their <b>(?:<button[^>]*>)?body(?:<\/button>)?<\/b> instead of their reflex \((?:<button[^>]*>)?21(?:<\/button>)? of the \d+ units but not the hero’s\)/.test((function () { ctx.showCategory('MECHANICS'); return (function all(el) { return (el.innerHTML || '') + (el.children || []).map(all).join(''); })(REGISTRY.get('sheetGrid')); })()))
     fail('mechanics', 'the combat section does not say who fights with the body, with the program open, and only then: ' + ctx.unitsWithTopFlag(1).length);
   else if (/unidentified/.test(ctx.monsterFlagsHTML(0x00014004)) || !/fights with its body/.test(ctx.monsterFlagsHTML(0x00014004))) fail('mechanics', 'the fighter\'s flags are not all named: ' + ctx.monsterFlagsHTML(0x00014004));
   else if (withoutApp(() => ctx.monsterTopFlagSites().size !== 0 || ctx.recordFieldMap(0xF008).length !== 11 || /fights with its body/.test(ctx.monsterFlagsHTML(0x00014004)))) fail('mechanics', 'the top half of the unit flags is named with no program open');
@@ -761,7 +761,7 @@ if (take()) try {
     fail('strange device', 'the patterns, their signals or their doors were misread: ' + JSON.stringify(td.patterns.map(p => [p.v.join(''), p.signal, p.doors.length])));
   else if (!td.patterns.every(p => p.presses && replay(p.presses) === p.v.join('')))
     fail('strange device', 'a press sequence does not end on its pattern');
-  else if (!/Every dot dark sends signal 133 , which opens the stone door in Caves/.test(mh))
+  else if (!/Every dot dark sends signal 133 \. It opens the stone door in Caves/.test(mh))
     fail('strange device', 'the Mechanics sheet does not state it: ' + (/Eight dots[^]{0,300}/.exec(mh) || [''])[0]);
   else console.log('  strange device: start ' + td.start.join('') + ', three patterns, each a door and a shortest sequence that plays back true (' + td.patterns.map(p => p.presses.length).join(', ') + ' presses)');
 } catch (e) { fail('strange device', e); }
@@ -908,11 +908,11 @@ if (take()) try {
      card reads "near" and states no figure. Each half fails by itself if
      the reader stops finding the number or starts inventing one. */
   const hatchBare = withoutApp(() => ctx.atlasEggAt({ resid: 0x8001 }, 137, 9));
-  if (!/when the party comes within 15 squares of it,/.test(hatch))
+  if (!/when the party comes within 15 squares of it unless/.test(hatch))
     fail('world tab', 'the hatching egg does not give the reach read off SetStage: ' + JSON.stringify(hatch));
   else if (!/within <button[^>]*jumpToExeAt\(\d+\)[^>]*>15<\/button> squares/.test(hatchLink))
     fail('world tab', 'the inspector form of an egg does not link its reach to the instruction: ' + JSON.stringify(hatchLink));
-  else if (!/when the party comes near it,/.test(hatchBare) || /\d+ squares/.test(hatchBare))
+  else if (!/when the party comes near it unless/.test(hatchBare) || /\d+ squares/.test(hatchBare))
     fail('world tab', 'with no application open the hatching egg states a reach or does not say "near": ' + JSON.stringify(hatchBare));
   /* A kind-4 egg runs a sub-zone's Enter and loads no map. The egg by the
      Ur-Sylph entrance at 21,13 in 0x8009 has the argument 0x102 and is the
@@ -963,7 +963,7 @@ if (take()) try {
   else if (!(topAbove < 400)) fail('world tab', 'a card with room above it went below the finger: top ' + topAbove);
   else if (!/hatches sea monster and tentacle/.test(hatch)) fail('world tab', 'the hatching egg does not say what comes out: ' + JSON.stringify(hatch));
   else if (!/every visit|visits? in 100/.test(hatch)) fail('world tab', 'the hatching egg does not say how likely: ' + JSON.stringify(hatch));
-  else if (!/when the party comes (within \d+ squares of it|near it), unless walls cut it off from the party/.test(hatch)) fail('world tab', 'the hatching egg does not say what sets it off: ' + JSON.stringify(hatch));
+  else if (!/when the party comes (within \d+ squares of it|near it) unless walls cut it off from the party/.test(hatch)) fail('world tab', 'the hatching egg does not say what sets it off: ' + JSON.stringify(hatch));
   else if (!/a room, room \d+/.test(room)) fail('world tab', 'the room egg stopped reading as a room: ' + JSON.stringify(room));
   else if (!/an ambient sound, [^\n]*sound 6/i.test(surf)) fail('world tab', 'a kind-3 egg is not naming its ambient sound: ' + JSON.stringify(surf));
   // A room is a rectangle, not the egg's square. Room 800 is the way into the

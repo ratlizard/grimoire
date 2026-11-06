@@ -1117,7 +1117,7 @@ if (take()) try {
           ctx.toggleMapMarks('save', false);
           if (!q || q.flagsSet !== 1 || !q.flags[0] || q.valuesSet !== 0) fail('save comparison', 'the save’s quest state was misread: ' + JSON.stringify(q && [q.flagsSet, q.valuesSet]));
           else if (before[0] === after[0] || before[1] === after[1]) fail('save comparison', 'Alaric’s or Magpie’s day did not change under the save’s quest flag 0');
-          else if (!/the day drawn is the save’s, 1 quest flag set/.test(legend)) fail('save comparison', 'the legend does not say whose day is drawn');
+          else if (!/the day drawn is the save’s with 1 quest flag set/.test(legend)) fail('save comparison', 'the legend does not say whose day is drawn');
           if (!/save: I\.M\.Cheater/.test(legend) || !/placed|gone|moved|changed where it stands|characters? here/.test(legend)) fail('save comparison', 'the Save mark’s legend does not describe the save over the zone: ' + legend.replace(/<[^>]+>/g, '').slice(0, 160));
           else console.log(`  save comparison: I.M.Cheater against the scenario, ${rep.changed.length} resources differ; the character records and the zone lists are read as records, and the Save mark draws zone ${zone & 0xFF}: ${legend.replace(/<[^>]+>/g, '').replace(/^.*save: /, '').slice(0, 90)}`);
         }

@@ -5234,9 +5234,9 @@ function renderMechanicsSheet(value) {
       add('thinkadot', 'The ' + nm, null, src('the ' + nm, 0x1175),
         'Eight dots and three buttons. A pattern of dots sends a signal. The signal opens a door in the zone where the hero makes the pattern.',
         [
-          'The dots are in rows of three, two and three, and ' + srcNum({ v: 0, resid: 0x1175, at: td.startAt }, 'start') + ' with ' + lit(td.start).join(', ') + ' lit.' +
+          'The dots are in rows of three, two, and three. They ' + srcNum({ v: 0, resid: 0x1175, at: td.startAt }, 'start') + ' with ' + lit(td.start).join(', ') + ' lit.' +
             (td.placed.length ? ' The ' + svEsc(nm) + ' is ' + td.placed.map(pl => pl.onMap ? 'in ' + svLink(zoneDisplayName(pl.zone) || ('zone ' + pl.zone), 'atlasOpenSquare(' + (0x8000 + pl.zone) + ',' + pl.x + ',' + pl.y + ')', pl.x + ', ' + pl.y) : 'inside something in ' + svEsc(zoneDisplayName(pl.zone) || ('zone ' + pl.zone))).join(', ') + '.' : ''),
-          'A button drops a marble onto dot 0, 1 or 2. The marble flips the dot it lands on and rolls on. From a dot that is now lit it goes ' + at(td.lit.at, moves(td.lit)) + ', from a dot that is now dark ' + at(td.dark.at, moves(td.dark)) + ', and off the board from ' + off.join(', ') + '. The dots keep their state between uses.',
+          'A button drops a marble onto dot 0, 1, or 2. The marble flips the dot it lands on and rolls on. From a dot that is now lit it goes ' + at(td.lit.at, moves(td.lit)) + ', from a dot that is now dark ' + at(td.dark.at, moves(td.dark)) + ', and off the board from ' + off.join(', ') + '. The dots keep their state between uses.',
           ...td.patterns.map(p => (lit(p.v).length ? 'Dots ' + lit(p.v).join(', ') + ' lit' : 'Every dot dark').replace(/^Dots 0, 1, 2, 3, 4, 5, 6, 7 lit$/, 'Every dot lit') +
             ' sends signal ' + srcNum(p.sigAt) + (p.doors.length ? '. It opens the ' + p.doors.map(door).join(' and the ') : '. Nothing in the file answers it') +
             (p.presses ? '. From the start: ' + presses(p.presses) + '.' : '. No sequence reaches it from the start.'))
