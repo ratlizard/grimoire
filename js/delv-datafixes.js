@@ -929,6 +929,22 @@ const DATA_FIXES = [
     edits: [
       { what: 'the night guard names who speaks', resid: 0x10E5, at: 0x0017, expect: { 0x0011: 'word Character.Gate_Guard', 0x0017: 'method Talk', 0x0019: 'local Var00' }, code: dataFixTalk('local Var00', 0) },
     ] },
+  // Charax's "Prove it - do you know alchemy?" (0x184F; 6 November 2026).
+  // The script branches on the hero's Alchemy (skill 210). The branch for a
+  // hero with it calls TalkParticipant(1,2) before the hero's "Yes - it was
+  // taught by Palaestra herself!". The branch without it goes straight to
+  // the hero's "No, I don't.", so the box still shows Charax as the speaker
+  // and the hero's line is drawn beside his portrait (seen on the 2019
+  // livestream at 2:19:06; bugs.md, Found checking the 2019 livestream).
+  // The other branch's call goes in at the head of this one. It goes where
+  // the `then` lands, and dvmRelink puts an inserted run in front of a jump
+  // to its place, so the jump reaches the new call first.
+  { id: 'charax-voice', group: 'talk', stage: 'further', title: 'Charax’s question about alchemy now shows the hero’s “No, I don’t.” beside the hero, instead of in Charax’s voice',
+    plan: (s) => ({ edits: [
+      dataFixInsert(s, 'the hero says "No, I don’t." to Charax', 0x184F,
+        ['string(implicit) "\\"No, I don\'t.', 'sys TalkParticipant', 'arg Arg00', 'byte 0x00', 'end'], 0,
+        dataFixTalk('byte 0x01', 2)),
+    ] }) },
   // The Mining Camp's sign cannot be read (0x8118; 28 September 2026). A
   // sign's Examine (0x10C3) shows entry Data1 of 0x0218 and nothing when
   // Data1 is 0; the camp's sign, record 14, has Data1 0 and Data2 15, and
