@@ -1571,7 +1571,7 @@ function toggleWalls(on) {
   const note = document.getElementById('wallNote');
   if (note) {
     const n = (window.CUR_MAP && window.CUR_MAP.wallsHidden) || 0;
-    note.textContent = on ? '' : (n ? n + ' wall squares hatched, still solid' : 'no walls on this map');
+    note.textContent = on ? '' : (n ? n + ' wall squares hatched and still solid' : 'no walls on this map');
   }
 }
 
@@ -2033,12 +2033,12 @@ function drawMapMarks(lensCtx, lensTS) {
       }
       ring(people, '#8fb8ff');
       const bits = [];
-      if (!sres) bits.push('no list for this zone in the save, so this is the scenario’s list');
+      if (!sres) bits.push('the scenario’s list (the save has none for this zone)');
       if (placed.length) bits.push(placed.length + ' placed');
       if (gone.length) bits.push(gone.length + ' gone');
       if (moved.length) bits.push(moved.length + ' moved');
       if (changed.length) bits.push(changed.length + ' changed where it stands');
-      if (offMap) bits.push(offMap + ' carried or inside something, not drawn');
+      if (offMap) bits.push(offMap + ' carried or inside something and not drawn');
       if (people.length) bits.push(people.length + (people.length === 1 ? ' character' : ' characters') + ' here');
       if (sb.quest) bits.push('the day drawn is the save’s, ' + sb.quest.flagsSet + ' quest flag' + (sb.quest.flagsSet === 1 ? '' : 's') + ' set and ' + sb.quest.valuesSet + ' value' + (sb.quest.valuesSet === 1 ? '' : 's') + ' nonzero');
       saveLegend = svEsc(sb.name) + (sb.player ? ' (' + svEsc(sb.player) + ')' : '') + ' over this zone: ' + (bits.length ? bits.join(', ') : 'the same records');
@@ -2076,8 +2076,8 @@ function drawMapMarks(lensCtx, lensTS) {
       (edges ? ' + ' + edges + (edges === 1 ? ' open edge' : ' open edges') : ''));
     if (M.path && pathStops) parts.push('<span style="color:' + colors.path + '">' + LINE +
       svEsc(pathName) + ', ' + pathStops + (pathStops === 1 ? ' post' : ' posts') +
-      ' on this map, joined by the route the game would walk. The color of each part of the route' +
-      ' shows the hour it starts, and each part has a line of its own where the game' +
+      ' on this map. The route the game would walk joins them. The color of each part of the route' +
+      ' shows the hour it starts. Each part has a separate line where the game' +
       ' walks the same way twice</span>');
     if (ropes) parts.push('<span style="color:#fff">' + ROPE + ropes +
       (ropes === 1 ? ' needs a rope' : ' need a rope') + '</span>');
@@ -2086,8 +2086,8 @@ function drawMapMarks(lensCtx, lensTS) {
     if (saveLegend) parts.push('<span style="color:#a8e06a">' + BOX + 'save: ' + saveLegend + '</span>');
     legend.innerHTML = parts.length
       ? parts.join(' &nbsp; ') + ' <span style="color:#dcd8cc">. Doors are the classes whose open or shut state the game resets to the zone’s setting whenever the party enters the zone. ' +
-        'Containers are the classes with IsContainer. The page finds hidden ways by prop-type name. Zone exits are visible ways out (holes, stairs, cave mouths) plus the map’s ' +
-        'open edges, where walking off at any row or column leaves the map. The page marks concealed passages as ' +
+        'Containers are the classes with IsContainer. The page finds hidden ways by prop-type name. Zone exits are visible ways out (holes, stairs, and cave mouths) plus the map’s ' +
+        'open edges (walking off at any row or column leaves the map). The page marks concealed passages as ' +
         'hidden ways instead.</span>'
       : '';
   }
@@ -2458,7 +2458,7 @@ const pathCache = derivedMap('pathCache');
    nearest square it did reach, which is FindPath's answer.
 
    Kept from the engine: the weight, the order, the corners, the fallback.
-   Left out: its 31-square window round the view and its hundred-candidate
+   Left out: its 31-square window around the view and its hundred-candidate
    list, both there because the engine walks one step at a time and only
    near the player. A greedy search is quick, so the 4,000-step cap this
    replaced -- after which a route became a straight line through the walls
@@ -2780,7 +2780,7 @@ function walkingPosition(entries, t, m, keys) {
       and the aspect/proptype word 0x2C22, which unpacks to proptype 0x22
       (king) at ASPECT 11. The throne is placed at aspect 0. So aspect 0 seats
       a person in sprite frame 11: row 2, column 3. That single record fixes
-      three separate things at once -- that column 3 is the seated pose, that
+      three separate things together -- that column 3 is the seated pose, that
       row 2 is facing south, and that a chair at aspect 0 faces south -- and
       all three are what this file already computed.
 
@@ -2897,8 +2897,8 @@ function seatsOnMap(resid, m) {
             .filter(([dx, dy]) => solid(r.x + dx, r.y + dy));
           if (tables.length) { face = tables[0][2]; why = 'faces the table beside it'; }
           else if (walls.length === 1) { face = walls[0][2]; why = 'wall behind it'; }
-          else { face = SPR_S; why = 'not known, because this seat has ' + own +
-                   ' frame' + (own === 1 ? '' : 's') + ', so its aspect does not give one of four directions, ' +
+          else { face = SPR_S; why = 'not known because this seat has ' + own +
+                   ' frame' + (own === 1 ? '' : 's') + '. Its aspect does not give one of four directions ' +
                    'and nothing behind it shows which way it faces'; }
         }
         // Two chairs on one square (Cademia's Thuria has one of each class

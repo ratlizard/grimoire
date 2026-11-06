@@ -520,7 +520,7 @@ function propInspectRows(p) {
     const haveKey = keysForLock(r.d1).length;
     rows.push(['Lock', 'id ' + r.d1 + (haveKey
       ? ', ' + haveKey + ' matching key' + (haveKey === 1 ? '' : 's') + ' in the world'
-      : ' (no key matches it, so the lockpick, magic or a script opens it)')]);
+      : ' (no key matches it and only the lockpick, magic, or a script opens it)')]);
   }
   if (r.proptype === KEY_PROPTYPE && r.d1)
     rows.push(['Opens', 'lock id ' + r.d1 + ', ' + locksForKey(r.d1).length + ' lock(s)']);
@@ -539,7 +539,7 @@ function propInspectRows(p) {
   // to an arch anywhere -- see the Gateways comment above worldGateways for
   // the evidence and for why the widening is scoped the way it is.
   const dest = propTravelsTo(r, window.CUR_MAP ? window.CUR_MAP.resid : 0);
-  if (dest) rows.push(['Leads to', dest.name + ' (' + dest.x + ',' + dest.y + '), zoneport ' + r.d2]);
+  if (dest) rows.push(['Leads to', dest.name + ' (' + dest.x + ',' + dest.y + ') through zoneport ' + r.d2]);
   if (r.d1 || r.d2) rows.push(['Data', r.d1 + ' / ' + r.d2 + '  (0x' + r.d3.toString(16).toUpperCase() + ')']);
   if (r.storeref) {
     const sym = typeof storeSymbol === 'function' ? storeSymbol(r.storeref) : null;
@@ -728,8 +728,8 @@ function inspectMapSquare(tx, ty) {
     const pair = [[10, 12], [14, 16], [18, 22]][ownLvl - 1];
     const tiles = v => (v / 8).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
     parts.push('<div class="inspCard"><b>Light</b>' +
-      (ownLvl ? '<div>A light source, level ' + ownLvl + ', ' +
-        ((attr & 0x10000) ? 'flickering' : 'steady') + ' &nbsp;·&nbsp; its pool is ' +
+      (ownLvl ? '<div>A ' + ((attr & 0x10000) ? 'flickering' : 'steady') + ' light source of level ' + ownLvl +
+        ' &nbsp;·&nbsp; its pool is ' +
         ((attr & 0x10000) ? tiles(pair[0]) + ' to ' + tiles(pair[1]) : tiles(pair[0])) +
         ' tiles across</div>' : '') +
       (withView === null
@@ -740,10 +740,10 @@ function inspectMapSquare(tx, ty) {
           (withView === 32 ? ', nothing darkened' : withView === 0 ? ', solid black' : '') +
           (withView !== alone ? ' <span class="inspDim">(' + alone +
             ' of 32 with nothing in view)</span>' : '') + '</div>') +
-      '<div class="inspDim">That is the base value for every square of the level, not just this ' +
-      'one. Anything bright in the eleven-by-eleven view lightens the whole map, and moving it out ' +
+      '<div class="inspDim">That is the base value for every square of the level and not just this ' +
+      'one. Anything bright in the eleven-by-eleven view lightens the whole map. Moving it out ' +
       'of view darkens the map again. The game also ignores light sources it treats as unseen. The file ' +
-      'does not record which those are, so the page counts every source in view.</div></div>');
+      'does not record which those are. The page counts every source in view.</div></div>');
   }
 
   // A square inside a gateway's footprint shows it first, and offers the
@@ -775,8 +775,8 @@ function inspectMapSquare(tx, ty) {
   }
   {
     const rv = ravineWayAt(cm.resid, tx, ty);
-    if (rv) parts.push('<div class="inspCard"><b>A ravine</b> <span class="inspDim">the way down is the ' +
-      svEsc(rv.kind) + ' at (' + rv.x + ',' + rv.y + '), with a rope tied to it, to ' + svEsc(rv.name) + '</span>' +
+    if (rv) parts.push('<div class="inspCard"><b>A ravine</b> <span class="inspDim">the way down to ' + svEsc(rv.name) + ' is the ' +
+      svEsc(rv.kind) + ' at (' + rv.x + ',' + rv.y + ') with a rope tied to it</span>' +
       '<div class="inspActs"><button class="sv-chip" onclick="showSquareOnMap(' + cm.resid + ',' + rv.x + ',' + rv.y + ')">The ' + svEsc(rv.kind) + '</button>' +
       '<button class="sv-chip" onclick="showSquareOnMap(' + rv.dest.resid + ',' + rv.dest.x + ',' + rv.dest.y + ')">Go to ' + svEsc(rv.name) + '</button></div></div>');
   }
@@ -784,24 +784,24 @@ function inspectMapSquare(tx, ty) {
   for (const e of exits) {
     parts.push('<div class="inspCard"><b>Zone exit</b> <span class="inspDim">zoneport 0x' +
       e.idx.toString(16).toUpperCase() + '</span><div class="inspDim">Another place leads to this ' +
-      'square, and in play the same square is the way back out.</div></div>');
+      'square. In play the same square is the way back out.</div></div>');
   }
 
   const SIDE_WORDS = { N: 'north', E: 'east', S: 'south', W: 'west' };
   for (const e of edges) {
     const z = zoneportInfo(e.idx);
     parts.push('<div class="inspCard"><b>Open ' + SIDE_WORDS[e.side] + ' edge</b> ' +
-      '<span class="inspDim">map header exit, zoneport 0x' + e.idx.toString(16).toUpperCase() +
+      '<span class="inspDim">map header exit through zoneport 0x' + e.idx.toString(16).toUpperCase() +
       (z ? ' to ' + svEsc(z.name) : '') + '</span><div class="inspDim">The whole ' +
-      (e.side === 'N' || e.side === 'S' ? 'row' : 'column') + ' is a way out, not just this square. Walking far enough ' +
+      (e.side === 'N' || e.side === 'S' ? 'row' : 'column') + ' is a way out and not just this square. Walking far enough ' +
       SIDE_WORDS[e.side] + ' at any ' + (e.side === 'N' || e.side === 'S' ? 'column' : 'row') +
       ' leaves the map here.</div></div>');
   }
 
   if (requiresRope) {
     parts.push('<div class="inspCard"><b>Rope</b> <span class="inspDim">prop type 0x14B on this ' +
-      'square</span><div class="inspDim">A rope hangs here, which is what makes the drop below ' +
-      'passable. There are four in the whole scenario, all of them on ravines.</div></div>');
+      'square</span><div class="inspDim">A rope hangs here and makes the drop below ' +
+      'passable. The whole scenario has four and every one is on a ravine.</div></div>');
   }
 
   if (faux) {
@@ -819,7 +819,7 @@ function inspectMapSquare(tx, ty) {
       (face && face.url ? '<img class="inspFace" src="' + face.url + '" alt="" width="64" height="64">' : '') +
       '<div><b>' + svEsc(c.name || ('Character ' + c.index)) + '</b>' +
       ' <span class="inspDim">' + (c.walking ? 'walking'
-          : c.sitting ? ('sitting, facing ' + ['north','east','south','west'][(c.aspect >> 2) & 3] +
+          : c.sitting ? ('sitting facing ' + ['north','east','south','west'][(c.aspect >> 2) & 3] +
               ', ' + svEsc(c.seat ? c.seat.why : ''))
           : svEsc(String(c.mode || 'here'))) + '</span>' +
       (carriedByCharacter(c.index).length ? '<div class="inspDim">carries ' +
@@ -839,7 +839,7 @@ function inspectMapSquare(tx, ty) {
     const rows = propInspectRows(p).map(([k, v]) =>
       '<dt>' + svEsc(k) + '</dt><dd>' + svEsc(v) + '</dd>').join('');
     const ways = [];
-    if (isExitProp(p.rec.proptype, window.CUR_MAP ? window.CUR_MAP.resid : undefined)) ways.push('a way out of here, by its class');
+    if (isExitProp(p.rec.proptype, window.CUR_MAP ? window.CUR_MAP.resid : undefined)) ways.push('a way out of here by its class');
     if (isConcealedProp(p.rec.proptype)) ways.push('concealed');
     if (isWallProp(p.rec.proptype) && !(((getTileAttributes(ARCHIVE)[p.tileId] || 0) >> 8) & 0x02))
       ways.push('a wall the hero can walk through');
@@ -952,7 +952,7 @@ function renderMapResource(resid) {
     if (!result) {
       document.getElementById('mapLabel').textContent =
         '0x' + resid.toString(16).toUpperCase() + (lbl ? ' ' + lbl : '') + '  |  (not readable as a valid map)';
-      out.textContent = "The page could not draw map 0x" + resid.toString(16).toUpperCase() + " because its header is not valid (the decryption went wrong, or it is not a map).";
+      out.textContent = "The page could not draw map 0x" + resid.toString(16).toUpperCase() + " because its header is not valid (the decryption went wrong or it is not a map).";
       currentResid = resid;
       return;
     }
@@ -1050,7 +1050,7 @@ const ZONE_CACHE_KEEP = IS_IOS_WEBKIT ? 2 : 4;
 /* A render, but only if it is free. The World tab paints from a pointer and
    from an animation frame, and a full map render is the expensive thing in
    this file: ZONE_CACHE_KEEP is two on iOS and four elsewhere, so a handful
-   of large nodes on screen at once evict each other and re-render every
+   of large nodes on screen together evict each other and re-render every
    frame, which is what the judder is, both times it has been reported.
 
    So while the view is moving, a caller that can do without uses the cached
@@ -1146,7 +1146,7 @@ function atlasRenderTick() {
       else atlasPrefetchRender();
       return;
     }
-  } catch (e) { quiet(e, 'a render a slice at a time, 0x' + j.resid.toString(16)); window.ATLAS_RENDER_JOB = null; return; }
+  } catch (e) { quiet(e, 'a render a slice at a time of 0x' + j.resid.toString(16)); window.ATLAS_RENDER_JOB = null; return; }
   requestAnimationFrame(atlasRenderTick);
 }
 /* A square as the game prints it: X and Y in lower-case hex. The cheats'
@@ -1536,7 +1536,7 @@ const WORLD_LEAVE_FACTOR = 0.62;
 // match on where they put you.
 /* Which gateway the view is on, and how close it is to crossing.
 
-   Only one at a time, and it is the one nearest the middle: two rings at once
+   Only one at a time, and it is the one nearest the middle: two rings together
    shows nothing about which one zooming further would open. */
 /* What the World tab draws over the world map: the towns themselves in place
    of their pictograms, a name on every way off the map, and a ring on the one
@@ -1700,7 +1700,7 @@ function renderAtlasBar() {
   if (!atlasScene()) {
     bar.style.display = '';
     bar.innerHTML = '<span class="wbNote">This file has no world map (resource 0x' +
-      WORLD_MAP_RESID.toString(16).toUpperCase() + '), so there is no world to draw. ' +
+      WORLD_MAP_RESID.toString(16).toUpperCase() + ') to draw. ' +
       'A saved game contains only what has changed in play. Data \u203a Data Fork lists what it contains.</span>';
     return;
   }

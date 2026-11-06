@@ -399,7 +399,7 @@ function adoptArchive(raw, sourceName, opts) {
      which is the only way to look inside a patch before applying it. */
   if (ARCHIVE && delverArchivePatchPeek(found.bytes) &&
       patchesOpenBytes(found.bytes, (found.forks && found.forks.name) || sourceName)) {
-    setStatus('That is a Magpie patch, not a game file, so the page compared it with the open file instead of replacing it. ' +
+    setStatus('That is a Magpie patch and not a game file. The page compared it with the open file instead of opening it in its place. ' +
               'Tools \u203a Patch Generator shows what it changes and can apply it.');
     return true;
   }
@@ -442,9 +442,9 @@ function archiveLoadFailed(failures) {
   if (mb) { mb.classList.add('urgent'); mb.textContent = 'Choose a Cythera Data file'; }
   openArchiveMenu(true);
   const out = document.getElementById('output');
-  if (out) out.textContent = 'Tried, in order:\n  ' + failures.join('\n  ') +
+  if (out) out.textContent = 'Tried in order:\n  ' + failures.join('\n  ') +
     '\n\nThe installer is at ' + REMOTE_ARCHIVE_URLS.join(' and at ') +
-      '. If this page could not fetch it, download it from there and drop it here.';
+      '. Download it from there and drop it here when this page cannot fetch it.';
 }
 
 async function ingestArchiveFile(f) {
@@ -487,7 +487,7 @@ function openOrCompare(name) {
   if (!d) return Promise.resolve('open');
   const t = document.getElementById('openChoiceText');
   if (t) t.textContent = (window.ARCHIVE_SOURCE_NAME || 'A file') + ' is open. Compare ' + name +
-    ' with it, or open ' + name + ' in its place?';
+    ' with it or open ' + name + ' in its place?';
   d.style.display = 'flex';
   try { document.body.classList.add('gated'); } catch (e) { quiet(e); }
   return new Promise(res => { openChoiceResolve = res; });
@@ -928,7 +928,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   if (meta.via !== 'edit') window.BASKET_APPLIED = null;
   // Kept for the edit path: a rebuild re-enters here and needs the name to
   // keep calling the file what the user called it, and the fork's raw bytes
-  // to hand back as meta.rsrc -- CYTHERA_RSRC is the parsed fork and cannot
+  // to return as meta.rsrc -- CYTHERA_RSRC is the parsed fork and cannot
   // be re-opened from itself.
   window.ARCHIVE_SOURCE_NAME = sourceName;
   window.CYTHERA_RSRC_RAW = (meta.rsrc && meta.rsrc.length) ? meta.rsrc : null;
@@ -972,7 +972,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
   try {
     const title = pstring(bytes, 0);
     const arc = openDelverArchive(bytes);
-    if (!arc) throw new Error('no master index, since the (offset, length) pair at 0x80 does not point to one');
+    if (!arc) throw new Error('no master index (the offset and length at 0x80 point to none)');
     // The file that was open stays open, whole, until the new one has parsed:
     // a failure above leaves the page on the archive it had. A save replacing
     // the scenario uses the scenario's words for its forms first, while the
@@ -1018,7 +1018,7 @@ function parseArchiveBytes(bytes, sourceName, meta) {
       if (row && window.CONTAINED) {
         const label = document.createElement('span');
         label.className = 'amNote';
-        label.textContent = 'This file contains ' + window.CONTAINED.entries.length + ' archives, with the open one marked.';
+        label.textContent = 'This file contains ' + window.CONTAINED.entries.length + ' archives. A mark shows the open one.';
         row.appendChild(label);
         for (const it of window.CONTAINED.entries) {
           const b = document.createElement('button');
@@ -1220,7 +1220,7 @@ function onCategoryChangeImpl() {
      very next line -- so the contact sheet built here is thrown away entire.
      In a browser that mostly costs the cells rather than the art, since the
      IntersectionObserver that decodes each tile does not deliver before the
-     grid is cleared; in the test stub, whose observer fires at once by
+     grid is cleared; in the test stub, whose observer fires immediately by
      design, it is the whole gallery decoded and discarded, and on Regions --
      42 maps -- that was nineteen seconds every time an edit rebuilt the
      archive under an open map. The flag is cleared by jumpToResource itself,
@@ -1352,7 +1352,7 @@ function applyZoom() {
   canvas.style.height = h + 'px';
   // A landscape's box is as tall as the strip at its opening zoom, not half
   // the screen, and stays that tall. A zoom in scrolls inside it, and a
-  // zoom out leaves room round the strip. The box once took each zoom's
+  // zoom out leaves room around the strip. The box once took each zoom's
   // height and the strip over the sky below it took the zoom too, so
   // everything under the picture moved with the slider (the maintainer,
   // 28 October 2026). The strip over the sky stays at its opening width.

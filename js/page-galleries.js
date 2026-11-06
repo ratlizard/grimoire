@@ -95,7 +95,7 @@ async function exportGallery() {
   }
 
   index.push('', 'Grimoire wrote this folder. The page supplies the labels marked † in the',
-             'gallery, and they are not in the file.');
+             'gallery. They are not in the file.');
   files.push({ name: folder + 'index.txt', bytes: utf8(index.join('\n')) });
 
   const blob = buildZip(files);
@@ -263,7 +263,7 @@ function tileFactsHTML(tileId) {
   if (atAspect.length) rows.push(partsStrip('Drawn by', atAspect.map(chip)));
   let orphan = false;
   try { orphan = orphanItemArt().some(o => o.tile === tileId); } catch (e) { orphan = false; }
-  if (orphan) rows.push('<div class="partsNote" style="color:#f0ede4">No class owns this picture, and nothing in the file places it.</div>');
+  if (orphan) rows.push('<div class="partsNote" style="color:#f0ede4">No class owns this picture and nothing in the file places it.</div>');
   return linksFold(rows.join(''));
 }
 
@@ -363,7 +363,7 @@ function editStringAt(resid, approxOffset) {
   if (!raw) return;
   const data = smartDecrypt(raw, resid).data;
   const loc = locatePascalString(data, approxOffset);
-  if (!loc) { setStatus('There is no text string at that position, so there is nothing to edit in place.', true); return; }
+  if (!loc) { setStatus('There is no text string at that position to edit in place.', true); return; }
   const oldText = decodeMacRoman(data.subarray(loc.textOffset, loc.textOffset + loc.cap));
   let ov = document.getElementById('textEdit');
   if (ov) ov.remove();
@@ -373,10 +373,10 @@ function editStringAt(resid, approxOffset) {
     '<div class="dtHead">Edit text in 0x' + resid.toString(16).toUpperCase() +
       '<button class="linkbtn" onclick="document.getElementById(\'textEdit\').remove()">close</button></div>' +
     '<textarea id="teText" spellcheck="false"></textarea>' +
-    '<div class="inspDim"><span id="teCount"></span>. The stored space is fixed at ' + loc.cap +
-      ' bytes. The page pads shorter text with spaces, and longer text would move every ' +
-      'byte after it, which this editor does not do. * separates alternative ' +
-      'lines, and @word marks a conversation keyword.</div>' +
+    '<div class="inspDim"><span id="teCount"></span>. The slot has room for ' + loc.cap +
+      ' bytes. The page pads shorter text with spaces. Longer text would move every ' +
+      'byte after it and this editor does not do that. * separates alternative ' +
+      'lines and @word marks a conversation keyword.</div>' +
     '<div><button onclick="applyStringEdit(' + resid + ',' + loc.textOffset + ',' + loc.cap + ')">Apply and rebuild the file</button></div>' +
     '</div>';
   document.body.appendChild(ov);
@@ -397,7 +397,7 @@ function applyStringEdit(resid, textOffset, cap) {
   if (!ta) return;
   const enc = encodeMacRoman(ta.value);
   if (enc.length > cap) {
-    setStatus('That text is ' + enc.length + ' bytes, and the slot has room for ' + cap + '. Shorten it.', true);
+    setStatus('That text is ' + enc.length + ' bytes and the slot has room for ' + cap + '. Shorten it.', true);
     return;
   }
   const data = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data;
@@ -491,15 +491,15 @@ function openDitherTool() {
       '<option value="items">64×64 in a frame of items</option>' +
       '<option value="landscape">288×32 landscape strip (cover crop)</option>' +
       '<option value="icon">32×16 icon (cover crop)</option>' +
-      '<option value="sheet">128×128 tile sheet, sixteen tiles (cover crop)</option>' +
-      '<option value="free">original size (up to 512px), a sized graphic</option></select></label>' +
+      '<option value="sheet">128×128 tile sheet of sixteen tiles (cover crop)</option>' +
+      '<option value="free">a sized graphic at original size (up to 512px)</option></select></label>' +
     '<label>Checker <input type="range" id="dtChecker" min="0" max="100" value="60"></label>' +
     '<label id="dtSubstWrap"><input type="checkbox" id="dtSubst"' + (window.DITHER_SUBST ? ' checked' : '') + '> Avoid the colors the game animates</label></div>' +
     '<div class="dtRow" id="dtItemsRow" style="display:none">' +
     '<label>Corners <select id="dtCorner">' + ditherItemOptions('axe') + '</select></label>' +
     '<label>Edges <select id="dtEdge">' + ditherItemOptions('sword') + '</select></label></div>' +
     '<div class="dtRow">' +
-    '<label><input type="checkbox" id="dtSeldane"> Seldane colors only <span class="inspDim">(the blues and cyans of portraits 0x8877 to 0x887B, by lightness)</span></label></div>' +
+    '<label><input type="checkbox" id="dtSeldane"> Seldane colors only <span class="inspDim">(the blues and cyans of portraits 0x8877 to 0x887B matched by lightness)</span></label></div>' +
     '<div class="dtRow"><canvas id="dtSrc" width="64" height="64"></canvas>' +
     '<canvas id="dtOut" width="64" height="64"></canvas></div>' +
     '<div class="dtRow">' +
@@ -508,9 +508,9 @@ function openDitherTool() {
     '<label>into <select id="dtTarget"></select></label>' +
     '<button class="secondary" onclick="ditherReplace()">Replace in archive</button>' +
     '</div>' +
-    '<div class="inspDim">Each mode writes a real resource of its kind, such as a portrait, a landscape strip, an icon, a ' +
-    'sixteen-tile sheet or a sized graphic. Transparent pixels stay transparent, the result avoids the colors ' +
-    'the game animates so nothing shimmers, and Replace rebuilds the file in this browser. To download it, use the Patch in Progress in Tools › Patch Generator.</div>' +
+    '<div class="inspDim">Each mode writes a real resource of its kind (' +
+    'a portrait, a landscape strip, an icon, a sixteen-tile sheet, or a sized graphic). Transparent pixels stay transparent. The result avoids the colors ' +
+    'the game animates so nothing shimmers. Replace rebuilds the file in this browser. The Patch in Progress in Tools › Patch Generator downloads it.</div>' +
     '</div>';
   document.body.appendChild(ov);
   ditherFillTargets();
@@ -556,7 +556,7 @@ function ditherItemTiles() {
 // A picker's options, the first item of the given name chosen.
 function ditherItemOptions(pick) {
   let list = [];
-  try { list = ditherItemTiles(); } catch (e) { quiet(e, 'listing the items a frame can be built of'); }
+  try { list = ditherItemTiles(); } catch (e) { quiet(e, 'listing the items that make a frame'); }
   const chosen = list.find(t => t.name === pick);
   return '<option value="">none</option>' + list.map(t => '<option value="' + t.tile + '"' + (t === chosen ? ' selected' : '') + '>' +
     svEsc(t.name) + ' (0x' + t.tile.toString(16).toUpperCase() + ')</option>').join('');
@@ -826,7 +826,7 @@ function ditherReplace() {
   const d = window.DITHER_RESULT;
   if (!d) { setStatus('Load an image first.', true); return; }
   const resid = +document.getElementById('dtTarget').value;
-  if (!resid) { setStatus('No resource of that kind to write into.', true); return; }
+  if (!resid) { setStatus('There is no resource of that kind to write.', true); return; }
   if (applyResourceEdit(resid, encodeGraphicResource(d.kind || 'portrait', d.W, d.H, d.indexed))) {
     const t = document.getElementById('ditherTool');
     if (t) t.remove();
@@ -1460,7 +1460,7 @@ function renderContactSheet() {
       if (ev.shiftKey) { downloadCanvasAsPNG(canvas, resid); return; }
       openResource(resid);
     };
-    cell.title = "Click to view full size, or Shift-click to save a PNG";
+    cell.title = "Click to view full size or Shift-click to save a PNG";
     grid.appendChild(cell);
   }
   // Blank resources are hidden on purpose, but the tally has to admit it: the
@@ -1695,7 +1695,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let due = false;
     const sweep = () => {
       due = false;
-      for (const t of document.querySelectorAll('table.mechTable, table.vocabTable, table.cheatTable, table.cardTable')) { try { tableCardsLabel(t); } catch (e) { quiet(e, 'labelling a table'); } }
+      for (const t of document.querySelectorAll('table.mechTable, table.vocabTable, table.cheatTable, table.cardTable')) { try { tableCardsLabel(t); } catch (e) { quiet(e, 'labeling a table'); } }
       for (const el of document.querySelectorAll('.tableScroll, .ftabRow')) scrollHintWatch(el);
     };
     const queue = () => { if (due) return; due = true; (window.requestAnimationFrame || setTimeout)(sweep); };

@@ -97,7 +97,7 @@ function drawSchedulePath(ctx, TS, cm, color) {
      so the line showed where she goes and never when (reported 13 September
      2026, "her path is unclear ... maybe we could make it hue-based").
 
-     The hue runs once round the wheel over 24 hours, so the colour IS the
+     The hue runs once around the wheel over 24 hours, so the colour IS the
      clock: midnight red, morning yellow-green, afternoon cyan, evening blue.
      A leg is coloured by the hour it LEAVES, because that is the hour the
      reader sees on the dot it starts from.

@@ -646,7 +646,7 @@ function atlasNodePpt(node, view) { return node.s * view.Z; }
 const atlasView = { x: 0, y: 0, Z: 2, dragging: false, lastX: 0, lastY: 0, touching: false };
 
 // The whole world in the panel, which is where a visit starts: the island
-// rather than the square map it sits in, so the sea round it is cropped
+// rather than the square map it sits in, so the sea around it is cropped
 // (atlasLandBounds). A map below ground is fitted whole.
 function atlasFit() {
   const vp = document.getElementById('atlasViewport');
@@ -823,7 +823,7 @@ function paintAtlas() {
     if (seen || border) items.push({ node, r, ppt, alpha, border, seen });
   }
   // The borders under every place, so one town's ground never covers
-  // another town; the darkening over them all, cut round the other towns.
+  // another town; the darkening over them all, cut around the other towns.
   let bordered = false;
   for (const it of items) {
     if (it.node.depth && !bordered) {
@@ -1011,7 +1011,7 @@ function atlasRoofT(w) { return Math.max(0, Math.min(1, (540 - w) / (540 - 360))
    A town's map is bigger than the town: Cademia's is 128 squares and the
    built part 107, and the rest is the unbuilt margin of the grid. The
    miniature is cropped to the built part, so at the step to the render the
-   margin used to appear all at once around a town that had just lost its
+   margin used to appear in one step around a town that had just lost its
    roofs. Now the built part is always drawn whole and the margin at what
    the roofs have given up -- the same band, run the other way -- so the
    two changes are one change: the place resolves and its ground with it.
@@ -1130,7 +1130,7 @@ function drawRenderWithMargin(ctx, node, r, canvas, alpha, roofT) {
    its tiles, not its miniature, at what the roofs have given up
    (drawWithMargin), so it appears with the rest of the town's ground.
    Every town's band is drawn before any town, so one town's band never
-   covers another town, and the darkening is cut round the other towns.
+   covers another town, and the darkening is cut around the other towns.
    Only a town drawn over the world has one: a place with gw is an
    open-edged destination, the kind you walk out of.
 
@@ -1207,7 +1207,7 @@ function drawAtlasBorder(ctx, node, r, ppt, alpha, vw, vh) {
   const X = sx => Math.round((r.x + sx * per) * dpr) / dpr, Y = sy => Math.round((r.y + sy * per) * dpr) / dpr;
   const xs = [0, Math.max(0, Math.min(vw, X(0))), Math.max(0, Math.min(vw, X(W))), vw];
   const ys = [0, Math.max(0, Math.min(vh, Y(0))), Math.max(0, Math.min(vh, Y(H))), vh];
-  // A strip repeated over one of the eight regions round the map, its
+  // A strip repeated over one of the eight regions around the map, its
   // first copy at map square (ox, oy).
   const lay = (cv, rep, ox, oy, i, j) => {
     const x0 = xs[i], x1 = xs[i + 1], y0 = ys[j], y1 = ys[j + 1];
@@ -1327,7 +1327,7 @@ const ATLAS_TILE_RING = IS_IOS_WEBKIT ? 0 : 1;
    blit that a square's clip cuts with different rounding from the same
    blit drawn whole, so the edges of trees and mountains over water came
    out a pixel off where the water was repainted, and right again when a
-   tile was made afresh (found round 173,40 on the world, 28 September
+   tile was made again (found around 173,40 on the world, 28 September
    2026, looking into a flicker the maintainer saw there). At 24 and 32
    the clipped repaint is the painting pixel for pixel, checked by the
    workbench's grimoire-world-probe.mjs (MODE=tiles) at eight places.
@@ -1918,9 +1918,9 @@ function atlasPaintSelection(ctx, drawn) {
   ctx.stroke();
   ctx.restore();
 }
-/* A ring round every town still wearing its roofs: a tap on one goes in
+/* A ring around every town still wearing its roofs: a tap on one goes in
    (atlasZoomIntoTown), and the ring shows it the way the mouths' rings do. */
-/* A town at a distance is ringed: a circle round its whole map, drawn
+/* A town at a distance is ringed: a circle around its whole map, drawn
    while it still wears its roofs. The circle is also what a tap hits
    (atlasTownAt): until 29 September 2026 a tap went in only inside the
    map's rectangle, which left the circle's rim outside it, and most of a
@@ -2976,7 +2976,7 @@ function atlasInspect(px, py) {
       }
       const rv = ravineWayAt(node.resid, tx, ty);
       if (rv) { const name = atlasMapName(rv.dest.resid) || rv.name;
-        parts.push('<div class="inspCard"><b>A ravine</b> <span class="inspDim">the way down is the ' + svEsc(rv.kind) + ' at (' + rv.x + ',' + rv.y + '), with a rope tied to it, to ' + svEsc(name) + '</span>' + go(rv.x, rv.y, name) + '</div>'); }
+        parts.push('<div class="inspCard"><b>A ravine</b> <span class="inspDim">the way down to ' + svEsc(name) + ' is the ' + svEsc(rv.kind) + ' at (' + rv.x + ',' + rv.y + ') with a rope tied to it</span>' + go(rv.x, rv.y, name) + '</div>'); }
       for (const d of mapDescents(node.resid)) if (!d.egg && d.x === tx && d.y === ty) { const name = atlasMapName(d.dest.resid) || d.name;
         const act = go(d.x, d.y, name);
         if (act) parts.push('<div class="inspCard"><b>A way</b> <span class="inspDim">the ' + svEsc(d.kind) + ', to ' + svEsc(name) + '</span>' + act + '</div>'); }
@@ -3258,7 +3258,7 @@ function squareCard(level, e, tx, ty, placeName, isTouch) {
   if (!people.length && !props.length && !isTouch) return null;
   const c = people[0] || null;
   const what = c ? (c.walking ? 'walking'
-    : c.sitting ? ('sitting, facing ' + ['north', 'east', 'south', 'west'][(c.aspect >> 2) & 3])
+    : c.sitting ? ('sitting facing ' + ['north', 'east', 'south', 'west'][(c.aspect >> 2) & 3])
     : String(c.mode || 'here')) : '';
   const seen = new Set(); const shown = props.filter(n => !seen.has(n) && seen.add(n)).slice(0, 3);
   const lines = [];
@@ -3368,7 +3368,7 @@ function downloadMapPNG() {
   // On iOS the full-size file is written a strip at a time instead (above):
   // no whole-map canvas, so no tab torn down, and the native 32 px a square.
   if (IS_IOS_WEBKIT && cm.TS < 32 && typeof CompressionStream !== 'undefined') {
-    downloadMapPNGStreamed(cm, 32, name).catch(e => { setStatus('The page could not write the full-size map (' + e.message + '), so it is saving the screen size instead.', true); downloadMapPNG._fallback = true; downloadMapPNG(); });
+    downloadMapPNGStreamed(cm, 32, name).catch(e => { setStatus('The page could not write the full-size map (' + e.message + ') and is saving the screen size instead.', true); downloadMapPNG._fallback = true; downloadMapPNG(); });
     if (!downloadMapPNG._fallback) return;
     downloadMapPNG._fallback = false;
   }
@@ -3403,7 +3403,7 @@ function downloadMapPNG() {
     const lightLayer = document.getElementById('lightLayer');
     if (lightLayer && window.SHOW_LIGHTING) ctx.drawImage(lightLayer, 0, 0);
   }
-  // No palette indices to hand over: this is several layers composited with
+  // No palette indices to pass on: this is several layers composited with
   // alpha, and the lighting layer in particular produces colours that are not
   // in the CLUT at all. So it goes the RGBA way and has its metadata
   // stripped rather than a PLTE.

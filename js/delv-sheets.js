@@ -58,7 +58,7 @@ const mechTable = (heads, rows, cls) => rows.length
 const mechNum = v => '<td class="num">' + (v === null || v === undefined || v === '' ? '' : svEsc(String(v))) + '</td>';
 const mechStat = (n, what) => '<span class="mechStat"><b>' + svEsc(String(n)) + '</b> ' + svEsc(what) + '</span>';
 const mechSrc = (label, resid) => refExists(resid) ? partChip(label, resid) : '';
-const MECH_NO_APP = 'Open the game from its installer, under Settings, to read the program’s numbers here.';
+const MECH_NO_APP = 'Open the game from its installer under Settings to read the program’s numbers here.';
 
 /* The sections that belong on another sheet.
 
@@ -88,22 +88,22 @@ function spellsMechSection() {
     // figures, and the roll is the first line here.
     sp.spells.length ? '' : 'No spell in this file is cast through the shared script.',
     sp.spells.length ? [
-      'The game adds two random numbers below the caster’s Casting skill, and the cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b>, because the only number below 1 is 0. The caster spends the magic points even when the cast fails.',
+      'The game adds two random numbers below the caster’s Casting skill. The cast fails if the sum is less than a random number below the spell’s level. A <b>level 1 spell never fails</b> because the only number below 1 is 0. The caster spends the magic points even when the cast fails.',
       sp.rule && sp.rule.power ? 'A cost above the caster’s magic <b>fails outright</b>.' : '',
-      sp.rule && sp.rule.timing ? 'The caster pays the cost, and the cast takes <b>' + srcNum(sp.rule.timeBase) + ' + ' + srcNum(sp.rule.timeMult) + ' × level</b> clock units.' : 'The caster pays the cost.',
-      'Spell damage works like a blow’s. The victim’s resistance applies, and the caster earns experience as usual.',
+      sp.rule && sp.rule.timing ? 'The caster pays the cost. The cast lasts <b>' + srcNum(sp.rule.timeBase) + ' + ' + srcNum(sp.rule.timeMult) + ' × level</b> clock units.' : 'The caster pays the cost.',
+      'Spell damage works like a blow’s. The victim’s resistance applies. The caster earns experience as usual.',
       fbFx && fbFx.damage.some(d => /target square/.test(d.character)) ? '<b>Fireball hurts only the character on the square it targets</b>, although by its description it engulfs all within.' : '',
-      (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Non-magical damage, whether fire, electric, blunt or edged, does <b>nothing at all</b> to monsters that resist non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike count as magical, which is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
-      'Spell damage prints no message, and <b>every enemy</b> means every hostile character on the loaded map, on screen or not, so Tremor hurts enemies out of sight.',
+      (function () { let ms = []; try { ms = parseMonsterStats().filter(r => r.proptype && (r.flags & 0x0100)).map(r => propDisplayName(r.proptype) || ('class ' + r.proptype)); } catch (e) { quiet(e); } return ms.length ? 'Non-magical damage of every kind (fire, electric, blunt, and edged) does <b>nothing at all</b> to monsters that resist non-magical weapons: ' + ms.map(svEsc).join(', ') + '. Only Mystic Arrow and Death Strike count as magical. That is why Tremor and Fireball seem to do nothing late in the game.' : ''; })(),
+      'Spell damage prints no message. <b>Every enemy</b> means every hostile character on the loaded map (on screen or not). So Tremor hurts enemies out of sight.',
       (function () {
         const et = appImage() ? exeEnemyTable() : null;
         if (!et || !et.alignmentByte || !et.enemy) return '';
         const rows = [];
         for (let a = 0; a < et.side; a++) rows.push(a + ': ' + et.table.v.slice(a * et.side, (a + 1) * et.side).join(' '));
-        return 'Who is an enemy comes from a ' + srcNum(et.table, et.side + '×' + et.side) + ' table of alignments, the caster’s down the side and the other character’s across, where ' + srcNum(et.enemy) + ' means enemy: <b>' + rows.join(' · ') + '</b>.' +
+        return 'Who is an enemy comes from a ' + srcNum(et.table, et.side + '×' + et.side) + ' table of alignments (the caster’s down the side and the other character’s across). In it ' + srcNum(et.enemy) + ' means enemy: <b>' + rows.join(' · ') + '</b>.' +
           (et.peace && et.peaceKey ? ' A cheat key ' + srcNum(et.peaceKey, 'makes nobody an enemy') + '.' : '');
       })(),
-      'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune or the map.',
+      'A spell with nothing in the last column changes something other than health: a status, the light, a lock, a rune, or the map.',
       (function () {
         let t = [];
         try { t = targetRules().filter(x => x.kind === 'spell'); } catch (e) { t = []; }
@@ -118,7 +118,7 @@ function spellsMechSection() {
 function skillsMechSection() {
   const sk = skillConsultations();
   return mechSectionEl('skills', 'Skill Checks', null, '',
-    sk.by.size ? 'Which scripts check for each skill.' + (sk.generic ? ' ' + countLink(sk.generic + ' more checks', 'The ' + sk.genericIn.size + ' shared scripts that hold ' + sk.generic + ' checks of whichever skill they are given', resChips(sk.genericIn)) + ' are in shared scripts that work for any skill.' : '') : 'No script in this file checks for a skill by name.',
+    sk.by.size ? 'Which scripts check for each skill.' + (sk.generic ? ' ' + countLink(sk.generic + ' more checks', 'The ' + sk.genericIn.size + ' shared scripts that hold ' + sk.generic + ' checks of whichever skill a script passes them', resChips(sk.genericIn)) + ' are in shared scripts that work for any skill.' : '') : 'No script in this file checks for a skill by name.',
     [], mechSkillsFigure(sk) + mechTable(['skill', 'checked by'], [...sk.by.entries()].sort((a, b) => a[0] - b[0]).map(([id, resids]) =>
       '<tr><td>' + (refExists(0x1A00 + id) ? partChip(selfNameFor(0x1A00 + id) || ('skill 0x' + id.toString(16).toUpperCase()), 0x1A00 + id) : 'skill 0x' + id.toString(16).toUpperCase()) +
       '</td><td>' + [...resids].sort((a, b) => a - b).map(r => svChip(r)).join(' ') + '</td></tr>')), '');
@@ -131,8 +131,8 @@ function balloonsMechSection() {
     'The short lines over a character’s head. ' +
       (bark && bark.ticks && bark.width ? 'Each appears in a ' + srcNum(bark.width) + '×' + srcNum(bark.height) + ' balloon and disappears after <b>' + (bark.ticks.v / 60) + ' seconds</b> (' + srcNum(bark.ticks) + ' ticks of a sixtieth of a second).'
         : MECH_NO_APP),
-    ['A line is either fixed text or one picked at random from a list.', 'Two shared tavern scripts take a list of shouts, and a list of replies for when the food or wine arrives.',
-     barks.length ? barks.length + ' places in this file’s scripts set a line, and the words are below.' : 'No script in this file sets a line.'],
+    ['A line is either fixed text or one picked at random from a list.', 'Two shared tavern scripts take a list of shouts and a list of replies for when the food or wine arrives.',
+     barks.length ? barks.length + ' places in this file’s scripts set a line. The words are below.' : 'No script in this file sets a line.'],
     mechBalloonFigure(barks, bark),
     bark ? '<span class="partsTitle">In the program</span>' + pefChip('TBark::SetBark') + pefChip('TActiveMonster::ShowBarks') : '');
 }
@@ -154,15 +154,15 @@ function libraryMechSection(lib) {
      array and the passage's number, as the unshown ones already were. */
   const passageLink = (d, e) => { const t = String(e.str).trim().replace(/\s+/g, ' '); return svLink((t.slice(0, 48) + (t.length > 48 ? '…' : '')) || 'empty', 'jumpToResource(' + d.resid + ')', '0x' + d.resid.toString(16).toUpperCase() + ' ' + e.index); };
   return mechSectionEl('library', 'The Game’s Writing', null, '',
-    lib ? 'The books, prophecies, scrolls, letters, signs and gravestones, and the things in the world that show them. A bookshelf’s Data1 is the number of the book on it.'
+    lib ? 'Books, prophecies, scrolls, letters, signs, and gravestones. The things in the world that show them are here too. A bookshelf’s Data1 is the number of the book on it.'
         : 'No class in this file shows a document.',
     lib ? [
       '<b>' + countLink(passages + ' passages', 'The ' + passages + ' passages', lib.flatMap(d => d.entries.map(e => passageLink(d, e)))) + '</b> across <b>' +
         countLink(lib.length + ' arrays', 'The ' + lib.length + ' arrays of passages', resChips(lib.map(d => d.resid))) + '</b>, shown by ' + [...new Set(lib.flatMap(d => d.readers.map(r => r.name)))].join(', ') + '.',
       unshown.length ? '<b>' + countLink(String(unshown.length), 'The ' + unshown.length + ' passages that appear nowhere in play',
-        unshown.map(u => passageLink(u.d, u.e))) + ' appear nowhere in play</b>. No prop in the world and no script points to them. They exist in the file, but nothing in the game shows them.' : '',
+        unshown.map(u => passageLink(u.d, u.e))) + ' appear nowhere in play</b>. No prop in the world and no script points to them. They exist in the file but nothing in the game shows them.' : '',
       dangling.length ? '<b>' + countLink(String(dangling.length), 'The ' + dangling.length + ' Data1 values that point to no passage',
-        dangling.map(x => svLink('Data1 ' + x.k, 'jumpToResource(' + x.d.resid + ')', '0x' + x.d.resid.toString(16).toUpperCase()))) + '</b> are the opposite case, a thing in the world whose Data1 points to no passage.' : ''
+        dangling.map(x => svLink('Data1 ' + x.k, 'jumpToResource(' + x.d.resid + ')', '0x' + x.d.resid.toString(16).toUpperCase()))) + '</b> are the opposite case (a thing in the world whose Data1 points to no passage).' : ''
     ].filter(Boolean) : [],
     mechTable(['#passages', 'array', 'shown by', '#shown', '#not shown'], rows) +
     (unshown.length ? '<div class="partsTitle">Written but never shown</div>' +
@@ -192,13 +192,13 @@ function talkMechSection() {
     '<td class="mechSub">' + svEsc(s.character.slice(0, 5).map(c => c.name).join(', ') +
       (s.character.length > 5 ? ', and ' + (s.character.length - 5) + ' more' : '')) + '</td></tr>');
   return mechSectionEl('talk', 'Who Answers as Whom', null, '',
-    cv.chars.length ? 'A character answers from their topics first, then from topics shared with others. Naxos, for one, answers as 0x804, then 0x80E, then 0x801.'
+    cv.chars.length ? 'A character answers from their topics first and then from topics shared with others. Naxos answers as 0x804, then 0x80E, and then 0x801.'
                     : 'No conversation in this file.',
     cv.chars.length ? [
       '<b>' + countLink(cv.chars.length + ' characters', 'The ' + cv.chars.length + ' characters with topics', cv.chars.map(c => charChip(c))) + '</b> hold <b>' +
-        countLink(topics + ' topics', 'The ' + topics + ' topics, by character', cv.chars.map(c => charChip(c, String(c.topics)))) + '</b> between them, of which <b>' +
-        countLink(String(deeper), 'The ' + deeper + ' topics that open further topics, by character', cv.chars.filter(c => c.deeper).map(c => charChip(c, String(c.deeper)))) + '</b> open further topics.',
-      '<b>' + countLink(real.length + ' groups', 'The ' + real.length + ' groups', real.map(g => groupChip(g))) + '</b> serve more than one character. The longest chains have four steps, and most characters use a House, then a city, then Human.',
+        countLink(topics + ' topics', 'The ' + topics + ' topics by character', cv.chars.map(c => charChip(c, String(c.topics)))) + '</b> between them. <b>' +
+        countLink(String(deeper), 'The ' + deeper + ' topics that open further topics by character', cv.chars.filter(c => c.deeper).map(c => charChip(c, String(c.deeper)))) + '</b> open further topics.',
+      '<b>' + countLink(real.length + ' groups', 'The ' + real.length + ' groups', real.map(g => groupChip(g))) + '</b> serve more than one character. The longest chains have four steps. Most characters use a House, then a city, and then Human.',
       alone ? '<b>' + alone.character.length + ' answer as nobody but themselves</b>: ' + alone.character.map(c => svLink(c.name, 'jumpToResource(' + c.rid + ')')).join(', ') + '.' : '',
       others.length ? 'Not every 0x8xx resource is a group: ' + others.map(g => groupChip(g, g.kind)).join(' ') : ''
     ].filter(Boolean) : [],
@@ -283,19 +283,19 @@ const MECH_GROUPS = [
     note: 'The payoff from the hero’s trials and travails.',
     ids: ['experience', 'karma', 'training', 'todo'] },
   { value: 'MECH_STATUS', title: 'Status', tile: 0x3CE,
-    note: 'Food, healing, potions, sleep, time, swamp, lava and light.',
+    note: 'Food, healing, potions, sleep, time, swamp, lava, and light.',
     ids: ['food', 'hunger', 'potions', 'status', 'clock', 'sleep', 'ground', 'light'] },
   { value: 'MECH_INTERACT', title: 'Interactions', tile: 0x29D,
     note: 'Aiming a spell or an item, opening a lock, and drinking from a fountain.',
     ids: ['target', 'locks', 'springs'] },
   { value: 'MECH_PUZZLES', title: 'Puzzles', tile: 0x266,
-    note: 'The mazes, passwords, buttons, riddles, music locks, levers, bells, dots and braziers, and the doors they open.',
+    note: 'The mazes, passwords, buttons, riddles, music locks, levers, bells, dots, braziers, and the doors they open.',
     ids: ['mazes', 'passwords', 'buttons', 'riddles', 'musiclocks', 'levers', 'bells', 'thinkadot', 'braziers', 'signals'] },
   { value: 'MECH_COMBAT', title: 'Combat', tile: 0x21E,
     note: 'What a blow does, who swings it, and what it does to a thing.',
     ids: ['combat', 'combatai', 'damage', 'gear'] },
   { value: 'MECH_ECONOMY', title: 'Economy', tile: 0x82E,
-    note: 'What things cost, and what a wager pays.',
+    note: 'What things cost and what a wager pays.',
     ids: ['shops', 'dice'] },
   { value: 'HACKERY', title: 'Hackery', tile: 0x207,
     note: 'Prop records, flags, eggs, the palette, built-in calls, and what calls what.',
