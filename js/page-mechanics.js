@@ -2652,7 +2652,7 @@ function dataFixFillChanges(body) {
     : (DATA_FIXES.find(f => f.id === part) || { title: part }).title;
   const parts = [];
   for (const row of r.rows) if (parts.indexOf(row.part) < 0) parts.push(row.part);
-  body.appendChild(el('p', 'mechSub', r.rows.length + ' changes. The words struck through are the game\u2019s, and the words after them are what the fix writes. Each place opens the script at the line that contains it. Untick a change to leave it out of the patch.'));
+  body.appendChild(el('p', 'mechSub', r.rows.length + ' changes. The words struck through are the game\u2019s. The words after them are what the fix writes. Each place opens the script at the line that contains it. Untick a change to leave it out of the patch.'));
   /* The places of a row, each a link to its line: a resource's name for its
      first place and a number for each after it, since a word misspelt twice
      in one speech is two places in one script. A row of more than a dozen
@@ -2727,7 +2727,7 @@ function renderDataFixMaker() {
     l.appendChild(words);
     return { l, b, words };
   };
-  /* Three ways to choose at once, and a search (the maintainer,
+  /* Three ways to choose together, and a search (the maintainer,
      16 October 2026). The chip that matches the choice as it stands is
      lit; a choice made by hand lights none. */
   const presets = el('div', 'fixPresets');
@@ -2740,7 +2740,7 @@ function renderDataFixMaker() {
   host.appendChild(presets);
   const offLists = DATA_FIX_GROUPS.filter(g => g.off).map(g => g.title);
   const offListsNote = (offLists.length > 1 ? offLists.slice(0, -1).join(', ') + ' and ' + offLists[offLists.length - 1] : offLists.join('')) + ' are off until chosen.';
-  host.appendChild(el('p', 'mechSub', now === 'all' ? 'Every fix, including the untested ones. ' + offListsNote
+  host.appendChild(el('p', 'mechSub', now === 'all' ? 'Every fix including the untested ones. ' + offListsNote
     : now === 'tested' ? 'Every fix seen working in the game. ' + offListsNote : ''));
   const q = el('input', 'fixSearch');
   q.type = 'search'; q.id = 'fixSearch';
@@ -2865,7 +2865,7 @@ function renderDataFixMaker() {
   // one chosen here by a visitor without it, which is the only time the
   // picker shows.
   const prog = el('div', 'mechStats');
-  prog.appendChild(el('span', 'mechSub', src ? 'Fixes to the program go into the program from ' + src.name + '.' : 'Fixes to the program need the program. Choose it, or open the installer.'));
+  prog.appendChild(el('span', 'mechSub', src ? 'Fixes to the program go into the program from ' + src.name + '.' : 'Fixes to the program need the program. Choose it or open the installer.'));
   const inp = document.createElement('input');
   inp.type = 'file'; inp.id = 'appFixFile'; inp.accept = '*/*';
   inp.onchange = function () { appFixOpenFile(inp.files && inp.files[0]); };
@@ -3092,7 +3092,7 @@ function basketMerged() {
 // with the reason given.
 function basketFork() {
   const rsrc = window.CYTHERA_RSRC_RAW;
-  if (!rsrc || !rsrc.length) { basketStatus('This copy of Cythera Data has no resource fork. Open the game in MacBinary or BinHex, or open the installer, or choose a Magpie patch.', true); return null; }
+  if (!rsrc || !rsrc.length) { basketStatus('This copy of Cythera Data has no resource fork. Open the installer or a Magpie patch. The game in MacBinary or BinHex also works.', true); return null; }
   const ids = [...window.BACKSTAGE_CHOSEN].filter(id => !rsrcFixApplied(rsrc, id));
   if (!ids.length) return rsrc;
   try { return applyDataRsrcFixes(rsrc, ids).rsrc; } catch (e) { basketStatus(e.message, true); return null; }
@@ -3162,7 +3162,7 @@ function basketDisk() {
   if (!r) return null;
   const d = downloadEditedDiskImage(r.entries[0], r.resids.length);
   if (!d) return null;
-  basketStatus(d.message + (r.clash.length ? ' ' + r.clash.join(', ') + ' change the same thing, and the later one is kept.' : ''), d.bad);
+  basketStatus(d.message + (r.clash.length ? ' ' + r.clash.join(', ') + ' change the same thing. The later one stays.' : ''), d.bad);
   return Object.assign(r, { disk: d.built });
 }
 function basketDownload() {
@@ -3176,14 +3176,14 @@ function basketDownload() {
     // once whether to allow the second file.
     for (const f of r.entries) dlBlob(new Blob([writeMacBinary(f)], { type: 'application/macbinary' }), f.name + '.bin');
     basketStatus(r.entries.map(f => f.name + '.bin').join(' and ') + ', to put in place of the files in the game’s folder.' +
-      (r.clash.length ? ' ' + r.clash.join(', ') + ' change the same thing, and the later one is kept.' : ''));
+      (r.clash.length ? ' ' + r.clash.join(', ') + ' change the same thing. The later one stays.' : ''));
     return r;
   }
   const w = basketPatch();
   if (!w) return null;
   const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
   dlBlob(new Blob([bin], { type: 'application/macbinary' }), w.name + '.bin');
-  basketStatus('Install it with Magpie.' + (w.merged.clash.length ? ' ' + w.merged.clash.join(', ') + ' change the same thing, and the later one is kept.' : ''));
+  basketStatus('Install it with Magpie.' + (w.merged.clash.length ? ' ' + w.merged.clash.join(', ') + ' change the same thing. The later one stays.' : ''));
   return w;
 }
 /* Apply to Site Data: everything in the patch, into the files the site has
@@ -3236,7 +3236,7 @@ function rsrcFixApplied(raw, id) {
   try {
     const spec = resourceForkSpec(openResourceFork(raw));
     return fix.rsrc.every(e => { const r = spec.resources.find(x => x.type === e.type && x.id === e.id); const l = r && appStrList(r.data); return !!l && !!l[e.index - 1] && decodeMacRoman(l[e.index - 1]) === e.now; });
-  } catch (e) { quiet(e, 'whether a resource-fork fix is applied'); return false; }
+  } catch (e) { quiet(e, 'whether the file has a resource-fork fix'); return false; }
 }
 // View Comparison: the patch opened in Patch Comparison, which lists what
 // it changes; nothing is changed. The section is opened, since its report
@@ -3248,7 +3248,7 @@ function basketShowPatch() {
   const w = basketPatch();
   if (!w) return false;
   let base = null;
-  try { base = window.PRISTINE_BYTES ? delverArchiveSpec(window.PRISTINE_BYTES) : null; } catch (e) { quiet(e, 'the file as it arrived, for View Comparison'); }
+  try { base = window.PRISTINE_BYTES ? delverArchiveSpec(window.PRISTINE_BYTES) : null; } catch (e) { quiet(e, 'the file as it arrived for View Comparison'); }
   const ok = patchesOpenBytes(w.bytes, w.name, base);
   if (ok) mechGo('patches');
   return ok;
@@ -3288,7 +3288,7 @@ function renderPatchBar() {
     items.appendChild(c);
   }
   for (const p of b.parts) chip(p.label, function () { basketRemove(p.key); });
-  if (!n && !ed.count && !b.parts.length) items.appendChild(el('span', 'mechSub', 'The Patch in Progress is empty. Choose fixes, or use Add to Patch below.'));
+  if (!n && !ed.count && !b.parts.length) items.appendChild(el('span', 'mechSub', 'The Patch in Progress is empty. Choose fixes or use Add to Patch below.'));
   /* Add File: a patch file joins the Patch in Progress (basketAddFile). The input is
      hidden behind a link, as a file control is the size of a button. */
   const input = document.createElement('input');
@@ -3336,12 +3336,12 @@ function renderPatchBar() {
   // choice and any of it is chosen, since it is easy to miss and costs a fix.
   const left = basketLeftOut(b.where);
   if (left.length) host.appendChild(el('div', 'mechSub patchBad', (b.where === 'disk' ? 'Not on the disk: ' : 'Not in a Magpie patch: ') +
-    (left.length > 3 ? left.length + (b.where === 'disk' ? ' of the chosen fixes, which change the program. Download as Replacement Files for those.' : ' of the choices, which change the program or a part of Cythera Data a patch cannot reach.') : left.join(', ') + '.')));
+    (left.length > 3 ? left.length + (b.where === 'disk' ? ' of the chosen fixes change the program. Download as Replacement Files for those.' : ' of the choices change the program or a part of Cythera Data a patch cannot reach.') : left.join(', ') + '.')));
   const more = el('div', 'patchBarMore');
   more.hidden = !b.more;
-  more.appendChild(el('div', 'mechSub', b.where === 'files' ? 'Cythera Data, and the program with any fix to it, as MacBinary files to put in place of the files in the game’s folder.'
-    : b.where === 'disk' ? 'Cythera Data on a disk to drop on an emulated Mac, such as infinitemac.org, with a script that puts it in the game\u2019s folder and starts the game.'
-    : b.where === 'magpie' ? 'One patch for Magpie to install into Cythera Data.' : 'The Patch in Progress, put into the files this site has open, in this browser only. The rest of the site then shows them changed.'));
+  more.appendChild(el('div', 'mechSub', b.where === 'files' ? 'Cythera Data and the program with any fix to it as MacBinary files to put in place of the files in the game’s folder.'
+    : b.where === 'disk' ? 'Cythera Data on a disk to drop on an emulated Mac (such as infinitemac.org) with a script that puts it in the game\u2019s folder and starts the game.'
+    : b.where === 'magpie' ? 'One patch for Magpie to install into Cythera Data.' : 'The Patch in Progress put into the files this site has open (in this browser only). The rest of the site then shows them changed.'));
   if (left.length > 3) {
     const ul = el('ul', 'ruleList');
     for (const t of left) ul.appendChild(el('li', '', t));
@@ -3423,7 +3423,7 @@ function compareOpenBytes(bytes, name, opts) {
   const openBytes = compareSpecOf(ARCHIVE.bytes);
   /* The file you opened is the OLDER side. Comparing a 1.0.1 installer
      against an open 1.0.4 should read as "what 1.0.4 changed", which is the
-     way round a reader expects and the opposite of what naming the open file
+     way around a reader expects and the opposite of what naming the open file
      first would give. */
   const otherName = name || 'the other file', openFileName = opts.openFileName || window.ARCHIVE_SOURCE_NAME || 'the open file';
   window.COMPARE_REPORT = opts.newer
@@ -3669,7 +3669,7 @@ function compareRecordsHTML(rep) {
       if (!added && !gone && !changed) continue;
       rows.push('<tr><td>' + svChip(c.resid, where) + '</td>' + num(added || '') + num(gone || '') + num(changed || '') + '<td>' + detail.join('<br>') + (added + gone + changed > detail.length ? '<br>and ' + (added + gone + changed - detail.length) + ' more' : '') + '</td></tr>');
     }
-    if (rows.length) parts.push('<div class="partsTitle">Zones</div><p class="mechSub">Each list, one record at a time by position: records the other file does not have, and records whose square, type, state or holder differs.</p>' +
+    if (rows.length) parts.push('<div class="partsTitle">Zones</div><p class="mechSub">Each list one record at a time by position: records the other file does not have and records whose square, type, state, or holder differs.</p>' +
       mechTable(['list', '#only in ' + svEsc(rep.bName), '#only in ' + svEsc(rep.aName), '#changed', 'which'], rows));
   }
   return parts.join('');
@@ -3697,11 +3697,11 @@ function renderCompareReport() {
   if (rep.added.length) bits.push('<b>' + rep.added.length + '</b> only in ' + svEsc(rep.bName));
   if (rep.removed.length) bits.push('<b>' + rep.removed.length + '</b> only in ' + svEsc(rep.aName));
   host.appendChild(el('p', 'mechLede', bits.join(', ') + ', and <b>' + rep.unchanged +
-    '</b> identical, of ' + rep.aCount + '.'));
-  if (rep.titleChanged) host.appendChild(el('p', 'mechSub', 'The two files name different scenarios, so their resource ids may not mean the same things.'));
+    '</b> identical out of ' + rep.aCount + '.'));
+  if (rep.titleChanged) host.appendChild(el('p', 'mechSub', 'The two files name different scenarios. Their resource ids may not mean the same things.'));
   if (rep.formatChanged) host.appendChild(el('p', 'mechSub', 'The two files have different format versions.'));
   if (rep.encryptionChanged.length) host.appendChild(el('p', 'mechSub',
-    rep.encryptionChanged.length + ' resource(s) are encrypted in one file and not in the other. Either way, the page compares the decrypted contents.'));
+    rep.encryptionChanged.length + ' resource(s) have encryption in one file and not in the other. Either way the page compares the decrypted contents.'));
 
   host.appendChild(el('div', 'partsTitle', 'Where the differences are'));
   host.appendChild(el('div', '', mechTable(['what', '#changed', '#added', '#removed'],
@@ -3792,7 +3792,7 @@ function renderCompareReport() {
      a file you opened those live on the other side. */
   host.appendChild(el('div', 'partsTitle', 'Save the differences as a patch'));
   host.appendChild(el('ul', 'ruleList',
-    '<li>The patch contains only what differs, and works in Magpie, on this page and in the browser player.</li>' +
+    '<li>The patch contains only what differs. It works in Magpie, on this page, and in the browser player.</li>' +
     '<li>Its contents come from <b>' + svEsc(rep.bName) + '</b>, so applying it makes another file match that one.</li>' +
     /* Established by reading Magpie's imports: of 299 symbols it imports one
        Resource Manager call, GetResource, and none that writes -- no
@@ -3801,7 +3801,7 @@ function renderCompareReport() {
        the flat-file set, FSpOpenDF through FSWrite. So the format cannot contain
        a resource-fork change, and a swapped font is the case that would
        otherwise go missing without a word. */
-    '<li>A patch cannot change the game\u2019s font, or anything else in the resource fork.</li>' +
+    '<li>A patch cannot change the game\u2019s font or anything else in the resource fork.</li>' +
     '<li>The second button saves it as <b>MacBinary</b>, so a Mac shows it with Magpie\u2019s icon. ' +
     'The plain file is for copying straight into a shared folder.</li>'));
   const form = el('div', 'mechStats');
@@ -3851,8 +3851,8 @@ function renderCompareApp(host, el) {
       '<b>' + r.meaningful + '</b> routine' + (r.meaningful === 1 ? '' : 's') + ' differ of ' + r.aCount +
       ': <b>' + r.added.length + '</b> added, <b>' + r.gone.length + '</b> gone, <b>' + r.resized.length +
       '</b> compiled to a different length' +
-      (r.compilerOnly ? ', of which <b>' + r.compilerOnly + '</b> differ only in how the compiler arranged the code, not in what it does' : '') +
-      '. Another ' + r.moved + ' moved position without changing, as everything after the first difference does.'));
+      (r.compilerOnly ? '. Of those <b>' + r.compilerOnly + '</b> differ only in how the compiler arranged the code and not in what it does' : '') +
+      '. Another ' + r.moved + ' moved position without changing (as everything after the first difference does).'));
     const rows = [];
     for (const x of r.added) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">added</td>' + mechNum('') + mechNum(x.length) + mechNum('') + '<td></td></tr>');
     for (const x of r.gone) rows.push('<tr><td>' + svEsc(x.name) + '</td><td class="mechSub">gone</td>' + mechNum(x.length) + mechNum('') + mechNum('') + '<td></td></tr>');
@@ -3873,7 +3873,7 @@ function renderCompareApp(host, el) {
     host.appendChild(el('div', '', mechTable(['routine', '', '#in ' + svEsc(app.aName), '#in ' + svEsc(app.bName), '#difference', 'what the compiler emitted'], rows)));
     if (!rows.length) host.appendChild(el('p', 'mechSub', 'Every routine has the same name and the same length in both.'));
   } else {
-    host.appendChild(el('p', 'mechSub', 'Neither program has names for its routines, so the page could compare only the resource forks.'));
+    host.appendChild(el('p', 'mechSub', 'Neither program has names for its routines. The page could compare only the resource forks.'));
   }
   const f = app.fork;
   if (f) {
@@ -3883,7 +3883,7 @@ function renderCompareApp(host, el) {
       .concat(f.added.map(x => '<tr><td><span class="patchMono">' + svEsc(x.type) + ' ' + x.id + '</span><span class="mechSub"> added</span></td>' + mechNum('') + mechNum(x.length) + '</tr>'))
       .concat(f.removed.map(x => '<tr><td><span class="patchMono">' + svEsc(x.type) + ' ' + x.id + '</span><span class="mechSub"> gone</span></td>' + mechNum(x.length) + mechNum('') + '</tr>'));
     host.appendChild(el('p', 'mechLede', '<b>' + f.changed.length + '</b> changed, <b>' + f.added.length +
-      '</b> added and <b>' + f.removed.length + '</b> gone, of ' + f.aCount + '.'));
+      '</b> added and <b>' + f.removed.length + '</b> gone out of ' + f.aCount + '.'));
     host.appendChild(el('div', '', mechTable(['resource', '#in ' + svEsc(app.aName), '#in ' + svEsc(app.bName)], rows)));
   }
 }
@@ -3982,26 +3982,26 @@ function renderMechanicsSheet(value) {
   // ---- the dice game ----
   const dice = diceGame();
   add('dice', 'The Dice Game', null, src('the game', 0x812),
-    dice ? 'Played at the inns with three dice, the innkeeper’s two black and the hero’s one white, ' +
+    dice ? 'Played at the inns with three dice (the innkeeper’s two black and the hero’s one white) ' +
              (dice.faces.every(f => f === dice.faces[0]) ? 'each showing one to ' + srcNum(dice.vals.faces[0])
-               : 'showing one to ' + srcNum(dice.vals.faces[0]) + ', ' + srcNum(dice.vals.faces[1]) + ' and ' + srcNum(dice.vals.faces[2]) + ' (the innkeeper’s first, the hero’s, the innkeeper’s second)') + '.'
+               : 'showing one to ' + srcNum(dice.vals.faces[0]) + ', ' + srcNum(dice.vals.faces[1]) + ', and ' + srcNum(dice.vals.faces[2]) + ' (the innkeeper’s first, the hero’s, and the innkeeper’s second)') + '.'
          : 'This file has no dice game.',
     dice ? [
       'The innkeeper throws one die and the hero throws the white one. <b>A match pays ' + srcNum(dice.vals.matchPay) + ' obol' + (dice.matchPay === 1 ? '' : 'oi') + '.</b>',
-      'Otherwise, the innkeeper throws the second die. If the white die is <b>outside</b> the two black dice, the innkeeper pays the difference to the nearer one. If it is <b>between</b> them, or equal to one, the hero loses ' +
+      'Otherwise the innkeeper throws the second die. If the white die is <b>outside</b> the two black dice the innkeeper pays the difference to the nearer one. If it is <b>between</b> them or equal to one the hero loses ' +
         (dice.vals.lose ? srcNum(dice.vals.lose) + ' obol' + (dice.vals.lose.v === 1 ? '' : 'oi') : 'the stake') + '.',
-      dice.vals.draw ? 'A win of ' + srcNum(dice.vals.draw) + ' is a draw, and the two play again.' : '',
+      dice.vals.draw ? 'A win of ' + srcNum(dice.vals.draw) + ' is a draw and the two play again.' : '',
       dice.vals.stake ? 'The hero’s stake is ' + srcNum(dice.vals.stake) + ' obol' + (dice.vals.stake.v === 1 ? '' : 'oi') + ', so a win pays that much less than the innkeeper announces.' : '',
-      dice.skillAlways ? '<b>Gambling</b> sets the hero’s die to the innkeeper’s first whenever they differed.' + (dice.skillFree ? ' This file has the skill check removed, so it happens without the skill.' : '')
-        : dice.vals.skillFaces ? '<b>Gambling</b> gives the hero’s die a one in ' + srcNum(dice.vals.skillFaces) + ' chance of changing to the innkeeper’s first, when they differed.' + (dice.skillFree ? ' This file has the skill check removed, so it happens without the skill.' : '')
+      dice.skillAlways ? '<b>Gambling</b> sets the hero’s die to the innkeeper’s first whenever they differed.' + (dice.skillFree ? ' This file has the skill check removed. It happens without the skill.' : '')
+        : dice.vals.skillFaces ? '<b>Gambling</b> gives the hero’s die a one in ' + srcNum(dice.vals.skillFaces) + ' chance of changing to the innkeeper’s first when they differed.' + (dice.skillFree ? ' This file has the skill check removed. It happens without the skill.' : '')
         : ''
     ].filter(Boolean) : [],
     dice ? '<div class="mechStats">' + stat(dice.wins, 'win') + stat(dice.pushes, 'draw') + stat(dice.losses, 'lose') + '<span class="mechStatNote">of ' + dice.total + ' throws</span>' +
-           stat((dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3), 'oboloi a game, without the skill') + stat((dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3), 'with it') + '</div>' +
-           (dice.explain ? '<blockquote class="mechQuote">' + srcNum(dice.explainVal, dice.explain.replace(/\*/g, ' ')) + '<footer>the innkeeper, in the same script</footer></blockquote>' : '') +
+           stat((dice.fair >= 0 ? '+' : '') + dice.fair.toFixed(3), 'oboloi a game without the skill') + stat((dice.skilled >= 0 ? '+' : '') + dice.skilled.toFixed(3), 'with it') + '</div>' +
+           (dice.explain ? '<blockquote class="mechQuote">' + srcNum(dice.explainVal, dice.explain.replace(/\*/g, ' ')) + '<footer>the innkeeper in the same script</footer></blockquote>' : '') +
            mechFig('All ' + dice.total + ' throws',
              mechDiceMatrix(mechDiceExact(dice.opts).cells),
-             'The innkeeper’s first die runs down the side and the second across, with the hero’s ' + dice.faces[1] + ' faces inside each cell. Red is an obol lost, gray a draw and green an obol won, brighter for more.') +
+             'The innkeeper’s first die runs down the side and the second across. The hero’s ' + dice.faces[1] + ' faces are inside each cell. Red is an obol lost, gray a draw, and green an obol won. A brighter color means more.') +
            '<div class="mechCtl">' +
              '<button onclick="diceSimPlay(1)">Throw</button>' +
              '<button onclick="diceSimPlay(1000)">1,000 games</button>' +
@@ -4016,15 +4016,15 @@ function renderMechanicsSheet(value) {
   const rollFrom = (what) => ar && ar.scale ? mechRand(mechFrac(what + ' − ' + srcNum(ar.scale.subVal), srcNum(ar.scale.divVal))) : '';
   const rollTo = v => v ? srcNum(v, v.v - 1) : '';
   add('combat', 'Combat', null, src('the attack', 0x3042) + src('a blow', 0xE88) + src('a missile', 0xE89) + src('the outcome', 0xE87),
-    cb ? 'How a blow lands, misses or meets a parry, and how much damage it does.'
+    cb ? 'How much damage a blow does and how it lands, misses, or meets a parry.'
        : 'This file has no combat scripts.',
     cb ? [
       ar && ar.reach && ar.meleeFirst ? 'The attack picks the weapon first. It swings the first thing wielded whose <b>reach</b> covers the distance' +
-        (ar.range && ar.beyondAdjacent ? '. If nothing reaches, and the target is not adjacent but is in sight, it <b>throws</b> the first thing with thrown damage as a missile' : '') + '.' +
+        (ar.range && ar.beyondAdjacent ? '. If nothing reaches and the target is not adjacent but is in sight it <b>throws</b> the first thing with thrown damage as a missile' : '') + '.' +
         (ar.squared && ar.lessOne && ar.reachAt ? ' A weapon reaches when' +
           mechEq(srcNum(ar.reachAt, 'reach') + '² ≥ across² + down² − ' + srcNum(ar.lessOneVal)) +
           (ar.rangeAt || ar.launcherAt ? 'A throw tests ' + [ar.rangeAt ? 'the ' + srcNum(ar.rangeAt, 'thrown range') : '', ar.launcherAt ? 'a launcher’s ' + srcNum(ar.launcherAt, 'range') : ''].filter(Boolean).join(' or ') + ' in place of reach.' : '') : '') +
-        (ar.squared && ar.lessOne ? ' Reach ' + srcNum(ar.lessOneVal, '1') + ' covers the eight squares around the attacker, and reach 2 covers two squares in a straight line or a knight’s move.' : '') : '',
+        (ar.squared && ar.lessOne ? ' Reach ' + srcNum(ar.lessOneVal, '1') + ' covers the eight squares around the attacker. Reach 2 covers two squares in a straight line or a knight’s move.' : '') : '',
       'A blow’s margin is' +
         mechEq('margin = reflex' + (cb.roll ? ' + ' + mechRand(rollTo(cb.roll)) : '') +
           (cb.skillOffLoop ? (cb.barehand ? ' + Barehand' : '') : ' + skill') + ' + Attack − defender’s reflex' +
@@ -4034,17 +4034,17 @@ function renderMechanicsSheet(value) {
           : 'The skill is the weapon’s' + (cb.barehand ? ', Barehand with none' : '') + (cb.missileSkill ? ', and Missile for a launcher' : '') + '. ') +
         (cb.bodyForReflex ? 'Some attackers use their <b>' + srcNum(cb.bodyForReflex, 'body') + '</b> instead of their reflex' + combatBodyUnitsText(cb.bodyForReflex.v) + '.' : 'A monster’s flags can make it use its body in place of its reflex.'),
       cb.skillOffLoop ? '<b>A weapon’s skill adds nothing</b>, because of a bug. The script ' +
-        srcNum(cb.skillOffLoop[0], 'reads it from the wrong place') + ' and always finds 0, so Sword, Axe and Mace make no difference to an armed blow.' : '',
+        srcNum(cb.skillOffLoop[0], 'reads it from the wrong place') + ' and always finds 0. So Sword, Axe, and Mace make no difference to an armed blow.' : '',
       'The weapon’s enchantment' + (cb.skillOffLoop ? ' goes' : ' and skill go') + ' on the margin first. Then a margin of 0 or less <b>misses</b>. ' +
         (cb.parry ? 'Otherwise, each blocking item the defender wears gives <b>a random number from 0 to its block rating plus the Shield skill</b>, and the shields <b>parry</b> a margin below the sum of these' : 'Otherwise the blow lands') +
         '.',
       ar && ar.bodyRoll && ar.scale ? 'The most damage a blow can do is' + mechEq('maximum = weapon’s damage + ' + rollFrom('body')) +
         (ar.reflexRoll ? 'For a throw it is' + mechEq('maximum = weapon’s thrown damage + ' + rollFrom('reflex')) : '') : '',
       cb.dmgAdd ? 'A hit does' + mechEq('damage = ' + srcNum(cb.dmgAdd) + ' + ' + mechRand('maximum − 1') + ' + enchantment') +
-        (cb.skillOffLoop ? '' : 'The skill goes on the maximum first. ') + 'The defender’s resistance comes off afterward, so the game’s word for a blow can overstate it.' : '',
+        (cb.skillOffLoop ? '' : 'The skill goes on the maximum first. ') + 'The defender’s resistance comes off afterward. The game’s word for a blow can overstate it.' : '',
       ar && ar.lodges && ar.drops ? (wrongCarryFlags().some(w => w.resid === 0x3042)
-        ? 'A thrown weapon that <b>hits or meets a parry</b> is lost, because of a bug. The game puts it inside the target without marking it as carried. One that misses lands on the target’s square.'
-        : 'A thrown weapon that <b>hits or meets a parry</b> goes into the target’s possessions, where the hero finds it once the target dies. One that misses lands on the target’s square. Nothing else brings it back.') + (ar.ammoSpent ? ' A launcher uses up one piece of ammunition per shot.' : '') : '',
+        ? 'A bug loses a thrown weapon that <b>hits or meets a parry</b>. The game puts it inside the target without marking it as carried. One that misses lands on the target’s square.'
+        : 'A thrown weapon that <b>hits or meets a parry</b> goes into the target’s possessions. The hero finds it once the target dies. One that misses lands on the target’s square. Nothing else brings it back.') + (ar.ammoSpent ? ' A launcher uses up one piece of ammunition per shot.' : '') : '',
       cb.words.length ? 'The game describes a blow by how much damage it does: ' + cb.words.map(w => '<i>' + svEsc(w.word) + '</i> under ' + srcNum(w.val)).join(', ') + (cb.last ? ', and <i>' + svEsc(cb.last.word) + '</i> above.' : '.') : ''
     ].filter(Boolean) : [],
     '', '');
@@ -4067,26 +4067,26 @@ function renderMechanicsSheet(value) {
     const listStrength = rs => rs.map(r => nm(r) + ' ' + srcNum(r.strength)).join(', ');
     const q = s => s ? ' (' + srcQuoteText([0xE49, 0xE4A], s) + ')' : '';
     add('damage', 'Damage to Things', null, src('a blow', 0xE87) + src('a door', 0xE49) + src('a chest', 0xE4A),
-      rows.length ? countLink(rows.length + ' kinds of thing', 'The ' + rows.length + ' kinds of thing that take damage by separate rules', rows.map(nm)) + ', doors and chests among them, take damage by separate rules.'
-                  : 'No item class in this file takes damage by a separate rule.',
+      rows.length ? countLink(rows.length + ' kinds of thing', 'The ' + rows.length + ' kinds of thing that take damage by separate rules', rows.map(nm)) + ' (doors and chests among them) take damage by separate rules.'
+                  : 'No item class in this file has a separate damage rule.',
       rows.length ? [
         oneTable ? typed.map(nm).join(', ') + ' take ' +
           typed[0].types.map((t, i, all) => '<b>' + opWord(t) + '</b> from ' + srcNum(t.mask, carriers(all, i) ? svEsc(carriers(all, i)) : 'type ' + t.mask.v)).join('; ') +
-          '. Fire and other damage is unchanged.' : '',
+          '. Fire and other damage stay the same.' : '',
         door && door.destroy && doors.length ? 'Each locked door has a strength (' + listStrength(doors) + '). A blow above <b>' + srcNum(door.destroy.factor) + ' × the strength</b> destroys it' + q(door.messageDestroyed) + '.' +
-          (door.opens ? ' Below that, a blow greater than what is left of the strength ' + srcNum(door.opens, 'bashes it open') + q(door.messageOpened) : '') +
-          (door.wear && door.step ? ', and one above what is left ÷ ' + srcNum(door.wear) + ' wears it down by ' + srcNum(door.step) + q(door.messageWorn) : '') + '.' +
+          (door.opens ? ' Below that a blow greater than the remaining strength ' + srcNum(door.opens, 'bashes it open') + q(door.messageOpened) : '') +
+          (door.wear && door.step ? ', and one above the remaining strength ÷ ' + srcNum(door.wear) + ' wears it down by ' + srcNum(door.step) + q(door.messageWorn) : '') + '.' +
           (door.magicOnlyDestroyed ? ' The only way past a magically locked door is to destroy it.' : '') + ' A blow opens a closed, unlocked door, and does nothing to an open one.' : '',
-        chest && chest.destroy && chests.length ? 'A chest’s strength: ' + listStrength(chests) + '. Whatever its state, a blow above <b>' + srcNum(chest.destroy.factor) + ' × the strength</b> destroys it' + (chest.spills ? ' and drops what it held' : '') + '.' +
-          (chest.opens ? ' Locked, a blow above what is left ' + srcNum(chest.opens, 'opens it') + q(chest.messageOpened) : '') +
-          (chest.wear && chest.step ? ', one above what is left ÷ ' + srcNum(chest.wear) + ' wears it down by ' + srcNum(chest.step) + q(chest.messageWorn) : '') +
+        chest && chest.destroy && chests.length ? 'A chest’s strength: ' + listStrength(chests) + '. In any state a blow above <b>' + srcNum(chest.destroy.factor) + ' × the strength</b> destroys it' + (chest.spills ? ' and drops what it held' : '') + '.' +
+          (chest.opens ? ' On a locked chest a blow above the remaining strength ' + srcNum(chest.opens, 'opens it') + q(chest.messageOpened) : '') +
+          (chest.wear && chest.step ? ', and one above the remaining strength ÷ ' + srcNum(chest.wear) + ' wears it down by ' + srcNum(chest.step) + q(chest.messageWorn) : '') +
           (chest.messageHeld ? ', and a smaller one shows ' + srcQuoteText(0xE4A, chest.messageHeld) + (/[.!?]$/.test(chest.messageHeld) ? '' : '.') : '.') +
-          ' The only way past a magically locked chest is to destroy it. A blow opens a closed, unlocked chest.' : '',
-        (door && door.setsOff) || (chest && chest.setsOff) ? 'Before a blow on a door or chest counts, the game uses anything inside it marked with flag ' + srcNum((door && door.setsOff) || chest.setsOff) + ' on the current character and removes it.' : '',
+          ' The only way past a magically locked chest is to destroy it. A blow opens a closed and unlocked chest.' : '',
+        (door && door.setsOff) || (chest && chest.setsOff) ? 'Before a blow on a door or chest counts the game uses anything inside it marked with flag ' + srcNum((door && door.setsOff) || chest.setsOff) + ' on the current character and removes it.' : '',
         (function () {
           const bl = blastRules();
           if (!bl || !bl.center) return '';
-          return 'A <b>bomb</b> is the one thing that damages a square rather than a target. When its fuse runs out, it does <b>' + srcNum(bl.center) + '</b> damage to everything on its square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ', as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '. A locked door whose strength is below a fifth of that drops to a strength of 1.';
+          return 'A <b>bomb</b> is the one thing that damages a square rather than a target. When its fuse runs out it does <b>' + srcNum(bl.center) + '</b> damage to everything on its square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ' as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '. A locked door whose strength is below a fifth of that drops to a strength of 1.';
         })()
       ].filter(Boolean) : [],
       rows.length ? table(['thing', 'when struck', 'message'], rows.map(r => '<tr><td>' + propChip(r.pt, r.name) + '</td><td>' + damageRowWords(r) + ' ' + srcNum({ resid: r.resid, at: r.at }, 'script') + '</td><td>' +
@@ -4098,7 +4098,7 @@ function renderMechanicsSheet(value) {
   const kind = r => r.melee ? 0 : r.thrown ? 1 : r.ranged ? 2 : r.ammo ? 3 : r.armor ? 4 : 5;
   gear.sort((a, b) => kind(a) - kind(b) || ((b.damage || 0) - (a.damage || 0)) || ((b.protection || b.block || 0) - (a.protection || a.block || 0)) || a.name.localeCompare(b.name));
   add('gear', 'Weapons and Armor', null, src('the classes', 0x1000),
-    gear.length ? 'Combat values of ' + gear.length + ' weapons, launchers, ammunition and armor.' : 'No item in this file has combat values.',
+    gear.length ? 'Combat values of ' + gear.length + ' weapons, launchers, ammunition, and armor.' : 'No item in this file has combat values.',
     gear.length ? [
       'A blow that lands does up to the weapon’s <b>damage</b>, plus a bonus for a high body (see Combat). <b>Reach</b> and a launcher’s <b>range</b> work as under Combat.',
       gear.some(r => r.thrownDamage !== null) ? 'A character throws a weapon with <b>thrown</b> damage up to its <b>range</b> when nothing they wield reaches the target.' : '',
@@ -4123,10 +4123,10 @@ function renderMechanicsSheet(value) {
   const pwBuild = gear.find(r => r.melee) || gear[0] || null;
   const pwEx = pw.examines.length ? pw.examines[0] : null;
   const pwByByte = k => ({ r: pw.readers.filter(x => x.ops.includes('get ' + k)), w: pw.readers.filter(x => x.ops.includes('set ' + k)) });
-  add('propword', 'Prop Records: Type, Aspect, Data1 and Data2', null, src('the outcome', 0xE87) + (pwEx ? src('Examine', 0x1000 + pwEx.pt) : ''),
-    'Everything placed in the world is a prop record: a number for what it is, and two values, Data1 and Data2, whose meaning depends on the kind of thing.',
+  add('propword', 'Prop Records: Type, Aspect, Data1, and Data2', null, src('the outcome', 0xE87) + (pwEx ? src('Examine', 0x1000 + pwEx.pt) : ''),
+    'Everything placed in the world is a prop record. It has a number for what it is and two values (Data1 and Data2) whose meaning depends on the kind of thing.',
     [
-      'The number is <b>type + 1,024 × aspect</b>. The create-a-prop cheat prompts for it, then Data1 in decimal, then Data2 in hex.' +
+      'The number is <b>type + 1,024 × aspect</b>. The create-a-prop cheat prompts for it, then Data1 in decimal, and then Data2 in hex.' +
         (pwBuild ? ' Any item’s page builds one under Prop record: ' + svLink(pwBuild.name, 'showItemDetail(' + pwBuild.pt + ')') + '.' : ''),
       'Aspect <i>n</i> draws the base tile plus <i>n</i>, and the prop <b>has that tile’s name</b>. ' + mechAspectReaders(),
       mechAspectContrast(),
@@ -4134,7 +4134,7 @@ function renderMechanicsSheet(value) {
         (pw.ench.magic ? '. <b>Any enchantment makes a blow magical</b>, which hurts monsters that resist ordinary weapons' : '') + '. Arrows and other ammunition ignore it.' : '',
       pwEx && pwEx.hiVal && pwEx.loVal ? 'Examine reports it on ' + pw.examines.map(e => pwName(e.pt)).join(', ') + ': ' + srcQuoteText(0x1000 + pwEx.pt, pwEx.above2) + ' above ' + srcNum(pwEx.hiVal) + ', ' + srcQuoteText(0x1000 + pwEx.pt, pwEx.above0) + ' above ' + srcNum(pwEx.loVal) + '.' : '',
       pw.zoneReaders.length ? '<b>Data3</b> is both bytes read as one value. ' + countLink(pw.zoneReaders.length + ' passage classes', 'The ' + pw.zoneReaders.length + ' passage classes that pass Data3 to ChangeZone', pw.zoneReaders.map(pt => svLink(pwName(pt), 'showPropTypeDetail(' + pt + ')'))) + ' pass it to ChangeZone as the destination.' : '',
-      pw.scripts ? '<b>' + countLink(pw.scripts + ' scripts', 'The ' + pw.scripts + ' scripts that read or write Data1, Data2 or Data3', resChips(pw.scriptIds)) + '</b> read or write the bytes, ' + countLink(String(pw.readers.length), 'The ' + pw.readers.length + ' class scripts that read or write Data1, Data2 or Data3', resChips(pw.readers.map(r => r.resid))) + ' of them class scripts. What each byte means depends on the class.' : 'No script in this file reads the bytes.'
+      pw.scripts ? '<b>' + countLink(pw.scripts + ' scripts', 'The ' + pw.scripts + ' scripts that read or write Data1, Data2, or Data3', resChips(pw.scriptIds)) + '</b> read or write the bytes. ' + countLink(String(pw.readers.length), 'The ' + pw.readers.length + ' class scripts that read or write Data1, Data2, or Data3', resChips(pw.readers.map(r => r.resid))) + ' of them are class scripts. What each byte means depends on the class.' : 'No script in this file reads the bytes.'
     ].filter(Boolean),
     (pw.placed.length ? '<div class="mechSub">Placed with an enchantment</div>' +
       table(['item', 'where', '#aspect', '#Data1'], pw.placed.map(r => '<tr><td>' + svLink(pwName(r.pt), 'showItemDetail(' + r.pt + ')') + '</td><td>' +
@@ -4157,10 +4157,10 @@ function renderMechanicsSheet(value) {
     const reach = tg.filter(t => t.word & 0x8000);
     const nameLink = t => srcNum(t.val, t.name);
     add('target', 'What the ‘Use’ Command Can Target', null, '',
-      tg.length ? 'What each of the ' + tg.length + ' spells and items that need a target can aim at.'
+      tg.length ? 'The targets for each of the ' + tg.length + ' spells and items that need one.'
                 : 'No script in this file prompts for a target.',
       tg.length ? [
-        '<b>' + countLink(String(reach.length), 'The ' + reach.length + ' spells and items that need a target on the user’s square or next to it', reach.map(nameLink)) + '</b> of these need a target on the user’s square or next to it' + (walk ? '. The game ' + srcNum(walk.at, 'rejects') + ' one further away, though the pointer looks the same over it' : '') + '.'
+        '<b>' + countLink(String(reach.length), 'The ' + reach.length + ' spells and items that need a target on the user’s square or next to it', reach.map(nameLink)) + '</b> of these need a target on the user’s square or next to it' + (walk ? '. The game ' + srcNum(walk.at, 'rejects') + ' one further away. The pointer looks the same over it' : '') + '.'
       ].filter(Boolean) : [],
       table(['#word', 'accepts', 'used by'], [...byWord.entries()].sort((a, b) => (b[0] & 0x8000) - (a[0] & 0x8000) || a[0] - b[0]).map(([w, list]) =>
         '<tr><td class="num">' + propWordHex(w) + '</td><td>' + targetWordWords(w).map(svEsc).join(', ') + '</td><td>' +
@@ -4174,7 +4174,7 @@ function renderMechanicsSheet(value) {
   // ---- experience and levels ----
   const xp = experienceRules();
   add('experience', 'Experience and Levels', null, src('every award', 0xE8B) + src('a new level', 0xE86),
-    xp.rule ? 'Fighting and the deeds listed below earn experience, and enough of it raises a character’s level and with it their full health.' : 'This file has no experience script.',
+    xp.rule ? 'Fighting and the deeds listed below earn experience. Enough of it raises a character’s level and with it their full health.' : 'This file has no experience script.',
     xp.rule ? [
       'A character gains experience' + (xp.rule.cap ? ' up to <b>' + srcNum(xp.rule.cap, xp.rule.cap.v.toLocaleString('en-US')) + '</b>' : '') + '.' +
         (xp.rule.doubling && xp.rule.base ? ' The level rises by one when experience passes' +
@@ -4186,9 +4186,9 @@ function renderMechanicsSheet(value) {
       xp.rule.defenseStandIn && xp.rule.manaStandIn ? (function () {
         const d = xp.rule.defenseStandIn, m = xp.rule.manaStandIn;
         return 'A character ' + srcNum(d.call, 'without Defense') + ' counts it as nothing, ' + srcNum(d.half, 'half their level') + ', ' + srcNum(d.same, 'their level') + ' or ' + srcNum(d.dbl, 'twice their level') +
-          ', by ' + srcNum(d.bits, 'two bits of their record') + '. A character ' + srcNum(m.call, 'without Mana') + ' counts it ' + srcNum(m.bits, 'the same way') + '. Most of the people who join have neither skill, so this is how they grow. The game keeps full health in one byte, so a total above 255 starts again from 0.';
+          ', by ' + srcNum(d.bits, 'two bits of their record') + '. A character ' + srcNum(m.call, 'without Mana') + ' counts it ' + srcNum(m.bits, 'the same way') + '. Most of the people who join have neither skill. This is how they grow. The game stores full health in one byte. A total above 255 starts again from 0.';
       })() : '',
-      xp.rule.gapAdd ? 'A blow earns its damage in experience, at most the victim’s lead in levels plus ' + srcNum(xp.rule.gapAdd) + (xp.rule.pastGap ? ', or ' + srcNum(xp.rule.pastGap) + ' against a lower-level victim' : '') + '.' : '',
+      xp.rule.gapAdd ? 'A blow earns its damage in experience up to the victim’s lead in levels plus ' + srcNum(xp.rule.gapAdd) + (xp.rule.pastGap ? ' or ' + srcNum(xp.rule.pastGap) + ' against a lower-level victim' : '') + '.' : '',
       'The game divides an award to the party among its members.'
     ].filter(Boolean) : [],
     (xp.rule ? mechExperienceFigure(xp.rule) : '') +
@@ -4235,7 +4235,7 @@ function renderMechanicsSheet(value) {
     [],
     (fd.potions.length ? table(['potion', 'does', 'effect'], fd.potions.map(p => '<tr><td>' + svEsc(p.name) + '</td><td>' + p.effects.map(x => srcNum(x.src, x.text)).join(', ') + (p.message ? ' <span class="inspDim">' + srcQuoteText(p.resid, p.message) + '</span>' : '') + '</td><td>' + svChip(p.resid) + '</td></tr>')) : ''), '');
   add('food', 'Food', null, '',
-    fd.foods.length ? 'Eating fills a character up, and each food fills by a different amount.' : 'This file has no food.',
+    fd.foods.length ? 'Eating fills a character up. Each food fills by a different amount.' : 'This file has no food.',
     /* The fall, its period and the ceiling are Hunger's readers, so each
        figure links to the instruction or line it was read from. */
     fd.foods.length && hungerNotes().ceiling !== null && model ? (function () {
@@ -4250,7 +4250,7 @@ function renderMechanicsSheet(value) {
   const st = statusRules();
   const statusNames = new Set([...st.applies.keys(), ...st.cures.keys()]);
   add('status', 'Status Effects', null, '',
-    st.applies.size ? 'What gives each status, for how long in clock units' + (perHour ? ' (' + srcNum(clk.unitsPerHour) + ' to the hour)' : '') + ', and what cures it.' : 'No script in this file applies a status.',
+    st.applies.size ? 'What gives each status and how long it lasts in clock units' + (perHour ? ' (' + srcNum(clk.unitsPerHour) + ' to the hour)' : '') + '. The cures are here too.' : 'No script in this file applies a status.',
     (function () {
       const rules = [];
       let cures = [], grants = [];
@@ -4273,7 +4273,7 @@ function renderMechanicsSheet(value) {
       // state, in the order the program tests them, the first that passes
       // used.
       let pc = null;
-      try { pc = appImage() ? exePartyColors() : null; } catch (e) { quiet(e, 'reading the party bar\u2019s colours'); }
+      try { pc = appImage() ? exePartyColors() : null; } catch (e) { quiet(e, 'reading the party bar\u2019s colors'); }
       if (!pc) return '';
       const sw = n => '<span class="stateSwatch" style="background:#' + (PALETTE[n] || '000000') + '"></span>';
       const rows = pc.rows.map(r => '<tr><td>' + sw(r.color.v) + ' ' + srcNum(r.color) + '</td><td>' +
@@ -4289,13 +4289,13 @@ function renderMechanicsSheet(value) {
   // the complaint and the ceiling, off the archive.
   const hg = hungerNotes();
   add('hunger', 'Hunger and Healing', null, '',
-    'Each character’s nutrition' + (hg.ceiling !== null ? ' runs from 0 to ' + srcNum(hg.ceilingVal) + '. It' : '') + ' falls as time passes, and a fed character slowly heals.' + (model ? '' : ' ' + noApp),
+    'Each character’s nutrition' + (hg.ceiling !== null ? ' runs from 0 to ' + srcNum(hg.ceilingVal) + '. It' : '') + ' falls as time passes. A fed character slowly heals.' + (model ? '' : ' ' + noApp),
     [
       model ? 'Nutrition falls by ' + srcNum(clk.fall) + ' every ' + period(model.hungerIndex).replace(/^(<button[^>]*>)(an |a )?/, '$1') + ' for every character on the map.' : '',
       (hg.complains !== null ? 'A character complains of hunger below <b>' + srcNum(hg.complainsVal) + '</b>.' : ''),
       (function () {
         let pc = null;
-        try { pc = appImage() ? exePartyColors() : null; } catch (e) { quiet(e, 'reading the party bar\u2019s hunger colour'); }
+        try { pc = appImage() ? exePartyColors() : null; } catch (e) { quiet(e, 'reading the party bar\u2019s hunger color'); }
         return pc && pc.hungry ? 'The party bar draws a party member with nutrition below ' + srcNum(pc.hungry) + ' on gray.' : '';
       })(),
       (hg.ceiling !== null ? (function () {
@@ -4308,7 +4308,7 @@ function renderMechanicsSheet(value) {
           const lo = i << model.levelShift, hi = ((i + 1) << model.levelShift) - 1;
           return 'every ' + period(i).replace(/^(<button[^>]*>)(an |a )?/, '$1') + (i === model.levelCap ? ' from level ' + lo + ' up' : lo === hi ? ' at level ' + lo : ' at levels ' + lo + ' and ' + hi);
         }).join(', ') + '. Both stop at full.' : '',
-      model ? 'At 0 there is no healing, but hunger does no damage.' : ''
+      model ? 'At 0 there is no healing. Hunger does no damage.' : ''
     ].filter(Boolean),
     '<div class="mechStats">' + (hg.ceiling !== null ? '<span class="mechStat"><b>' + srcNum(hg.ceilingVal) + '</b> nutrition at most</span>' : '') +
       (model ? '<span class="mechStat"><b>' + srcNum(clk.fall) + '</b> each time ' + period(model.hungerIndex) + ' passes</span>' : '') +
@@ -4329,7 +4329,7 @@ function renderMechanicsSheet(value) {
           (lk.rule.breaks ? 'Otherwise the pick <b>breaks</b>.' : '') +
           (up ? ' So a difficulty of 1 counts as much as a difficulty of ' + n.per.v + '.' : '');
       })() : '',
-      lk.requiresSkill ? 'The lockpick cannot be used at all without the <b>Lock Picking</b> skill.' : '',
+      lk.requiresSkill ? 'Nobody can use the lockpick without the <b>Lock Picking</b> skill.' : '',
       (function () {
         // Whose reflex and whose skill: both scripts name the player
         // character rather than whoever holds the pick, which is what makes
@@ -4348,7 +4348,7 @@ function renderMechanicsSheet(value) {
   const sh = shopRules();
   add('shops', 'Shops', null, src('the counter', 0xEA5),
     sh.shops.length ? sh.shops.length + ' shops, what each sells, and at what price.' : 'No script in this file opens a shop.',
-    sh.shops.length ? ['Each vendor bargains down from the listed price by four amounts set for that vendor, listed under terms' + (sh.haggling ? '. <b>Haggling</b> lowers it by a further random amount from 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
+    sh.shops.length ? ['Each vendor bargains down from the listed price by the four amounts under terms' + (sh.haggling ? '. <b>Haggling</b> lowers it by a further random amount from 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
     mechShopFigure(sh) +
     table(['vendor', 'goods and listed prices in oboloi', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.character !== null && characterRecord(spn.character) ? characterChip(spn.character) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
@@ -4358,7 +4358,7 @@ function renderMechanicsSheet(value) {
   // ---- training ----
   const tr = trainingRules();
   add('training', 'Training', null, src('a lesson', 0xEB1),
-    tr.teachers.length ? tr.teachers.length + ' teachers, and the skills each one teaches.' : 'No script in this file teaches a skill.',
+    tr.teachers.length ? tr.teachers.length + ' teachers and the skills each one teaches.' : 'No script in this file teaches a skill.',
     tr.teachers.length ? [
       'A lesson raises the skill one level' + (tr.points.perLesson !== null ? ' and costs <b>' + srcNum(tr.points.perLessonVal) + ' training point' + (tr.points.perLesson === 1 ? '' : 's') + '</b>' : '') + '.',
       (tr.points.atStart !== null ? 'A new character starts with <b>' + srcNum(tr.points.atStartVal) + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + srcNum(tr.points.perLevel) + '</b> with each level' : '') + '.',
@@ -4375,11 +4375,11 @@ function renderMechanicsSheet(value) {
   // ---- sleep ----
   const sl = sleepRules();
   add('sleep', 'Sleeping', null, src('the bed', 0x100E) + src('the night', 0xE93),
-    sl ? 'How much a night in each bed heals' + (sl.inns.some(x => x.priceVal) ? ', and what a room at each inn costs' : '') + '.' : 'This file has no beds, or no sleep script.',
+    sl ? 'How much a night in each bed heals' + (sl.inns.some(x => x.priceVal) ? ', and what a room at each inn costs' : '') + '.' : 'This file has no beds or no sleep script.',
     sl ? [
-      sl.own !== null ? 'The hero’s bed in Land King Hall has quality <b>' + srcNum(sl.ownVal) + '</b>. An inn’s bed has the quality of the room the hero pays for, and the hero cannot sleep in it before paying.' : '',
+      sl.own !== null ? 'The hero’s bed in Land King Hall has quality <b>' + srcNum(sl.ownVal) + '</b>. An inn’s bed has the quality of the room the hero buys. The hero cannot sleep in it before paying.' : '',
       sl.quarter && sl.hours ? 'The night passes <b>' + srcNum(sl.quarterVal) + ' clock units at a time</b>' + (perHour && sl.quarterVal.v * sl.hoursVal.v === perHour ? ', a ' + (sl.hoursVal.v === 4 ? 'quarter' : '1/' + sl.hoursVal.v) + ' of an hour' : '') + (sl.owner ? ', and if the bed’s owner turns up they throw the hero out (' + srcQuote(sl.owner) + ')' : '') + '.' : '',
-      sl.half ? 'Above quality 0' + (sl.soundly ? ' (' + srcQuote(sl.soundly) + ')' : '') + ' the party also gains a bonus in health and magic.' + mechEq('bonus = ' + mechFrac('amount healed overnight × quality', srcNum(sl.div))) + (sl.own !== null ? '<b>The hero’s bed, quality ' + sl.own + ', multiplies the usual healing by ' + (1 + sl.own / sl.div.v) + '.</b>' : '') : '',
+      sl.half ? 'Above quality 0' + (sl.soundly ? ' (' + srcQuote(sl.soundly) + ')' : '') + ' the party also gains a bonus in health and magic.' + mechEq('bonus = ' + mechFrac('amount healed overnight × quality', srcNum(sl.div))) + (sl.own !== null ? '<b>The hero’s bed (quality ' + sl.own + ') multiplies the usual healing by ' + (1 + sl.own / sl.div.v) + '.</b>' : '') : '',
       sl.toss ? 'Quality 0 is ' + srcQuote(sl.toss) + ', the usual rate only.' : '',
       sl.magicGuard || sl.magicCap ? 'Because of a bug the game caps the magic bonus at ' + srcNum(sl.magicGuard || sl.magicCap, 'full health') + ', so a character can wake with more magic than their maximum.' : ''
     ].filter(Boolean) : [],
@@ -4404,12 +4404,12 @@ function renderMechanicsSheet(value) {
       return { method: method + (twice && p >= 0 ? r.name.slice(p) : ''), cls: cut >= 0 ? base.slice(0, cut) : '' };
     };
     const flagWords = (bit) => { const f = clk && clk.statusWord ? exeFlagOfStatusBit(bit, clk.statusWord.v) : null; return f ? ' (flag ' + srcNum(f) + (dvmFlagName(f.v) ? ', ' + svEsc(dvmFlagName(f.v)) : '') + ')' : ''; };
-    add('clock', 'The Clock, Poison and Time', null, '',
+    add('clock', 'The Clock, Poison, and Time', null, '',
       model ? 'The game counts time in units of <b>1/' + srcNum(clk.unitsPerHour) + ' of an hour</b>, and measures every duration in them.'
         : 'The game has one clock and measures every duration in it. ' + noApp,
       model ? [
         'Things happen every ' + clk.table.v.map((u, i) => srcNum(clk.table, u) + ' <span class="inspDim">(' + exeClockWords(u, perHour) + ')</span>').join(', ') + '.',
-        clk.poisonBit && clk.regenBit && clk.deathAt && clk.statusWord ? 'Every ' + period(model.poisonIndex).replace(/^(<button[^>]*>)(an |a )?/, '$1') + ', a <b>poisoned</b> character' + flagWords(clk.poisonBit) + ' loses ' + srcNum(clk.poisonStep) + ' health, and <b>dies</b> once health is ' + srcNum(clk.deathAt) + ' or less. A character with <b>regeneration</b>' + flagWords(clk.regenBit) + ' gains ' + srcNum(clk.regenStep) + '. One with both receives ' + srcNum(clk.coinToss, 'one or the other at random') + '.' : '',
+        clk.poisonBit && clk.regenBit && clk.deathAt && clk.statusWord ? 'Every ' + period(model.poisonIndex).replace(/^(<button[^>]*>)(an |a )?/, '$1') + ' a <b>poisoned</b> character' + flagWords(clk.poisonBit) + ' loses ' + srcNum(clk.poisonStep) + ' health and <b>dies</b> once health is ' + srcNum(clk.deathAt) + ' or less. A character with <b>regeneration</b>' + flagWords(clk.regenBit) + ' gains ' + srcNum(clk.regenStep) + '. One with both receives ' + srcNum(clk.coinToss, 'one or the other at random') + '.' : '',
         clk.lighting && clk.schedules && clk.quarterShift ? 'The light changes every ' + srcNum(clk.lighting, exeClockWords(1 << clk.quarterShift.v, perHour)) + ', and the schedules every ' + srcNum(clk.schedules, 'hour') + '.' : '',
         sp.rule && sp.rule.timing ? 'A spell takes ' + srcNum(sp.rule.timeBase) + ' + ' + srcNum(sp.rule.timeMult) + ' × level clock units. Monsters move while that time passes.' : ''
       ].filter(Boolean) : [],
@@ -4475,9 +4475,9 @@ function renderMechanicsSheet(value) {
     const body = rows.map(r => '<tr><td>' + svLink(r.name, 'jumpToResource(' + r.resid + ')') + '</td>' + srcCell(at[r.resid] || null, r.lvl) +
       '<td class="num">' + r.night + '</td><td class="num">' + r.noon + '</td></tr>').join('');
     if (rows.length) add('light', 'Light', null, '',
-      'How dark each place is, and how lights brighten it.' + (cap ? ' The level runs from 0, drawn black, to ' + srcNum(cap) + ', not darkened at all.' : ''),
+      'How dark each place is and how lights brighten it.' + (cap ? ' The level runs from 0 (drawn black) to ' + srcNum(cap) + ' (not darkened at all).' : ''),
       [
-        countLink(String(fixed), 'The ' + fixed + ' zones equally dark at every hour', rows.filter(r => r.lvl < 0).map(r => svLink(r.name, 'jumpToResource(' + r.resid + ')'))) + ' of the ' + rows.length + ' zones, the indoor ones, are equally dark at every hour. The rest follow the daylight.',
+        countLink(String(fixed), 'The ' + fixed + ' zones equally dark at every hour', rows.filter(r => r.lvl < 0).map(r => svLink(r.name, 'jumpToResource(' + r.resid + ')'))) + ' of the ' + rows.length + ' zones (the indoor ones) are equally dark at every hour. The rest follow the daylight.',
         '<b>Every light ' + (lightView ? srcNum(lightView) : 'in view') + ' brightens the whole screen</b>, a brighter one more' +
           (lightNear && lightFar ? '. One ' + srcNum(lightNear) + ' squares away or more, counting along rows and columns, gives half as much, and one ' + srcNum(lightFar) + ' or more a quarter' : ', and a nearer one more') +
           '. Light passes through walls.',
@@ -4510,8 +4510,8 @@ function renderMechanicsSheet(value) {
       wt ? 'What each kind of water does to whoever drinks it.'
          : 'This file has no fountains.',
       wt ? [
-        wt.gate && wt.setter ? 'One kind changes during the game. It is brackish, sometimes poisonous, until the hero picks up ' +
-          svLink(wt.setter.name, wt.setter.pt !== null ? 'showItemDetail(' + wt.setter.pt + ')' : 'jumpToResource(' + wt.setter.resid + ')') + ', and fresh, sometimes reviving, after that.' : '',
+        wt.gate && wt.setter ? 'One kind changes during the game. It is brackish and sometimes poisonous until the hero picks up ' +
+          svLink(wt.setter.name, wt.setter.pt !== null ? 'showItemDetail(' + wt.setter.pt + ')' : 'jumpToResource(' + wt.setter.resid + ')') + '. After that it is fresh and sometimes reviving.' : '',
         'A drink affects the character who uses the fountain.'
       ].filter(Boolean) : [],
       wt ? table(['#kind', 'message', 'does', 'where it stands'], wt.kinds.map(k => '<tr>' + srcCell(k.val) + '<td>' + (k.message[0] ? srcQuoteText(0x1036, k.message[0]) : '') + '</td><td>' + kindWords(k) + '</td><td>' + where(k.kind) + '</td></tr>')) : '', '');
@@ -4529,9 +4529,9 @@ function renderMechanicsSheet(value) {
       'Monsters fight by scripts written in a small set of words: tests about the battle, actions to take, and strategies that choose between them.',
       [
         (tests || acts) ? 'This file adds <b>' + countLink(tests + ' tests', 'The ' + tests + ' combat AI tests this file adds', resChips(testIds)) + '</b> and <b>' + countLink(acts + ' actions', 'The ' + acts + ' combat AI actions this file adds', resChips(actIds)) + '</b>.' : '',
-        'The scripts and the guide to writing them, the AI Scripting Document, come with the game. Both are under Data › Combat AI when the installer is open.'
+        'The scripts and the guide to writing them (the AI Scripting Document) come with the game. Both are under Data › Combat AI when the installer is open.'
       ].filter(Boolean),
-      rows.length ? table(['list', 'words'], rows) : '<div class="sv-note">' + (app ? 'None of the lists is in this resource fork.' : 'Open the game from its installer, under Settings, to read the vocabulary from the program.') + '</div>',
+      rows.length ? table(['list', 'words'], rows) : '<div class="sv-note">' + (app ? 'None of the lists is in this resource fork.' : 'Open the game from its installer under Settings to read the vocabulary from the program.') + '</div>',
       /* Through Components first: the compiled scripts in subindex 3 and the
          scenario's tests and actions in 8 are what the engine runs, and the
          .ai text under Data is what they were compiled from. */
@@ -4565,13 +4565,13 @@ function renderMechanicsSheet(value) {
       return '<tr>' + num(s) + '<td>' + svEsc(line) + '</td><td>' + character + '</td><td>' + (off || '<span class="mechSub">never</span>') + '</td></tr>';
     });
     add('todo', 'The To Do List', null, td.textResid !== null ? src('the lines', td.textResid) : '',
-      td.adds.length ? 'Every line of the To Do window, who adds it and who strikes it off. A script can strike a line off before the hero finishes its task, or never.'
+      td.adds.length ? 'Every line of the To Do window with who adds it and who strikes it off. A script can strike a line off before the hero finishes its task or never.'
                      : 'No script in this file writes a To Do line.',
       td.adds.length ? [
         '<b>' + countLink(td.adds.length + ' lines added', 'The ' + td.adds.length + ' places a script adds a To Do line', td.adds.map(a => srcNum(a.slot, lineOf(a.slot.v)))) + '</b> and <b>' +
           countLink(td.dones.length + ' struck off', 'The ' + td.dones.length + ' places a script strikes a To Do line off', td.dones.map(d => srcNum(d.slot, lineOf(d.slot.v)))) + '</b>, over <b>' +
           countLink(slots.size + ' slots', 'The ' + slots.size + ' To Do slots', [...slots.keys()].sort((a, b) => a - b).map(s => { const g = slots.get(s); return srcNum((g.adds[0] || g.dones[0]).slot, lineOf(s)); })) + '</b>.',
-        elsewhere.length ? '<b>' + countLink(elsewhere.length + ' of them show a different line', 'The ' + elsewhere.length + ' places a script adds a slot with another line’s words', elsewhere.map(a => srcNum(a.line, lineOf(a.line.v) + ', for slot ' + a.slot.v))) + '</b> from the slot’s. It is the same errand, in the words of whoever gave it to the hero.' : '',
+        elsewhere.length ? '<b>' + countLink(elsewhere.length + ' of them show a different line', 'The ' + elsewhere.length + ' places a script adds a slot with another line’s words', elsewhere.map(a => srcNum(a.line, lineOf(a.line.v) + ' for slot ' + a.slot.v))) + '</b> from the slot’s. It is the same errand in the words of whoever gave it to the hero.' : '',
         counted.length ? 'Some lines count how many the hero has found so far (' + counted.map(a => srcNum(a.state, nameOf(a.resid))).join(', ') + ').' : '',
         never.length ? '<b>' + never.length + (never.length === 1 ? ' line is' : ' lines are') + ' never struck off</b> by any script: ' + never.map(s => srcNum(slots.get(s).adds[0].slot, td.lines && td.lines.get(s) ? '“' + td.lines.get(s) + '”' : 'slot ' + s)).join(', ') + '.' : ''
       ].filter(Boolean) : [],
@@ -4606,7 +4606,7 @@ function renderMechanicsSheet(value) {
         cell(s.set, 'set character flag ' + f) + cell(s.clear, 'clear character flag ' + f) + cell(s.test, 'test character flag ' + f) + cell(s.effect, 'give character flag ' + f + ' as a status') + '</tr>';
     });
     add('charflags', 'The Character Flags', null, src('set', 0xF00) + src('clear', 0xF01) + src('test', 0xF02),
-      'The on/off flags on each character, such as poison, sleep and fear, and the scripts that set, clear and check each one.',
+      'The on/off flags on each character (such as poison, sleep, and fear) and the scripts that set, clear, and check each one.',
       [
         '<b>' + countLink(cf.flags.length + ' flags', 'The ' + cf.flags.length + ' character flags the scripts use',
           cf.flags.slice().sort((a, b) => a.flag - b.flag).map(f => { const s0 = f.set[0] || f.clear[0] || f.test[0] || f.effect[0]; const nm = 'flag ' + f.flag + (dvmFlagName(f.flag) ? ', ' + dvmFlagName(f.flag) : ''); return s0 ? srcNum({ resid: s0.resid, at: s0.at }, nm) : svEsc(nm); })) + '</b> appear in the scripts. A named flag no script uses is one the program sets itself.',
@@ -4638,10 +4638,10 @@ function renderMechanicsSheet(value) {
     const stackRows = ic ? ic.bits.filter(x => x.key !== 39).map(x => '<tr><td>' + keyName(x.key) + (x.tag ? ', not a plain number' : ' bit ' + propWordHex(x.mask.v)) + '</td><td class="num">' + srcNum(x.cacheBit, propWordHex(x.cacheBit.v)) + '</td><td>' + testedBy(x.cacheBit.v) + '</td></tr>') : [];
     const seat = ic ? exeSeatRule() : null;
     const tableRows = ic ? ic.tables.map(t => { const rs = exeTocReaders(t.disp.v).filter((x, i, a) => a.findIndex(y => y.routine === x.routine) === i); return '<tr><td>' + srcNum({ exe: t.keyOp.at }, keyName(t.key)) + (t.plusOne ? ' plus one' : '') + '</td><td>' + (t.width === 1 ? 'one byte' : 'two bytes') + ' for each class, ' + srcNum(t.disp, 'at ' + t.disp.v + ' off the TOC') + '</td><td>' + (rs.length ? rs.map(r => srcNum({ exe: r.at }, r.routine)).join(', ') : '') +
-      (t.key === 34 && seat ? '<br><span class="mechSub" style="display:inline">which seats a ' + srcNum(seat.facings, seat.facings.v + '-way') + ' sprite standing on it: a value of 0 uses the seat’s aspect as the direction faced, and ' + srcNum(seat.ownAspect, 'column three') + ' as the pose. Values 1 to 4 are frames ' + seat.fixed.map(f => srcNum(f, String(f.v))).join(', ') + ', north, east, south, west</span>' : '') +
-      (t.key === 55 && seat ? '<br><span class="mechSub" style="display:inline">its first value is the number of directions the sprite can face, and the seating check requires ' + srcNum(seat.facings, String(seat.facings.v)) + '</span>' : '') + '</td></tr>'; }) : [];
+      (t.key === 34 && seat ? '<br><span class="mechSub" style="display:inline">which seats a ' + srcNum(seat.facings, seat.facings.v + '-way') + ' sprite standing on it: a value of 0 uses the seat’s aspect as the direction faced and ' + srcNum(seat.ownAspect, 'column three') + ' as the pose. Values 1 to 4 are frames ' + seat.fixed.map(f => srcNum(f, String(f.v))).join(', ') + ' for north, east, south, and west</span>' : '') +
+      (t.key === 55 && seat ? '<br><span class="mechSub" style="display:inline">its first value is the number of directions the sprite can face. The seating check requires ' + srcNum(seat.facings, String(seat.facings.v)) + '</span>' : '') + '</td></tr>'; }) : [];
     add('classflags', 'Class Flags', null, '',
-      'On/off switches on a kind of thing, such as a door, a key or a chair, that only the program reads. ' + countLink(cb.classes + ' classes', 'The ' + cb.classes + ' classes with class flags', cb.carriers.map(pt => svLink(propDisplayName(pt) || ('prop 0x' + pt.toString(16).toUpperCase()), (isInventoryItem(pt) ? 'showItemDetail(' : 'showPropTypeDetail(') + pt + ')'))) + ' have them; an item’s page shows them under Class data.',
+      'On/off switches on a kind of thing (such as a door, a key, or a chair) that only the program reads. ' + countLink(cb.classes + ' classes', 'The ' + cb.classes + ' classes with class flags', cb.carriers.map(pt => svLink(propDisplayName(pt) || ('prop 0x' + pt.toString(16).toUpperCase()), (isInventoryItem(pt) ? 'showItemDetail(' : 'showPropTypeDetail(') + pt + ')'))) + ' have them. An item’s page shows them under Class data.',
       [
         ic ? (() => {
           const bitRef = m => (ic.bits.find(x => x.key === 39 && x.mask && x.mask.v === m) || { cacheBit: null }).cacheBit;
@@ -4670,8 +4670,8 @@ function renderMechanicsSheet(value) {
                in Cademia by THood::ResetHood. The hero's amulet dropped in
                the fork on the stock program lay on the floor with flags 0
                after the save. */
-            bitText(0x08, 'means a thing the hero drops or pushes stays where the hero leaves it (the ' + eg(0x08, 'key') + ', the ' + eg(0x08, 'grimoire') + ', the ' + eg(0x08, 'amulet') + '). Anything else the hero moves goes back to its place or vanishes when the hero returns to the level, and in Cademia when the hero walks away from it.') + ' ' +
-            bitText(0x200, 'puts a door back open or shut as the zone starts it, each time the hero enters. Its lock stays the same. The map’s door mark shows it.') + ' ' +
+            bitText(0x08, 'means a thing the hero drops or pushes stays where the hero leaves it (the ' + eg(0x08, 'key') + ', the ' + eg(0x08, 'grimoire') + ', the ' + eg(0x08, 'amulet') + '). Anything else the hero moves goes back to its place or vanishes when the hero returns to the level. In Cademia it does so when the hero walks away from it.') + ' ' +
+            bitText(0x200, 'puts a door back open or shut as the zone starts it each time the hero enters. Its lock stays the same. The map’s door mark shows it.') + ' ' +
             /* Read on 6 October 2026, when the maintainer asked what the
                rest do. TGameViewer::DoTicks runs down byte 6 of each
                placed record of a class with the bit, by how often one of
@@ -4688,12 +4688,12 @@ function renderMechanicsSheet(value) {
                answers by lighting or going out and the easel by changing
                its picture. */
             bitText(0x20, 'is a light that burns down as time passes (the ' + eg(0x20, 'torch') + ', the ' + eg(0x20, 'lamp') + ', the ' + eg(0x20, 'candle') + ').') + ' ' +
-            bitText(0x800, 'counts down the same way, faster (the ' + eg(0x800, 'hourglass') + ', the ' + eg(0x800, 'bomb') + ').') + ' ' +
+            bitText(0x800, 'counts down the same way but faster (the ' + eg(0x800, 'hourglass') + ' and the ' + eg(0x800, 'bomb') + ').') + ' ' +
             bitText(0x40, 'turns a thing to face the way the hero pushes it (the ' + eg(0x40, 'chair') + ').') + ' ' +
             bitText(0x10, 'breaks a thing dropped more than a square away (the ' + eg(0x10, 'plate') + ', the ' + eg(0x10, 'glass') + ', the ' + eg(0x10, 'bell') + ').') + ' ' +
             bitText(0x100, 'signals a thing each time the hour changes (the ' + eg(0x100, 'lamp post') + ', which lights at night, and the ' + eg(0x100, 'easel') + ').');
         })() : MECH_NO_APP,
-        ic ? 'The last table below shows how a chair seats a character, and the zone maps seat their people by it.' : ''
+        ic ? 'The last table below shows how a chair seats a character. The zone maps seat their people by it.' : ''
       ].filter(Boolean),
       '<div class="mechSub">The flags</div>' +
       table(ic ? ['#flag', '#classes', 'on', 'cached as', 'read by'] : ['#flag', '#classes', 'on'], rows) +
@@ -4718,7 +4718,7 @@ function renderMechanicsSheet(value) {
     const differ = st ? st.entries.filter(x => { const dv = DVM_SYM.syscall[String(x.op)]; if (!x.name || !dv) return false; const a = x.name.replace(/^cb/i, '').toLowerCase(), b = dv.toLowerCase(); return !(a === b || a.startsWith(b) || b.startsWith(a)); }) : [];
     const namedCalls = st ? st.entries.filter(x => x.name) : [];
     add('syscalls', 'Built-In Calls', null, '',
-      st ? 'The calls a script makes to the program, by their names in the program and the listings.'
+      st ? 'The calls a script makes to the program by their names in the program and the listings.'
          : MECH_NO_APP,
       st ? [
         '<b>' + countLink(namedCalls.length + ' of the 96 slots', 'The ' + namedCalls.length + ' built-in calls that point to a named part of the program', namedCalls.map(x => pefChip(x.name))) + '</b> point to a named part of the program. ' + (differ.length ? '<b>' + countLink(String(differ.length), 'The ' + differ.length + ' built-in calls named differently in the listings', differ.map(x => relChip({ js: 'openPefRoutine(\'' + x.name.replace(/'/g, '\\\'') + '\')', main: x.name, sub: DVM_SYM.syscall[String(x.op)], title: 'Data › Cythera (App) › Data Fork' }))) + '</b> have a different name in the listings.' : 'Every name matches the listings’.'),
@@ -4755,17 +4755,17 @@ function renderMechanicsSheet(value) {
         '<td class="mechSub">' + svEsc(args.length > 6 ? args.slice(0, 6).join(', ') + ', …' : args.join(', ')) + '</td></tr>';
     }) : [];
     add('eggs', 'What an Egg Does', null, '',
-      eg ? 'An egg is an invisible trigger over a rectangle of a zone’s map. What it does depends on its kind and on one number, its argument.'
+      eg ? 'An egg is an invisible trigger over a rectangle of a zone’s map. What it does depends on its kind and on one number (its argument).'
          : 'No zone list in this file places an egg.',
       eg ? [
-        '<b>' + countLink(eggTotal + ' eggs', 'The ' + eggTotal + ' eggs, by zone', zoneSquareChips(allEggs)) + '</b> across <b>' +
+        '<b>' + countLink(eggTotal + ' eggs', 'The ' + eggTotal + ' eggs by zone', zoneSquareChips(allEggs)) + '</b> across <b>' +
           countLink(eg.zones + ' zones', 'The ' + eg.zones + ' zones that have a list of things', resChips(eg.zoneIds.map(z => refExists(0x8000 + z) ? 0x8000 + z : 0x8100 + z))) +
           '</b>, of <b>' + eg.kinds.length + ' kinds</b>, each in the table below.',
-        eg.rooms ? 'A room is a kind-8 egg, its argument the room number. <b>' + countLink(String(eg.rooms.named), 'The ' + eg.rooms.named + ' room scripts', resChips(eg.rooms.scripted)) + ' of the ' + eg.rooms.total + '</b> rooms have a script, 0x1B00 plus the number.' : '',
+        eg.rooms ? 'A room is a kind-8 egg with the room number as its argument. <b>' + countLink(String(eg.rooms.named), 'The ' + eg.rooms.named + ' room scripts', resChips(eg.rooms.scripted)) + ' of the ' + eg.rooms.total + '</b> rooms have a script (0x1B00 plus the number).' : '',
         'A kind-3 egg plays an <b>ambient sound</b>, sound 0x9100 plus its argument.',
-        'A kind-0 egg hatches the records inside it. The chance is <b>Data2 plus one in a hundred</b>, and Data1 limits it to the day (0x10), the night (0x20) or once only (0x01).',
-        '<b>A kind-0 egg’s argument does not depend on what hatches</b>: all thirteen of Odemia’s eggs have 0xE4, whether they hold a chicken, a goat or a guard.',
-        'Records with flags 0x44 are roofs, not eggs, and there are <b>' + countLink(String(eg.roofs), 'The ' + eg.roofs + ' roofs, by zone', zoneSquareChips(eg.roofSpots)) + '</b> of them here.'
+        'A kind-0 egg hatches the records inside it. The chance is <b>Data2 plus one in a hundred</b>, and Data1 limits it to the day (0x10), the night (0x20), or once only (0x01).',
+        '<b>A kind-0 egg’s argument does not depend on what hatches</b>. All thirteen of Odemia’s eggs have 0xE4 whether they hold a chicken, a goat, or a guard.',
+        'Records with flags 0x44 are roofs and not eggs. There are <b>' + countLink(String(eg.roofs), 'The ' + eg.roofs + ' roofs by zone', zoneSquareChips(eg.roofSpots)) + '</b> of them here.'
       ].filter(Boolean) : [],
       (eh ? '' : '<div class="mechSub">' + MECH_NO_APP + '</div>') +
       table(eh ? ['#kind', 'what it does', 'argument', 'handler', '#here', 'arguments used'] : ['#kind', 'what it does', 'argument', '#here', 'arguments used'], rows) +
@@ -4781,7 +4781,7 @@ function renderMechanicsSheet(value) {
               : svEsc(propDisplayName(h.proptype) || ('prop ' + h.proptype))) + '</td>' +
             num(h.n) + num(h.zones.size) + '</tr>')) +
           (eg.emptyEggs ? '<div class="mechSub">' + eg.emptyEggs +
-            ' hatching egg' + (eg.emptyEggs === 1 ? '' : 's') + ' in the file hold' + (eg.emptyEggs === 1 ? 's' : '') + ' no record at all, and nothing in the file shows what ' + (eg.emptyEggs === 1 ? 'it' : 'they') + ' would hatch.</div>' : '')
+            ' hatching egg' + (eg.emptyEggs === 1 ? '' : 's') + ' in the file hold' + (eg.emptyEggs === 1 ? 's' : '') + ' no record at all. Nothing in the file shows what ' + (eg.emptyEggs === 1 ? 'it' : 'they') + ' would hatch.</div>' : '')
         : ''),
       '<span class="partsTitle">On the map</span>' + svLink('World', "showCategory('WORLD')"));
   }
@@ -4795,7 +4795,7 @@ function renderMechanicsSheet(value) {
     const clut = window.CYTHERA_RSRC && typeof showMacRsrcDetail === 'function' ? svLink('clut 256', "showMacRsrcDetail('clut', 256)") : 'clut 256';
     const cycledRanges = PALETTE_CYCLES.map(([s, n]) => propWordHex(s) + ' to ' + propWordHex(s + n - 1)).join(', ');
     add('palette', 'The Palette and Its Ramps', null, '',
-      'Every picture uses one table of 256 colors, ' + clut + '. Water, lava and magic seem to move because the game shifts a few runs of it one step on every tick.',
+      'Every picture uses one table of 256 colors (' + clut + '). Water, lava, and magic seem to move because the game shifts a few runs of it one step on every tick.',
       [
         'This page cycles <b>' + cycledRanges + '</b>.',
         pr ? (pr.agrees ? 'The game cycles the same runs.' : '<b>The game cycles different runs</b>: ' +
@@ -4821,16 +4821,16 @@ function renderMechanicsSheet(value) {
     const pf = exePatchFiles();
     const nm = x => x && x.name ? srcNum(x.id, x.name) : null;
     const patchName = nm(pf && pf.patch), customName = pf && pf.custom ? srcNum(pf.custom, pf.custom.v) : null;
-    const rules = ['<b>Into Cythera Data.</b> Magpie, or Apply below, writes the patch into the game file. A patch can change anything this way.'];
+    const rules = ['<b>Into Cythera Data.</b> Magpie or Apply below writes the patch into the game file. A patch can change anything this way.'];
     if (pf && patchName && pf.list && pf.count)
-      rules.push('<b>' + patchName + '.</b> A file in the game’s folder listing up to ' + srcNum(pf.count) + ' patch files, which the game loads when it starts.');
+      rules.push('<b>' + patchName + '.</b> A file in the game’s folder listing up to ' + srcNum(pf.count) + ' patch files that the game loads when it starts.');
     if (pf && customName)
       rules.push('<b>' + customName + '.</b> One patch file saved under this name. It replaces any combat AIs imported earlier.');
     add('patchkinds', 'Patch Types', null, '',
-      'A patch can go into the game file, or sit beside it in its folder.',
+      'A patch can go into the game file or sit beside it in its folder.',
       pf ? rules : [rules[0]],
       (pf ? '' : '<ul class="ruleList"><li>' + MECH_NO_APP + '</li></ul>') +
-        '<p class="mechSub">A saved game has a copy of each level it has visited, so a patch only changes levels that save has not been to.</p>',
+        '<p class="mechSub">A saved game has a copy of each level it has visited. A patch only changes levels that save has not been to.</p>',
       pf ? '<span class="partsTitle">In the program</span>' + pefChip('TDelverApp::PostInitMac') + pefChip('TDelverApp::OpenScenFile') + pefChip('LoadLevelProps') : '');
   }
 
@@ -4875,7 +4875,7 @@ function renderMechanicsSheet(value) {
     ov.appendChild(ovBtn);
     const ovHint = document.createElement('span');
     ovHint.className = 'mechSub';
-    ovHint.textContent = ' Find the resources that more than one part of the Patch in Progress changes. When Magpie installs the parts as separate files, only one part’s change to each of them stays.';
+    ovHint.textContent = ' Find the resources that more than one part of the Patch in Progress changes. When Magpie installs the parts as separate files only one part’s change to each of them stays.';
     ov.appendChild(ovHint);
     sec.appendChild(ov);
     const ovHost = document.createElement('div');
@@ -4930,11 +4930,11 @@ function renderMechanicsSheet(value) {
   // ---- the hero's colours, as a patch ----
   {
     add('herosprite', 'Sprite Recolorer', null, '',
-      'Pick a sprite and change its colors, or give the hero and the heroine another character’s body. ' +
+      'Pick a sprite and change its colors or give the hero and the heroine another character’s body. ' +
       'This page writes a Magpie patch that replaces just that picture.',
       [
-        'The hero and the heroine can wear any person, or any monster drawn in four or eight frames. A monster has fewer poses, so the patch reuses some of its frames.',
-        'The shading of each color stays. Where the art uses one shade for two things, both change.'
+        'The hero and the heroine can wear any person or any monster drawn in four or eight frames. A monster has fewer poses and the patch reuses some of its frames.',
+        'The shading of each color stays. Both change where the art uses one shade for two things.'
       ], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
@@ -4948,7 +4948,7 @@ function renderMechanicsSheet(value) {
   // ---- a gremlin of your own ----
   {
     add('gremlins', 'Gremlin Maker', null, '',
-      'A gremlin is a script the game runs at a chosen moment. Pick when it runs and what it does, and this page writes a Magpie patch that adds it.',
+      'A gremlin is a script the game runs at a chosen moment. Pick when it runs and what it does. This page writes a Magpie patch that adds it.',
       [], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
@@ -4962,14 +4962,14 @@ function renderMechanicsSheet(value) {
   // ---- the scenario in Spanish ----
   {
     add('spanish', 'Cythera in Spanish', null, '',
-      'Cythera\u2019s text in Spanish: everything the characters say, the books and signs, the names of things, the To Do list, the spells, the skills and the credits. ' +
-      'This page writes a Spanish copy of the open file, to put in place of Cythera Data in the game\u2019s folder.',
+      'Cythera\u2019s text in Spanish: everything the characters say, the books, the signs, the names of things, the To Do list, the spells, the skills, and the credits. ' +
+      'This page writes a Spanish copy of the open file to put in place of Cythera Data in the game\u2019s folder.',
       [
-        'It is a whole file rather than a patch, because the accented letters need changes a patch cannot make.',
+        'It is a whole file rather than a patch because the accented letters need changes a patch cannot make.',
         'It works on versions 1.0.3 and 1.0.4. Any text changed in the file stays in English.',
         'Characters answer keywords in Spanish or in English.',
-        'The program translates too, its menus, dialogs and messages, from the installer or from the program itself. With both in Spanish, the names of things include their article (\u201cuna espada\u201d, \u201cel rey\u201d).',
-        'On a 68K Mac the program\u2019s menus and dialogs are in Spanish, and its messages stay in English.'
+        'The program translates too (its menus, dialogs, and messages) from the installer or from the program itself. With both in Spanish the names of things include their article (such as \u201cuna espada\u201d and \u201cel rey\u201d).',
+        'On a 68K Mac the program\u2019s menus and dialogs are in Spanish. Its messages stay in English.'
       ], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
@@ -4983,17 +4983,17 @@ function renderMechanicsSheet(value) {
   // ---- a scenario of your own ----
   {
     add('newscenario', 'Scenario Maker', null, '',
-      'Start a new scenario. This page writes a copy of Cythera Data with the world emptied: one zone of one tile with the hero in it, and every rule, thing, creature, picture and sound kept.',
+      'Start a new scenario. This page writes a copy of Cythera Data with the world emptied. It has one zone of one tile with the hero in it. Every rule, thing, creature, picture, and sound stays.',
       [
-        'Put the file in place of Cythera Data in the game\u2019s folder, and start a new game.',
-        'To play it in the browser player, download it as a patch and choose that file under Patches there. A patch cannot remove anything, so the rest of the world stays in the file, out of reach.',
-        'Every other zone is gone, and every character, schedule and conversation.',
-        'The download for Manborough\u2019s editor includes the ground and the hero\u2019s square, and a map that came from his editor goes back with everything it had. The download leaves out a battle and the art.',
-        'A map from Manborough\u2019s editor brings its ground, the things and people placed on it and where the hero starts. It does not bring over the contents of a thing, or whether a door is locked or a lamp lit.',
-        'A battle puts two kinds of creature that the game counts as enemies beside the hero, and leaves them to fight.',
+        'Put the file in place of Cythera Data in the game\u2019s folder and start a new game.',
+        'Download it as a patch and choose that file under Patches in the browser player to play it there. A patch cannot remove anything. The rest of the world stays in the file out of reach.',
+        'Every other zone is gone with every character, schedule, and conversation.',
+        'The download for Manborough\u2019s editor includes the ground and the hero\u2019s square. A map that came from his editor goes back with everything it had. The download leaves out a battle and the art.',
+        'A map from Manborough\u2019s editor brings its ground, the things and people placed on it, and where the hero starts. It does not bring over the contents of a thing or the state of a door\u2019s lock or a lamp.',
+        'A battle puts two kinds of creature that the game counts as enemies beside the hero and leaves them to fight.',
         'The pictures changed are the ones in Cythera Data. The program\u2019s windows and title screen stay as they are.',
-        'An art pack is a zip of 32 by 32 PNG pictures in named folders, matched to the game\u2019s things by name. It is written for the Dungeon Crawl Stone Soup tiles, which are free to use.',
-        'The scripts that are kept still name the places and people that are gone.'
+        'An art pack is a zip of 32 by 32 PNG pictures in named folders. The page matches them to the game\u2019s things by name. It suits the Dungeon Crawl Stone Soup tiles (free to use).',
+        'The remaining scripts still name the places and people that are gone.'
       ], '');
     const sec = sections[sections.length - 1].el;
     const host = document.createElement('div');
@@ -5008,15 +5008,15 @@ function renderMechanicsSheet(value) {
   {
     const edits = (window.EDITED_RESIDS && window.EDITED_RESIDS.size) || 0;
     add('compare', 'File Comparison', null, '',
-      'See what differs between two game files: two releases of the game, a modded copy against a clean one, ' +
-      'or this file against how it was before any edits. Save the differences as a patch.',
+      'See what differs between two game files: two releases of the game, a modded copy against a clean one, or this file ' +
+      'against how it was before any edits. Save the differences as a patch.',
       [
-        'The page treats the file opened here as the older one, and the file already open as the newer.',
-        'All four installers open here. The data in <b>1.0.3</b> and <b>1.0.4</b> is the same, so everything Ambrosia changed after 1.0.1 is between those two.'
+        'The page treats the file opened here as the older one and the file already open as the newer.',
+        'All four installers open here. The data in <b>1.0.3</b> and <b>1.0.4</b> is the same. Everything Ambrosia changed after 1.0.1 is between those two.'
       ],
       '<ul class="ruleList"><li>' +
         (edits ? '<b>' + edits + '</b> resource' + (edits === 1 ? '' : 's') + ' in this file changed on this site.'
-               : 'Nothing in this file has changed on this site, so the comparison is empty.') +
+               : 'Nothing in this file has changed on this site and the comparison is empty.') +
       '</li></ul>');
     const sec2 = sections[sections.length - 1].el;
     const bar = document.createElement('div');
@@ -5078,7 +5078,7 @@ function renderMechanicsSheet(value) {
     let braziersHtml = '', buttonsHtml = '', riddlesHtml = '', bellsHtml = '', musicLocksHtml = '', signalsHtml = '';
     if (bz) braziersHtml += '<ul class="ruleList">' +
       '<li>Light them in order. A wrong one sends ' + srcNum(bz.state, 'the count') + ' back to the start.</li>' +
-      (bz.last ? '<li>Lighting the last, number ' + srcNum(bz.last) + ', prints this line and makes the screen flicker:</li>' : '') +
+      (bz.last ? '<li>Lighting the last (number ' + srcNum(bz.last) + ') prints this line and makes the screen flicker:</li>' : '') +
       (bz.say ? '<li>' + srcQuoteText(0x113F, bz.say.replace(/\s+/g, ' ').trim()) + '</li>' : '') + '</ul>';
     // Which sides of a panel are lit. The aspect's low four bits are the
     // four sides, and the order is the file's: 8 right, 4 bottom, 2 left,
@@ -5138,8 +5138,8 @@ function renderMechanicsSheet(value) {
     const sig = signalRules();
     signalsHtml += '<div class="partsTitle">What a signal reaches</div>' +
       (sig ? '<ul class="ruleList">' +
-        '<li>A signal ' + srcNum(sig.method, 'goes') + ' to the zone and the room, then to ' + srcNum(sig.slots, 'every character') + ' in the zone and to the gremlins.</li>' +
-        '<li>One <b>below ' + srcNum(sig.under) + '</b> also goes to each thing that listens for signals <b>whose Data1 is its number</b>' + (sig.mask ? ' (' + srcNum(sig.mask, 'not') + ' eggs, roofs or things inside others)' : '') + '. That is how a button opens one door and not another.</li>' +
+        '<li>A signal ' + srcNum(sig.method, 'goes') + ' to the zone and the room. Then it goes to ' + srcNum(sig.slots, 'every character') + ' in the zone and to the gremlins.</li>' +
+        '<li>One <b>below ' + srcNum(sig.under) + '</b> also goes to each thing that listens for signals <b>whose Data1 is its number</b>' + (sig.mask ? ' (' + srcNum(sig.mask, 'not') + ' eggs, roofs, or things inside others)' : '') + '. That is how a button opens one door and not another.</li>' +
         '</ul>'
         : '');
     /* One section per puzzle, the maintainer's ask of 14 September 2026.
@@ -5163,7 +5163,7 @@ function renderMechanicsSheet(value) {
       (bu && bu.arrays) ? ['Each button turns two panels through one of <b>' + bu.arrays.length + ' fixed tables</b>.'] : [],
       buttonsHtml);
     if (ri && ri.buttons.length) add('riddles', 'The Riddles', null, src('the riddles', 0x1110),
-      countWord(ri.buttons.length) + ' riddles, each answered by typing a word.',
+      countWord(ri.buttons.length) + ' riddles. Typing a word answers each.',
       [], riddlesHtml);
     /* The sections run in the order a player meets the puzzles, by the
        Hintbook's walkthrough (the maintainer, 3 October 2026): the buttons
@@ -5184,18 +5184,18 @@ function renderMechanicsSheet(value) {
     if (pw && pw.words.length) {
       const rowNote = pw.words.filter(w => w.word);
       add('passwords', 'The Magisterium Passwords', null, src('Selinus', 0x1851) + src('the door', 0x1114),
-        rowNote.length + ' doors in the Magisterium each need a password, which Librarian Selinus gives as the hero returns the Sapphire Books.',
+        rowNote.length + ' doors in the Magisterium each need a password. Librarian Selinus gives them as the hero returns the Sapphire Books.',
         [
           pw.every ? 'Selinus gives the next password for every ' + srcNum(pw.every, pw.every.v === 2 ? 'second' : pw.every.v + 'th') + ' book handed in.' : '',
           'A door listens for the first four letters, opens only to the word set for it, and only once Selinus has given that word.',
-          (function () { const g = pw.words.find(w => w.n && w.n.v === 0); return g ? 'One more word, ' + srcNum({ v: 0, resid: 0x1114, at: g.at }, '“' + g.key + '”') + ', opens a door for the ' + svEsc(g.hall ? g.hall.v : 'room beyond') + ' with no condition, and no such door is placed.' : ''; })()
+          (function () { const g = pw.words.find(w => w.n && w.n.v === 0); return g ? 'One more word (' + srcNum({ v: 0, resid: 0x1114, at: g.at }, '“' + g.key + '”') + ') opens a door for the ' + svEsc(g.hall ? g.hall.v : 'room beyond') + ' with no condition. No map places such a door.' : ''; })()
         ].filter(Boolean),
         table(['hall', 'password', 'given after', 'the door'], rowNote.map(w => '<tr><td>' + (w.hall ? srcNum(w.hall, w.hall.v) : '') + '</td><td>' + srcNum(w.word, w.word.v) + '</td>' +
           '<td>' + (w.gate && pw.every ? srcNum(w.gate, (w.gate.v * pw.every.v) + ' books') : '') + '</td><td>' + w.doors.map(d => at(d.zone, d.x, d.y)).join(', ') + '</td></tr>')), '');
     }
     if (tu && tu.instruments.length) add('musiclocks', 'The Music Locks', null,
       tu.instruments.map(it => src(it.what, it.resid)).join(''),
-      'The tune each lock needs, and the signal it sends.',
+      'The tune each lock needs and the signal it sends.',
       [], musicLocksHtml);
     const lv = (function () { try { return leverRules(); } catch (e) { quiet(e); return null; } })();
     if (lv && lv.levers.length) {
@@ -5204,7 +5204,7 @@ function renderMechanicsSheet(value) {
         'Every lever in the game and what it opens.',
         [
           'Pulling a lever sends its Data1 and then its Data2 as signals. A door or a wall in the same zone whose Data1 is that signal opens.',
-          'A lever whose signals reach nothing on the map may still be answered by its zone’s script.'
+          'Its zone’s script may still answer a lever whose signals reach nothing on the map.'
         ],
         zones.map(z => '<div class="partsTitle">' + svEsc(zoneDisplayName(z) || ('zone ' + z)) + '</div>' +
           table(['lever', '#signals', 'opens'], lv.levers.filter(l => l.zone === z).map(l => '<tr><td>' + at(l.zone, l.x, l.y, l.x + ', ' + l.y) + '</td>' +
@@ -5232,18 +5232,18 @@ function renderMechanicsSheet(value) {
       const presses = ps => { const out = []; for (let i = 0; i < ps.length; ) { let j = i; while (j < ps.length && ps[j] === ps[i]) j++; out.push(side[ps[i]] + (j - i > 1 ? ' ' + (j - i) + ' times' : '')); i = j; } return out.join(', '); };
       const door = d => svLink((propTypeName(d.pt) || 'door') + ' in ' + (zoneDisplayName(d.zone) || ('zone ' + d.zone)), 'atlasOpenSquare(' + (0x8000 + d.zone) + ',' + d.x + ',' + d.y + ')', d.x + ', ' + d.y);
       add('thinkadot', 'The ' + nm, null, src('the ' + nm, 0x1175),
-        'Eight dots and three buttons. A pattern of dots sends a signal, and the signal opens a door in the zone where the hero makes the pattern.',
+        'Eight dots and three buttons. A pattern of dots sends a signal. The signal opens a door in the zone where the hero makes the pattern.',
         [
           'The dots are in rows of three, two and three, and ' + srcNum({ v: 0, resid: 0x1175, at: td.startAt }, 'start') + ' with ' + lit(td.start).join(', ') + ' lit.' +
             (td.placed.length ? ' The ' + svEsc(nm) + ' is ' + td.placed.map(pl => pl.onMap ? 'in ' + svLink(zoneDisplayName(pl.zone) || ('zone ' + pl.zone), 'atlasOpenSquare(' + (0x8000 + pl.zone) + ',' + pl.x + ',' + pl.y + ')', pl.x + ', ' + pl.y) : 'inside something in ' + svEsc(zoneDisplayName(pl.zone) || ('zone ' + pl.zone))).join(', ') + '.' : ''),
-          'A button drops a marble onto dot 0, 1 or 2. The marble flips the dot it lands on and rolls on; from a dot that is now lit it goes ' + at(td.lit.at, moves(td.lit)) + ', from a dot that is now dark ' + at(td.dark.at, moves(td.dark)) + ', and off the board from ' + off.join(', ') + '. The dots keep their state between uses.',
+          'A button drops a marble onto dot 0, 1 or 2. The marble flips the dot it lands on and rolls on. From a dot that is now lit it goes ' + at(td.lit.at, moves(td.lit)) + ', from a dot that is now dark ' + at(td.dark.at, moves(td.dark)) + ', and off the board from ' + off.join(', ') + '. The dots keep their state between uses.',
           ...td.patterns.map(p => (lit(p.v).length ? 'Dots ' + lit(p.v).join(', ') + ' lit' : 'Every dot dark').replace(/^Dots 0, 1, 2, 3, 4, 5, 6, 7 lit$/, 'Every dot lit') +
             ' sends signal ' + srcNum(p.sigAt) + (p.doors.length ? ', which opens the ' + p.doors.map(door).join(' and the ') : ', which nothing in the file answers') +
             (p.presses ? '. From the start: ' + presses(p.presses) + '.' : '. No sequence reaches it from the start.'))
         ], '');
     }
     add('signals', 'What a Signal Reaches', null, '',
-      sig ? 'What a button, a bell or an instrument sends, and what receives it.'
+      sig ? 'What receives the signal of a button, a bell, or an instrument.'
           : 'The program sets the order a signal travels in. ' + MECH_NO_APP,
       [], signalsHtml);
   }
@@ -5257,8 +5257,8 @@ function renderMechanicsSheet(value) {
     const topRows = ln ? ln.ranked.slice(0, 14).map(r =>
       '<tr><td>' + svChip(r.rid, '') + '</td>' + num(r.refs) +
       '<td class="mechSub">' + (r.calls === r.refs ? 'all of them calls'
-        : r.calls ? r.calls + ' calls, and the rest name it in an instruction'
-        : 'named in an instruction, never called') + '</td></tr>') : [];
+        : r.calls ? r.calls + ' calls and the rest name it in an instruction'
+        : 'named in an instruction and never called') + '</td></tr>') : [];
     const deadRows = ln ? ln.ranges.map(g => {
       const named = g.dead.filter(d => d.name);
       return '<tr><td>' + svEsc(g.label) + '<span class="mechSub"> ' + svEsc(g.what) + '</span></td>' +
@@ -5269,13 +5269,13 @@ function renderMechanicsSheet(value) {
     }) : [];
     const busiest = ln && ln.ranked.length ? ln.ranked[0] : null;
     add('leans', 'What Calls What', null, '',
-      ln ? 'Which parts of the file the scripts use, and which nothing uses.'
-         : 'No file is open to read this from.',
+      ln ? 'Which parts of the file the scripts use and which nothing uses.'
+         : 'No file is open.',
       ln ? [
-        '<b>' + countLink(ln.referencing + ' resources', 'The ' + ln.referencing + ' resources that use another', resChips(ln.users)) + '</b> use another and <b>' + countLink(String(ln.referenced), 'The ' + ln.referenced + ' resources another uses', resChips(ln.ranked.map(r => r.rid))) + '</b> are used, over <b>' + ln.edges + ' uses</b> in all: ' +
+        '<b>' + countLink(ln.referencing + ' resources', 'The ' + ln.referencing + ' resources that use another', resChips(ln.users)) + '</b> use another and <b>' + countLink(String(ln.referenced), 'The ' + ln.referenced + ' resources another uses', resChips(ln.ranked.map(r => r.rid))) + '</b> are in use. That makes <b>' + ln.edges + ' uses</b> in all: ' +
           Object.keys(ln.kinds).map(k => '<b>' + ln.kinds[k] + '</b> ' + svEsc(k === 'call' ? 'by calling' : k === 'resource' ? 'by naming' : k === 'dref' ? 'by pointing inside' : k === 'table' ? 'by a table entry' : k)).join(', ') + '.',
         busiest ? 'The busiest is ' + svChip(busiest.rid, labelFor(busiest.rid) || '') + ', used <b>' + busiest.refs + '</b> times. Nothing uses most of them.' : '',
-        'That is rarely a mistake. The program finds most things by number, such as an item’s script by its type.'
+        'That is rarely a mistake. The program finds most things by number (such as an item’s script by its type).'
       ].filter(Boolean) : [],
       table(['resource', '#references', 'of which'], topRows) +
       (deadRows.length ? '<div class="partsTitle">No script in this file calls these</div>' +
@@ -5370,7 +5370,7 @@ function renderMechanicsSheet(value) {
      displayed four. */
   out.textContent = only === MECH_TOOL_GROUP ? MECH_TOOL_GROUP.note :
     (seen.size + rest.length) + ' rules read from this file’s scripts' +
-    (only ? ', under ' + only.title : '') + '. Each one shows which script it comes from.';
+    (only ? ' under ' + only.title : '') + '. Each one shows its script.';
   /* The patches section's report, drawn after the
      sections are in the document. A patch already open is drawn again rather
      than forgotten, so leaving Hackery and coming back finds it where it was;
