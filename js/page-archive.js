@@ -239,25 +239,25 @@ let lastArchiveError = '';
 //
 // The repository still has no copy of the game -- Cythera is Ambrosia
 // Software / Glenn Andreas's, and what is on disk lives under reference/,
-// gitignored. These URLs are other people's hosting, tried in order:
+// gitignored. These URLs are other people's hosting, tried in this order:
 //
-//   1. archive.org's copy (tucows_205568_Cythera), a StuffIt 5 archive with
-//      the installer's data fork stored uncompressed, which mac-stuffit.js
-//      extracts. Through archive.org's /cors/ path, not /download/: the
-//      same bytes, but only that path answers with
-//      Access-Control-Allow-Origin. This is the one that works from
-//      ratlizard.github.io today.
-//   2. Bryce Schroeder's Cythera.bin, a MacBinary of the same installer.
+//   1. archive.org's "Cythera installers" item, one StuffIt 5 archive
+//      holding the 1.0.1, 1.0.2, 1.0.3 and 1.0.4 installers side by side,
+//      every data fork stored. Four times the download (28 MB) and every
+//      version of the game in one file: the page opens the newest and
+//      Data › Installer switches between them.
+//   2. archive.org's copy of the one installer (tucows_205568_Cythera), a
+//      StuffIt 5 archive with the installer's data fork stored
+//      uncompressed, which mac-stuffit.js extracts.
+//   3. Bryce Schroeder's Cythera.bin, a MacBinary of the same installer.
 //      As of 2 September 2026 his server sends no CORS header, so a browser
 //      discards the response; it is kept for the day it does, and it is the
 //      right file to download by hand and drop on the page.
 //
-// If both fail the page prompts for the file, naming the first URL.
-//   0. Before either: archive.org's "Cythera installers" item, one StuffIt 5
-//      archive holding the 1.0.1, 1.0.2, 1.0.3 and 1.0.4 installers side by
-//      side, every data fork stored. Four times the download (28 MB) and
-//      every version of the game in one file: the page opens the newest and
-//      Data › Installer switches between them.
+// Both archive.org entries go through its /cors/ path, not /download/: the
+// same bytes, but only that path answers with Access-Control-Allow-Origin.
+// When all three fail, archiveLoadFailed prompts for the file, and every
+// URL here is in its message.
 const REMOTE_ARCHIVE_URLS = [
   'https://archive.org/cors/cythera-installers/Cythera%20installers.sit',
   'https://archive.org/cors/tucows_205568_Cythera/cythera.sit',

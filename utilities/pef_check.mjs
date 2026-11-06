@@ -73,7 +73,7 @@ for (const routinePrefix of ['TGameViewer::DoTicks(', 'TBark::SetBark(', 'TMapWi
   if (!rs.some(r => r.name.startsWith(routinePrefix))) fail('routine not found: ' + routinePrefix);
 // The demangler on shapes the file has.
 const dm = ctx.pefDemangle;
-for (const [m, expected] of [['SetFont__9TApWidgetFss', 'TApWidget::SetFont(short, short)'], ['__ct__5TBarkFv', 'TBark::TBark()'], ['__dt__5TBarkFv', 'TBark::~TBark()'], ['main', 'main'], ['Foo__FPCcRi', 'Foo(const char*, int&)']])
+for (const [m, expected] of [['SetFont__9TApWidgetFss', 'TApWidget::SetFont(short, short)'], ['__ct__5TBarkFv', 'TBark::TBark()'], ['__dt__5TBarkFv', 'TBark::~TBark()'], ['main', 'main'], ['Foo__FPCcRi', 'Foo(const char*, int&)'], ['__opPc__8TSegLoadFv', 'TSegLoad::operator char*()']])
   if (dm(m) !== expected) fail(`demangle ${m}: ${dm(m)}`);
 
 // ---- the loader --------------------------------------------------------------
