@@ -218,11 +218,11 @@ function mechDiceBytes(dice) {
   const rows = dice.bytes.map(b => '<tr><td>' + svEsc(b.what) + '</td>' + srcCell(b.val, hex4(b.at)) + '<td class="num">' + svEsc(String(b.now)) + '</td></tr>').join('');
   const tries = [];
   if (pay) tries.push('Write <b>00</b> at ' + srcNum(pay.val, hex4(pay.at)) + ' and a match pays nothing. The hero then averages <b>' + mean({ matchPay: 0 }) + '</b> oboloi a game without the skill and <b>' + mean({ matchPay: 0, gambling: true }) + '</b> with it.');
-  if (pay) tries.push('Write <b>7F</b> there and a match pays 127, for an average of <b>' + mean({ matchPay: 127 }) + '</b> oboloi a game.');
+  if (pay) tries.push('Write <b>7F</b> there and a match pays 127. That averages <b>' + mean({ matchPay: 127 }) + '</b> oboloi a game.');
   if (fix && fix.next !== null && gate && gate.next !== null && !dice.skillAlways)
-    tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + srcNum(fix.val, hex4(fix.at)) + ' and the Gambling skill moves the hero’s die whatever the roll, so every game played with the skill is a match, for an average of <b>' + mean({ skillAlways: true, gambling: true }) + '</b> oboloi a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + srcNum(gate.val, hex4(gate.at)) + ' as well, and every game is a match without the skill.');
+    tries.push('Write <b>' + hex4(fix.next).slice(2) + '</b> at ' + srcNum(fix.val, hex4(fix.at)) + ' and the Gambling skill moves the hero’s die whatever the roll. Every game played with the skill is then a match. That averages <b>' + mean({ skillAlways: true, gambling: true }) + '</b> oboloi a game. Write <b>' + hex4(gate.next).slice(2) + '</b> at ' + srcNum(gate.val, hex4(gate.at)) + ' as well and every game is a match without the skill.');
   return '<div class="mechSub">What to edit</div>' +
-    '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>byte</th><th class="num">at, in 0x812</th><th class="num">now</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>byte</th><th class="num">at (in 0x812)</th><th class="num">now</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     (tries.length ? '<ul class="ruleList">' + tries.map(t => '<li>' + t + '</li>').join('') + '</ul>' : '');
 }
 
@@ -347,7 +347,7 @@ function mechAspectReaders() {
   if (!ar.size) return 'no item class script is in this file.';
   let gearRead = [];
   try { gearRead = gearTable().filter(r => (ar.get(r.pt) || {}).reads).map(r => r.pt); } catch (e) { gearRead = []; }
-  return w(countLink(String(reads.length), 'The ' + reads.length + ' item classes that read their aspect', reads.map(nm)) + ' of ' + ar.size) + ' item classes also read it; the rest only change picture and name. ' +
+  return w(countLink(String(reads.length), 'The ' + reads.length + ' item classes that read their aspect', reads.map(nm)) + ' of ' + ar.size) + ' item classes also read it. The rest only change picture and name. ' +
     (gearRead.length ? 'Of the weapons and armor, ' + gearRead.map(nm).join(', ') + ' read' + (gearRead.length === 1 ? 's' : '') + ' it.' : 'No weapon or piece of armor reads it.');
 }
 // One pair from the file that shows the two cases side by side: a weapon
@@ -368,9 +368,9 @@ function mechAspectContrast() {
   } catch (e) { return ''; }
   if (!weapon || !food) return '';
   const own = propDisplayName(weapon.pt) || 'weapon';
-  return 'So ' + w(propWordHex(weapon.word)) + ', ' + svLink(svEsc(own), 'propWordOpen(' + weapon.pt + ',' + weapon.aspect + ')') + ' at aspect ' + weapon.aspect + ', is a ' + w(svEsc(weapon.name)) + ' in picture and name and a ' + svEsc(own) + ' in every number' + (weapon.numbers ? ' (' + weapon.numbers + ')' : '') +
-    ', while ' + w(propWordHex(food.word)) + ', ' + svLink(svEsc(food.name), 'propWordOpen(' + food.pt + ',1)') + ' at aspect 1, is a ' + w(svEsc(food.v1.name)) + ' that feeds ' + srcNum(food.v1.src, '+' + food.v1.plus) + (food.v1.message ? ' and says ' + srcNum(food.v1.messageSrc, '“' + food.v1.message + '”') : '') +
-    ', against ' + srcNum(food.v0.src, '+' + food.v0.plus) + (food.v0.message && food.v0.message !== food.v1.message ? ' and ' + srcNum(food.v0.messageSrc, '“' + food.v0.message + '”') : '') + ' at aspect 0, because that class reads the aspect and the ' + svEsc(own) + '’s ignores it.';
+  return 'So ' + w(propWordHex(weapon.word)) + ' (' + svLink(svEsc(own), 'propWordOpen(' + weapon.pt + ',' + weapon.aspect + ')') + ' at aspect ' + weapon.aspect + ') is a ' + w(svEsc(weapon.name)) + ' in picture and name and a ' + svEsc(own) + ' in every number' + (weapon.numbers ? ' (' + weapon.numbers + ')' : '') +
+    '. Meanwhile ' + w(propWordHex(food.word)) + ' (' + svLink(svEsc(food.name), 'propWordOpen(' + food.pt + ',1)') + ' at aspect 1) is a ' + w(svEsc(food.v1.name)) + ' that feeds ' + srcNum(food.v1.src, '+' + food.v1.plus) + (food.v1.message ? ' and says ' + srcNum(food.v1.messageSrc, '“' + food.v1.message + '”') : '') +
+    '. At aspect 0 it feeds ' + srcNum(food.v0.src, '+' + food.v0.plus) + (food.v0.message && food.v0.message !== food.v1.message ? ' and ' + srcNum(food.v0.messageSrc, '“' + food.v0.message + '”') : '') + '. That class reads the aspect and the ' + svEsc(own) + '’s ignores it.';
 }
 function mechGearFigure(gear) {
   const hue = {};
@@ -390,7 +390,7 @@ function mechGearFigure(gear) {
   return mechFig(offLoop ? 'Most damage a blow can do' : 'Most damage a blow can do before the skill',
     mechBars(arms) + '<div class="mechKeys">' + skills.map(s => '<span><i style="background:' + hue[s] + '"></i>' + svEsc(s) + '</span>').join('') + '</div>',
     offLoop
-      ? 'The color is the weapon’s skill, which ' + srcNum(offLoop[1] || offLoop[0], 'adds nothing') + '.'
+      ? 'The color is the weapon’s skill. It ' + srcNum(offLoop[1] || offLoop[0], 'adds nothing') + '.'
       : 'The color is the weapon’s skill.') +
     (armor.length ? mechFig('Protection points of each armor', mechBars(armor)) : '') +
     (shields.length ? mechFig('What each shield can block', mechBars(shields),
@@ -534,7 +534,7 @@ function mechHungerFigure(belly, clock) {
       { points: pt(ring), color: MECH_INK.cool, name: 'health with Omen’s ring' }
     ],
     marks: empty <= hours ? [{ x: empty, y: 8, label: 'the belly is empty', color: MECH_INK.warm }] : []
-  }), 'At level 6, health increases by 1 every <b>' + mechHealPeriodMinutes(6, clock) + ' minutes</b> unless nutrition is zero. ' +
+  }), 'At level 6 health increases by 1 every <b>' + mechHealPeriodMinutes(6, clock) + ' minutes</b> unless nutrition is zero. ' +
     'Omen’s ring adds an increase of ' + clock.regenStep + ' every <b>' + mechPeriodMinutes(clock, clock.poisonIndex) + ' minutes</b>, regardless of nutrition.');
 }
 
@@ -569,7 +569,7 @@ function mechLockFigure(lk) {
     height: 150, series, marks,
     x: { min: 0, max: 255, ticks: [0, 60, 120, 180, 255].map(v => ({ v, label: String(v) })) },
     y: { min: 0, max: 100, ticks: [{ v: 100, label: '100%' }, { v: 50, label: '50%' }, { v: 0, label: '0' }] }
-  }), 'Each dot is a kind of lock, picked with reflex 20.');
+  }), 'Each dot is a kind of lock picked with reflex 20.');
 }
 
 // What a shop charges. The interesting thing is the range -- three orders of
@@ -613,7 +613,7 @@ function mechTrainingFigure(tr) {
     x: { min: 1, max: 11, ticks: levels.filter(l => l % 2).map(l => ({ v: l, label: String(l) })) },
     y: { min: 0, max: 60, ticks: [{ v: 60, label: '60' }, { v: 30, label: '30' }, { v: mastery, label: String(mastery) }, { v: 0, label: '0' }] },
     marks: [{ x: 6, y: mastery + 3, label: 'one skill mastered', color: MECH_INK.ink }]
-  }), 'By level 11 a character has earned ' + earned(11) + ' points, enough to master ' + (earned(11) / mastery).toFixed(1) + ' skills.');
+  }), 'By level 11 a character has earned ' + earned(11) + ' points. That is enough to master ' + (earned(11) / mastery).toFixed(1) + ' skills.');
 }
 
 // The balloon itself, at the size the engine draws it, because the sheet
@@ -633,7 +633,7 @@ function mechBalloonFigure(barks, bark) {
     '</svg>' +
     mechNumberLine({ min: 0, max: Math.ceil(secs * 1.5), marks: [{ v: 0, label: 'said', above: true }, { v: secs, label: 'gone after ' + bark.ticks.v + ' ticks', below: true }],
       bands: [{ from: 0, to: secs, color: 'rgba(249,248,111,.28)', label: secs + ' seconds' }] }),
-    srcNum(bark.width) + ' by ' + srcNum(bark.height) + ' with a tail, and the tick count plus <b>' + srcNum(bark.ticks) + '</b> for how long it stays, both read out of the program.');
+    srcNum(bark.width) + ' by ' + srcNum(bark.height) + ' with a tail. It stays for the tick count plus <b>' + srcNum(bark.ticks) + '</b>. The page reads both out of the program.');
 }
 
 // The bed table as a chart, with the 2012 measurements laid over it. This is
@@ -667,7 +667,7 @@ function mechSleepFigure(sl, clock) {
     mechBars(bars, { max: Math.max.apply(null, withRing.map(w => w.value)) }) +
     '<div class="mechSub">With Omen’s ring</div>' +
     mechBars(withRing, { max: Math.max.apply(null, withRing.map(w => w.value)) }),
-    'Every hour a character is asleep, their health rises by the usual ' + mechHealRate(level, clock) + ' (' + mechBedRate(level, 0, { regenerating: true, div, clock }) + ' with Omen’s ring), multiplied by' +
+    'Every hour a character is asleep their health rises by the usual ' + mechHealRate(level, clock) + ' (' + mechBedRate(level, 0, { regenerating: true, div, clock }) + ' with Omen’s ring) multiplied by' +
     mechEq('1 + ' + mechFrac('q', div)) + 'where q is the quality of the bed.');
 }
 
@@ -760,18 +760,18 @@ function patchesOpenBytes(bytes, name, baseSpec) {
   // What the patch is compared with: the open file, or what the caller
   // gives (View Comparison gives the file as it arrived).
   const base = baseSpec || patchBaseSpec();
-  if (!base) { setNote('No game file is open to compare the patch with.', true); return false; }
+  if (!base) { setNote('There is no open game file to compare the patch against.', true); return false; }
   let extracted;
   try { extracted = extractDelverArchive(bytes); }
   catch (e) { setNote('The page could not open that file: ' + e.message, true); return false; }
   const patch = delverArchiveSpec(extracted.bytes);
-  if (!patch) { setNote('That file is not a Delver Archive, so it is not a Magpie patch.', true); return false; }
+  if (!patch) { setNote('That file is not a Delver Archive and so not a Magpie patch.', true); return false; }
   const report = describeDelverPatch(base, patch);
   report.fileName = name || '';
   report.via = extracted.via;
   window.PATCH_REPORT = report;
   // The archive's bytes, not the wrapper's: mergeDelverPatch needs the
-  // Delver archive, and what was dropped may have been a .hqx round a .sit.
+  // Delver archive, and what was dropped may have been a .hqx around a .sit.
   window.PATCH_BYTES = extracted.bytes;
   setNote('');
   renderPatchReport();
@@ -818,22 +818,22 @@ function renderPatchOverlaps() {
   if (!ARCHIVE || !ARCHIVE.bytes) { say('No game file is open.', true); return; }
   const layers = basketLayers();
   if (!layers) { const n = document.getElementById('patchBarNote'); say(svEsc(n && n.textContent || 'The page could not build the Patch in Progress.'), true); return; }
-  if (layers.length < 2) { say('The Patch in Progress has ' + (layers.length ? 'one part' : 'nothing in it') + '. Add two or more, such as fixes and a patch file, to compare them.'); return; }
+  if (layers.length < 2) { say('The Patch in Progress has ' + (layers.length ? 'one part' : 'nothing in it') + '. Add two or more (such as fixes and a patch file) to compare them.'); return; }
   let overlaps;
   try { overlaps = basketOverlaps(layers, basketBase()); }
   catch (e) { quiet(e, 'the overlaps of the Patch in Progress'); say('The page could not compare the parts. ' + svEsc(e.message), true); return; }
-  if (!overlaps.length) { say('No two parts of the Patch in Progress change the same thing. Installed as separate files, they work in any order.'); return; }
+  if (!overlaps.length) { say('No two parts of the Patch in Progress change the same thing. As separate files they work in any order.'); return; }
   const list = names => names.map(n => '<b>' + svEsc(n) + '</b>').join(names.length > 2 ? ', ' : ' and ').replace(/, (<b>[^<]*<\/b>)$/, ', and $1');
   const clashes = overlaps.filter(o => o.changers.length > 1 && !o.merged).length;
   say(overlaps.length + ' resource' + (overlaps.length === 1 ? ' is' : 's are') + ' in more than one part' +
-    (clashes ? '. In ' + clashes + ' of them two changes overlap, and only one can stay' : '') + '.', !!clashes);
+    (clashes ? '. In ' + clashes + ' of them two changes overlap and only one can stay' : '') + '.', !!clashes);
   const rows = overlaps.map(o => {
     const others = o.carriers.filter(c => o.changers.indexOf(c) < 0);
     const what = o.changers.length === 1
       ? list(o.changers) + ' changes it. ' + list(others) + (others.length === 1 ? ' has' : ' have') +
-        ' the original, which undoes the change when installed after it. The Patch in Progress has the change.'
-      : list(o.changers) + ' all change it, and the one installed last replaces the others. ' +
-        (o.merged ? 'The changes are to different bytes, and the Patch in Progress combines them.'
+        ' the original. That undoes the change when installed after it. The Patch in Progress has the change.'
+      : list(o.changers) + ' all change it. The one installed last replaces the others. ' +
+        (o.merged ? 'The changes are to different bytes and the Patch in Progress combines them.'
                   : 'The Patch in Progress has ' + svEsc(o.kept) + '’s.');
     return '<tr><td>' + svChip(o.resid, labelFor(o.resid) || '') + '</td><td>' + what + '</td></tr>';
   });
@@ -884,8 +884,8 @@ function patchesApply() {
   const what = (rep.descriptor && rep.descriptor.description) || rep.fileName || 'that patch';
   setStatus(merged.replaced.length + ' resource(s) replaced' +
     (merged.added.length ? ' and ' + merged.added.length + ' added' : '') + ' by ' + what +
-    '. This changes only the copy in this browser, and the galleries and maps now show it. ' +
-    'To download the changed file, use the Patch in Progress in Tools \u203a Patch Generator.');
+    '. This changes only the copy in this browser. The galleries and maps now show it. ' +
+    'The Patch in Progress in Tools \u203a Patch Generator downloads the changed file.');
   return true;
 }
 
@@ -946,8 +946,8 @@ function renderPatchReport() {
   if (d) {
     facts.push('<tr><td>identity</td><td class="patchMono">' + svEsc(d.uuidText) + '</td></tr>');
     facts.push('<tr><td>check value</td><td><span class="patchMono">' + svEsc(d.checkValue) + '</span>' +
-      (d.checkValueValid ? '<span class="mechSub"> correct, so the patch is intact</span>'
-                         : '<span class="patchBad"> wrong, so Magpie would not install this patch</span>') + '</td></tr>');
+      (d.checkValueValid ? '<span class="mechSub"> correct and the patch is intact</span>'
+                         : '<span class="patchBad"> wrong and Magpie would not install this patch</span>') + '</td></tr>');
     facts.push('<tr><td>type</td><td>' + (d.typeLabel ? '<b>' + svEsc(d.typeLabel) + '</b>' : 'code ' + d.typeCode) +
       (d.typeOverwritten ? '<span class="mechSub"> Magpie gives this code to a patch that fails its check</span>'
        : d.typeLabel ? '<span class="mechSub"> as Magpie shows it</span>'
@@ -958,7 +958,7 @@ function renderPatchReport() {
     (rep.format === rep.baseFormat ? '' : '<span class="mechSub"> and this file is ' + svEsc(rep.baseFormat) + '</span>') + '</td></tr>');
   host.appendChild(el('div', '', mechTable(['', ''], facts, 'patchFacts')));
   if (!d) host.appendChild(el('p', 'mechSub',
-    'This patch does not describe itself, so it would not appear in Magpie’s list. What it changes is still shown below.'));
+    'This patch does not describe itself and would not appear in Magpie’s list. What it changes is still shown below.'));
   if (character) host.appendChild(el('p', 'mechSub', 'The name is not in the file. It comes from ' + svEsc(character.source) + '.'));
 
   host.appendChild(el('div', 'partsTitle', 'Against the open file'));
@@ -967,12 +967,12 @@ function renderPatchReport() {
     ? 'This patch is <b>already in this file’s list</b> of applied patches.'
     : rep.installedIds.length
       ? 'This file lists <b>' + rep.installedIds.length + '</b> applied patch' + (rep.installedIds.length === 1 ? '' : 'es') + ', and this is not one of them.'
-      : 'No applied patches are listed in this file.');
+      : 'This file has no record of applied patches.');
   if (rep.usable) verdicts.push('Magpie would accept it for this file.');
   else for (const r of rep.reasons) verdicts.push('Magpie would reject it: ' + svEsc(r) + '.');
   if (rep.willAdd.length) verdicts.push('<b>' + rep.willAdd.length + '</b> resource' + (rep.willAdd.length === 1 ? '' : 's') +
-    ' in the patch ' + (rep.willAdd.length === 1 ? 'is' : 'are') + ' not in this file, and the patch would add them.');
-  if (rep.disagreed.length) verdicts.push('Magpie would reject <b>' + rep.disagreed.length + '</b>, because the resource is encrypted in one of the two and plain in the other.');
+    ' in the patch ' + (rep.willAdd.length === 1 ? 'is' : 'are') + ' not in this file. The patch would add them.');
+  if (rep.disagreed.length) verdicts.push('Magpie would reject <b>' + rep.disagreed.length + '</b> because one of the two stores the resource encrypted and the other plain.');
   if (rep.unchanged.length) verdicts.push('<b>' + rep.unchanged.length + '</b> are already identical to the ones in this file.');
   host.appendChild(el('ul', 'ruleList', verdicts.map(v => '<li>' + v + '</li>').join('')));
 
@@ -994,7 +994,7 @@ function renderPatchReport() {
     const total = sheets.reduce((n, x) => n + x.diff.changed.length, 0);
     const of = sheets.reduce((n, x) => n + x.diff.tiles, 0);
     host.appendChild(el('div', 'partsTitle', 'What it redraws: ' + total + ' tiles of ' + of));
-    host.appendChild(el('p', 'mechSub', 'The original tile is on the left of each pair, and the patch’s on the right.'));
+    host.appendChild(el('p', 'mechSub', 'The original tile is on the left of each pair and the patch’s is on the right.'));
     for (const { r, diff } of sheets) {
       const head = el('div', 'patchSheetHead');
       head.innerHTML = svChip(r.resid, labelFor(r.resid) || '') +
@@ -1024,16 +1024,16 @@ function renderPatchReport() {
    changed and by how many bytes; the maintainer asked for the exact
    difference (27 September 2026), and a fix patch is nearly all scripts.
    One fold a script, its counts on the fold and its lines drawn when it is
-   first opened, since a patch of a hundred and sixty scripts drawn at once
+   first opened, since a patch of a hundred and sixty scripts drawn together
    is a long page on a phone. `pairs` is [{ resid, a, b }], each side's
    plaintext or null; `memo` is a Map kept on the report, since the Tools
    tab draws the report again every time it is shown and the diffs of a
    hundred and sixty scripts were worked out again with it. */
 function scriptDiffSection(host, el, pairs, aName, bName, memo) {
   if (!pairs.length) return;
-  host.appendChild(el('div', 'partsTitle', 'The scripts, line by line: ' + pairs.length));
-  host.appendChild(el('p', 'mechSub', 'The lines that differ, with two lines either side. ' +
-    '− is ' + svEsc(aName) + ', + is ' + svEsc(bName) + ', with the words that differ underlined. ' +
+  host.appendChild(el('div', 'partsTitle', 'The scripts line by line: ' + pairs.length));
+  host.appendChild(el('p', 'mechSub', 'The lines that differ with two lines either side. ' +
+    '− is ' + svEsc(aName) + ' and + is ' + svEsc(bName) + '. Underlines mark the words that differ. ' +
     'Any text in a script follows its code.'));
   for (const p of pairs) {
     let d = memo && memo.get(p.resid);
@@ -1068,7 +1068,7 @@ function scriptDiffHTML(p, d) {
   h += hunks(d.hunks);
   if (d.text.length) h += '<div class="mechSub">Text in its data</div>' + hunks(d.text);
   if (!d.hunks.length && !d.text.length)
-    h += '<p class="mechSub">No line of its listing and no text in its data differs, but the bytes do: ' +
+    h += '<p class="mechSub">No line of its listing and no text in its data differs. The bytes do: ' +
       (p.a ? p.a.length : 0) + ' against ' + (p.b ? p.b.length : 0) + '.</p>';
   return h;
 }
@@ -1324,7 +1324,7 @@ function heroSpriteApply() {
   if (!w) { heroStatus('Choose something to apply first.', true); return false; }
   if (!patchesOpenBytes(w.bytes, w.name)) { heroStatus('The page could not open the patch.', true); return false; }
   const ok = patchesApply();
-  if (ok) { renderPatchReport(); heroStatus('Applied to the copy of the file in this browser. To download the changed file, use the Patch in Progress in Tools › Patch Generator.'); }
+  if (ok) { renderPatchReport(); heroStatus('Applied to the copy of the file in this browser. The Patch in Progress in Tools › Patch Generator downloads the changed file.'); }
   return ok;
 }
 
@@ -1531,7 +1531,7 @@ function renderHeroSprite() {
   const rec = heroRecoloured(fig);
   const strip = el('div', 'patchStrip');
   {
-    host.appendChild(el('div', 'partsTitle', 'The ' + svEsc(fig.name) + '’s ' + fig.frames + ' frames, from sheet ' + propWordHex(fig.sheet)));
+    host.appendChild(el('div', 'partsTitle', 'The ' + svEsc(fig.name) + '’s ' + fig.frames + ' frames from sheet ' + propWordHex(fig.sheet)));
     for (let t = 0; t < fig.frames; t++) {
       const pair = el('div', 'patchPair');
       pair.appendChild(patchTileCanvas({ image: fig.shipped, W: 32, H: fig.H }, t, 141));
@@ -1543,18 +1543,18 @@ function renderHeroSprite() {
   host.appendChild(strip);
   const facts = [];
   if (fig.body) facts.push(fig.body.frames === 16
-    ? 'The ' + svEsc(fig.body.label) + '’s frames have the same layout as the ' + svEsc(fig.name) + '’s, so the patch uses them as they are.'
+    ? 'The ' + svEsc(fig.body.label) + '’s frames have the same layout as the ' + svEsc(fig.name) + '’s. The patch uses them as they are.'
     : 'The ' + svEsc(fig.body.label) + ' has ' + fig.body.frames / 4 + (fig.body.frames === 8 ? ' strides' : ' frame') +
-      ' a facing where the ' + svEsc(fig.name) + ' has four poses, so ' +
+      ' a facing where the ' + svEsc(fig.name) + ' has four poses. So ' +
       (fig.body.frames === 8 ? 'the patch uses the first walking frame for standing and sitting too.' : 'the patch uses that frame for all four.'));
   facts.push(fig.others.length
     ? svEsc(fig.others.map(k => k.label).join(', ')) + ' also ' + (fig.others.length === 1 ? 'draws' : 'draw') + ' from these frames and would change with them.'
     : fig.start || fig.frames < 16
       ? 'Only these ' + fig.frames + ' frames of the sheet change. The rest of it stays the same.'
       : 'Nothing else in the file draws from this sheet.');
-  if (fig.wearers > 1) facts.push('<b>' + fig.wearers + '</b> characters wear this sprite, and all of them change with it.');
-  if (fig.unknown) facts.push('<b>' + fig.unknown + '</b> pixels are in colors the original art does not use, so they stay unchanged.');
-  facts.push(rec.moved ? '<b>' + rec.moved.toLocaleString() + '</b> pixels change.' : 'Nothing chosen, so the frames stay unchanged.');
+  if (fig.wearers > 1) facts.push('<b>' + fig.wearers + '</b> characters wear this sprite and all of them change with it.');
+  if (fig.unknown) facts.push('<b>' + fig.unknown + '</b> pixels are in colors the original art does not use. They stay unchanged.');
+  facts.push(rec.moved ? '<b>' + rec.moved.toLocaleString() + '</b> pixels change.' : 'With nothing chosen the frames stay unchanged.');
   host.appendChild(el('ul', 'ruleList', facts.map(f => '<li>' + f + '</li>').join('')));
 
   if (!rec.moved) return;
@@ -1647,8 +1647,8 @@ function gremlinListingFromForm(st) {
   if (gremlinLine) {
     // A line in a script is printed up to the first byte the interpreter
     // reads as an instruction, which is any byte from 0x80 up.
-    if (!/^[\x20-\x7E]+$/.test(gremlinLine)) throw new Error('The line can have only plain letters, digits and punctuation');
-    if (/\s\/\//.test(gremlinLine)) throw new Error('The line cannot contain " //", which the listing treats as the start of a comment');
+    if (!/^[\x20-\x7E]+$/.test(gremlinLine)) throw new Error('The line can have only plain letters, digits, and punctuation');
+    if (/\s\/\//.test(gremlinLine)) throw new Error('The line cannot contain " //" because the listing treats it as the start of a comment');
     L.push('string(implicit) ' + JSON.stringify(gremlinLine + '\n'));
   }
   if (String(st.setFlag).trim() !== '')
@@ -1695,7 +1695,7 @@ function gremlinApply() {
     window.GREMLIN_STATE.num = null;
     renderPatchReport();
     renderGremlinMaker();
-    gremlinStatus('Gremlin ' + w.gremlin + ' is in the copy of the file in this browser. To download the changed file, use the Patch in Progress in Tools › Patch Generator.');
+    gremlinStatus('Gremlin ' + w.gremlin + ' is in the copy of the file in this browser. The Patch in Progress in Tools › Patch Generator downloads the changed file.');
   }
   return ok;
 }
@@ -1734,7 +1734,7 @@ function renderGremlinMaker() {
   const st = window.GREMLIN_STATE, base = patchBaseSpec();
   if (!base) { host.appendChild(el('p', 'mechSub', 'No game file is open.')); return; }
   if (base.playerName) {
-    host.appendChild(el('p', 'mechSub', 'This is a saved game. Add a gremlin to Cythera Data, then switch it on from this save’s page.'));
+    host.appendChild(el('p', 'mechSub', 'This is a saved game. Add a gremlin to Cythera Data. Then switch it on from this save’s page.'));
     return;
   }
   const used = gremlinNumbersIn(base), n = gremlinNumber();
@@ -1773,12 +1773,12 @@ function renderGremlinMaker() {
       whichName = m ? m[1].replace(/\\n/g, ' ').slice(0, 60) : 'no room script of that number';
     }
   }
-  cell(choice('gremlinWhen', [['room', 'the party enters a room (untested)'], ['zone', 'the party enters a zone, or a save loads'], ['signal', 'a script sends a signal (untested)']], st.when, 'when'),
+  cell(choice('gremlinWhen', [['room', 'the party enters a room (untested)'], ['zone', 'the party enters a zone or a save loads'], ['signal', 'a script sends a signal (untested)']], st.when, 'when'),
        text('gremlinWhich', st.which, 'gremlinNum', st.when === 'signal' ? 'number' : 'any', 'which'),
        el('span', 'mechSub', ' ' + (whichName ? svEsc(whichName)
-         : st.when === 'room' ? 'the number on the room’s egg, or empty for any room'
-         : st.when === 'zone' ? 'the zone’s map number, or empty for any zone'
-         : 'use 256 or more, since lower numbers also reach the game’s bells and music locks')));
+         : st.when === 'room' ? 'the number on the room’s egg (or empty for any room)'
+         : st.when === 'zone' ? 'the zone’s map number (or empty for any zone)'
+         : 'use 256 or more because lower numbers also reach the game’s bells and music locks')));
   label('Only if quest flag');
   cell(text('gremlinFlag', st.flag, 'gremlinNum', 'none', 'flag'),
        choice('gremlinFlagIs', [['set', 'is set'], ['clear', 'is clear']], st.flagIs, 'flagIs'));
@@ -1793,7 +1793,7 @@ function renderGremlinMaker() {
   once.onchange = function () { gremlinSet('once', once.checked); };
   const onceLabel = el('label', 'mechSub');
   onceLabel.appendChild(once);
-  onceLabel.appendChild(el('span', '', ' switch itself off, so it acts once'));
+  onceLabel.appendChild(el('span', '', ' switch itself off to act only once'));
   cell(onceLabel);
   host.appendChild(form);
 
@@ -1824,7 +1824,7 @@ function renderGremlinMaker() {
   // Add to Patch, as the sprite's (above).
   btn('Add to Patch', gremlinAdd);
   host.appendChild(bar);
-  host.appendChild(el('p', 'mechSub', 'A new game switches every gremlin on. In a save made before the patch, switch it on in the save’s page.'));
+  host.appendChild(el('p', 'mechSub', 'A new game switches every gremlin on. Switch it on in the save’s page for a save made before the patch.'));
   gremlinCheck(formError);
 }
 // Whether the listing assembles, shown under it as it is typed.
@@ -1836,7 +1836,7 @@ function gremlinCheck(formError) {
   try {
     const c = gremlinClass();
     out.textContent = c.bytes.length + ' bytes, ' + (DVM_SYM.method[gremlinMethodKey(st)] || 'method') + ' at ' + c.methods[0].at +
-      ' and a table of ' + c.size + ' slots, as resource ' + propWordHex(0x1F00 + c.n) + '.';
+      ' and a table of ' + c.size + ' slots in resource ' + propWordHex(0x1F00 + c.n) + '.';
     out.className = 'mechSub';
   } catch (e) { out.textContent = e.message + '.'; out.className = 'mechSub patchBad'; }
 }
@@ -1887,7 +1887,7 @@ function newGameBadge(f) {
   if (f.newGame === true) return 'needs a new game';
   const names = f.newGame.map(z => { try { return zoneDisplayName(z); } catch (e) { quiet(e, 'a zone name with no file open'); return 'zone ' + z; } });
   const list = names.length < 2 ? names[0] : names.slice(0, -1).join(', ') + ' or ' + names[names.length - 1];
-  return 'needs a new game, or a first visit to ' + list;
+  return 'needs a new game or a first visit to ' + list;
 }
 // A program fix has two halves, the PowerPC program and the 68K one
 // (js/delv-app68k.js), played separately: `played` is the PowerPC half's,
@@ -1897,7 +1897,7 @@ function appFixMark(f) {
   if (typeof APP_FIXES_68K === 'undefined' || !app68kNames(f.id)) return untestedMark(f);
   const on68 = APP_FIXES_68K.played.includes(f.id);
   if (!f.played) return on68 ? ' (untested on PowerPC)' : ' (untested)';
-  if (!on68) return fixPlayedInPart(f) ? ' (partially tested, untested on 68K)' : ' (untested on 68K)';
+  if (!on68) return fixPlayedInPart(f) ? ' (partially tested and untested on 68K)' : ' (untested on 68K)';
   return untestedMark(f);
 }
 // The 68K changes of a fix, one line each.
@@ -1906,7 +1906,7 @@ function appFix68kListing(m) {
   return [].concat(
     m.inPlace.map(e => 'CODE ' + e.seg + ' +' + hx(e.at) + '  ' + e.length + ' bytes in place'),
     m.caves.map(e => 'CODE ' + e.seg + ' +' + hx(e.site) + '  a branch to ' + e.length + ' bytes of new code at +' + hx(e.at)),
-    m.values.map(e => 'CODE ' + e.seg + ' +' + hx(e.off) + '  a value, now ' + hx(e.now)),
+    m.values.map(e => 'CODE ' + e.seg + ' +' + hx(e.off) + '  a value that is now ' + hx(e.now)),
     m.data0.map(e => 'DATA 0 +' + hx(e.at) + '  ' + e.length + ' bytes of text')).join('\n');
 }
 function appFixChosen() { return APP_FIXES.filter(f => !window.APPFIX_STATE.off.has(f.id)); }
@@ -1939,7 +1939,7 @@ function appFixBuild() {
   const src = appFixSource();
   if (!src) { appFixStatus('No program is open.', true); return null; }
   const chosen = appFixChosen();
-  if (!chosen.length) { appFixStatus('Nothing is chosen, so there is nothing to write.', true); return null; }
+  if (!chosen.length) { appFixStatus('With nothing chosen there is nothing to write.', true); return null; }
   try { return Object.assign(applyAppFixes(src, chosen), { src, chosen }); }
   catch (e) { appFixStatus(e.message, true); return null; }
 }
@@ -1976,7 +1976,7 @@ function fixFold(open, key, title, count) {
    fold took a row under every fix, which in a list of sixty was most
    of the list (the maintainer, 16 October 2026). It is a span and not a
    button because the page's button rule is !important on padding and
-   background, and it stops the click so that the label round it does not
+   background, and it stops the click so that the label around it does not
    tick the box. */
 /* `fill` draws the panel the first time it is opened, since a data fix's
    is worked out by applying the fix (fixDataChanges). */
@@ -2067,7 +2067,7 @@ function fixReadDiffHTML(id, a, b) {
   try { text = dvmScriptDiff(ARCHIVE, id, a, b); } catch (e) { quiet(e, 'comparing the text of script ' + propWordHex(id)); }
   if (code && code.hunks.length) h += hunks(code.hunks);
   if (text && text.text.length) h += '<div class="mechSub">Its text</div>' + hunks(text.text);
-  if (!(code && code.hunks.length) && !(text && text.text.length)) h += '<p class="mechSub">The script changes, and no line of it reads differently.</p>';
+  if (!(code && code.hunks.length) && !(text && text.text.length)) h += '<p class="mechSub">The script changes but no line of it reads differently.</p>';
   return h;
 }
 /* What a program fix changes: each place, by the routine it is in, linked
@@ -2151,7 +2151,7 @@ function spanishStatus(m, bad) {
 function spanishBuild(T, articles) {
   if (!ARCHIVE) { spanishStatus('No game file is open.', true); return null; }
   const rsrc = window.CYTHERA_RSRC_RAW;
-  if (!rsrc || !rsrc.length) { spanishStatus('This copy is missing the font the accents need. Open the game in MacBinary or BinHex, or open the installer.', true); return null; }
+  if (!rsrc || !rsrc.length) { spanishStatus('This copy is missing the font the accents need. Open the installer or the game in MacBinary or BinHex.', true); return null; }
   try { return translateCytheraData(ARCHIVE.bytes, rsrc, T, { articles: !!articles }); }
   catch (e) { spanishStatus(e.message, true); return null; }
 }
@@ -2184,7 +2184,7 @@ function spanishProgramDownload(both) {
   spanishStatus('Writing the program in Spanish.');
   return spanishTable().then(T => {
     const src = appFixSource();
-    if (!src) { spanishStatus('No program is open. Open the installer, or choose the program in MacBinary or BinHex.', true); return null; }
+    if (!src) { spanishStatus('No program is open. Open the installer or choose the program in MacBinary or BinHex.', true); return null; }
     let p;
     try { p = translateProgram(src.data, src.rsrc, T); } catch (e) { spanishStatus(e.message, true); return null; }
     const prog = { name: 'Cythera', type: src.type || 'APPL', creator: src.creator || 'Delv', data: p.data, rsrc: p.rsrc, finderFlags: programFinderFlags(p.rsrc) };
@@ -2247,7 +2247,7 @@ function scenarioPatchDownload() {
   if (!w) { scenarioStatus('The page could not make a scenario with these choices. The hero has to stand inside the zone.', true); return null; }
   const bin = writeMacBinary({ name: w.name, type: 'DelP', creator: DELV_PATCH_CREATOR, data: w.bytes });
   dlBlob(new Blob([bin], { type: 'application/macbinary' }), w.name + '.bin');
-  scenarioStatus(w.bytes.length.toLocaleString() + ' bytes, ' + w.count + ' resources. Choose this file under Patches in the browser player, then start a new game.');
+  scenarioStatus(w.bytes.length.toLocaleString() + ' bytes in ' + w.count + ' resources. Choose this file under Patches in the browser player. Then start a new game.');
   return w;
 }
 function scenarioManboroughDownload() {
@@ -2255,7 +2255,7 @@ function scenarioManboroughDownload() {
   try { w = manboroughExport(window.SCENARIO_STATE); } catch (e) { scenarioStatus(e.message, true); return null; }
   if (!w) { scenarioStatus('The page could not make a zone with these choices. The hero has to stand inside it.', true); return null; }
   dlBlob(new Blob([w.bytes], { type: 'application/zip' }), w.name + '.zip');
-  scenarioStatus(w.bytes.length.toLocaleString() + ' bytes. In Manborough’s editor, Import Scenario, then choose it under Select Scenario.' + (w.left.length ? ' Left out: ' + w.left.join(' and ') + '.' : ''));
+  scenarioStatus(w.bytes.length.toLocaleString() + ' bytes. In Manborough’s editor choose Import Scenario and then choose it under Select Scenario.' + (w.left.length ? ' Left out: ' + w.left.join(' and ') + '.' : ''));
   return w;
 }
 function scenarioOpenHere() {
@@ -2265,7 +2265,7 @@ function scenarioOpenHere() {
   // file made here downloads whole from the Changes tab.
   const f = window.ARCHIVE_FINDER;
   parseArchiveBytes(bytes, (f && f.name) || DISK_ARCHIVE_NAME, { via: 'made here', rsrc: window.CYTHERA_RSRC_RAW, finder: f || undefined });
-  setStatus('Made a scenario with one zone. To download it, use the Patch in Progress in Tools › Patch Generator.');
+  setStatus('Made a scenario with one zone. The Patch in Progress in Tools › Patch Generator downloads it.');
   return true;
 }
 function renderScenarioMaker() {
@@ -2276,7 +2276,7 @@ function renderScenarioMaker() {
   let d = null;
   try { d = scenarioMakerDefaults(); } catch (e) { quiet(e, 'what a new scenario starts from'); }
   if (!d) {
-    host.appendChild(el('p', 'mechSub', !ARCHIVE ? 'No game file is open.' : ARCHIVE.bytes[0x20] ? 'This is a saved game. Open Cythera Data to make a scenario from it.' : 'This file has no hero in a zone to start from.'));
+    host.appendChild(el('p', 'mechSub', !ARCHIVE ? 'No game file is open.' : ARCHIVE.bytes[0x20] ? 'This is a saved game. Open Cythera Data to make a scenario from it.' : 'This file has no hero in a zone for a starting place.'));
     return;
   }
   const st = window.SCENARIO_STATE;
@@ -2318,7 +2318,7 @@ function renderScenarioMaker() {
   mapClear.onclick = function () { st.map = null; st.mapName = ''; renderScenarioMaker(); scenarioStatus(''); };
   label('Map');
   if (st.map) cell(el('span', 'mechSub', svEsc(st.mapName) + ', ' + st.map.width + ' by ' + st.map.height), mapClear);
-  else cell(mapPick, el('span', 'mechSub', ' an export from Manborough\u2019s editor, or leave empty'));
+  else cell(mapPick, el('span', 'mechSub', ' an export from Manborough\u2019s editor or nothing'));
   const name = field('scenName', 'name', 'text');
   name.maxLength = 40;
   label('Zone name');
@@ -2332,7 +2332,7 @@ function renderScenarioMaker() {
   label('Hero at');
   cell(field('scenX', 'x', 'number', st.map && st.map.x !== undefined ? st.map.x : d.x), el('span', 'mechSub', ' , '), field('scenY', 'y', 'number', st.map && st.map.y !== undefined ? st.map.y : d.y));
   label('Light');
-  cell(choice('scenLight', 'light', [[d.lit, 'Always lit'], [0, 'Daylight, by the game’s clock']]));
+  cell(choice('scenLight', 'light', [[d.lit, 'Always lit'], [0, 'Daylight by the game’s clock']]));
   const keep = document.createElement('input');
   keep.type = 'checkbox'; keep.id = 'scenOpening'; keep.checked = !!st.opening;
   keep.onchange = function () { st.opening = keep.checked; };
@@ -2359,14 +2359,14 @@ function renderScenarioMaker() {
       scenarioStatus(f.name + ': ' + pack.files.length.toLocaleString() + ' pictures.');
     }).catch(e => { st.pack = null; scenarioStatus('The page could not read that zip: ' + e.message, true); });
   };
-  const artPick = choice('scenArt', 'art', [['', 'As it is'], ['fine', 'Drawn again, with care'], ['bad', 'Drawn again, badly'], ['pack', 'From an art pack']]);
+  const artPick = choice('scenArt', 'art', [['', 'As it is'], ['fine', 'Drawn again with care'], ['bad', 'Drawn again badly'], ['pack', 'From an art pack']]);
   const artChange = artPick.onchange;
   artPick.onchange = function () { artChange.call(artPick); packPick.style.display = st.art === 'pack' ? '' : 'none'; };
   label('Art');
   cell(artPick, packPick, el('span', 'mechSub', st.art === 'pack' && st.packName ? ' ' + svEsc(st.packName) : ''));
   host.appendChild(form);
   if (!(window.CYTHERA_RSRC_RAW && window.CYTHERA_RSRC_RAW.length))
-    host.appendChild(el('p', 'mechSub', 'This copy has no resource fork, and the game will not start without one. Open the game in MacBinary or BinHex, or open the installer.'));
+    host.appendChild(el('p', 'mechSub', 'This copy has no resource fork and the game will not start without one. Open the installer or the game in MacBinary or BinHex.'));
   const bar = el('div', 'mechStats');
   for (const [text, fn] of [['Download for a Mac', () => scenarioDownload(false)], ['Download as a disk image', () => scenarioDownload(true)], ['Download as a patch', () => scenarioPatchDownload()], ['Download for Manborough\u2019s editor', () => scenarioManboroughDownload()], ['Open It Here', () => scenarioOpenHere()]]) {
     const b = document.createElement('button');
@@ -2398,11 +2398,11 @@ function renderSpanishMaker() {
   };
   line(!ARCHIVE ? 'No game file is open.'
     : (window.CYTHERA_RSRC_RAW && window.CYTHERA_RSRC_RAW.length) ? 'Written from ' + (window.ARCHIVE_SOURCE_NAME || 'the open file') + ', both forks.'
-    : 'This copy has no resource fork. Open the game in MacBinary or BinHex, or open the installer.');
+    : 'This copy has no resource fork. Open the installer or the game in MacBinary or BinHex.');
   bar([['Download for a Mac', function () { spanishDownload(false); }], ['Download as a disk image', function () { spanishDownload(true); }]]);
   const src = appFixSource();
-  line(src ? 'The program, written from ' + src.name + '. Its menus, dialogs and messages in Spanish, on a PowerPC Mac (untested).'
-           : 'For the program, open the installer or choose the program in MacBinary or BinHex.');
+  line(src ? 'The program written from ' + src.name + '. Its menus, dialogs, and messages in Spanish on a PowerPC Mac (untested).'
+           : 'Open the installer or the program in MacBinary or BinHex for this.');
   const d = bar([['Download the program for a Mac', function () { spanishProgramDownload(false); }], ['Download both as a disk image', function () { spanishProgramDownload(true); }]]);
   const inp = document.createElement('input');
   inp.type = 'file'; inp.id = 'spanishAppFile'; inp.accept = '*/*';
@@ -2544,7 +2544,7 @@ function dataFixDescription(chosen) {
   const count = (g, what) => { const k = n(g); if (k) bits.push(k + ' ' + what); };
   count('talk', 'to conversations');
   count('quests', 'to quests');
-  count('rules', 'to spells, skills and fighting');
+  count('rules', 'to spells, skills, and fighting');
   count('items', 'to items');
   count('world', 'to people and places');
   { const k = n('design'); if (k) bits.push(k + (k === 1 ? ' design change' : ' design changes')); }
@@ -2592,10 +2592,10 @@ function dataFixBuild(what) {
   catch (e) {
     const base = patchBaseSpec();
     const patched = base && delverInstalledPatchIds(base).length;
-    dataFixStatus('The page could not write the patch. ' + e.message + (patched ? ' This file already has patches applied, which may have made this change.' : ''), true);
+    dataFixStatus('The page could not write the patch. ' + e.message + (patched ? ' This file already has patches applied. One may have made this change.' : ''), true);
     return null;
   }
-  if (!w) dataFixStatus('Nothing is chosen, so there is nothing to ' + what + '.', true);
+  if (!w) dataFixStatus('With nothing chosen there is nothing to ' + what + '.', true);
   return w;
 }
 function dataFixApply() {
@@ -2604,7 +2604,7 @@ function dataFixApply() {
   if (!patchesOpenBytes(w.bytes, w.name)) { dataFixStatus('The page could not open the patch.', true); return false; }
   const ok = patchesApply();
   if (ok) basketApplied(w.resids);
-  if (ok) { renderPatchReport(); dataFixStatus('Applied to the copy of the file in this browser. To download the changed file, use the Patch in Progress in Tools › Patch Generator.'); }
+  if (ok) { renderPatchReport(); dataFixStatus('Applied to the copy of the file in this browser. The Patch in Progress in Tools › Patch Generator downloads the changed file.'); }
   return ok;
 }
 function dataFixShowPatch() {
