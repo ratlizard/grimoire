@@ -399,7 +399,7 @@ if (take()) try {
   // and test it, since the files give a flag no name to show instead.
   else if (!(() => { const l = (ctx.COUNT_LISTS || []).find(c => /^Quest flag 0: \d+ scripts? sets? it/.test(c.title)); return l && l.chips.length && /showCountList\(/.test(cardHTML('sched-2')); })())
     fail('schedules', 'Alaric\u2019s quest flag 0 links to nothing: ' + JSON.stringify((ctx.COUNT_LISTS || []).filter(c => /^Quest flag 0/.test(c.title)).map(c => c.title)));
-  else if (!/if quest value 3 is 3[\s\S]*if a post above applies, none below do[\s\S]*off every map if Pelagon has flag 0/.test(pel))
+  else if (!/if quest value 3 is 3[\s\S]*if a post above applies then none below do[\s\S]*off every map if Pelagon has flag 0/.test(pel))
     fail('schedules', 'Pelagon\u2019s schedule is not read as a program: ' + pel.slice(0, 300));
   // And the map walks the day a new game starts with (scheduleDay): quest
   // value 3 is 0 and Pelagon's flag 0 is clear, so his day is Kosha alone.
@@ -1171,9 +1171,9 @@ if (take()) try {
                                            aName: 'the scenario', bName: 'a made save' }).replace(/<[^>]+>/g, ' ');
     if (!/carried by [^,]+ only in a made save/.test(words) || /at 0, 1 only in/.test(words))
       fail('save mark, off the map', 'the comparison does not say the carried record is carried: ' + words.replace(/^.*Zones/, '').slice(0, 160));
-    else if (!/\b1 placed\b/.test(both) || !/\b1 carried or inside something, not drawn/.test(both))
+    else if (!/\b1 placed\b/.test(both) || !/\b1 carried or inside something and not drawn/.test(both))
       fail('save mark, off the map', 'a record on the floor and one carried did not read as one placed and one carried: ' + both.replace(/^.*over this zone: /, '').slice(0, 120));
-    else if (!/this is the scenario’s list/.test(none) || /\bgone\b/.test(none))
+    else if (!/the scenario’s list \(the save has none for this zone\)/.test(none) || /\bgone\b/.test(none))
       fail('save mark, off the map', 'a save with no list for the zone did not have the scenario’s: ' + none.replace(/^.*over this zone: /, '').slice(0, 120));
     else console.log('  save mark, off the map: a made save over the Ruins reads one placed and one carried, on the map and in the comparison, and a save with no list there changes nothing');
   }
@@ -1499,7 +1499,7 @@ if (take()) try {
     fail('game fixes', 'the list of the text’s changes is not the options chosen: ' + JSON.stringify(changes));
   else if (!link || link.resid !== 0x1858 || link.t !== 'Yery well' || !link.opened || !link.ringed)
     fail('game fixes', 'the list’s link to Helen’s "Yery well" is not where the words are, or did not open there: ' + JSON.stringify(link));
-  else if (!/1 to conversations, 3 to spells, skills and fighting, 1 to people and places, 1 design change and/.test(desc) || !/the text \(British spelling, Land King\)/.test(desc))
+  else if (!/1 to conversations, 3 to spells, skills, and fighting, 1 to people and places, 1 design change and/.test(desc) || !/the text \(British spelling, Land King\)/.test(desc))
     fail('game fixes', 'the patch calls itself ' + desc);
   else if (!/Bryce Schroeder/.test(credit.fetch) || !/Bryce Schroeder/.test(credit.fishing) || !credit.locks || /Bryce/.test(credit.locks))
     fail('game fixes', 'Bryce Schroeder is not credited on Fetch and fishing alone: ' + JSON.stringify(credit));

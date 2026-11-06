@@ -177,9 +177,9 @@ if (savePath && !onlyCat) {
         // scenario) and the size shows what it is with no link (pinned with
         // the application in the installer part's program figures).
         const plain = withoutApp(() => ctx.charEditHTML(1));
-        if (!/a merchant’s price, in tenths of a thing’s worth/.test(f) || /shops start at/.test(f))
+        if (!/a merchant’s price in tenths of a thing’s worth/.test(f) || /shops start at/.test(f))
           fail('record form', 'byte 23 is not the price, or states starting values a save cannot have');
-        else if (!/stats it was made at\. Named characters/.test(plain) || /jumpToExeAt/.test(plain))
+        else if (!/list was made at\. Named characters/.test(plain) || /jumpToExeAt/.test(plain))
           fail('record form', 'byte 31 is not the size, or links to the program with no application open');
       }
       const before = ctx.loadCharacterTable()[1];
@@ -235,7 +235,7 @@ if (savePath && !onlyCat) {
         fail('every byte', 'the Saved Game sheet does not say every byte is labelled');
       else if (!stream || !/the block’s tag<\/td><td>Char</.test(ctx.byteMapTableHTML(stream.fields).replace(/ <span[^>]*>not read<\/span>/g, '')))
         fail('every byte', 'the stream’s first field is not the Char tag');
-      else if (!/every field’s meaning is known/.test(sheet)) fail('every byte', 'the Saved Game sheet does not say every field is read');
+      else if (!/Every field’s meaning is clear/.test(sheet)) fail('every byte', 'the Saved Game sheet does not say every field is read');
       else console.log('  every byte: ' + opened + ' saves, ' + bytes.toLocaleString('en-US') + ' bytes, each in one labelled field whose meaning is read');
     } catch (e) { fail('every byte', e); }
     // Back to the game archive, and the identity goes back with it. With no
@@ -247,7 +247,7 @@ if (savePath && !onlyCat) {
     // On the scenario the price gives the two shop helpers' starting values,
     // each a link to its line: 0xEA5's for selling to you, 0xEA9's for
     // buying from you.
-    if (!/prices starting at <button[^>]*jumpToScriptAt\(3749,\d+\)[^>]*>20<\/button> when the hero buys and <button[^>]*jumpToScriptAt\(3753,\d+\)[^>]*>10<\/button> when the hero sells/.test(ctx.charEditHTML(1)))
+    if (!/Prices start at <button[^>]*jumpToScriptAt\(3749,\d+\)[^>]*>20<\/button> when the hero buys and at <button[^>]*jumpToScriptAt\(3753,\d+\)[^>]*>10<\/button> when the hero sells/.test(ctx.charEditHTML(1)))
       fail('record form', 'on the scenario byte 23 does not give the shops’ starting values off their lines');
   } catch (e) { fail('saved game', e); }
 }

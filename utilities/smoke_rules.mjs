@@ -301,7 +301,7 @@ if (take()) try {
   else if (!(dice.faces.join() === '6,6,6' && dice.matchPay === 2 && dice.skillFaces === 6 && !dice.skillAlways && !dice.skillFree && dice.bytes.length === 7 &&
              dice.bytes.some(b => b.at === 0x0506 && b.now === 2) && dice.bytes.some(b => b.at === 0x0492 && b.target && b.next === 0x0494) && dice.bytes.some(b => b.at === 0x047C && b.target && b.next === 0x047E) && dice.bytes.some(b => b.at === 0x045E && b.now === 6)))
     fail('mechanics', 'the dice constants were not read off the script with their offsets: ' + JSON.stringify(dice && dice.bytes));
-  else if (!/What to edit/.test(html) || !/0x0506/.test(html) || !/a match pays nothing/.test(html) || !/every game played with the skill is a match/.test(html))
+  else if (!/What to edit/.test(html) || !/0x0506/.test(html) || !/a match pays nothing/.test(html) || !/very game played with the skill is then a match/.test(html))
     fail('mechanics', 'the dice section does not say what to edit');
   else if (!ctx.gearTable().some(r => r.name === 'axe' && r.damage === 22 && r.skill === 'Axe') || !ctx.gearTable().some(r => r.name === 'spear' && r.reach === 2) || !ctx.gearTable().some(r => r.name === 'bow' && r.ammoClass === 1 && r.reach === 5)) fail('mechanics', 'the gear table does not show the axe’s damage and skill, the spear’s reach, or the bow’s ammunition and range');
   else if (!(ctx.combatRules() && ctx.combatRules().d30 && ctx.combatRules().parry && ctx.combatRules().words.length >= 8)) fail('mechanics', 'the combat rules were not read: ' + JSON.stringify(ctx.combatRules()));
@@ -1465,7 +1465,7 @@ if (take()) try {
    control is the floor on how many were compared: a run that drew no sheet
    would compare none and pass. */
 if (take()) try {
-  const lists = (ctx.COUNT_LISTS || []).filter(c => /^The \d/.test(c.title) && !/, by [a-z]+$/.test(c.title));
+  const lists = (ctx.COUNT_LISTS || []).filter(c => /^The \d/.test(c.title) && !/(, by [a-z]+| by (zone|character))$/.test(c.title));
   const off = lists.filter(c => parseInt(c.title.slice(4).replace(/,/g, ''), 10) !== c.chips.length);
   if (lists.length < 20) fail('count lists', 'only ' + lists.length + ' counted lists were made, so the sheets that make them were not drawn');
   else if (off.length) fail('count lists', off.map(c => '"' + c.title + '" lists ' + c.chips.length).join('; '));

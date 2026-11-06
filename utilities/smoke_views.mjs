@@ -94,16 +94,16 @@ try {
         else {
           ctx.propWordData(1, '7');
           html = walk(REGISTRY.get('sheetGrid'));
-          if (!/Data1 is the enchantment/.test(html) || !/counts as magical/.test(html) || !/then <b[^>]*>7<\/b> for Data1 \(in decimal\)/.test(html))
+          if (!/Data1 is the enchantment/.test(html) || !/counts as magical/.test(html) || !/followed by <b[^>]*>7<\/b> for Data1 \(in decimal\)/.test(html))
             fail('items', 'the mace at Data1 7 does not show the byte as its enchantment and what the cheat prompts for');
           else {
             ctx.showItemDetail(95); ctx.propWordData(1, '3');
             html = walk(REGISTRY.get('sheetGrid'));
             if (!/Examine shows “It has an extremely sharp edge\.”/.test(html)) fail('items', 'the dagger at Data1 3 does not quote its Examine line');
-            else if (!/never reads its aspect<\/b>, so at any aspect it is the same dagger in every number/.test(html)) fail('items', 'the dagger’s page does not say its class never reads the aspect');
+            else if (!/never reads its aspect<\/b>\. At any aspect it is the same dagger in every number/.test(html)) fail('items', 'the dagger’s page does not say its class never reads the aspect');
             else if ((function () { ctx.renderItemSheet(); const h = walk(REGISTRY.get('sheetGrid')); return !/Weapons &amp; Armor<\/span><span class="groupNote">Anything used in a fight/.test(h) || !/Containers<\/span><span class="groupNote">Anything that contains other things/.test(h) || !/Carried Goods<\/span><span class="groupNote">Everything else the hero can carry/.test(h); })()) fail('items', 'the Items dividers do not say what puts an item under each');
-            else if ((function () { ctx.showItemDetail(213); ctx.propWordSet(1); const h = walk(REGISTRY.get('sheetGrid')); return !/reads its aspect<\/b> \(2 places\)/.test(h) || !/Eaten, it feeds <b[^>]*>\+8<\/b> and the eater says “Yetch!”/.test(h); })()) fail('items', 'the mushroom steak at aspect 1 does not show its class reads the aspect, what the dried jellyfish feeds and what the eater says');
-            else if ((function () { ctx.showItemDetail(0x1F); ctx.propWordSet(4); const h = walk(REGISTRY.get('sheetGrid')); return !/Drunk, it is the <b[^>]*>Antidote Potion<\/b>: clears Poisoned/.test(h); })()) fail('items', 'the potion at aspect 4 does not show the Antidote');
+            else if ((function () { ctx.showItemDetail(213); ctx.propWordSet(1); const h = walk(REGISTRY.get('sheetGrid')); return !/reads its aspect<\/b> \(2 places\)/.test(h) || !/Eating it feeds <b[^>]*>\+8<\/b> and the eater says “Yetch!”/.test(h); })()) fail('items', 'the mushroom steak at aspect 1 does not show its class reads the aspect, what the dried jellyfish feeds and what the eater says');
+            else if ((function () { ctx.showItemDetail(0x1F); ctx.propWordSet(4); const h = walk(REGISTRY.get('sheetGrid')); return !/As a drink it is the <b[^>]*>Antidote Potion<\/b>: clears Poisoned/.test(h); })()) fail('items', 'the potion at aspect 4 does not show the Antidote');
             else console.log(`  items: the word block reads the mace at 8 as 0x205E the flail, the spear reaches it at 2; Data1 is the enchantment (${pw.scripts} scripts read the bytes, ${pw.readers.length} classes), one placed sword has 7`);
           }
         }

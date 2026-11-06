@@ -200,7 +200,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       // A record's byte 31, the size a created creature was made at: the
       // constructor's store of it, and the form's link to that store.
       else if ((c => !c || c.v !== 31 || !inRoutine(c, 'TActiveMonster::TActiveMonster') ||
-                     !new RegExp('stats it was <button[^>]*jumpToExeAt\\(' + c.exe + '\\)[^>]*>made at</button>').test(ctx.charEditHTML(1)))(ctx.exeCreatureSize()))
+                     !new RegExp('list was <button[^>]*jumpToExeAt\\(' + c.exe + '\\)[^>]*>made at</button>').test(ctx.charEditHTML(1)))(ctx.exeCreatureSize()))
         fail('program figures', 'byte 31 is not linked to the constructor that stores it: ' + JSON.stringify(ctx.exeCreatureSize()));
       else if ((h => /water|steps on|jumpToExeAt|read by nothing/.test(h) || !/\+0x81002 \(unidentified\)/.test(h))(withoutApp(() => ctx.monsterFlagsHTML(0x00083042))))
         fail('program figures', 'with no application open a unit’s flags still show what only the program has: ' + withoutApp(() => ctx.monsterFlagsHTML(0x00083042)));
@@ -662,7 +662,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       else if (!/Manually Place Containers/.test(tools) || !/Smoother Movement/.test(tools)) fail('preferences', 'the switches do not wear the game’s labels');
       else if (bitsWrong) fail('preferences', 'a switch does not land on the bit the program writes for it: ' + JSON.stringify(ctx.cytheraPrefsLayout()));
       else if (/never been tried|untried/.test(tools)) fail('preferences', 'the section still calls the file untried');
-      else if (!/replacing the one there/.test(tools)) fail('preferences', 'the section no longer states the file replaces the stored settings');
+      else if (!/in place of the one there/.test(tools)) fail('preferences', 'the section no longer states the file replaces the stored settings');
       else if (!/©gra/.test(tools)) fail('preferences', 'the section does not give the code');
       // The 256-colour answer is the one switch this page turns on that the
       // game's default leaves off, so it has to start ticked or the file
