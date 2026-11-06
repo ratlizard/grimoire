@@ -325,7 +325,7 @@ function exePrefResourceType() {
 }
 function cytheraPrefsRecord(opts, layout) {
   const L = layout || cytheraPrefsLayout();
-  if (!L) throw new Error('the page reads the preferences record from the program, which is not open');
+  if (!L) throw new Error('the page reads the preferences record from the program and the program is not open');
   const o = opts || {};
   const b = new Uint8Array(L.bytes);
   for (let i = 0; i < Math.min(4, L.bytes); i++) b[i] = (L.base >>> (24 - 8 * i)) & 255;
@@ -441,7 +441,7 @@ function prefsSummary(o) {
 // new one whatever UniqueID answers, so 130 is only what this file uses.
 function buildCytheraPreferences(opts) {
   const L = cytheraPrefsLayout();
-  if (!L) throw new Error('the page reads the preferences record from the program, which is not open');
+  if (!L) throw new Error('the page reads the preferences record from the program and the program is not open');
   const out = [{ type: L.type, id: 130, name: L.key, data: cytheraPrefsRecord(opts, L) }];
   let id = 131;
   for (const x of cytheraOrdinalsFor(opts, L))
@@ -452,13 +452,13 @@ function prefsInstallScript(opts) {
   const o = opts || {};
   return [
     '-- ' + PREFS_SCRIPT_NAME,
-    '-- Written by Grimoire, https://ratlizard.github.io/grimoire/',
+    '-- Written by Grimoire (https://ratlizard.github.io/grimoire/)',
     '--',
     '-- Puts "' + PREFS_FILE_NAME + '" into the System Folder’s Preferences',
-    '-- folder, replacing whatever is there. Press Run, or Command-R.',
+    '-- folder in place of whatever is there. Press Run or Command-R.',
     '--',
     '-- Replacing the file loses any settings already in it.',
-    '-- To keep them, move the old one somewhere else first.',
+    '-- Move the old one somewhere else first to keep them.',
     '--',
     '-- Cheat keys allowed: ' + (o.cheats ? 'ON: type ' + ((cytheraPrefsLayout() || { gate: {} }).gate.word || 'the code') + ' in the map window' : 'off') + '.',
     '-- Settings in the file: ' + prefsSummary(o) + '.',
@@ -531,12 +531,12 @@ function downloadCytheraPrefs(kind) {
 function buildInstallScript(archiveName, note) {
   return [
     '-- ' + DISK_SCRIPT_NAME,
-    '-- Written by Grimoire, https://ratlizard.github.io/grimoire/',
+    '-- Written by Grimoire (https://ratlizard.github.io/grimoire/)',
     '--',
-    '-- Finds the folder holding the Cythera application on any mounted disk,',
-    '-- replaces the "' + archiveName + '" in it with the edited one on this',
-    '-- disk, and starts the game. Press Run or Command-R, or open Install',
-    '-- on the disk itself, with nothing to select inside the Mac.',
+    '-- Finds the folder with the Cythera application on any mounted disk',
+    '-- and replaces the "' + archiveName + '" in it with the edited one on this',
+    '-- disk. Then it starts the game. Press Run (Command-R) or open Install',
+    '-- on the disk itself. Nothing needs selecting inside the Mac.',
     '--',
     '-- Keep a backup of the original first. Nothing undoes the replacement.',
     '-- By hand instead: drag "' + archiveName + '" into the game\u2019s folder.',
@@ -570,7 +570,7 @@ function buildInstallScript(archiveName, note) {
 /* An HFS disk image of the edited archive, which is the only shape the
    emulator will take.
 
-   The .bin above is the right file to hand a real Mac, and the wrong one to
+   The .bin above is the right file to give a real Mac, and the wrong one to
    hand the retired mobile shell: infinite-mac mounts disk images, and a MacBinary file
    dropped on it lands in the Downloads folder still wrapped, needing a
    StuffIt Expander round trip inside the emulated Mac before the game can see
@@ -622,7 +622,7 @@ function buildEditedDiskImage(file, edited) {
   const note = [
     'Written ' + new Date().toISOString().slice(0, 10) + '. ' +
     (edited ? edited + ' resource(s) changed before making this disk.'
-            : 'The file on this disk is unmodified.'),
+            : 'The file on this disk is the original.'),
   ];
   if (forkWarning) note.push('', 'WARNING: ' + forkWarning.replace(/“|”/g, '"'));
   let image;
@@ -651,7 +651,7 @@ function downloadEditedDiskImage(file, edited) {
   const built = buildEditedDiskImage(file, edited);
   if (!built) return null;
   dlBlob(new Blob([built.image], { type: 'application/octet-stream' }), built.fileName);
-  if (built.forkWarning) return { built, message: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image, but ' + built.forkWarning, bad: true };
+  if (built.forkWarning) return { built, message: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image. ' + built.forkWarning, bad: true };
   return { built, message: 'Wrote a ' + fmtBytes(built.image.length) + ' disk image. Drop it on an emulated Mac. ' +
     'It mounts as \u201c' + DISK_VOLUME_NAME + '\u201d and contains an Install and Play script that replaces the ' +
     'file in the game\u2019s folder and starts Cythera.' };
@@ -865,7 +865,7 @@ function qtAdoptInstruments(lib) {
    block, alike from one tune to the next, and needs a render first; the
    notes are in the tune's events already, so the Music gallery's tiles
    draw as quickly as the sound tiles beside them (the maintainer,
-   28 October 2026). The colors step round the hue circle in part order and
+   28 October 2026). The colors step around the hue circle in part order and
    stop short of red's return, and a tune of one part is drawn in the
    waveform's yellow. Returns the color of each part and the span in tune
    units. */
@@ -1001,7 +1001,7 @@ function showTuneRoll(resid, info) {
    (js/mac-qtmusic.js), which copies from the tune being replaced what a MIDI
    file has no word for, and the tune goes into the open file as any other
    edit does (applyResourceEdit), so it plays here through QuickTime's
-   instruments at once and leaves by Data, Cythera Data, Changes, as the
+   instruments together and leaves by Data, Cythera Data, Changes, as the
    whole file (a disk image for an emulator among its forms). The
    maintainer heard the game play an imported tune in a local Infinite Mac
    on 7 October 2026. An instrument's name is written when the instrument
@@ -1023,7 +1023,7 @@ function midiFilePicked(input) {
       const left = Object.entries(made.dropped).map(([why, n]) => n + ' ' + why).join(', ');
       setStatus('Replaced 0x' + resid.toString(16).toUpperCase() + ' with ' + f.name + ': ' + made.parts.length + (made.parts.length === 1 ? ' part, ' : ' parts, ') +
         made.notes + ' notes, ' + made.seconds.toFixed(1) + ' seconds' + (left ? '. Left out: ' + left : '') +
-        '. To download the edited file, use the Patch in Progress in Tools › Patch Generator.');
+        '. The Patch in Progress in Tools › Patch Generator downloads the edited file.');
     } catch (e) {
       setStatus('The page could not make ' + f.name + ' into a tune: ' + e.message + '.', true);
     }
@@ -1045,7 +1045,7 @@ function midiFileAdded(input) {
   const used = new Set(spec ? spec.resources.map(r => r.resid) : []);
   let resid = 0x9000;
   while (resid <= 0x90FF && used.has(resid)) resid++;
-  if (resid > 0x90FF) { setStatus('The file uses every tune number, 0 to 255.', true); input.value = ''; return; }
+  if (resid > 0x90FF) { setStatus('The file uses every tune number from 0 to 255.', true); input.value = ''; return; }
   const model = spec && spec.resources.find(r => r.resid === like);
   const reader = new FileReader();
   reader.onload = () => {
@@ -1059,7 +1059,7 @@ function midiFileAdded(input) {
       const left = Object.entries(made.dropped).map(([why, n]) => n + ' ' + why).join(', ');
       setStatus('Added ' + f.name + ' as tune ' + (resid - 0x9000) + ' (0x' + resid.toString(16).toUpperCase() + '): ' + made.parts.length + (made.parts.length === 1 ? ' part, ' : ' parts, ') +
         made.notes + ' notes, ' + made.seconds.toFixed(1) + ' seconds' + (left ? '. Left out: ' + left : '') +
-        '. A script plays it with PlayMusic(' + (resid - 0x9000) + '). To download the edited file, use the Patch in Progress in Tools › Patch Generator.');
+        '. A script plays it with PlayMusic(' + (resid - 0x9000) + '). The Patch in Progress in Tools › Patch Generator downloads the edited file.');
     } catch (e) {
       setStatus('The page could not make ' + f.name + ' into a tune: ' + e.message + '.', true);
     }
@@ -1143,7 +1143,7 @@ function renderArtUsage(resid) {
   const u = buildTileSheetUsage()[resid];
   if (!u || (!u.maps.length && !u.props.length && !u.composites.length))
     return '<span class="inspDim">Nothing in the file draws from this sheet. ' +
-           'Either nothing uses it, or the program draws it directly.</span>' + forkEntryStrip(resid);
+           'Either nothing uses it or the program draws it directly.</span>' + forkEntryStrip(resid);
   const rows = [];
   if (u.maps.length) rows.push('<dt>Maps</dt><dd>' + usageChips(u.maps,
     r => svChip(r), 24) + '</dd>');
@@ -1275,7 +1275,7 @@ function buildStripSky(resid) {
   const lbl = document.createElement('span');
   /* The day is a slider (the maintainer, 6 October 2026; it was a number
      box). Its length is the days the moons take to come round together:
-     a moon moves its speed in quarter hours each day round a day's worth
+     a moon moves its speed in quarter hours each day around a day's worth
      of them, so it is back where it began after the day's quarters over
      their common divisor with its speed, and the sky repeats at the least
      common multiple of the moons' counts. Past the end is the start. */
@@ -1617,7 +1617,7 @@ function triggerPNGDownload(canvas, filename) {
   // The blob paths go through dlBlob (js/mac-export.js), which is where the
   // attach-then-click and the delayed revoke now live. Only the data: URI
   // fallback -- a canvas with no toBlob at all -- still builds a separate anchor,
-  // because there is no blob to hand over.
+  // because there is no blob to pass on.
   const dataUri = (href) => {
     const link = document.createElement('a');
     link.download = filename;

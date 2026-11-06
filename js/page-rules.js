@@ -436,7 +436,7 @@ function renderSkillsSheet() {
         if (chips.length) { const p = document.createElement('div'); p.innerHTML = linksFold(partsStrip('Made of', chips)); sec.appendChild(p); }
       }
       if (x.lessons.length) {
-        const sub = document.createElement('div'); sub.className = 'mechSub'; sub.textContent = kind === 'command' ? 'What it says' : 'What a teacher says, lesson by lesson';
+        const sub = document.createElement('div'); sub.className = 'mechSub'; sub.textContent = kind === 'command' ? 'What it says' : 'What a teacher says in each lesson';
         sec.appendChild(sub);
         const ol = document.createElement('ol'); ol.className = 'ruleList lessonList';
         ol.innerHTML = x.lessons.map(l => '<li>' + svEsc(l) + '</li>').join('');
@@ -582,7 +582,7 @@ function exeBehaviors() {
         return byStart.get(s);
       }) };
     }
-  } catch (e) { quiet(e, 'the behaviors, off DoMove'); }
+  } catch (e) { quiet(e, 'the behaviors from DoMove'); }
   return (DERIVED.BEHAVIORS = out);
 }
 // What behaviour v does, in this page's words for the routines its
@@ -598,15 +598,15 @@ function behaviorDoes(v) {
   let does;
   if (has('TGameSys::TalkCommand')) does = 'comes to the party leader and talks';
   else if (has('TPathFinder::FindPath') && has('TActiveMonster::GetCharacter')) does = 'follows the party leader';
-  else if (has('TActiveMonster::FindStrongest')) does = 'fights, attacking the strongest';
-  else if (has('TActiveMonster::FindWeakest')) does = 'fights, attacking the weakest';
-  else if (has('TActiveMonster::FindNearest')) does = 'fights, attacking the nearest';
-  else if (has('TActiveMonster::DoDefend')) does = 'fights, defending';
+  else if (has('TActiveMonster::FindStrongest')) does = 'fights and attacks the strongest';
+  else if (has('TActiveMonster::FindWeakest')) does = 'fights and attacks the weakest';
+  else if (has('TActiveMonster::FindNearest')) does = 'fights and attacks the nearest';
+  else if (has('TActiveMonster::DoDefend')) does = 'fights and defends';
   else if (has('TActiveMonster::DoRetreat')) does = 'retreats';
   else if (has('TActiveMonster::DoAttack')) does = fight ? 'fights' : 'attacks its target';
   else if (has('ScheduleOne')) does = 'goes back to its usual behavior';
   else if (has('TActiveMonster::DoRoam')) does = 'wanders';
-  else if (has('TActiveMonster::PaceNS') && c.calls.some(x => /Random/.test(x))) does = 'paces north and south, now and then turning';
+  else if (has('TActiveMonster::PaceNS') && c.calls.some(x => /Random/.test(x))) does = 'paces north and south and turns now and then';
   else if (has('TActiveMonster::PaceNS')) does = 'paces north and south';
   else if (has('TActiveMonster::PaceEW')) does = 'paces east and west';
   else if (has('TActiveMonster::SetWaypoint')) does = 'walks to a place';
@@ -673,11 +673,11 @@ function renderSchedulesSheet() {
     lede.className = 'mechLede';
     if (character) {
       const waits = behaviorSetSites(character.waiting.value.v);
-      lede.innerHTML = 'Each hour, everyone goes to their next place except ' + srcNum(character.partyBit.bit, 'the party') + ', ' +
+      lede.innerHTML = 'Everyone goes to their next place each hour except ' + srcNum(character.partyBit.bit, 'the party') + ', ' +
         srcNum(character.aliveBit.mask, 'the dead') + ', companions ' + srcNum(character.waiting.value, 'told to wait') +
         (waits.length ? ' (by ' + waits.map(w => srcNum({ resid: w.resid, at: w.at }, labelFor(w.resid) || propWordHex(w.resid))).join(', ') + ')' : '') +
         ', and anyone ' + srcNum(character.monsterWord.disp, 'in a fight') + '. ' + pefChip('ScheduleTime');
-    } else lede.innerHTML = 'The program is not open, so the page cannot show who each hour skips. The days below come from the file.';
+    } else lede.innerHTML = 'The page cannot show who each hour skips because the program is not open. The days below come from the file.';
     box.appendChild(lede);
   }
   const ampm = h => h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm';
@@ -766,7 +766,7 @@ function renderSchedulesSheet() {
   all.innerHTML = svLink('Open all', 'mechOpenAll(true)') + svLink('Close all', 'mechOpenAll(false)');
   box.insertBefore(all, box.firstChild);
   grid.appendChild(box);
-  out.textContent = people.length + ' characters with a day in 0xF00B, ' + entries + ' posts' + (q ? ' matching “' + q + '”' : '') + '. A post applies from its hour until the next one. Where an hour has more than one post, the game uses the last one whose condition is met, or the one marked otherwise when none is. The square opens the zone at that point.';
+  out.textContent = people.length + ' characters with a day in 0xF00B and ' + entries + ' posts' + (q ? ' matching “' + q + '”' : '') + '. A post applies from its hour until the next one. When an hour has more than one post the game uses the last one whose condition is true. When no condition is true it uses the one marked otherwise. The square opens the zone at that point.';
 }
 /* A SCHEDULE IS A PROGRAM (read 24 September 2026). ScheduleOne walks a
    character's segments in the file's order and EvalCondition tests each
@@ -788,7 +788,7 @@ const SCHED_COMPARE = ['is', 'is at least', 'is not', 'is less than'];
 function scheduleCondition(e) {
   const k = e.cond, a = e.arg;
   if (!k) return null;
-  if (k === 1) return { stop: true, text: 'if a post above applies, none below do' };
+  if (k === 1) return { stop: true, text: 'if a post above applies then none below do' };
   if (k === 2 || k === 3) return { text: 'if quest flag ' + a + (k === 2 ? ' is set' : ' is clear') };
   if (k >= 0x20 && k < 0x40) {
     const n = k & 7, top = n ? (1 << (n + 1)) - 1 : 0;
@@ -828,7 +828,7 @@ function renderSpellsSheet() {
   // which lists exactly the same scripts (the maintainer, 2 October 2026: a
   // count is linked to data; CastSpell's page listed one script, not the
   // forty-nine).
-  intro.innerHTML = svLink(spells.length + ' spells', "searchFor('&quot;call_resource CastSpell&quot;')") + ' by level, after ' + cardLink('spells', 'the rules for casting') + '.';
+  intro.innerHTML = svLink(spells.length + ' spells', "searchFor('&quot;call_resource CastSpell&quot;')") + ' by level below ' + cardLink('spells', 'the rules for casting') + '.';
   box.appendChild(intro);
   // How a cast works, above the spells it works on. This was a section of the
   // Mechanics sheet until 13 September 2026.
@@ -883,7 +883,7 @@ function renderBarksSheet() {
       : '<span class="inspDim">anyone, </span>' + svChip(b.resid);
     const words = b.words.map(w => '“' + svEsc(w) + '”').join(', ');
     rows.push('<tr><td>' + character + '</td><td>' + (b.how === 'one of' ? '<span class="inspDim">one of</span> ' : '') + words +
-      (b.then && b.then.length ? '<div class="inspDim">then, when the ' + b.helper + ' comes: ' + b.then.map(w => '“' + svEsc(w) + '”').join(', ') + '</div>' : '') +
+      (b.then && b.then.length ? '<div class="inspDim">then when the ' + b.helper + ' comes: ' + b.then.map(w => '“' + svEsc(w) + '”').join(', ') + '</div>' : '') +
       '</td><td>' + (b.character !== null ? svChip(b.resid) : '') + '</td></tr>');
   }
   const scroll = document.createElement('div');
@@ -1090,7 +1090,7 @@ function experienceRules() {
        field 32: nothing, half the level, the level or twice it. Most of the
        people who join have no skill and grow by this; measured against a
        player's spreadsheet of every recruit's health and magic by level,
-       it fits all but the values the records start with (the workbench,
+       it fits every value except the ones the records start with (the workbench,
        tools/party-check). Each case is read so the sentence links to it. */
     const standIn = (rid, of) => {
       const ops = dvmScriptEntry(rid) ? dvmOpsOf(dvmScriptEntry(rid)) : [];
@@ -1692,7 +1692,7 @@ function damageRowWords(r) {
   if (r.types.length) bits.push('the damage changed by its type');
   if (r.rule === 'door') bits.push('bashed as a door' + (r.strength ? ' of strength ' + srcNum(r.strength) : ''));
   else if (r.rule === 'chest') bits.push('bashed as a chest' + (r.strength ? ' of strength ' + srcNum(r.strength) : ''));
-  else if (r.rule === 'lock') bits.push('a lock of strength ' + srcNum(r.strength) + ', which a blow above what is left opens' + (r.wear ? ' and loses one to a blow above what is left ÷ ' + srcNum(r.wear) : '') + (r.deletes ? ', and a blow destroys it while it is closed and unlocked' : ''));
+  else if (r.rule === 'lock') bits.push('a lock of strength ' + srcNum(r.strength) + ' that a blow above what remains opens' + (r.wear ? '. It loses one to a blow above what remains ÷ ' + srcNum(r.wear) : '') + (r.deletes ? '. A blow destroys it while shut and unlocked' : ''));
   else if (r.rule === 'data2') bits.push('breaks when a blow is above its Data2' + (r.data2Default ? ', ' + srcNum(r.data2Default) + ' until set' : ''));
   if (r.becomes) bits.push('becomes ' + svEsc(propDisplayName(r.becomes.v) || 'prop type') + ' (prop type ' + srcNum(r.becomes) + ')');
   else if (r.aspects.length && r.rule !== 'lock') bits.push('shows aspect ' + r.aspects.filter((a, i, all) => all.findIndex(b => b.v === a.v) === i).map(a => srcNum(a)).join(' or '));
@@ -2404,11 +2404,11 @@ const EGG_KIND_NAMES = [
   // A kind-0 egg's argument is never read. HatchEgg reads the egg's index,
   // Data1 and Data2, and the types of the records inside it (checked
   // 26 October 2026); the shipped values match no contained type.
-  { what: 'hatches a monster', arg: 'none, not read' },
+  { what: 'hatches a monster', arg: 'none (not read)' },
   { what: 'a way to another place', arg: 'zoneport' },
   { what: 'signals the zone’s script when stood on', arg: 'signal' },
   { what: 'an ambient sound', arg: 'sound' },
-  { what: 'sets the area', arg: 'area script, 0x1400 plus it' },
+  { what: 'sets the area', arg: 'area script (0x1400 plus it)' },
   { what: 'plays music', arg: 'tune' },
   { what: 'signals the zone’s script from anywhere inside it', arg: 'signal' },
   { what: 'brings neighbors in while a condition is true', arg: 'records after it' },
@@ -2417,7 +2417,7 @@ const EGG_KIND_NAMES = [
   // Kind 10 was "counts down", from DrawRoutine's handler alone, which subtracts
   // one from a nonzero Data1; every shipped one has a Data1 of 0, and what
   // the kind is for is TViewer::Render's (zoneBackdrop, js/page-data.js).
-  { what: 'a picture drawn behind the ground, seen through the ethereal void', arg: 'picture, 0x8F00 plus it' }
+  { what: 'a picture drawn behind the ground and seen through the ethereal void', arg: 'picture (0x8F00 plus it)' }
 ];
 
 /* What one egg does, in full. The kind is the aspect and the argument is the
@@ -2613,7 +2613,7 @@ function eggDetail(g, allProps, linked) {
     try { z = zoneportInfo(g.proptype); } catch (e) { z = null; }
     return z ? 'a way to ' + one(z.name, 'jumpToResource(' + z.resid + ')') +
                svEsc(', square ' + z.x + ', ' + z.y)
-             : 'a way to another place, zoneport ' + svEsc(String(g.proptype));
+             : 'a way to another place through zoneport ' + svEsc(String(g.proptype));
   }
   if (g.aspect === 8) {
     const rid = 0x1B00 + g.proptype;
@@ -2628,7 +2628,7 @@ function eggDetail(g, allProps, linked) {
        the handler before the walk, so that egg does nothing. The condition is
        read as a schedule's is (scheduleCondition). */
     const n = g.proptype;
-    if (!n) return 'does nothing, because its argument is 0 records';
+    if (!n) return 'does nothing because its argument is 0 records';
     const c = scheduleCondition({ cond: g.d1, arg: g.d2 });
     return 'brings the ' + (n === 1 ? 'one thing' : n + ' things') + ' after it into view ' +
            svEsc(c ? c.text : 'while its condition is true') + ', and hides ' + (n === 1 ? 'it' : 'them') + ' otherwise';
@@ -2647,7 +2647,7 @@ function eggDetail(g, allProps, linked) {
     const title = subZoneTitle(rid);
     const where = title ? one(title, refExists(rid) ? 'jumpToResource(' + rid + ')' : null)
                         : one(labelFor(rid) || propWordHex(rid), refExists(rid) ? 'jumpToResource(' + rid + ')' : null);
-    return 'sets the area to ' + where + ', with its title, backdrop strip, lighting and music, when the party comes near';
+    return 'sets the area to ' + where + ' (its title, backdrop strip, lighting, and music) when the party comes near';
   }
   return svEsc(k ? k.what : 'kind ' + g.aspect) + (k && k.arg ? ', ' + svEsc(k.arg + ' ' + g.proptype) : '');
 }
@@ -3429,7 +3429,7 @@ function askedOfNobody() {
    unrecognised-prompt response". The mage group (0x0808) does it after
    "history", which is how twelve mages came to be listed, and the House
    Atussa group (0x0807) after "atus". The wishing fountain (0x1036) does it
-   after each of its four wishes, so every wish is followed at once by "Your
+   after each of its four wishes, so every wish is followed immediately by "Your
    wish is found elsewhere...", which the board lists among the lines that
    flash past. Not listed: an answer whose chain, when the reply matches no
    further keyword, comes through branches to `exit` and so waits for the
@@ -3529,7 +3529,7 @@ function answersThatRunOn() {
    which the scripts use to steer their paths. Where the chain comes to
    a second answer for the same reply, the row is answersThatRunOn's. Also
    listed: two quoted lines back to back inside one string, which is how the
-   bartenders' "we don't give credit here" is followed at once by "Do you
+   bartenders' "we don't give credit here" is followed immediately by "Do you
    need instructions?" for a hero with no oboloi. */
 function linesReplacedAtOnce() {
   const out = [];
@@ -4516,7 +4516,7 @@ function convRules() {
     const topics = c && c.entries ? c.entries.length : 0;
     groups.push({ rid, topics, bytes,
                   name: (typeof DIALOGUE_GROUP_NAMES === 'object' && DIALOGUE_GROUP_NAMES[rid]) || null,
-                  kind: topics ? 'group' : (bytes < 40 ? 'stub' : 'a routine, not a topic list'),
+                  kind: topics ? 'group' : (bytes < 40 ? 'stub' : 'a routine and not a topic list'),
                   inherited: chars.filter(ch => ch.chain.indexOf(rid) >= 0).length,
                   called: chars.filter(ch => ch.calls.indexOf(rid) >= 0).length });
   }
@@ -5378,7 +5378,7 @@ function exeEggHandlers() {
    two, puts the low bits of n minus the phase under the high bits of n --
    which is a ramp of 2^k colours walked backwards. The bounds are the
    `cmpwi` immediates in that loop and the ramp width is the `clrlwi` that
-   clears all but k bits, both read here; the identity outside the bounds is the
+   leaves k bits set and clears the rest, both read here; the identity outside the bounds is the
    fall-through. The renderer's constant, PALETTE_CYCLES, is compared
    against what is read, so a program whose ramps differ is reported. Null with
    no application open, or when the loop is not found. */

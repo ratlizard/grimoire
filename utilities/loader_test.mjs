@@ -228,7 +228,7 @@ ctx.location.hash = '';
   check('loadDefaultArchive survives a total failure', !threw, threw ? threw.message : 'reported cleanly');
 
   const out = ctx.document.getElementById('output').textContent || '';
-  check('it reports what it tried', /Tried, in order/.test(out) && /Cythera Data/.test(out),
+  check('it reports what it tried', /Tried in order/.test(out) && /Cythera Data/.test(out),
         out.split('\n')[0] || '(nothing)');
   const status = ctx.document.getElementById('sourceStatus').textContent || '';
   check('the status line was written', /No file loaded/.test(status), status.slice(0, 60) || '(empty)');

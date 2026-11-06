@@ -349,7 +349,7 @@ if (visePath && existsSync(visePath) && !onlyCat) {
     try {
       const all = el => (el.innerHTML || '') + (el.children || []).map(all).join('');
       const b = ctx.exeBehaviors();
-      const expected = [[0, 'stands still', 8], [1, 'follows the party leader', null], [3, 'fights, attacking the strongest', null], [7, 'retreats', null],
+      const expected = [[0, 'stands still', 8], [1, 'follows the party leader', null], [3, 'fights and attacks the strongest', null], [7, 'retreats', null],
                     [138, 'paces north and south', 12], [141, 'paces east and west', 16], [135, 'stands facing east', 20], [144, 'wanders', 20],
                     [145, 'nothing of its own', null], [147, 'eats', 32], [150, 'comes to the party leader and talks', 8], [200, 'fights by combat program 200', null]];
       const bad = expected.filter(([v, does, wait]) => { const d = ctx.behaviorDoes(v); return !d || d.does !== does || (wait === null ? false : !d.wait || d.wait.v !== wait); });
