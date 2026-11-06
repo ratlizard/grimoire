@@ -2406,14 +2406,23 @@ const EGG_KIND_NAMES = [
   // 26 October 2026); the shipped values match no contained type.
   { what: 'hatches a monster', arg: 'none (not read)' },
   { what: 'a way to another place', arg: 'zoneport' },
-  { what: 'signals the zone’s script when stood on', arg: 'signal' },
+  { what: 'sends a signal when stood on', arg: 'signal' },
   { what: 'an ambient sound', arg: 'sound' },
   { what: 'sets the area', arg: 'area script (0x1400 plus it)' },
   { what: 'plays music', arg: 'tune' },
-  { what: 'signals the zone’s script from anywhere inside it', arg: 'signal' },
+  { what: 'sends a signal from anywhere inside it', arg: 'signal' },
   { what: 'brings neighbors in while a condition is true', arg: 'records after it' },
   { what: 'a room', arg: 'room' },
-  { what: 'nothing', arg: 'none' },
+  // Kind 9 was "nothing", from DrawRoutine alone, which has no handler for
+  // it. TGameViewer::DoTicks has: it counts a kind-9 egg's Data1 down by
+  // the clock's shortest period (the hourglass's and the bomb's), and at 0
+  // runs method 21 with the egg as the argument on what the location's low
+  // half names, the current zone for 0, a character for 1 to 255 and a
+  // thing above that. No shipped egg is kind 9. Scripts make one through
+  // 0xF15 for character 1, and the hero's GetMessage (0x1801) answers it
+  // with one of Omen's nine visions, picked by the argument: 0 after
+  // Alaric's quarters, 6 in the Cave (read 6 November 2026).
+  { what: 'sends a message when its time runs out (Omen’s visions)', arg: 'which message' },
   // Kind 10 was "counts down", from DrawRoutine's handler alone, which subtracts
   // one from a nonzero Data1; every shipped one has a Data1 of 0, and what
   // the kind is for is TViewer::Render's (zoneBackdrop, js/page-data.js).
@@ -2618,6 +2627,24 @@ function eggDetail(g, allProps, linked) {
   if (g.aspect === 8) {
     const rid = 0x1B00 + g.proptype;
     return 'a room, ' + one('room ' + g.proptype, refExists(rid) ? 'jumpToResource(' + rid + ')' : null);
+  }
+  if (g.aspect === 2 || g.aspect === 6) {
+    /* Kinds 2 and 6 hand the argument to TGameSys::SendSignal, which runs
+       method 21 on the zone, on the current room, on every placed thing
+       whose Data1 is the signal and whose class listens (a signal under
+       256), on every character on the leader's level, and then on the
+       gremlins (read 6 November 2026). Until then the card named the zone's
+       script alone. Of the two shipped kind-6 eggs, both in the Tomb (zone
+       25), only signal 101 is the zone script's, and the thing at (9,29)
+       with 33 in Data1 answers signal 33. The things here with the signal
+       in Data1 are named, since they are what the file can show. */
+    const s = g.proptype;
+    const hear = (allProps || []).filter(p => p !== g && p.flags !== 0x42 && p.flags !== 0x44 && !(p.flags & 0x18) && p.d1 === s);
+    const things = hear.map(p => one(propDisplayName(p.proptype) || ('prop ' + p.proptype), 'showItemDetail(' + p.proptype + ')') + svEsc(' at ' + p.x + ', ' + p.y));
+    const to = ['the zone’s script', 'the room’s script', 'the characters on the level',
+                'the things here with ' + svEsc(String(s)) + ' in Data1' + (things.length ? ' (' + things.join(', ') + ')' : '')];
+    return 'sends signal ' + svEsc(String(s)) + (g.aspect === 2 ? ' when the hero stands on it' : ' when the party comes inside it') +
+           '. Its listeners are ' + to.slice(0, -1).join(', ') + ' and ' + to[to.length - 1];
   }
   if (g.aspect === 7) {
     /* Kind 7 (the handler DrawRoutine dispatches to for it, read
