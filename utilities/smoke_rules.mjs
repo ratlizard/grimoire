@@ -287,7 +287,7 @@ if (take()) try {
   // The spells card moved to the Spells sheet on 13 September 2026; sphtml
   // is that sheet, captured above.
   else if (!/resist non-magical weapons: [^<]*lich/.test(sphtml)) fail('mechanics', 'the spells card does not show the monsters immune to non-magical damage')
-  else if (!/Prop Records: Type, Aspect, Data1 and Data2/.test(html) || !/Data1 on a melee weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/pass it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
+  else if (!/Prop Records: Type, Aspect, Data1, and Data2/.test(html) || !/Data1 on a melee weapon is its enchantment/.test(html) || !/extremely sharp edge/.test(html) || !/Placed with an enchantment/.test(html) || !/pass it to ChangeZone/.test(html)) fail('mechanics', 'the prop word section is missing or does not say what it read')
   else if (mechSecs < 15) fail('mechanics', `the sections are missing: ${mechSecs} sections`);
   // No application in this run, so none of its figures: the clock, the
   // balloon and the enemy table say where they come from and state nothing.
