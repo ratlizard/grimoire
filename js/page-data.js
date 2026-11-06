@@ -140,7 +140,7 @@ function landscapeZones(resid) {
    pixels from the middle of the view for each square the egg is from the
    party, where the ground moves 32, so a swirl at -1 moves with the
    floor and one at -11 at three eighths of it. A page that draws a whole
-   map at once has no party to measure from, and draws each swirl where
+   map immediately has no party to measure from, and draws each swirl where
    it stands when the party is on its square. A depth of zero or more is
    drawn after the ground by a second loop; no shipped egg has one. Both
    ends were seen in the fork on 20 October 2026 (Land King Hall's void
@@ -830,19 +830,19 @@ const US_OPTION_KEYS = { 0xA9: 'option-g', 0xC6: 'option-j', 0xEF: 'option-shift
 // built from what the case was read to do (`x`, the helpers in
 // renderCheatsSheet). A key the program does not have is not listed.
 const CHEAT_KEY_WORDS = {
-  0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with the hero’s position, prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + ', then ' + x.via('GoToLocation', 'moves the hero there') + ', anywhere in the game.'],
+  0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with the hero’s position and prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + '. Then it ' + x.via('GoToLocation', 'moves the hero there') + ' (anywhere in the game).'],
   0xEF: ['Take teleporter', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ', then ' + x.via('TeleportTo', 'sends the hero') + ' where that teleporter goes.'],
   0xA7: ['Create a prop', x => 'Prompts for ' + x.promptWords() + ', then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
-    'The number is type + 1,024 × aspect. So 0x0064 is a spear, and 0x0864 a spear at aspect 2, which has the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
-  0xB9: ['What prop is this?', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ' and prints the record: class, state, position, Data1 and Data2.' +
-    (x.fallsInto ? ' Then, because of a missing jump, it carries on into ' + x.fallsInto + '.' : '')],
+    'The number is type + 1,024 × aspect. So 0x0064 is a spear and 0x0864 is a spear at aspect 2. That one has the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
+  0xB9: ['What prop is this?', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ' and prints the record: class, state, position, Data1, and Data2.' +
+    (x.fallsInto ? ' A missing jump then lets it run on into ' + x.fallsInto + '.' : '')],
   0xC0: ['Where am I?', x => 'Prints the hero’s x and y as ' + x.q(0) + '.'],
   0xFF: ['What time is it?', x => 'Prints ' + x.q(0) + ', the clock and the day.'],
   0xA0: ['Pass the time', x => x.via('DoTicks', 'Passes') + ' ' + x.arg('DoTicks', 4) + ' clock units' + x.clockWords('DoTicks', 4) + '.'],
   0x3C: ['Darken', x => x.via('DarkenLight', 'Darkens') + ' the level’s light a step.'],
   0x3E: ['Brighten', x => x.via('BrightenLight', 'Brightens') + ' the level’s light a step.'],
   0xC3: ['Magic map', x => 'Shows the ' + x.via('MagicMap', 'magic map') + ' around the hero until the next click.'],
-  0xBD: ['Show the hero’s room', x => x.via('CopyBits', 'Shows') + ' the ground the hero can reach from where they stand, until the next click. The magic map starts from it.'],
+  0xBD: ['Show the hero’s room', x => x.via('CopyBits', 'Shows') + ' the ground the hero can reach from where they stand until the next click. The magic map starts from it.'],
   0xB5: ['Show the walls', x => x.walls()],
   0xB7: ['Walk through anything', x => 'Nothing blocks the hero while the switch is on (' + x.flip() + ').'],
   0xFA: ['Nobody is anybody’s enemy', x => x.peace()],
@@ -850,9 +850,9 @@ const CHEAT_KEY_WORDS = {
   0xA8: ['Regenerate', x => 'Switches flag ' + x.flag() + ' on and off for the hero. It is the healing every six minutes that Omen’s ring gives.'],
   0xC5: ['Look coordinates', x => x.look()],
   0xCA: ['Turn-based movement', x => 'Switches it on and off (' + x.flip() + ') and prints ' + x.q(1) + ' or ' + x.q(0) + '.'],
-  0xC2: ['Speed limiter', x => 'Flips a switch (' + x.flip() + ') and calls the ' + x.via('SLEnable', 'speed limit') + ', which is empty in this release, so the key has no effect.'],
+  0xC2: ['Speed limiter', x => 'Flips a switch (' + x.flip() + ') and calls the ' + x.via('SLEnable', 'speed limit') + '. That routine is empty in this release and the key has no effect.'],
   0x31: ['A party member’s window', x => 'Opens a party member’s window by number, 1 for the first, or ' + x.via('FindInventory', 'brings it to the front') + '.'],
-  0x5A: ['Z stats', x => 'Prints ' + x.zstats() + '. The time spent is the open game’s total time in play, kept in the save, not the time since launch.'],
+  0x5A: ['Z stats', x => 'Prints ' + x.zstats() + '. The time spent is the open game’s total time in play from the save and not the time since launch.'],
   0x100: ['Macros', x => 'Keys that type no character run a ' + x.via('PerformMacro', 'macro') + '.']
 };
 
@@ -974,7 +974,7 @@ function renderCheatsSheet() {
   document.getElementById('singleControls').style.display = 'none';
   const key = k => k ? '<kbd class="cheatKey">' + svEsc(k) + '</kbd>' : '';
   const kr = appImage() ? exeKeyRoutine() : null;
-  const noApp = 'Open the game from its installer, under Settings, to read the program’s code here.';
+  const noApp = 'Open the game from its installer under Settings to read the program’s code here.';
   let h = '<h3 class="cheatH">Cheat Mode</h3>' +
     '<div class="mechLede">Cythera has a cheat mode that no released copy can switch on. Its code works only with a preference that nothing in the game sets.' +
     ' Glenn Andreas wrote in the chat of Cythera Guides’ 2019 anniversary livestream that this debug mode “should have been removed” (1:42:36).' +
@@ -1017,14 +1017,14 @@ function renderCheatsSheet() {
         const w = exeWallMask(); if (!w) return 'Marks each wall on every square of the level (MakeBitMap).';
         const attrs = getTileAttributes(ARCHIVE), names = new Set(); let n = 0;
         for (let t = 0; t <= w.tiles.v && t < attrs.length; t++) if ((attrs[t] & w.mask.v) === w.mask.v) { n++; const nm = terrainNameFor(t); if (nm) names.add(nm); }
-        return 'Shows the walls the room view stops at, until the next click. They are every square of ' + srcNum(w.mask, n + ' kinds of terrain') + ', ' + [...names].map(svEsc).join(', ') + '.';
+        return 'Shows the walls the room view stops at until the next click. They are every square of ' + srcNum(w.mask, n + ' kinds of terrain') + ': ' + [...names].map(svEsc).join(', ') + '.';
       },
       peace: () => {
         if (!enemy || !enemy.peace || !enemy.peaceKey) return 'Switches a byte that the enemy check reads first.';
         const callers = exeCallersOf('TActiveMonster::GetEnemyStatus');
         const zero = callers.filter(k => { const n = exeFind(k.ops, k.i + 1, 3, d => d.mn === 'cmpwi' && d.ra === 3); return n >= 0 && k.ops[n].d.imm === 0; });
         const names = [...new Map(zero.map(k => [k.routine.name, k])).values()].map(k => srcNum(exeVal(k.ops[k.i], null), k.routine.name.replace(/\(.*$/, '').replace(/^.*::/, '')));
-        return srcNum(enemy.peaceKey, 'Switches') + ' a setting that makes ' + srcNum(enemy.peace, 'no pair enemies') + ': monsters stop finding targets, and an “every enemy” spell finds nobody.';
+        return srcNum(enemy.peaceKey, 'Switches') + ' a setting that makes ' + srcNum(enemy.peace, 'no pair enemies') + '. Monsters stop finding targets and an “every enemy” spell finds nobody.';
       },
       peaceShort: () => {
         if (!enemy || !enemy.peace) return '';
@@ -1073,16 +1073,16 @@ function renderCheatsSheet() {
     const clear = distinct.every(v => !((v >>> (24 - 8 * g.byte.v)) & (1 << g.bit.v)));
     const letters = chars(g.word.v);
     h += '<div class="mechSec"><h4 class="cheatH4">The Cheat Mode Switch</h4><ul class="ruleList">' +
-      '<li>Type <b>' + srcNum(g.word, g.word.v) + '</b> (' + letters.map(t => '<b>' + svEsc(t) + '</b>').join(', then ') + ' on a US layout) in the map window. With ' +
-      srcNum(g.bit, 'the preference') + ' set, cheat mode ' + srcNum(g.flip, 'switches') + ' and the ' +
+      '<li>Type <b>' + srcNum(g.word, g.word.v) + '</b> (' + letters.map(t => '<b>' + svEsc(t) + '</b>').join(', then ') + ' on a US layout) in the map window. When ' +
+      srcNum(g.bit, 'the preference') + ' is on the game ' + srcNum(g.flip, 'switches') + ' cheat mode and the ' +
       'status window prints ' + (g.on ? '“' + srcNum(g.on, g.on.v.replace(/\n+$/, '')) + '”' : 'that it is on') + (g.on && /[.!?]\s*$/.test(g.on.v) ? '' : '.') + '</li>' +
       (setters.length ? '<li>Written by ' + setters.map(w => srcNum(w.bits, w.routine.name.replace(/\(.*$/, ''))).join(', ') + '.</li>'
-        : '<li><b>Nothing in the game sets it</b>' + (defaults && !clear ? ', though a record the game stores at first run has it set' : '') + ', so on a copy as released typing the code does nothing.</li>') +
+        : '<li><b>Nothing in the game sets it</b>' + (defaults && !clear ? ' (a record the game stores at first run has it set)' : '') + '. On a copy as released typing the code does nothing.</li>') +
       (others.length && wait ? '<li>The preference also adds a ' + srcNum(wait.ticks, (wait.ticks.v / 60) + '-second') + ' pause at startup.</li>' : '') +
-      '<li>Typing the letters of the code also switches on targeting modes, so the tab reads ATTACK afterward until the next press of <b>M</b>.</li></ul>' +
-      '<div class="cheatNote">To set it, write the preferences file from ' +
+      '<li>Typing the letters of the code also switches on targeting modes. The tab reads ATTACK afterward until the next press of <b>M</b>.</li></ul>' +
+      '<div class="cheatNote">The preferences file from ' +
       actionChip('Data › Preferences', "showCategory('PREFS')") +
-      ', as a MacBinary for a real Mac or a disk image for an emulator.</div></div>';
+      ' sets it. Write it as a MacBinary for a real Mac or a disk image for an emulator.</div></div>';
   }
 
   // The record, the file's keys, and the menu bars off the program's fork.
@@ -1117,19 +1117,19 @@ function renderCheatsSheet() {
     const hex8 = v => (v >>> 0).toString(16).toUpperCase().padStart(8, '0');
     const ranges = vals => { const out2 = []; let a = null, b = null; for (const v of vals) { if (a === null) { a = b = v; } else if (v === b + 1) b = v; else { out2.push([a, b]); a = b = v; } } if (a !== null) out2.push([a, b]); return out2.map(([x0, x1]) => x0 === x1 ? String(x0) : x0 + ' to ' + x1).join(', '); };
     h += '<div class="mechSec"><h4 class="cheatH4">The Preferences Record</h4>' +
-      '<div class="cheatNote">' + (rec ? srcNum(rec.len || rec.key, bytes + ' bytes') + ', stored under “' + srcNum(rec.key, rec.key.v) + '”, and' : 'The record’s fields and') +
+      '<div class="cheatNote">' + (rec ? srcNum(rec.len || rec.key, bytes + ' bytes') + ' stored under “' + srcNum(rec.key, rec.key.v) + '” and' : 'The record’s fields and') +
       ' what reads and writes each part' + (unused.length ? '. Byte' + (unused.length > 1 ? 's ' : ' ') + unused.join(' and ') + (unused.length > 1 ? ' are' : ' is') + ' unused' : '') + '.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">byte</th><th class="num">bits</th><th>set by</th><th>read by</th></tr></thead><tbody>' +
       fields.map(f => '<tr><td class="num">' + f.byte + '</td><td class="num">' + bitsText(f) + '</td><td>' + (f.writers.length ? setBy(f) : 'nothing') + '</td><td>' + readBy(f) + '</td></tr>').join('') +
       '</tbody></table></div>' +
-      (defaults ? '<div class="cheatNote">With nothing stored, the game ' + srcNum(defaults.selectors[0], 'picks a default by processor') + ': ' + [...new Map(defaults.words.map(w => [w.v, w])).values()].map(w => {
+      (defaults ? '<div class="cheatNote">With nothing stored the game ' + srcNum(defaults.selectors[0], 'picks a default by processor') + ': ' + [...new Map(defaults.words.map(w => [w.v, w])).values()].map(w => {
           const vals = [].concat(...defaults.words.filter(x => x.v === w.v).map(x => x.chosen && !x.chosen.all ? x.chosen.values : [])).sort((a2, b2) => a2 - b2);
           const top = vals.length && vals[vals.length - 1] === 300 ? vals.filter(v => v < 300) : vals;
           let text = ranges(top.filter(v => v >= 0 || !vals.includes(300)));
           if (vals.includes(300)) text = text.replace(/(\d+) to 299$/, '$1 and above');
           return '<b>' + srcNum(w, hex8(w.v)) + '</b>' + (text ? ' at ' + text : '');
         }).join(', ') + '.</div>' : '') +
-      '<div class="cheatNote">Cythera Preferences, in the System Folder’s Preferences folder, stores each setting as a ‘Pref’ resource under its name.</div>' +
+      '<div class="cheatNote">Cythera Preferences in the System Folder’s Preferences folder stores each setting as a ‘Pref’ resource under its name.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th>key</th><th>value</th><th>written by</th><th>read by</th></tr></thead><tbody>' +
       prefKeys.map(e => '<tr><td><b>' + srcNum(e.key, e.key.v) + '</b></td><td>' + (e.kind === 'Prefs' ? (e.len ? srcNum(e.len) + ' bytes' : 'bytes') : e.kind === 'File' ? 'a file' : 'a number') + '</td><td>' +
         ([...new Map(e.writers.map(w => [w.routine.name, w])).values()].map(w => srcNum(exeVal({ at: w.exe }, null), name(w.routine))).join(', ') || 'nothing') + '</td><td>' +
@@ -1140,8 +1140,8 @@ function renderCheatsSheet() {
       const menuName = m => (m.title ? svEsc(m.title) : 'MENU ' + m.id);
       h += '<div class="cheatNote">' +
         (bars.unlisted.length
-          ? bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are menus that work' : ' is a menu that works') + ' but ' + (bars.unlisted.length > 1 ? 'are' : 'is') + ' in no menu bar, so the player cannot reach the Preferences menu or the frame-rate limit. ' +
-            'Add-on 612, the Cythera menu patch, adds three of them; add-on 613 removes them again.'
+          ? bars.unlisted.map(menuName).join(', ') + (bars.unlisted.length > 1 ? ' are menus that work' : ' is a menu that works') + ' but ' + (bars.unlisted.length > 1 ? 'are' : 'is') + ' in no menu bar. The player cannot reach the Preferences menu or the frame-rate limit. ' +
+            'Add-on 612 (the Cythera menu patch) adds three of them. Add-on 613 removes them again.'
           : 'Every menu the game defines is in its menu bar.') + '</div>';
     }
     h += '</div>';
@@ -1154,12 +1154,12 @@ function renderCheatsSheet() {
       '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + gated.map(caseRow).join('') +
       '</tbody></table></div></div>';
     h += '<div class="mechSec"><h4 class="cheatH4">Keys That Work Without Cheat Mode</h4>' +
-      '<div class="cheatNote">These work in any copy of the game, cheat mode or not.</div>' +
+      '<div class="cheatNote">These work in any copy of the game with or without cheat mode.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><tbody>' + open.map(caseRow).join('') +
       (vol.length >= 2 ? '<tr><td class="cheatCombo">' + key(vol.map(v => decodeMacRoman(new Uint8Array([v.key.v]))).join(' ')) + '<span class="cheatCode">' + vol.map(v => srcNum(v.key, '$' + v.key.v.toString(16).toUpperCase())).join(' ') + '</span></td>' +
         '<td><b>CD volume</b><div class="cheatDoes">' + vol.map(v => (v.step.v < 0 ? 'down' : 'up') + ' by ' + srcNum(v.step, Math.abs(v.step.v)) + (v.bound ? ' and held at ' + srcNum(v.bound) : '')).join(', ') + '.</div></td></tr>' : '') +
       (cd.length ? '<tr><td class="cheatCombo">' + key(cd.map(w => w.v).join(' ')) + '</td>' +
-        '<td><b>CD controls</b><div class="cheatDoes">Typed like the cheat code, when a CD is present: ' + cd.map(w => '“' + srcNum(w, w.v) + '”').join(', ') + '. The page guesses what each does from the word.</div></td></tr>' : '') +
+        '<td><b>CD controls</b><div class="cheatDoes">Typed like the cheat code when a CD is present: ' + cd.map(w => '“' + srcNum(w, w.v) + '”').join(', ') + '. The page infers what each does from the word.</div></td></tr>' : '') +
       '</tbody></table></div></div>';
   }
 
@@ -1167,10 +1167,10 @@ function renderCheatsSheet() {
   const levels = cheatLevels();
   if (levels.length) {
     h += '<div class="mechSec"><h4 class="cheatH4">Levels for Option-J</h4>' +
-      '<div class="cheatNote">Enter the level in hex, and X and Y in squares. Where the editor’s name for a map differs, its name is beside the game’s.</div>' +
+      '<div class="cheatNote">Enter the level in hex and X and Y in squares. Where the editor’s name for a map differs it is beside the game’s.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">hex</th><th class="num">dec</th><th>map</th></tr></thead><tbody>' +
       levels.map(l => '<tr><td class="num">' + l.n.toString(16).toUpperCase().padStart(2, '0') + '</td><td class="num">' + l.n + '</td><td>' +
-        (l.n === 0 ? svLink(svEsc(l.name), 'jumpToResource(' + l.resid + ')') + ' <span class="cheatDoes">the nothing map, below</span>'
+        (l.n === 0 ? svLink(svEsc(l.name), 'jumpToResource(' + l.resid + ')') + ' <span class="cheatDoes">the nothing map (below)</span>'
                    : svLink(svEsc(l.name), 'jumpToResource(' + l.resid + ')') + svEsc(editorNameSuffix(l.resid, l.name))) +
         '</td></tr>').join('') +
       '</tbody></table></div></div>';
@@ -1180,7 +1180,7 @@ function renderCheatsSheet() {
     const mapOrder = [...tp.byMap.keys()].sort((a, b) => a - b);
     const mapName = resid => { const l = levels.find(x => x.resid === resid); return l ? l.name : (labelFor(resid) || ('0x' + resid.toString(16).toUpperCase())); };
     h += '<div class="mechSec"><h4 class="cheatH4">Teleporters for Option-Shift-J</h4>' +
-      '<div class="cheatNote">' + tp.last + ' destinations, 1 to ' + tp.last + ' in decimal. Any higher number leads to the nothing map. Click one to open the map there. ' +
+      '<div class="cheatNote">' + tp.last + ' destinations from 1 to ' + tp.last + ' in decimal. Any higher number leads to the nothing map. Click one to open the map there. ' +
       'The community’s Zone list (add-on 620) calls Timon Ruins Headwater Ruins, Swamp Ruins Seldane Maayti Ruins, and Crypts Pnyx Upstairs.</div>' +
       '<div class="tableScroll"><table class="forkTable cheatTable"><thead><tr><th class="num">level</th><th>map</th><th class="num">no.</th><th>teleporter and the square it leads to</th></tr></thead><tbody>' +
       mapOrder.map(resid => {
@@ -1194,20 +1194,20 @@ function renderCheatsSheet() {
   try { heap = refExists(0x8000) ? nothingMapHeap(0x8000) : null; } catch (e) { heap = null; }
   if (heap) {
     h += '<div class="mechSec"><h4 class="cheatH4">The Nothing Map at Level 0</h4><ul class="ruleList">' +
-      '<li>Map 0 is ' + heap.w + ' by ' + heap.h + ', with no roof, no exits, ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') + ' and no name. The map window’s title reads Untitled there.</li>' +
+      '<li>Map 0 is ' + heap.w + ' by ' + heap.h + ' with no roof and no exits. It has ' + (refExists(0x8100) ? 'a prop list' : 'no prop list') + ' and no name. The map window’s title reads Untitled there.</li>' +
       '<li><b>Its grid is not tiles</b> but leftover bytes of the program’s memory. The program made the map and never filled it in.</li>' +
-      '<li>The hero can reach it by accident, from a bed in Cademia and from beneath Pnyx. ' +
-      'A character with a guard’s sprite stands there, called Nothing, or Omen if killed twice. ' +
-      'That character is character record 0, which is empty, and option-x writes to that record. ' +
+      '<li>The hero can reach it by accident from a bed in Cademia and from beneath Pnyx. ' +
+      'A character with a guard’s sprite stands there. Its name is Nothing (or Omen if killed twice). ' +
+      'That character is character record 0. The record is empty and option-x writes to it. ' +
       actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li></ul></div>';
   }
 
   h += '<div class="mechSec"><h4 class="cheatH4">Cheats That Need No Cheat Mode</h4>' +
     '<div class="cheatNote">Changes this page can make to a file the game will open.' +
     '</div><ul class="ruleList">' +
-    '<li><b>The party’s records.</b> Where they stand, how strong and how well fed they are, and how many training ' +
+    '<li><b>The party’s records.</b> Where they stand, how strong they are, how well fed they are, and how many training ' +
     'points they have. ' + actionChip('Saved Game', "showCategory('SAVEGAME')") + '</li>' +
-    '<li><b>Any resource, as hex</b>, through Edit Bytes on the resource itself.</li>' +
+    '<li><b>Any resource as hex</b> through Edit Bytes on the resource itself.</li>' +
     '<li><b>Where to download the changed file.</b> ' + actionChip('Patch in Progress', "showCategory('CHANGES')") + '</li></ul></div>';
 
   if (kr && kr.cases.length) {
@@ -1215,7 +1215,7 @@ function renderCheatsSheet() {
     const cx = find(0xC5), cp = find(0xB9), cl = find(0xC2), c1 = kr.cases.find(c => c.keys.some(x => x.v === 0xC1));
     const items = [];
     if (cx) items.push('<li><b>option-x is a Look readout.</b> ' + facts(cx).lookShort() + '</li>');
-    if (cp && cp.fallsInto && caseAt(cp.fallsInto)) items.push('<li><b>option-p carries on</b> into ' + comboOf(caseAt(cp.fallsInto).keys[0].v) + '’s code (' + srcNum(exeVal({ at: cp.fallsInto }, null), 'here') + '). Because of a missing jump, “What prop is this?” also switches that setting.</li>');
+    if (cp && cp.fallsInto && caseAt(cp.fallsInto)) items.push('<li><b>option-p carries on</b> into ' + comboOf(caseAt(cp.fallsInto).keys[0].v) + '’s code (' + srcNum(exeVal({ at: cp.fallsInto }, null), 'here') + '). A missing jump makes “What prop is this?” also switch that setting.</li>');
     const fh = find(0xFA);
     if (fh) items.push('<li><b>option-h empties the enemy list.</b> ' + facts(fh).peaceShort() + '</li>');
     if (cl && !c1) items.push('<li><b>The speed limiter is ' + srcNum(cl.keys[0], 'option-l') + '</b>, not option-1.</li>');
@@ -1270,21 +1270,21 @@ window.SAVE_SHOW_ALL = false;   // slots that are marked but hold nobody
 function savedGameParts() {
   const out = [];
   const add = (rid, what) => { if (refExists(rid)) out.push({ rid, what }); };
-  add(0xF009, 'the character records, everybody’s position, stats and condition (SaveGlobals)');
+  add(0xF009, 'the character records with everybody’s position, stats, and condition (SaveGlobals)');
   add(0xF00E, 'two bytes for each of 1,024 rooms. The game sets the first switch in them once the party enters a room and sees its description (SaveGlobals)');
   const hero = loadCharacterTable()[1];
   if (hero && hero.zone) {
-    add(0x8100 | hero.zone, 'the props of the zone the player stands in, from record 256 up (SaveLevelProps)');
-    add(0x8200 | hero.zone, 'what the player has seen of that zone, one switch for each square, in (width ÷ 8, rounded up) × height bytes (SaveLevelProps)');
+    add(0x8100 | hero.zone, 'the props of the zone the player stands in from record 256 up (SaveLevelProps)');
+    add(0x8200 | hero.zone, 'what the player has seen of that zone (one switch for each square) in (width ÷ 8 rounded up) × height bytes (SaveLevelProps)');
   }
-  add(0xF306, 'the first 256 prop records, the characters as they stand on that zone (SaveLevelProps)');
-  add(0x8800, 'the player’s portrait, which the game writes when the player makes the character (CreatePlayer)');
-  add(0x0400, 'the live game, five tagged chunks: the quest values and flags, the active monsters with their queued activities, the spell effects in flight, the open windows, and the 256 gremlin frames (SaveToFile)');
+  add(0xF306, 'the first 256 prop records (the characters as they stand on that zone) in SaveLevelProps');
+  add(0x8800, 'the player’s portrait that the game writes when the player makes the character (CreatePlayer)');
+  add(0x0400, 'the live game in five tagged chunks: the quest values and flags, the active monsters with their queued activities, the spell effects in flight, the open windows, and the 256 gremlin frames (SaveToFile)');
   add(0x0401, 'the To Do list (SaveToDo)');
-  add(0x0404, 'the twenty macro slots, with 0xFF for an unassigned one (SaveMacros)');
-  add(0xF307, 'the lists, tables and strings the scripts make, which last from one session to the next. Each block starts with eight bytes giving its size, its number and its kind, and an empty store is one free block (THeap::Save)');
-  add(0xF308, '4,096 two-byte entries, one for each thing that has something in that store, each giving where in the store to find it (THeap::Save)');
-  for (let n = 0; n < 256; n++) add(0xE000 | n, 'a page of the journal, 8 KB. Each entry is its length, the day, what kind of entry it is, who spoke and the text (TJournalSegment::Flush)');
+  add(0x0404, 'the twenty macro slots with 0xFF for an unassigned one (SaveMacros)');
+  add(0xF307, 'the lists, tables, and strings the scripts make that last from one session to the next. Each block starts with eight bytes giving its size, its number, and its kind. An empty store is one free block (THeap::Save)');
+  add(0xF308, '4,096 two-byte entries (one for each thing that has something in that store). Each gives where in the store to find it (THeap::Save)');
+  for (let n = 0; n < 256; n++) add(0xE000 | n, 'a page of the journal (8 KB). Each entry is its length, the day, what kind of entry it is, who spoke, and the text (TJournalSegment::Flush)');
   return out;
 }
 
@@ -1355,7 +1355,7 @@ function saveByteMapGaps(p) {
 function byteMapFillGaps(p, from, to, name) {
   const covered = byteMapLeaves(p).filter(x => x.at < to && x.at + x.len > from);
   let pos = from;
-  const fill = (a, e) => { if (e > a) p.f(a, e - a, name, { value: byteMapAllZero(p.bytes, a, e - a) ? 'all zero' : (e - a) + ' bytes, starting ' + byteMapHex(p.bytes, a, e - a) }); };
+  const fill = (a, e) => { if (e > a) p.f(a, e - a, name, { value: byteMapAllZero(p.bytes, a, e - a) ? 'all zero' : (e - a) + ' bytes starting ' + byteMapHex(p.bytes, a, e - a) }); };
   for (const x of covered) { if (x.at > pos) fill(pos, x.at); pos = Math.max(pos, x.at + x.len); }
   fill(pos, to);
 }
@@ -1390,17 +1390,17 @@ function byteMapCharRecord(p, at, name) {
 function byteMapPropRecord(p, at, name) {
   const b = p.bytes, rec = byteMapRecord(p, at, 16, name, { empty: byteMapAllZero(b, at, 16) });
   const flags = b[at], loc = (b[at + 1] << 16) | u16be(b, at + 2), aw = u16be(b, at + 4);
-  rec.f(0, 1, 'flags: 0x01 may be taken, 0x08 inside another prop, 0x10 carried by a character, 0xFF deleted, and an egg is 0x42 armed and 0xC2 tried', { value: '0x' + flags.toString(16).toUpperCase().padStart(2, '0') });
-  rec.f(1, 3, (flags & 0x18) ? 'who or what has it: the low 16 bits are the holder' : 'where it lies: x in the top twelve bits, y in the bottom twelve',
+  rec.f(0, 1, 'flags: 0x01 the party can take it, 0x08 inside another prop, 0x10 carried by a character, 0xFF deleted, and for an egg 0x42 armed and 0xC2 tried', { value: '0x' + flags.toString(16).toUpperCase().padStart(2, '0') });
+  rec.f(1, 3, (flags & 0x18) ? 'who or what has it: the low 16 bits are the holder' : 'where it lies: x in the top twelve bits and y in the bottom twelve',
         { value: (flags & 0x18) ? 'holder ' + (loc & 0xFFFF) : '(' + (loc >> 12) + ', ' + (loc & 0xFFF) + ')' });
-  rec.f(4, 2, 'its class and frame: the class in the low ten bits, the aspect above', { value: 'class ' + (aw & 0x3FF) + ', aspect ' + ((aw >> 10) & 0x3F) });
+  rec.f(4, 2, 'its class and frame: the class in the low ten bits and the aspect above', { value: 'class ' + (aw & 0x3FF) + ', aspect ' + ((aw >> 10) & 0x3F) });
   rec.f(6, 1, 'Data1', { value: String(b[at + 6]) });
   rec.f(7, 1, 'Data2', { value: String(b[at + 7]) });
   const s6 = ((b[at + 14] & 0x3F) << 26) >> 26;
-  rec.f(8, 2, 'its slot in the frame table (0xF308), where AllocateFrame copies its frame’s reference (field 14)', { value: String(u16be(b, at + 8)) });
-  rec.f(10, 2, 'field 15, a spare field a script could read and set. None does, and nothing else found in the program uses it', { value: String(u16be(b, at + 10)) });
-  rec.f(12, 2, 'the heap reference of its frame, a dict AllocateFrame makes the first time a script stores something on it (has_storage, storage)', { value: String(u16be(b, at + 12)) });
-  rec.f(14, 1, 'how far the game shifts it along the diagonal when drawing it, four pixels a step: the low six bits, signed, which TViewer::Render adds to both draw offsets (field 16). Every reader masks off the top two', { value: String(s6) + (b[at + 14] & 0xC0 ? ', top bits ' + (b[at + 14] >> 6) : '') });
+  rec.f(8, 2, 'its slot in the frame table (0xF308) where AllocateFrame copies its frame’s reference (field 14)', { value: String(u16be(b, at + 8)) });
+  rec.f(10, 2, 'field 15 (a spare field a script could read and set). None does and nothing else found in the program uses it', { value: String(u16be(b, at + 10)) });
+  rec.f(12, 2, 'the heap reference of its frame (a dict AllocateFrame makes the first time a script stores something on it with has_storage and storage)', { value: String(u16be(b, at + 12)) });
+  rec.f(14, 1, 'how far the game shifts it along the diagonal when drawing it at four pixels a step. It is the low six bits as a signed number. Drawing adds it to both draw offsets (TViewer::Render with field 16). Every reader masks off the top two', { value: String(s6) + (b[at + 14] & 0xC0 ? ', top bits ' + (b[at + 14] >> 6) : '') });
   rec.f(15, 1, 'a spare byte that nothing found in the program reads or writes', { value: String(b[at + 15]) });
   return rec;
 }
@@ -1412,26 +1412,26 @@ function byteMapPropRecord(p, at, name) {
    index begins with that same pair; then the index's entries, the
    subindexes', and each resource's bytes, which are separate parts. */
 function byteMapDataFork(arc) {
-  const b = arc.bytes, p = byteMapPart('file', 'the data fork’s structure: header, indexes and where each resource sits', b);
-  p.f(0, 32, 'the scenario’s title, a Pascal string', { value: pstring(b, 0) });
-  p.f(0x20, 32, 'the player’s name, a Pascal string', { value: pstring(b, 0x20) });
+  const b = arc.bytes, p = byteMapPart('file', 'the data fork’s structure: header, indexes, and where each resource sits', b);
+  p.f(0, 32, 'the scenario’s title as a Pascal string', { value: pstring(b, 0) });
+  p.f(0x20, 32, 'the player’s name as a Pascal string', { value: pstring(b, 0x20) });
   // Halfwords, not the bytes delvmod stores: OpenScenFile, CheckPlayerFile,
   // NewGame and InitWorld read them (save-format.md, the header).
   const ver = v => (v >> 8) + '.' + (v & 0xFF);
-  p.f(0x40, 2, 'the Delver file format’s version, major and minor. The program opens a file whose major version matches the program’s and whose minor is no higher (SegFileHeader::CompatibleVersions, against 0x1300)', { value: ver(u16be(b, 0x40)) });
-  p.f(0x42, 2, 'the scenario’s version. A save copies it from its scenario when the game begins, and the program opens the save only with a scenario it is compatible with', { value: ver(u16be(b, 0x42)) });
-  p.f(0x48, 2, 'the side, in squares, of the map buffer the program sets aside for a level (CreateGlobals; 1,024 when 0)', { value: String(u16be(b, 0x48)) });
+  p.f(0x40, 2, 'the Delver file format’s major and minor version. The program opens a file whose major version matches the program’s and whose minor is no higher (SegFileHeader::CompatibleVersions against 0x1300)', { value: ver(u16be(b, 0x40)) });
+  p.f(0x42, 2, 'the scenario’s version. A save copies it from its scenario when the game begins. The program opens the save only with a compatible scenario', { value: ver(u16be(b, 0x42)) });
+  p.f(0x48, 2, 'the side in squares of the map buffer the program sets aside for a level (CreateGlobals reads 0 as 1,024)', { value: String(u16be(b, 0x48)) });
   const mi = delverMasterIndexExtent(b);
   if (mi) {
     p.f(mi.off, 8, 'the offset and length of the master index', { value: '0x' + mi.off.toString(16).toUpperCase() + ', ' + mi.len + ' bytes' });
     for (let i = 0; i < mi.count; i++) {
       const at = mi.first + i * 8, off = u32be(b, at), len = u32be(b, at + 4);
-      p.f(at, 8, off ? 'where subindex ' + i + ' (resources 0x' + (i + 1).toString(16).toUpperCase().padStart(2, '0') + 'xx) is, and its length' : 'subindex ' + i + ', empty',
+      p.f(at, 8, off ? 'where subindex ' + i + ' (resources 0x' + (i + 1).toString(16).toUpperCase().padStart(2, '0') + 'xx) is and its length' : 'subindex ' + i + ' (empty)',
           { value: off ? '0x' + off.toString(16).toUpperCase() + ', ' + len + ' bytes' : '0', empty: !off });
       if (!off) continue;
       for (let k = 0; k < Math.min(256, len / 8); k++) {
         const e = off + k * 8, roff = u32be(b, e), rlen = u32be(b, e + 4), rid = ((i + 1) << 8) | k;
-        p.f(e, 8, roff ? 'where resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ' is, and its length' : 'resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ', none',
+        p.f(e, 8, roff ? 'where resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ' is and its length' : 'resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ' (none)',
             { value: roff ? '0x' + roff.toString(16).toUpperCase() + ', ' + rlen + ' bytes' : '0', empty: !roff });
         if (roff && rlen) p.f(roff, rlen, 'resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ', listed as a part below', { part: rid });
       }
@@ -1439,8 +1439,8 @@ function byteMapDataFork(arc) {
   }
   // What lies between: the header's other bytes and any space between
   // resources. None of it is read by delvmod.
-  byteMapFillGaps(p, 0, 0x80, 'zero, and nothing found reads it');
-  byteMapFillGaps(p, 0x80, b.length, 'free space, with no index entry pointing here');
+  byteMapFillGaps(p, 0, 0x80, 'zero and nothing found reads it');
+  byteMapFillGaps(p, 0x80, b.length, 'free space with no index entry pointing here');
   p.fields.sort((x, y) => x.at - y.at);
   return p;
 }
@@ -1454,20 +1454,20 @@ function byteMapStream(p) {
     const tag = String.fromCharCode(b[pos], b[pos + 1], b[pos + 2], b[pos + 3]), len = u32be(b, pos + 4), end = Math.min(b.length, pos + 4 + len);
     const chunk = byteMapRecord(p, pos, end - pos, 'the ' + tag.trim() + ' block');
     chunk.f(0, 4, 'the block’s tag', { value: tag });
-    chunk.f(4, 4, 'the block’s length, counting itself', { value: String(len) });
+    chunk.f(4, 4, 'the block’s length including itself', { value: String(len) });
     const body = pos + 8;
     const leaf = (at, n, name, o) => chunk.f(at - pos, n, name, o);
     let q = body;
     if (tag === 'Char') {
-      const shortNames = ['the party’s karma (the scripts’ global 12, Karma)', 'the languages the party knows (global 14, LanguagesKnown, which the text drawer also reads)',
+      const shortNames = ['the party’s karma (the scripts’ global 12 named Karma)', 'the languages the party knows (global 14 named LanguagesKnown that the text drawer also reads)',
                           'the range the game picks a created creature’s size from (2 is 50 to 149 percent)', 'the next number the scripts’ NewUniqueName call hands out (it returns this and adds one)'];
       for (let k = 0; k < 4; k++) leaf(body + 2 * k, 2, shortNames[k], { value: String(u16be(b, body + 2 * k)) });
       for (let v = 0; v < 32; v++) leaf(pos + 16 + v, 1, 'quest value ' + v, { value: String(b[pos + 16 + v]) });
-      for (let w = 0; w < 8; w++) leaf(pos + 48 + 4 * w, 4, 'quest flags ' + (32 * w) + ' to ' + (32 * w + 31) + ', one bit each, the first in the lowest bit', { value: byteMapHex(b, pos + 48 + 4 * w, 4) });
-      leaf(pos + 80, 4, 'the game clock, 4,096 units an hour', { value: String(u32be(b, pos + 80)) });
+      for (let w = 0; w < 8; w++) leaf(pos + 48 + 4 * w, 4, 'quest flags ' + (32 * w) + ' to ' + (32 * w + 31) + ' at one bit each with the first in the lowest bit', { value: byteMapHex(b, pos + 48 + 4 * w, 4) });
+      leaf(pos + 80, 4, 'the game clock at 4,096 units an hour', { value: String(u32be(b, pos + 80)) });
       leaf(pos + 84, 2, 'the day (the scripts’ GameDay)', { value: String(u16be(b, pos + 84)) });
       leaf(pos + 86, 1, 'whether the automap is on: the byte the scripts’ SetAutomapping call sets (cbEnableAutoMap)', { value: String(b[pos + 86]) });
-      leaf(pos + 87, 4, 'real time played, in seconds. Each save adds the time since the last look at the Mac’s clock (SaveToFile, GetDateTime)', { value: String(u32be(b, pos + 87)) });
+      leaf(pos + 87, 4, 'real time played in seconds. Each save adds the time since the last look at the Mac’s clock (SaveToFile and GetDateTime)', { value: String(u32be(b, pos + 87)) });
       if (end > pos + 91) leaf(pos + 91, end - (pos + 91), 'zeros that fill the block (SaveToFile)', { value: byteMapAllZero(b, pos + 91, end - pos - 91) ? 'all zero' : byteMapHex(b, pos + 91, end - pos - 91) });
       q = end;
     } else if (tag === 'Mons') {
@@ -1491,19 +1491,19 @@ function byteMapStream(p) {
         if (q + n > end) break;
         const character = id < 256 ? characterName(id) || ('character ' + id) : 'prop ' + id;
         const rec = byteMapRecord({ fields: chunk.kids, bytes: b }, q, n, 'monster ' + m + ': ' + character);
-        rec.f(0, 1, 'property 55 of its class: 9 or 10 make it a crawling monster, 11 a dragon, 12 an octo, anything else an ordinary one (0xFF when the class has none)', { value: String(kind) });
-        rec.f(1, 2, 'the monster’s object: a character below 256, a prop of the level from 256', { value: String(id) });
-        rec.f(3, 2, 'the frame it is showing, which changes as it turns and walks (AdjustAspect)', { value: String(u16be(b, q + 3)) });
-        rec.f(5, 2, 'the way it faces, set from the direction of each step (HandleMove, DxDyToFace)', { value: String(u16be(b, q + 5)) });
+        rec.f(0, 1, 'property 55 of its class: 9 or 10 make it a crawling monster, 11 a dragon, 12 an octo, and anything else an ordinary one (0xFF when the class has none)', { value: String(kind) });
+        rec.f(1, 2, 'the monster’s object: a character below 256 and a prop of the level from 256', { value: String(id) });
+        rec.f(3, 2, 'the frame it is showing (AdjustAspect changes it as it turns and walks)', { value: String(u16be(b, q + 3)) });
+        rec.f(5, 2, 'the way it faces (HandleMove and DxDyToFace set it from the direction of each step)', { value: String(u16be(b, q + 5)) });
         let o = 7;
         if (id >= 256) {
-          rec.f(o, 2, 'the record it hatched from, by its index in the level’s list (HatchEgg)', { value: String(u16be(b, q + o)) }); o += 2;
-          const cr = byteMapRecord({ fields: rec.kids, bytes: b }, q + o, 32, 'a separate character-shaped record, since it has no 0xF009 row');
+          rec.f(o, 2, 'the record it hatched from by its index in the level’s list (HatchEgg)', { value: String(u16be(b, q + o)) }); o += 2;
+          const cr = byteMapRecord({ fields: rec.kids, bytes: b }, q + o, 32, 'a separate character-shaped record because it has no 0xF009 row');
           for (const l of charRecordLayout()) cr.f(l.off, l.w, l.name, { value: byteMapHex(b, q + o + l.off, l.w) });
           o += 32;
         }
         rec.f(o, 1, '1 while it has a waypoint to walk to (SetWaypoint)', { value: String(b[q + o]) }); o += 1;
-        rec.f(o, 4, 'where it is going: x and y (SetWaypoint, and 0xA5A5 when nothing has ever sent it anywhere)', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')' }); o += 4;
+        rec.f(o, 4, 'where it is going: x and y (SetWaypoint sets them and 0xA5A5 means nothing has ever sent it anywhere)', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')' }); o += 4;
         rec.f(o, 4, 'the next waypoint on the way there: x and y (TPathFinder::FindWaypoint)', { value: '(' + u16be(b, q + o) + ', ' + u16be(b, q + o + 2) + ')' }); o += 4;
         rec.f(o, 2, 'how many activities it has queued', { value: String(cnt) }); o += 2;
         for (let a = 0; a < cnt; a++) {
@@ -1513,7 +1513,7 @@ function byteMapStream(p) {
           // behaviour; scripts queue them (cbQueueAction, the one caller).
           const beh = b[q + o];
           const behaviorWord = String(behaviorWordHTML(beh)).replace(/<[^>]+>/g, '');
-          ar.f(0, 1, 'the behavior it performs first, in place of the one in the character’s byte 22 (TActiveMonster::DoMove)', { value: String(beh) + (behaviorWord ? ', ' + behaviorWord : '') });
+          ar.f(0, 1, 'the behavior it performs first in place of the one in the character’s byte 22 (TActiveMonster::DoMove)', { value: String(beh) + (behaviorWord ? ', ' + behaviorWord : '') });
           ar.f(1, 2, 'the behavior’s first argument', { value: String(u16be(b, q + o + 1)) });
           ar.f(3, 2, 'its second argument', { value: String(u16be(b, q + o + 3)) });
           ar.f(5, 4, 'what it is about: a reference in the scripts’ form (0x5000FFFF is none)', { value: '0x' + u32be(b, q + o + 5).toString(16).toUpperCase().padStart(8, '0') });
@@ -1528,7 +1528,7 @@ function byteMapStream(p) {
         }
         q += n; m++;
       }
-      if (q < end) { leaf(q, end - q, 'the rest of the block, which does not parse as a monster', { value: byteMapHex(b, q, end - q), unread: true }); q = end; }
+      if (q < end) { leaf(q, end - q, 'the rest of the block that does not parse as a monster', { value: byteMapHex(b, q, end - q), unread: true }); q = end; }
     } else if (tag === 'FXQ ') {
       // TSpellFX::WriteFXQueue: each entry of the effects map, a character
       // and a flag and when it wears off, which TSpellFX::PassTime reads.
@@ -1537,14 +1537,14 @@ function byteMapStream(p) {
         const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 6, 'spell effect ' + e + ': ' + (characterName(character) || 'character ' + character) + ', flag ' + flag);
         r.f(0, 2, 'the character it is on', { value: String(character) });
         r.f(2, 2, 'the character flag it applies. Flags below 8 are in byte 8, flags below 24 in the status flags, and the rest in byte 26', { value: String(flag) });
-        r.f(4, 2, 'when it wears off. The effect ends once the time passes this, and at 0xF000 or more it never ends (PassTime)', { value: until >= 0xF000 ? 'never (' + until + ')' : String(until) });
+        r.f(4, 2, 'when it wears off. The effect ends once the time passes this. At 0xF000 or more it never ends (PassTime)', { value: until >= 0xF000 ? 'never (' + until + ')' : String(until) });
       }
     } else if (tag === 'Grem') {
       // TGremlin::SaveGremlins: 256 frames of a state and a heap reference.
       for (let g = 0; g < 256 && q + 4 <= end; g++, q += 4) {
         const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 4, 'gremlin ' + g, { empty: u32be(b, q) === 0x00020000 });
-        r.f(0, 2, 'its state, which a script reads and sets as field 20: 0 hears the party enter and the zone’s signals (OnEnter, OnSignal), 1 and below 0 do not, and 2 is no gremlin, set for every number without a script, which is all of them in the shipped game (ClearGremlins)', { value: String((u16be(b, q) << 16) >> 16) });
-        r.f(2, 2, 'the heap reference of its frame, 0 for none', { value: String(u16be(b, q + 2)) });
+        r.f(0, 2, 'its state as field 20 (a script reads and sets it). 0 hears the party enter and the zone’s signals (OnEnter and OnSignal). 1 and below 0 hear neither. 2 is no gremlin. Every number without a script has 2 (ClearGremlins). In the shipped game that is all of them', { value: String((u16be(b, q) << 16) >> 16) });
+        r.f(2, 2, 'the heap reference of its frame (0 for none)', { value: String(u16be(b, q + 2)) });
       }
     } else if (tag === 'Wind') {
       // TInventoryWindow::MarshalAll, last window first; a character
@@ -1554,10 +1554,10 @@ function byteMapStream(p) {
       for (let w = 0; q + 12 <= end && String.fromCharCode(b[q], b[q + 1], b[q + 2], b[q + 3]) === 'ChrW'; w++, q += 12) {
         const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 12, 'open window ' + w + ', a character’s');
         r.f(0, 4, 'the window’s class code', { value: 'ChrW' });
-        r.f(4, 2, 'whose things it shows (+16, which the inventory window’s constructor sets and RenumberParent moves)', { value: String(u16be(b, q + 4)) });
+        r.f(4, 2, 'whose things it shows (+16 that the inventory window’s constructor sets and RenumberParent moves)', { value: String(u16be(b, q + 4)) });
         r.f(6, 2, 'the window’s left edge', { value: String(u16be(b, q + 6)) });
         r.f(8, 2, 'its top edge', { value: String(u16be(b, q + 8)) });
-        r.f(10, 2, 'which pane it shows (+134, TCharacterWindow::ChangePane)', { value: String(u16be(b, q + 10)) });
+        r.f(10, 2, 'which pane it shows (+134 in TCharacterWindow::ChangePane)', { value: String(u16be(b, q + 10)) });
       }
     }
     // Anything in a block past what is read above.
@@ -1577,7 +1577,7 @@ function byteMapToDo(p) {
     r.f(0, 1, '1 once a script strikes the line off (DoneToDo)', { value: String(b[at]) });
     r.f(1, 1, 'padding that nothing in the program writes (AddToDo and DoneToDo write byte 0)', { value: String(b[at + 1]) });
     r.f(2, 2, 'the day the line went on the list', { value: String(u16be(b, at + 2)) });
-    r.f(4, 4, 'the line: the To Do text resource in the low half and the line’s number in the high twelve bits, 0x5000FFFF for none', { value: ref === 0x5000FFFF ? 'none' : 'line ' + ((ref >>> 16) & 0xFFF) + ' of 0x' + (ref & 0xFFFF).toString(16).toUpperCase().padStart(4, '0') });
+    r.f(4, 4, 'the line: the To Do text resource in the low half and the line’s number in the high twelve bits (0x5000FFFF for none)', { value: ref === 0x5000FFFF ? 'none' : 'line ' + ((ref >>> 16) & 0xFFF) + ' of 0x' + (ref & 0xFFFF).toString(16).toUpperCase().padStart(4, '0') });
   }
 }
 /* The macro slots (TStatusWindow::SaveMacros): ten halfwords, not twenty
@@ -1588,7 +1588,7 @@ function byteMapMacros(p) {
   const b = p.bytes;
   for (let s = 0; s * 2 + 2 <= b.length; s++) {
     const v = (u16be(b, s * 2) << 16) >> 16;
-    p.f(s * 2, 2, 'macro slot ' + s + ', the key with code ' + (256 + s) + ': the skill it runs, −1 for none', { value: v === -1 ? 'none' : 'skill ' + v, empty: v === -1 });
+    p.f(s * 2, 2, 'macro slot ' + s + ' (the key with code ' + (256 + s) + '): the skill it runs (−1 for none)', { value: v === -1 ? 'none' : 'skill ' + v, empty: v === -1 });
   }
   if (b.length & 1) p.f(b.length - 1, 1, 'a last byte past the slots', { value: String(b[b.length - 1]), unread: true });
 }
@@ -1597,16 +1597,16 @@ function byteMapRooms(p) {
   const b = p.bytes;
   for (let n = 0; n * 2 + 2 <= b.length; n++) {
     const v = u16be(b, n * 2);
-    p.f(n * 2, 2, 'room ' + n + ': the game sets bit 0 the first time the party enters it, when its description runs (TGameSys::HeartBeat). Nothing in the program or the scripts sets another bit', { value: '0x' + v.toString(16).toUpperCase().padStart(4, '0'), empty: !v, unread: !!(v & 0xFFFE) });
+    p.f(n * 2, 2, 'room ' + n + ': the game sets bit 0 the first time the party enters it as its description runs (TGameSys::HeartBeat). Nothing in the program or the scripts sets another bit', { value: '0x' + v.toString(16).toUpperCase().padStart(4, '0'), empty: !v, unread: !!(v & 0xFFFE) });
   }
 }
 // A zone's map memory (SaveLevelProps): one bit a square, LSB first, rows of
 // ⌈width ÷ 8⌉ bytes. The width is the scenario's; without it, one field.
 function byteMapAutomap(p, zone) {
   const b = p.bytes, m = zoneMapSize(zone);
-  if (!m || Math.ceil(m.width / 8) * m.height !== b.length) { p.f(0, b.length, 'what the player has seen of zone ' + zone + ', one bit per square, least significant bit first', { value: byteMapAllZero(b, 0, b.length) ? 'nothing seen' : 'some squares seen' }); return; }
+  if (!m || Math.ceil(m.width / 8) * m.height !== b.length) { p.f(0, b.length, 'what the player has seen of zone ' + zone + ' (one bit per square with the least significant bit first)', { value: byteMapAllZero(b, 0, b.length) ? 'nothing seen' : 'some squares seen' }); return; }
   const row = Math.ceil(m.width / 8);
-  for (let y = 0; y < m.height; y++) p.f(y * row, row, 'row ' + y + ', squares 0 to ' + (m.width - 1) + ', one bit per square, least significant bit first',
+  for (let y = 0; y < m.height; y++) p.f(y * row, row, 'row ' + y + ' (squares 0 to ' + (m.width - 1) + ' with one bit per square and the least significant bit first)',
     { value: byteMapAllZero(b, y * row, row) ? 'nothing seen' : byteMapHex(b, y * row, row), empty: byteMapAllZero(b, y * row, row) });
 }
 function zoneMapSize(zone) {
@@ -1649,13 +1649,13 @@ function byteMapHeapChain(b, pad) {
 function byteMapHeap(p) {
   const b = p.bytes;
   const chain = byteMapHeapChain(b, null) || byteMapHeapChain(b, 0) || byteMapHeapChain(b, 4);
-  if (!chain) { p.f(0, b.length, 'the heap, which does not parse as a chain of blocks', { value: byteMapHex(b, 0, b.length), unread: true }); return; }
+  if (!chain) { p.f(0, b.length, 'the heap that does not parse as a chain of blocks', { value: byteMapHex(b, 0, b.length), unread: true }); return; }
   for (const { q, len, step } of chain) {
     const ref = u16be(b, q + 4), kind = (b[q + 6] >> 4) & 7, count = u16be(b, q + 6) & 0x3FF, free = !ref && !kind;
     const r = byteMapRecord(p, q, step, free ? 'a free block' : 'block ' + ref + (kind === 1 ? ', a list' : kind === 2 ? ', a dict' : ', kind ' + kind));
     r.f(0, 4, 'the data’s length', { value: String(len) });
-    r.f(4, 2, 'the block’s reference number, 0 for a free block', { value: String(ref) });
-    r.f(6, 2, 'its kind (bits 4 to 6 of the first byte: 1 a list, 2 a dict) and its reference count (the low ten bits)', { value: 'kind ' + kind + ', count ' + count });
+    r.f(4, 2, 'the block’s reference number (0 for a free block)', { value: String(ref) });
+    r.f(6, 2, 'its kind (bits 4 to 6 of the first byte with 1 a list and 2 a dict) and its reference count (the low ten bits)', { value: 'kind ' + kind + ', count ' + count });
     let o = 8;
     const d = q + 8;
     if (!free && kind === 2 && len >= 4) {
@@ -1666,14 +1666,14 @@ function byteMapHeap(p) {
         const e = byteMapRecord({ fields: r.kids }, q + o, 8, empty ? 'entry ' + k + ', empty' : 'entry ' + k);
         e.f(0, 2, 'its key', { value: String(u16be(b, q + o)) });
         e.f(2, 2, 'two bytes the lookup does not read', { value: byteMapHex(b, q + o + 2, 2) });
-        e.f(4, 4, empty ? 'the empty mark' : 'its value, a script value', { value: '0x' + v.toString(16).toUpperCase().padStart(8, '0') });
+        e.f(4, 4, empty ? 'the empty mark' : 'its value as a script value', { value: '0x' + v.toString(16).toUpperCase().padStart(8, '0') });
       }
     } else if (!free && kind === 1 && len >= 4) {
       const n = u16be(b, d);
       r.f(o, 2, 'the list’s length', { value: String(n) }); r.f(o + 2, 2, 'two bytes the game does not read (GetItem)', { value: byteMapHex(b, d + 2, 2) }); o += 4;
       for (let k = 0; o + 4 <= 8 + len; k++, o += 4) r.f(o, 4, k < n ? 'item ' + k + ', a script value' : 'room for another item', { value: '0x' + u32be(b, q + o).toString(16).toUpperCase().padStart(8, '0') });
     }
-    if (o < step) r.f(o, step - o, free ? 'free space' + (byteMapAllZero(b, q + o, step - o) ? '' : ', holding what a freed block left') : o < 8 + len ? 'the block’s data, not read' : 'rounding to four',
+    if (o < step) r.f(o, step - o, free ? 'free space' + (byteMapAllZero(b, q + o, step - o) ? '' : ' with what a freed block left') : o < 8 + len ? 'the block’s data (not read)' : 'rounding to four',
                       { value: byteMapAllZero(b, q + o, step - o) ? 'all zero' : byteMapHex(b, q + o, step - o), unread: !free && o < 8 + len });
   }
 }
@@ -1694,10 +1694,10 @@ function byteMapJournalPage(p, carry) {
   if (carry > 0) { const n = Math.min(carry, b.length); p.f(0, n, 'the rest of an entry begun on the page before', { value: decodeMacRoman(b.subarray(0, Math.min(n, 60))) }); q = n; carry -= n; }
   while (q + 2 <= b.length) {
     const len = u16be(b, q);
-    if (!len) { p.f(q, b.length - q, 'the rest of the page, after the last entry', { value: byteMapAllZero(b, q, b.length - q) ? 'all zero' : byteMapHex(b, q, b.length - q), unread: !byteMapAllZero(b, q, b.length - q) }); q = b.length; break; }
+    if (!len) { p.f(q, b.length - q, 'the rest of the page after the last entry', { value: byteMapAllZero(b, q, b.length - q) ? 'all zero' : byteMapHex(b, q, b.length - q), unread: !byteMapAllZero(b, q, b.length - q) }); q = b.length; break; }
     const n = Math.min(len, b.length - q);
     const r = byteMapRecord(p, q, n, 'an entry');
-    const hdr = [[2, 'the entry’s length: 6 plus the length of the text'], [1, 'the low byte of the day'], [1, 'its kind: 0 something said, 1 a line added, 2 a note'], [1, 'for something said, the low byte of the speaker'], [1, 'a zero']];
+    const hdr = [[2, 'the entry’s length: 6 plus the length of the text'], [1, 'the low byte of the day'], [1, 'its kind: 0 something said, 1 a line added, or 2 a note'], [1, 'the low byte of the speaker for something said'], [1, 'a zero']];
     let o = 0;
     for (const [w, nm] of hdr) { if (o + w > n) break; r.f(o, w, nm, { value: w === 2 ? String(u16be(b, q + o)) : String(b[q + o]) }); o += w; }
     if (n > o) r.f(o, n - o, 'the text', { value: decodeMacRoman(b.subarray(q + o, q + Math.min(n, o + 80))) });
@@ -1711,7 +1711,7 @@ function byteMapJournalPage(p, carry) {
    map. The resources in a save's fork: SCEN 128, an alias record to the
    scenario; pnot 0, the preview note; PICT, the preview picture. */
 function byteMapResourceFork(raw) {
-  const p = byteMapPart('rsrc', 'the resource fork: which scenario the save belongs to, and its preview picture', raw);
+  const p = byteMapPart('rsrc', 'the resource fork: which scenario the save belongs to and its preview picture', raw);
   let fork = null;
   try { fork = openResourceFork(raw); } catch (e) { quiet(e); }
   if (!fork) { p.f(0, raw.length, 'a resource fork that does not parse', { value: byteMapHex(raw, 0, raw.length), unread: true }); return p; }
@@ -1720,27 +1720,27 @@ function byteMapResourceFork(raw) {
   p.f(4, 4, 'where the map starts', { value: String(map) });
   p.f(8, 4, 'the data area’s length', { value: String(fork.dataLen) });
   p.f(12, 4, 'the map’s length', { value: String(fork.mapLen) });
-  if (fork.dataOff > 16) p.f(16, fork.dataOff - 16, 'the room the format leaves between the header and the first resource (More Macintosh Toolbox, figure 1-11)',
+  if (fork.dataOff > 16) p.f(16, fork.dataOff - 16, 'the room the format leaves between the header and the first resource (More Macintosh Toolbox figure 1-11)',
                              { value: byteMapAllZero(b, 16, fork.dataOff - 16) ? 'all zero' : byteMapHex(b, 16, fork.dataOff - 16) });
   const tl = map + u16be(b, map + 24), nl = map + u16be(b, map + 26);
   p.f(map, 16, 'the map’s copy of the header (or zeros)', { value: byteMapHex(b, map, 16) });
   p.f(map + 16, 4, 'room for the Resource Manager’s handle to the next map', { value: byteMapHex(b, map + 16, 4) });
   p.f(map + 20, 2, 'room for the file’s reference number', { value: byteMapHex(b, map + 20, 2) });
   p.f(map + 22, 2, 'the fork’s attributes', { value: byteMapHex(b, map + 22, 2) });
-  p.f(map + 24, 2, 'where the type list is, from the map', { value: String(tl - map) });
-  p.f(map + 26, 2, 'where the name list is, from the map', { value: String(nl - map) });
+  p.f(map + 24, 2, 'where the type list is as an offset from the map', { value: String(tl - map) });
+  p.f(map + 26, 2, 'where the name list is as an offset from the map', { value: String(nl - map) });
   p.f(tl, 2, 'the number of types minus one', { value: String(u16be(b, tl)) });
   fork.typeList.forEach((t, i) => {
     const e = tl + 2 + i * 8;
     p.f(e, 4, 'a type', { value: t.type });
     p.f(e + 4, 2, 'how many ' + t.type + ' resources minus one', { value: String(t.count - 1) });
-    p.f(e + 6, 2, 'where its reference list is, from the type list', { value: String(t.refListOff) });
+    p.f(e + 6, 2, 'where its reference list is as an offset from the type list', { value: String(t.refListOff) });
     (fork.resourcesByType[t.type] || []).forEach((r, k) => {
       const rp = tl + t.refListOff + k * 12, d = fork.dataOff + r.dataOffRel, len = u32be(b, d);
       p.f(rp, 2, t.type + ' ' + r.id + ': its id', { value: String(r.id) });
-      p.f(rp + 2, 2, t.type + ' ' + r.id + ': where its name is, −1 for none', { value: String(r.nameOff) });
+      p.f(rp + 2, 2, t.type + ' ' + r.id + ': where its name is (−1 for none)', { value: String(r.nameOff) });
       p.f(rp + 4, 1, t.type + ' ' + r.id + ': its attributes', { value: '0x' + r.attrs.toString(16).toUpperCase() });
-      p.f(rp + 5, 3, t.type + ' ' + r.id + ': where its data is, from the data area', { value: String(r.dataOffRel) });
+      p.f(rp + 5, 3, t.type + ' ' + r.id + ': where its data is as an offset from the data area', { value: String(r.dataOffRel) });
       p.f(rp + 8, 4, t.type + ' ' + r.id + ': room for its handle', { value: byteMapHex(b, rp + 8, 4) });
       if (r.name !== null && r.nameOff >= 0) p.f(nl + r.nameOff, 1 + b[nl + r.nameOff], t.type + ' ' + r.id + ': its name', { value: r.name });
       p.f(d, 4, t.type + ' ' + r.id + ': its length', { value: String(len) });
@@ -1760,12 +1760,12 @@ function byteMapForkResource(p, type, id, at, len) {
     p.f(at + 10, 2, nm + ': the preview’s id', { value: String(u16be(b, at + 10)) });
   } else if (type === 'PICT' && len >= 10) {
     p.f(at, 2, nm + ': the picture’s size (low word)', { value: String(u16be(b, at)) });
-    p.f(at + 2, 8, nm + ': its frame, top, left, bottom and right', { value: [0, 2, 4, 6].map(k => u16be(b, at + 2 + k)).join(', ') });
-    if (len > 10) p.f(at + 10, len - 10, nm + ': the picture, as QuickDraw opcodes', { value: len - 10 + ' bytes' });
+    p.f(at + 2, 8, nm + ': its frame as top, left, bottom, and right', { value: [0, 2, 4, 6].map(k => u16be(b, at + 2 + k)).join(', ') });
+    if (len > 10) p.f(at + 10, len - 10, nm + ': the picture as QuickDraw opcodes', { value: len - 10 + ' bytes' });
   } else if (type === 'SCEN' && len >= 6) {
     p.f(at, 4, nm + ': the alias’s user type', { value: byteMapHex(b, at, 4) });
     p.f(at + 4, 2, nm + ': the alias’s length', { value: String(u16be(b, at + 4)) });
-    if (len > 6) p.f(at + 6, len - 6, nm + ': the rest of the alias record, which Apple left undocumented. It has the names of the scenario file and its folder', { value: len - 6 + ' bytes' });
+    if (len > 6) p.f(at + 6, len - 6, nm + ': the rest of the alias record (Apple left it undocumented). It has the names of the scenario file and its folder', { value: len - 6 + ' bytes' });
   } else if (len) {
     p.f(at, len, nm + ': a resource no save here has shown', { value: byteMapHex(b, at, len), unread: true });
   }
@@ -1801,7 +1801,7 @@ function saveByteMap() {
         else if (hi === 0x82) byteMapAutomap(p, rid & 0xFF);
         else if (rid === 0xF307) byteMapHeap(p);
         else if (rid === 0xF308) byteMapFrames(p);
-        else if (hi === 0x88) p.f(0, b.length, 'the portrait, as the game’s compressed image opcodes (decompressDCG)', { value: b.length + ' bytes' });
+        else if (hi === 0x88) p.f(0, b.length, 'the portrait as the game’s compressed image opcodes (decompressDCG)', { value: b.length + ' bytes' });
         else if (hi >= 0xE0 && hi <= 0xEF) carry = byteMapJournalPage(p, carry);
         else if (hi >= 0x10 && hi < 0x40) p.f(0, b.length, 'a script the interpreter wrote back (the one encrypted kind of resource in a save)', { value: b.length + ' bytes' });
         else p.f(0, b.length, 'a resource no save here has shown', { value: byteMapHex(b, 0, b.length), unread: true });
@@ -1828,10 +1828,10 @@ function saveByteMapHTML() {
   const m = saveByteMap();
   if (!m) return '';
   const gaps = m.parts.reduce((n, p) => n + saveByteMapGaps(p).length, 0);
-  return '<h4 class="saveH4">Every Byte</h4><div class="saveNote">' + m.files.toLocaleString('en-US') + ' bytes in ' + m.parts.length + ' parts, every byte in a labeled field' +
+  return '<h4 class="saveH4">Every Byte</h4><div class="saveNote">' + m.files.toLocaleString('en-US') + ' bytes in ' + m.parts.length + ' parts with every byte in a labeled field' +
     (gaps ? ' except for ' + gaps + ' stretches (a fault in this page’s reading)' : '') +
-    (m.unread ? '. ' + m.unread.toLocaleString('en-US') + ' of them are in fields that nobody has worked out yet, marked <span class="byteUnread">not read</span>.'
-              : ', and every field’s meaning is known.') + '</div>' +
+    (m.unread ? '. ' + m.unread.toLocaleString('en-US') + ' of them are in fields that nobody has worked out. A <span class="byteUnread">not read</span> marks those.'
+              : '. Every field’s meaning is clear.') + '</div>' +
     m.parts.map(p => '<details class="byteMapPart" ontoggle="openSaveBytePart(this, ' + JSON.stringify(String(p.key)).replace(/"/g, '&quot;') + ')"><summary>' +
       svEsc(p.title) + ' <span class="byteMapSize">' + fmtBytes(p.size) + '</span></summary><div class="byteMapBody"></div></details>').join('');
 }
@@ -1877,8 +1877,8 @@ function renderSaveSheet() {
   document.getElementById('singleControls').style.display = 'none';
   const recs = loadCharacterTable();
   if (!recs.length) {
-    grid.innerHTML = '<div class="changesView"><p>This file has no 0xF009 character table, ' +
-      'so there is nothing to show here. A Cythera player file always has one, and so does ' +
+    grid.innerHTML = '<div class="changesView"><p>This file has no 0xF009 character table. ' +
+      'There is nothing to show here. A Cythera player file always has one and so does ' +
       'Cythera Data.</p></div>';
     out.textContent = 'No character records in this file.';
     return;
@@ -1900,14 +1900,14 @@ function renderSaveSheet() {
       ? svEsc(window.ARCHIVE_FINDER.name || 'This saved game') + '. ' +
         (hero && hero.zone
           ? svEsc(characterName(1)) + ' is in ' + svEsc(zoneDisplayName(hero.zone)) +
-            ' at (' + hero.x + ', ' + hero.y + '), with ' + hero.health + ' of ' + hero.healthMax + ' health.'
+            ' at (' + hero.x + ', ' + hero.y + ') with ' + hero.health + ' of ' + hero.healthMax + ' health.'
           : 'The hero is in no zone.')
-      : 'This is Cythera Data, not a saved game. These are the characters as a new game starts.') +
+      : 'This is Cythera Data and not a saved game. These are the characters as a new game starts.') +
     '</div></div></div>';
 
   if (namesAreBorrowed())
     h += '<div class="saveNote">The names here come from the scenario opened earlier in this ' +
-      'session, not from this file. A saved game has no table of names, but a character number ' +
+      'session and not from this file. A saved game has no table of names. A character number ' +
       'means the same person in every Cythera file.</div>';
 
   // With the scenario open, the maker comes first: it is what a visitor
@@ -1944,7 +1944,7 @@ function renderSaveSheet() {
     const i = r.index;
     h += '<tr' + (i === 1 ? ' class="saveHero"' : '') + '>' +
       '<td class="num">' + i + '</td>' +
-      '<td class="who">' + svEsc(i ? characterName(i) : 'slot 0, not a character') + '</td>' +
+      '<td class="who">' + svEsc(i ? characterName(i) : 'slot 0 (not a character)') + '</td>' +
       '<td class="where">' + svEsc(r.zone ? zoneDisplayName(r.zone) + ' (' + r.x + ', ' + r.y + ')' : 'nowhere') + '</td>' +
       '<td class="num">' + r.level + '</td><td class="num">' + r.xp + '</td>' +
       '<td class="num">' + r.health + '/' + r.healthMax + '</td>' +
@@ -2094,21 +2094,21 @@ const CHAR_GROUPS = [
         return (w ? '<b>' + w + '</b>, ' : '') + 'what they do each turn (112 is waiting where they stand)'; } },
     { id: 'behaviour2', raw: [30, 1], label: 'second behavior', max: 0xFF, what: () => 'a second behavior the scripts read and set' },
     { id: 'timing', key: 'party', label: 'move countdown', off: 18, max: 0xFF,
-      what: () => 'ticks before their next move, so it changes on every step' },
+      what: () => 'ticks before their next move (it changes on every step)' },
     { id: 'submove', raw: [24, 1], label: 'sub-move counter', max: 0xFF, what: () => 'the parts of a move still to take' },
     { id: 'alignment', raw: [25, 1], label: 'alignment', max: 0xFF,
       what: (r, v) => { const a = appImage() ? exeAlignmentNames() : null, n = a && a.byValue[v];
-        return (n ? '<b>' + srcNum(n.at, n.name) + '</b>, ' : '') + 'which side they are on, and so who their enemies are'; } },
+        return (n ? '<b>' + srcNum(n.at, n.name) + '</b>, ' : '') + 'which side they are on and so who their enemies are'; } },
     { id: 'rating', raw: [29, 1], label: 'defense stand-in', max: 0xFF,
-      what: (r, v) => 'for a character without the Defense skill, their defense is ' +
+      what: (r, v) => 'the defense of a character without the Defense skill: ' +
         ['none', 'half their level', 'their level', 'twice their level'][v & 3] },
     { id: 'b23', raw: [23, 1], label: 'price', max: 0xFF,
       what: () => { const p = shopPriceRule();
-        return 'a merchant’s price, in tenths of a thing’s worth' +
-               (p ? ', with prices starting at ' + srcNum(p.buy, String(p.buy.v)) + ' when the hero buys and ' + srcNum(p.sell, String(p.sell.v)) + ' when the hero sells, and staying where haggling leaves them' : ''); } },
+        return 'a merchant’s price in tenths of a thing’s worth' +
+               (p ? '. Prices start at ' + srcNum(p.buy, String(p.buy.v)) + ' when the hero buys and at ' + srcNum(p.sell, String(p.sell.v)) + ' when the hero sells. They stay where haggling leaves them' : ''); } },
     { id: 'b31', raw: [31, 1], label: 'size', max: 0xFF,
       what: () => { const c = exeCreatureSize();
-        return 'for a creature made from a map’s list, the percentage of its kind’s stats it was ' + (c ? srcNum({ exe: c.exe }, 'made at') : 'made at') +
+        return 'the percentage of its kind’s stats that a creature from a map’s list was ' + (c ? srcNum({ exe: c.exe }, 'made at') : 'made at') +
                '. Named characters ignore it'; } },
   ]},
 ];
@@ -2184,7 +2184,7 @@ function charEditHTML(index) {
     }
     h += '</div>';
   }
-  h += '<div class="charGroup"><div class="charGroupHead">Flags</div><div class="charWhat">The character flags that the scripts set, clear and check by number. ' +
+  h += '<div class="charGroup"><div class="charGroupHead">Flags</div><div class="charWhat">The character flags that the scripts set, clear, and check by number. ' +
     'Flags 0 to 7 are ' + charWhere(index, 8, 1) + ', 8 to 23 ' + charWhere(index, 6, 2) + ' and 24 to 31 ' + charWhere(index, 26, 1) +
     '. The names are the program’s' + (appImage() ? '' : ', and appear only when the program is open') + '.</div><div class="charFlags">';
   for (let f = 0; f < 32; f++) {
@@ -2200,12 +2200,12 @@ function charEditHTML(index) {
       try { u = charFlagUses(index, f); } catch (e) { quiet(e, 'what uses a character flag'); }
       if (u) rows.push('<div class="charWhat"><b>' + f + '</b> ' + u + '</div>');
     }
-    if (rows.length) h += '<div class="charWhat">The program has no name for these. A flag under 24 is listed where this character’s script uses it, and a flag from 24 up wherever any script does.</div>' + rows.join('');
+    if (rows.length) h += '<div class="charWhat">The program has no name for these. A flag under 24 appears where this character’s script uses it. A flag from 24 up appears wherever any script does.</div>' + rows.join('');
   }
   h += '</div>';
   return h +
     '<div class="charActions"><button class="sv-chip" onclick="applyCharEditForm(' + index + ')">Apply</button>' +
-    (index === 1 ? actionChip('Make them well', 'healCharacterRecord(1)', fullStomach() ? 'health, magic and a full stomach' : 'health and magic') : '') + '</div>' +
+    (index === 1 ? actionChip('Make them well', 'healCharacterRecord(1)', fullStomach() ? 'health, magic, and a full stomach' : 'health and magic') : '') + '</div>' +
     '<div class="inspDim">All 32 bytes are above. Apply rebuilds the whole file.</div>' +
     ((window.ARCHIVE_FINDER || {}).type === 'DelP' ? giveFormHTML(index) : '');
 }
@@ -2486,7 +2486,7 @@ function newGameSaveBytes(c) {
   if (!at) return null;
   const x = num(c.x, at.x), y = num(c.y, at.y), m = at.map;
   if (x < 0 || y < 0 || x >= m.width || y >= m.height) return null;
-  // Companions take the squares round the hero in turn, east first, that
+  // Companions take the squares around the hero in turn, east first, that
   // lie on the map and a walker can cross.
   const party = [], free = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1], [2, 0], [-2, 0], [0, 2], [0, -2]]
     .map(([dx, dy]) => ({ x: x + dx, y: y + dy }))
@@ -2516,7 +2516,7 @@ function saveMakerHTML() {
   const num = (id, label, v) => '<label class="mkField">' + svEsc(label) + ' <input type="number" id="' + id + '" min="1" max="255" value="' + v + '"></label>';
   const spriteName = v => propDisplayName(v.v & 0x3FF) || ('sprite ' + propWordHex(v.v & 0x3FF));
   return '<div class="saveMaker" id="saveMaker"><h3>Save File Generator</h3>' +
-    '<div class="mechLede">' + svEsc('Make a saved game with the hero, the place, the hour, a point in the story and the party. Make the Save opens it here, where the forms set the rest.') + '</div>' +
+    '<div class="mechLede">' + svEsc('Make a saved game with the hero, the place, the hour, a point in the story, and the party. Make the Save opens it here and the forms set the rest.') + '</div>' +
     '<div class="mkRow"><label class="mkField">Name <input type="text" id="mkName" maxlength="31" value="NewGame01"></label>' +
     '<label class="mkField">Sprite <select id="mkSprite">' + d.cr.sprites.map((s, i) => '<option value="' + i + '">' + svEsc(spriteName(s)) + '</option>').join('') + '</select></label>' +
     '<label class="mkField">Portrait <select id="mkPortrait">' + d.portraits.map(r => '<option value="' + r + '"' + (r === d.portrait ? ' selected' : '') + '>' + svEsc(labelFor(r) || propWordHex(r)) + '</option>').join('') + '</select></label></div>' +
@@ -2535,7 +2535,7 @@ function saveMakerHTML() {
       '<span class="mechSub" style="display:inline">' + svEsc('After his welcome the hero has the ' + (propDisplayName(d.welcome.gift.type) || 'thing he gives') + ' and the To Do list has its first line.') + '</span></div>' : '') +
     (d.todo.length ? '<details class="mkTodo"><summary class="mechSub">' + svEsc('To Do list: ' + d.todo.length + ' lines to choose from') + '</summary>' +
       d.todo.map(t => '<label class="mkField mkTodoRow"><select class="mkTodoPick" data-slot="' + t.slot + '" data-line="' + t.line + '"><option value="">Off</option><option value="on">To do</option><option value="done">Done</option></select> ' + svEsc(t.text) + '</label>').join('') +
-      '<div class="mechSub">' + svEsc('This sets the list the player reads, not the quests behind it.') + '</div></details>' : '') +
+      '<div class="mechSub">' + svEsc('This sets the list the player reads and not the quests behind it.') + '</div></details>' : '') +
     (d.companions.length ? '<div class="mkRow"><span class="mkField">With</span>' + d.companions.map(k => '<label class="mkField"><input type="checkbox" class="mkWith" value="' + k.index + '"> ' + svEsc(k.name) + '</label>').join('') + '</div>' : '') +
     '<div class="mkRow"><button class="secondary" onclick="makeSaveFromForm()">Make the Save</button>' +
     '<button class="secondary" onclick="makeSaveFromForm(true)">Download It</button>' +
@@ -2569,7 +2569,7 @@ function makeSaveFromForm(download) {
   const todo = [...document.querySelectorAll('.mkTodoPick')].filter(p => p.value).map(p => ({ slot: +p.dataset.slot, line: +p.dataset.line, done: p.value === 'done' }));
   const bytes = newGameSaveBytes({ name, sprite: val('mkSprite'), portrait: parseInt(val('mkPortrait'), 10), archetype: val('mkArch'), body: val('mkBody'), reflex: val('mkReflex'), mind: val('mkMind'), level: val('mkLevel'),
     zone: val('mkZone'), x: val('mkX'), y: val('mkY'), hour: val('mkHour'), day: val('mkDay'), story: val('mkStory'), welcomed: !!(behaviorWord && behaviorWord.checked), todo, party });
-  if (!bytes) { setStatus('The page could not make that save. The square has to be on the zone’s map, with room beside it for each companion.', true); return false; }
+  if (!bytes) { setStatus('The page could not make that save. The square has to be on the zone’s map with room beside it for each companion.', true); return false; }
   if (download) {
     // As a save leaves a Mac: MacBinary, the game's type and creator.
     dlBlob(new Blob([writeMacBinary({ name, type: 'DelP', creator: 'Delv', data: bytes })], { type: 'application/macbinary' }), safeFileName(name) + '.bin');
@@ -3114,8 +3114,8 @@ function questStateHTML(words) {
   }
   const head = '<thead><tr><th class="num">no.</th><th>value</th><th>set by</th><th>tested by</th></tr></thead>';
   let h = '<h4 class="saveH4">Quest Values and Flags</h4>' +
-    '<div class="saveNote">The 32 quest values and 256 quest flags in which the scripts record the story, from the start of 0x0400. ' +
-    (words ? 'The list has the ones a script sets or checks, and any that this save has set. It leaves out the rest, which no script uses and this save has not changed. The files do not say what each one means, so they appear as numbers.'
+    '<div class="saveNote">The 32 quest values and 256 quest flags in which the scripts record the story (from the start of 0x0400). ' +
+    (words ? 'The list has the ones a script sets or checks and any that this save has set. It leaves out the rest that no script uses and this save has not changed. The files do not say what each one means. They appear as numbers.'
            : 'No scenario was open before this save, so the page cannot find which scripts use each one, and shows every value.') + '</div>' +
     '<div class="tableScroll"><table class="forkTable">' + head + '<tbody>' + valueRows.join('') + '</tbody></table></div>' +
     '<div class="tableScroll"><table class="forkTable">' + head.replace('<th>value</th>', '<th>set</th>') + '<tbody>' + flagRows.join('') + '</tbody></table></div>' +
@@ -3151,7 +3151,7 @@ function applyQuestStateForm() {
 function setQuestFlagByNumber(on) {
   const el = document.getElementById('qf-other');
   const n = el ? parseInt(el.value, 10) : NaN;
-  if (!Number.isInteger(n) || n < 0 || n > 255) { setStatus('A quest flag is a number from 0 to 255, so nothing changed.', true); return; }
+  if (!Number.isInteger(n) || n < 0 || n > 255) { setStatus('A quest flag is a number from 0 to 255. Nothing changed.', true); return; }
   writeQuestState({}, { [n]: on });
 }
 
@@ -3165,8 +3165,8 @@ function roomsEnteredHTML(words) {
   const rows = [...propTiles.values()].sort((a, c) => a.n - c.n);
   const entered = rows.filter(r => b[2 * r.n + 1] & 1).length;
   return '<h4 class="saveH4">Rooms Entered</h4>' +
-    '<div class="saveNote">0xF00E has a switch for each room, set the first time the player walks in. A room whose switch is clear shows its description when the player enters it. ' +
-    'The party has entered ' + entered + ' of the ' + rows.length + ' rooms listed.' + (words ? '' : ' No scenario was open before this save, so the list has only the rooms the party has entered.') + '</div>' +
+    '<div class="saveNote">0xF00E has a switch for each room that the game sets the first time the player walks in. A room whose switch is clear shows its description when the player enters it. ' +
+    'The party has entered ' + entered + ' of the ' + rows.length + ' rooms listed.' + (words ? '' : ' No scenario was open before this save. The list has only the rooms the party has entered.') + '</div>' +
     '<details><summary>Every room</summary><div class="tableScroll"><table class="forkTable">' +
     '<thead><tr><th class="num">room</th><th>entered</th><th>where</th><th>its description</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td class="num">' + r.n + '</td><td><input type="checkbox" id="rm-' + r.n + '"' + ((b[2 * r.n + 1] & 1) ? ' checked' : '') + '></td>' +
@@ -3210,10 +3210,10 @@ function gremlinsHTML(words) {
     if (st !== 2 || scripted.has(n)) rows.push({ n, st });
   }
   return '<h4 class="saveH4">Gremlins</h4>' +
-    '<div class="saveNote">A gremlin is a script the game runs when the party enters a room or a zone, and when a script sends a signal. ' +
-    'A save records each gremlin as on, off or none, as it was at the moment of saving, so a gremlin added to Cythera Data later shows as none here until switched on. ' +
+    '<div class="saveNote">A gremlin is a script the game runs when the party enters a room or a zone and when a script sends a signal. ' +
+    'A save records each gremlin as on, off, or none at the moment of saving. A gremlin added to Cythera Data later shows as none here until switched on. ' +
     (words ? (scripted.size ? 'The scenario opened before this save has ' + scripted.size + ' gremlin' + (scripted.size === 1 ? '' : 's') + '.' : 'The scenario opened before this save has no gremlins.')
-           : 'No scenario was open before this save, so the list has only the gremlins the save has on or off.') + '</div>' +
+           : 'No scenario was open before this save. The list has only the gremlins the save has on or off.') + '</div>' +
     '<div class="tableScroll"><table class="forkTable"><thead><tr><th class="num">gremlin</th><th>state</th><th>in the scenario</th></tr></thead><tbody>' +
     rows.map(r => '<tr><td class="num">' + r.n + '</td><td><select id="grem-' + r.n + '">' + gremlinStateOptions(r.st) + '</select></td><td>' +
       (!words ? '' : scripted.has(r.n) ? 'has a script' : 'no script') + '</td></tr>').join('') +
@@ -3229,7 +3229,7 @@ function applyGremlinsForm() {
   const add = document.getElementById('gremAddN'), addState = document.getElementById('gremAddState');
   if (add && add.value.trim() !== '') {
     const t = add.value.trim();
-    if (!/^\d+$/.test(t) || +t > 255) { setStatus('A gremlin is numbered 0 to 255.', true); return false; }
+    if (!/^\d+$/.test(t) || +t > 255) { setStatus('A gremlin’s number is 0 to 255.', true); return false; }
     stateChanges.set(+t, addState ? +addState.value : 0);
   }
   return writeGremlinStates(stateChanges);
@@ -3298,7 +3298,7 @@ function todoHTML(words) {
     h += '<div class="propEdit"><label>add <select id="todo-add">' +
       words.todo.pairs.map(p => '<option value="' + p.slot + ':' + p.line + '">' + svEsc('slot ' + p.slot + ': ' + (lines.get(p.line) || 'line ' + p.line)) + '</option>').join('') +
       '</select></label>' + actionChip('Add', 'addTodoFromForm()') + '</div>' +
-      '<div class="inspDim">These are the lines the game’s scripts add to the To Do list, each in the slot shown. Adding a line to an empty slot sets its day to the current day. Adding a line to a slot in use replaces the old line, and the day and the strike-through stay the same, as in the game.</div>';
+      '<div class="inspDim">These are the lines the game’s scripts add to the To Do list in the slots shown. Adding a line to an empty slot sets its day to the current day. Adding a line to a slot in use replaces the old line. The day and the strike-through stay the same as in the game.</div>';
   }
   return h;
 }
@@ -3337,17 +3337,17 @@ function giveListFor(index) {
 }
 function giveFormHTML(index) {
   const rid = giveListFor(index);
-  if (!rid) return '<div class="inspDim">The page cannot give anything here, because the character is not in a zone whose prop list is in this file.</div>';
+  if (!rid) return '<div class="inspDim">The page cannot give anything here because the character is not in a zone whose prop list is in this file.</div>';
   const f = (id, label, val, size) => '<label>' + label + ' <input id="gv-' + index + '-' + id + '" value="' + val + '" size="' + size + '" spellcheck="false"></label>';
   return '<div class="propEdit"><b>Give</b> ' + f('pt', 'prop type', '', 5) + f('aspect', 'aspect', 0, 3) + f('d3', 'data 0x', '0000', 5) +
     '<label>as <select id="gv-' + index + '-kind"><option value="16">a thing carried</option><option value="28">a skill or spell</option></select></label>' +
     '<button class="sv-chip" onclick="applyGiveForm(' + index + ')">Give</button>' +
-    '<div class="inspDim">Give adds a record to the end of 0x' + rid.toString(16).toUpperCase() + ', the prop list of the zone they are in, as something they hold. ' +
-    'A skill or spell is a record of the same kind, whose prop type is the skill’s number and whose aspect is its level.</div></div>';
+    '<div class="inspDim">Give adds a record to the end of 0x' + rid.toString(16).toUpperCase() + ' (the prop list of the zone they are in) as something they hold. ' +
+    'A skill or spell is a record of the same kind. Its prop type is the skill’s number and its aspect is its level.</div></div>';
 }
 function giveToCharacter(index, fields) {
   const rid = giveListFor(index);
-  if (!rid) { setStatus('The page cannot give anything, because the character is not in a zone whose prop list is in this file.', true); return false; }
+  if (!rid) { setStatus('The page cannot give anything because the character is not in a zone whose prop list is in this file.', true); return false; }
   const records = parseDelverPropList(smartDecrypt(getResourceBytes(ARCHIVE, rid), rid).data);
   records.push({ flags: fields.flags, x: 0, y: index, aspect: fields.aspect & 0x1F, rotated: 0, proptype: fields.proptype,
                  d3: fields.d3 || 0, storeref: 0, tail: '000000000000' });
@@ -3358,9 +3358,9 @@ function giveToCharacter(index, fields) {
 function applyGiveForm(index) {
   const get = id => document.getElementById('gv-' + index + '-' + id);
   const pt = parseInt(get('pt').value, 10), aspect = parseInt(get('aspect').value, 10), d3 = parseInt(get('d3').value, 16), flags = parseInt(get('kind').value, 10);
-  if (!Number.isInteger(pt) || pt < 1 || pt > 0x3FF) { setStatus('A prop type is a number from 1 to 1023, so the page gave nothing.', true); return; }
-  if (!Number.isInteger(aspect) || aspect < 0 || aspect > 31) { setStatus('An aspect is a number from 0 to 31, so the page gave nothing.', true); return; }
-  if (!Number.isInteger(d3) || d3 < 0 || d3 > 0xFFFF) { setStatus('The page cannot use that data word, so it gave nothing.', true); return; }
+  if (!Number.isInteger(pt) || pt < 1 || pt > 0x3FF) { setStatus('A prop type is a number from 1 to 1023. The page gave nothing.', true); return; }
+  if (!Number.isInteger(aspect) || aspect < 0 || aspect > 31) { setStatus('An aspect is a number from 0 to 31. The page gave nothing.', true); return; }
+  if (!Number.isInteger(d3) || d3 < 0 || d3 > 0xFFFF) { setStatus('The page cannot use that data word and gave nothing.', true); return; }
   window.SAVE_EDIT_OPEN = index;
   giveToCharacter(index, { proptype: pt, aspect, d3, flags });
 }
@@ -3761,7 +3761,7 @@ function renderInstallerSheet() {
   document.getElementById('singleControls').style.display = 'none';
   const inst = window.INSTALLER;
   if (!inst) {
-    out.textContent = 'This file did not come from the installer, so there is nothing else here.' + NO_INSTALLER_HINT;
+    out.textContent = 'This file did not come from the installer and there is nothing else here.' + NO_INSTALLER_HINT;
     return;
   }
   const arc = inst.archive;
@@ -3786,7 +3786,7 @@ function renderInstallerSheet() {
     row.className = 'sv-chips installerVersions';
     const label = document.createElement('span');
     label.className = 'amNote';
-    label.textContent = 'This file contains ' + inst.installers.length + ' releases, with the open one marked.';
+    label.textContent = 'This file contains ' + inst.installers.length + ' releases. A mark shows the open one.';
     row.appendChild(label);
     for (const it of inst.installers) {
       const b = document.createElement('button');
@@ -3836,8 +3836,8 @@ function renderInstallerSheet() {
     (c && c.name && c.name !== inst.sourceName ? ' from ' + inst.sourceName : '') + ', ' + arc.versionName +
     ', ' + arc.entries.length + ' files in ' + arc.dirs.length + ' folders, ' + fmtBytes(total) +
     ' once unpacked' + (c ? ', from a ' + c.kind + ' file (' + fmtBytes(arc.bytes.length) + ' of it the installer)' : '') +
-    '. A .bin here is the file itself with both forks, the form a real Mac needs' +
-    (inst.crcOk ? '' : '. The checksum the installer gives for the file did not match, so the data may be damaged') + '.';
+    '. A .bin here is the file itself with both forks as a real Mac needs it' +
+    (inst.crcOk ? '' : '. The checksum the installer gives for the file did not match. The data may have errors') + '.';
 }
 
 /* ---- Data > Combat AI > Scripts / Rules ----------------------------------
@@ -3877,8 +3877,8 @@ function renderCombatAISheet(which) {
     for (let i = 0; i < 6; i++) if (refExists(0x901 + i)) tests.push(svChip(0x901 + i));
     for (let i = 0; i < 13; i++) if (refExists(0x981 + i)) actions.push(svChip(0x981 + i));
     const split = (tests.length || actions.length)
-      ? '<div class="changesNote" style="margin-left:0">To use a script in the game, open a companion’s character window, then its Strategy tab, the pop-up menu at the bottom left, Edit User Strategies…, and Import. ' +
-        'It goes into one of 31 user slots, 176 to 206. The same dialog’s Debug button marks a slot, and a companion using a marked slot opens the game’s AI debugger every time it evaluates the strategy.</div>' +
+      ? '<div class="changesNote" style="margin-left:0">Open a companion’s character window, then its Strategy tab, the pop-up menu at the bottom left, Edit User Strategies…, and Import to use a script in the game. ' +
+        'It goes into one of 31 user slots (176 to 206). The same dialog’s Debug button marks a slot. A companion using a marked slot opens the game’s AI debugger every time it evaluates the strategy.</div>' +
         '<div class="changesNote" style="margin-left:0">The Tests list and the two Actions lists come from the program. The Scenario lists are scripts in this file' +
         (tests.length ? ': the tests ' + tests.join(' ') : '') + (actions.length ? (tests.length ? ', the actions ' : ': the actions ') + actions.join(' ') : '') +
         '. Calling <code class="aiWord">CastSpell</code> with a spell the character does not know casts nothing, and <code class="aiWord">Debug(#)</code> only prints its number.</div>'
@@ -3905,10 +3905,10 @@ function renderCombatAISheet(which) {
   }
   out.textContent = files.length
     ? (which === 'AIRULES'
-        ? 'The words of the script language, from the program’s resource fork, followed by the AI Scripting Document from the installer’s CombatAI folder, which sets out the rules for writing .ai scripts.'
-        : files.length + ' Combat AI scripts from the installer’s CombatAI folder. The compiled versions the game runs are subindex 3, under Components › Functions › Actions.')
+        ? 'The words of the script language from the program’s resource fork. The AI Scripting Document from the installer’s CombatAI folder follows. It sets out the rules for writing .ai scripts.'
+        : files.length + ' Combat AI scripts from the installer’s CombatAI folder. The compiled versions the game runs are subindex 3 under Components › Functions › Actions.')
     : (which === 'AIRULES' && !arc)
-      ? 'The words of the script language, from the program’s resource fork. The AI Scripting Document comes with the game as a separate file.' + NO_INSTALLER_HINT
+      ? 'The words of the script language from the program’s resource fork. The AI Scripting Document comes with the game as a separate file.' + NO_INSTALLER_HINT
       : 'The installer has no ' + (which === 'AIRULES' ? 'AI Scripting Document' : '.ai scripts') + ' in it.';
 }
 
@@ -3937,15 +3937,15 @@ function recordTables() {
   const out = [];
   const has = id => { try { return !!getResourceBytes(ARCHIVE, id); } catch (e) { return false; } };
   if (has(0xF008)) out.push({ resid: 0xF008, stride: 16, label: 'Unit statistics',
-    note: 'One record per unit: what it is made of, what it does and what it leaves behind.' });
+    note: 'One record per unit: its materials, what it does, and what it leaves behind.' });
   if (has(0xF009)) out.push({ resid: 0xF009, stride: 32, label: 'Characters',
-    note: 'One record per character, and in a saved game the current state of the world.' });
+    note: 'One record per character. In a saved game it also has the current state of the world.' });
   if (has(0xF000)) out.push({ resid: 0xF000, stride: 2, label: 'Prop tiles',
-    note: 'One two-byte value per prop type: the tile its frames begin at.' });
+    note: 'One two-byte value per prop type: the first tile of its frames.' });
   for (let z = 0; z < 0x100; z++) {
     if (!refExists(0x8100 + z)) continue;
     out.push({ resid: 0x8100 + z, stride: 16, label: 'Prop list, ' + (zoneDisplayName(z) || ('zone ' + z)),
-      note: 'Everything placed in this zone, and everything carried or contained in it.', zone: z });
+      note: 'Everything placed in this zone and everything carried or contained in it.', zone: z });
   }
   return out;
 }
@@ -3962,7 +3962,7 @@ function recordFieldMap(resid) {
     const top = mf ? mf.fields.find(x => x.half === 'high') : null, low = mf ? mf.fields.find(x => x.half === 'low') : null;
     const split = !!(top && low);
     const named = { 0: 'Body', 1: 'Reflex', 2: 'Mind', 3: 'Armor', 4: 'Damage', 5: 'Health',
-                    6: 'Alignment', 8: split ? 'Special flags, top half' : 'Special flags', 10: 'Special flags', 12: 'Prop type', 14: 'Corpse' };
+                    6: 'Alignment', 8: split ? 'Special flags (top half)' : 'Special flags', 10: 'Special flags', 12: 'Prop type', 14: 'Corpse' };
     const width = split ? { 8: 2, 10: 2, 12: 2, 14: 2 } : { 8: 4, 12: 2, 14: 2 };
     const rows = [];
     for (const off of split ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 14]) {
@@ -3974,7 +3974,7 @@ function recordFieldMap(resid) {
     return rows;
   }
   if (resid === 0xF009) return [
-    { off: 0, width: 1, name: 'Zone' }, { off: 1, width: 3, name: 'Level, x and y, packed' },
+    { off: 0, width: 1, name: 'Zone' }, { off: 1, width: 3, name: 'Level, x, and y (packed)' },
     { off: 4, width: 2, name: 'Aspect and prop type' }, { off: 6, width: 2, name: null },
     { off: 8, width: 1, name: 'State' }, { off: 9, width: 1, name: 'Body' },
     { off: 10, width: 1, name: 'Reflex' }, { off: 11, width: 1, name: 'Mind' },
@@ -3985,7 +3985,7 @@ function recordFieldMap(resid) {
     { off: 22, width: 5, name: null }, { off: 27, width: 1, name: 'Nutrition' },
     { off: 28, width: 1, name: 'Training' }, { off: 29, width: 3, name: null }];
   if (resid >= 0x8100 && resid < 0x8200) return [
-    { off: 0, width: 1, name: 'Flags' }, { off: 1, width: 3, name: 'x and y, or what has it' },
+    { off: 0, width: 1, name: 'Flags' }, { off: 1, width: 3, name: 'x and y or what has it' },
     { off: 4, width: 2, name: 'Aspect and prop type' }, { off: 6, width: 1, name: 'Data1' },
     { off: 7, width: 1, name: 'Data2' }, { off: 8, width: 2, name: 'Store reference' },
     { off: 10, width: 6, name: null }];
@@ -4030,7 +4030,7 @@ function renderRecordsSheet() {
   }
   out.textContent = shown + ' of the tables that make up the scenario' +
     (q ? ' matching “' + q + '”' : '') +
-    '. A number on a Scenario page opens its record here, and every record links on to its bytes in the file.';
+    '. A number on a Scenario page opens its record here. Every record links on to its bytes in the file.';
 }
 
 /* One record, field by field, with the byte a jump requested ringed. The
