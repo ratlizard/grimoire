@@ -454,6 +454,18 @@ eq('and it grows', notes.defendAiBytes.join(' -> '), '584 -> 712');
         (notes.r12['PerformAI(TActiveMonster*, short)'] || {}).bytes === 276 &&
         (notes.r12['SCombatAIEntry::EvaluateAI(TActiveMonster*, SCombatAIEntry*, short)'] || {}).bytes === 228,
         'PerformAI +276 and EvaluateAI +228');
+  /* "LogicTech [sic] and other multi-button mice now lets the mouse software
+     handle the multiple buttons." TDelverApp::MyGetEvent gains one byte
+     load, one masked bit test and one branch on it, and no other release
+     changes the routine. The load is of byte 1 of the preferences record and
+     the bit is bit 2. smoke_installer fails unless 1.0.1's program has no
+     such bit and 1.0.2 to 1.0.4 have it (cytheraPrefsLayout().buttons).
+     Pinned on 6 November 2026; until then the claim was left unpinned as a
+     plausible routine with no evidence naming it (the workbench's notes, The
+     Extra mouse buttons switch). */
+  claim('multi-button mice: the event routine tests a preferences bit first',
+        (notes.r12['TDelverApp::MyGetEvent(short, EventRecord*, unsigned char)'] || {}).up === '1 addi 1 bt 1 lbz 1 rlwinm.',
+        'TDelverApp::MyGetEvent gains lbz + rlwinm. + bt');
   eq('and every one of 1.0.2\'s recompiles is a real edit', notes.r12compilerOnly, 0);
 }
 
