@@ -1889,7 +1889,7 @@ function propWordRender() {
   const wt = itemWeight(pt);
   if (wt !== null) kept.push(wt + ' grains');
   h += '<div class="sv-note" style="margin:0 0 4px">' + (a === 0
-    ? 'Aspect 0 is the prop type’s base tile, ' + w(svEsc(own || 'unnamed')) + ' (' + propWordHex(base) + ').'
+    ? 'Aspect 0 is the prop type’s base tile ' + w(svEsc(own || 'unnamed')) + ' (' + propWordHex(base) + ').'
     : 'Aspect ' + a + ' shows tile ' + propWordHex(tile) + ', ' + w(svEsc(name || 'unnamed')) + ', and has that name. It is still prop type ' + pt + ', class ' + propWordHex(0x1000 + pt) + (kept.length ? ': ' + kept.join(', ') : '') + '.') + propWordUseSentence(pt, a) + '</div>';
   // The other classes whose aspect can land on this tile, and at what.
   let others = [];
@@ -1906,7 +1906,7 @@ function propWordRender() {
   if (rules) {
     const reader = rules.readers.find(r => r.pt === pt), ex = rules.examines.find(e => e.pt === pt);
     if (rules.melee.has(pt) && rules.ench && rules.ench.guarded && rules.ench.added) {
-      m = 'Data1 is the enchantment. ' + svLink('The script that settles a blow', 'jumpToResource(0xE87)', '0xE87') + ' reads it from the weapon and adds it to the damage of every blow' + (rules.ench.magic ? ', and a blow with any enchantment counts as magical' : '') + '.';
+      m = 'Data1 is the enchantment. ' + svLink('The script that settles a blow', 'jumpToResource(0xE87)', '0xE87') + ' reads it from the weapon and adds it to the damage of every blow' + (rules.ench.magic ? '. A blow with any enchantment counts as magical' : '') + '.';
       if (ex && ex.hiVal && ex.loVal) m += st.d1 > ex.hiVal.v ? ' Examine shows “' + svEsc(ex.above2) + '”' : st.d1 > ex.loVal.v ? ' Examine shows “' + svEsc(ex.above0) + '”' : ' Examine reports it once it is above ' + srcNum(ex.loVal) + '.';
       if (reader) m += ' The class script also ' + propWordOps(reader.ops) + '.';
     } else if (reader) m = 'The class script ' + propWordOps(reader.ops) + (reader.ops.some(o => /data3/.test(o)) ? ' (Data3 is both bytes read as one value)' : '') + '. What they mean depends on this class.';
@@ -2422,7 +2422,7 @@ function showItemDetail(pt) {
       fold('grants', 'Status it gives', names.join(', '),
         '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">' + grants.map(g =>
           'Its <b>' + svEsc(g.method) + '</b> sets ' + srcNum(g.flag, g.flagName || ('flag ' + g.flag.v)) + ' on the character' +
-          (g.clearedBy ? ', and its ' + svEsc(g.clearedBy) + ' clears it again' : ', and nothing in the class clears it') + '.').join('<br>') + '</div>' +
+          (g.clearedBy ? '. Its ' + svEsc(g.clearedBy) + ' clears it again' : '. Nothing in the class clears it') + '.').join('<br>') + '</div>' +
         '<div class="sv-note">' + mechLink('status', 'Mechanics › Status Effects') + '</div>');
     }
   }

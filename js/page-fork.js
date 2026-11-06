@@ -449,8 +449,8 @@ function exportStrikeTrueType(id) {
       note: 'Drawn from NFNT ' + id + ', a bitmap strike in a Delver archive. ' +
             'Cythera is copyright Ambrosia Software, Inc. and Glenn Andreas.' });
     downloadBlob(ttf, family + '.ttf');
-    setStatus('Wrote ' + family + '.ttf at ' + (spec.ascent + spec.descent) + ' pixels to the em, ' +
-              'so it draws these pixels at ' + (spec.ascent + spec.descent) + 'px and at every multiple of it.');
+    setStatus('Wrote ' + family + '.ttf at ' + (spec.ascent + spec.descent) + ' pixels to the em. ' +
+              'It draws these pixels at ' + (spec.ascent + spec.descent) + 'px and at every multiple of it.');
   } catch (err) {
     setStatus('The page could not save that size as a TrueType font: ' + err.message, true);
   }
@@ -611,7 +611,7 @@ function startButtonPictures(orig, words, family) {
   };
   for (const b of buttons) {
     const p = forkPictureRGBA(orig, b.id);
-    if (p.W !== W || p.H !== H) throw new Error('PICT ' + b.id + ' is ' + p.W + '×' + p.H + ', not a button.');
+    if (p.W !== W || p.H !== H) throw new Error('PICT ' + b.id + ' is ' + p.W + '×' + p.H + ' and not a button.');
     out.set(b.id, Object.assign(p, { rgba: cut(p.rgba, words[b.id], b.id, 'lit') }));
   }
   const s = forkPictureRGBA(orig, board);
@@ -1768,7 +1768,7 @@ function showMacRsrcDetail(type, id, source) {
           box.appendChild(back);
           const noteElement = document.createElement('div');
           noteElement.style.cssText = 'font-size:0.75rem;color:#f0ede4;margin-top:4px';
-          noteElement.textContent = 'Replaced with ' + replaced + '. It is in the Patch in Progress' + (side === 'app' ? ', with the program.' : '.');
+          noteElement.textContent = 'Replaced with ' + replaced + '. It is in the Patch in Progress' + (side === 'app' ? ' with the program.' : '.');
           box.appendChild(noteElement);
         }
       }
@@ -2159,8 +2159,8 @@ function heroPortraitCard() {
     text += 'There are ' + srcNum(off.count, String(off.count.v)) + ' choices at character creation.';
   else {
     const repeated = [...faces.values()].filter(n => n > 1).reduce((a, b) => a + b, 0);
-    text += choices + ': ' + slots.length + ' here, ' + hex(slots[0]) + ' to ' + hex(slots[slots.length - 1]) +
-      (repeated ? ', ' + repeated + ' of them sharing a face with another' : '') + '.';
+    text += choices + ': ' + slots.length + ' here (' + hex(slots[0]) + ' to ' + hex(slots[slots.length - 1]) + ')' +
+      (repeated ? '. ' + repeated + ' of them share a face with another' : '') + '.';
   }
   card.innerHTML = text;
   card.appendChild(strip);

@@ -330,7 +330,7 @@ function refDescription(rid) {
   try {
     const ins = (buildXrefIndex().inbound[rid] || []).length;
     if (ins > 3) return (purpose ? purpose[0].toLowerCase() : 'routine') +
-                        ', shared by ' + ins + ' resources';
+                        ' shared by ' + ins + ' resources';
   } catch (e) { quiet(e); }
   return purpose ? purpose[0].toLowerCase() : null;
 }

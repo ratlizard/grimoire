@@ -734,10 +734,10 @@ function inspectMapSquare(tx, ty) {
         ' tiles across</div>' : '') +
       (withView === null
         ? '<div class="inspDim">this zone\u2019s entry script sets no light level</div>'
-        : '<div>Standing here: the zone sets <b>' + zl + '</b>, and ' + n + ' source' +
-          (n === 1 ? '' : 's') + ' in view are worth <b>' + sum + '</b>, so the level here is <b>' +
+        : '<div>Standing here: the zone sets <b>' + zl + '</b> and ' + n + ' source' +
+          (n === 1 ? '' : 's') + ' in view are worth <b>' + sum + '</b>. So the level here is <b>' +
           withView + ' of 32</b>' +
-          (withView === 32 ? ', nothing darkened' : withView === 0 ? ', solid black' : '') +
+          (withView === 32 ? ' (nothing darkened)' : withView === 0 ? ' (solid black)' : '') +
           (withView !== alone ? ' <span class="inspDim">(' + alone +
             ' of 32 with nothing in view)</span>' : '') + '</div>') +
       '<div class="inspDim">That is the base value for every square of the level and not just this ' +
@@ -753,8 +753,8 @@ function inspectMapSquare(tx, ty) {
   const gate = (cm.resid === WORLD_MAP_RESID) ? gatewayAtSquare(tx, ty) : null;
   if (gate) {
     parts.push('<div class="inspCard"><b>' + svEsc(gate.name) + '</b> ' +
-      '<span class="inspDim">a way off the world map, ' + svEsc(gate.kind) +
-      ', zoneport ' + gate.port + ', leading to (' + gate.destX + ',' + gate.destY + ')</span>' +
+      '<span class="inspDim">a way off the world map (' + svEsc(gate.kind) +
+      ' through zoneport ' + gate.port + ') to (' + gate.destX + ',' + gate.destY + ')</span>' +
       '<div class="inspActs"><button class="sv-chip" onclick="enterGatewayByPort(' + gate.port +
       ')">Enter ' + svEsc(gate.name) + '</button></div></div>');
   }
@@ -767,9 +767,9 @@ function inspectMapSquare(tx, ty) {
   for (const w of mapEggWays(cm.resid)) {
     const q = w.rect;
     if (tx < q.left || tx > q.right || ty < q.top || ty > q.bottom) continue;
-    parts.push('<div class="inspCard"><b>' + svEsc(w.hidden ? 'A hidden way, ' + w.kind : w.kind === 'way' ? 'A way' : w.kind) + '</b> ' +
-      '<span class="inspDim">to ' + svEsc(w.name) + ', by a trigger (an egg) covering ' + q.w + ' by ' + q.h +
-      (w.egg.aspect === 1 ? ', zoneport ' + w.egg.proptype : ', a change of zone') + '</span>' +
+    parts.push('<div class="inspCard"><b>' + svEsc(w.hidden ? 'A hidden way (' + w.kind + ')' : w.kind === 'way' ? 'A way' : w.kind) + '</b> ' +
+      '<span class="inspDim">to ' + svEsc(w.name) + ' by a trigger (an egg) covering ' + q.w + ' by ' + q.h +
+      (w.egg.aspect === 1 ? ' through zoneport ' + w.egg.proptype : ' for a change of zone') + '</span>' +
       '<div class="inspActs"><button class="sv-chip" onclick="showSquareOnMap(' + w.dest.resid + ',' + w.dest.x + ',' + w.dest.y +
       ')">Go to ' + svEsc(w.name) + '</button></div></div>');
   }
@@ -807,7 +807,7 @@ function inspectMapSquare(tx, ty) {
   if (faux) {
     parts.push('<div class="inspCard"><b>' +
       svEsc(propDisplayName(faux.proptype) || ('0x' + faux.proptype.toString(16))) + '</b>' +
-      ' <span class="inspDim">not a real prop. The terrain tile itself draws it (0xF010), ' +
+      ' <span class="inspDim">not a real prop. The terrain tile itself draws it (0xF010) ' +
       'and the prop list does not place it</span><div class="inspActs">' +
       '<button class="sv-chip" onclick="showPropTypeDetail(' + faux.proptype + ')">Prop type</button>' +
       '</div></div>');

@@ -100,7 +100,7 @@ async function exportGallery() {
 
   const blob = buildZip(files);
   dlBlob(blob, safeFileName('cythera ' + (CATEGORY_NAMES[subn] || ('subindex ' + subn))) + '.zip');
-  setNote(files.length + ' files, ' + fmtBytes(blob.size) + (failed ? ', ' + failed + ' undecodable' : ''));
+  setNote(files.length + ' files (' + fmtBytes(blob.size) + ')' + (failed ? '. ' + failed + ' did not decode' : ''));
   if (btn) btn.disabled = false;
 }
 

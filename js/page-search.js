@@ -270,7 +270,7 @@ function searchTeacherSentences(tr) {
     const who = t.character !== null ? searchPersonAt(t.character) : (labelFor(t.resid) || null);
     for (const [id, m] of [...t.skills.entries()].sort((a, b) => a[0] - b[0])) {
       const skill = selfNameFor(0x1A00 + id);
-      if (skill) out.push('The hero can learn the ' + skill + ' skill' + (who ? ' from ' + who : '') + (m ? ', up to mastery' : '') + '.');
+      if (skill) out.push('The hero can learn the ' + skill + ' skill' + (who ? ' from ' + who : '') + (m ? ' up to mastery' : '') + '.');
     }
   }
   return out;
@@ -761,7 +761,7 @@ function drawSearchResults() {
   if (!S.done) {
     const next = S.frame ? S.frame.next : S.next, total = S.frame ? S.frame.total : S.jobs.length;
     host.innerHTML = '<div class="sv-note">' + (S.cache === 'miss' && next
-      ? 'Reading the site’s pages, ' + next + ' of ' + total + '. Results appear when the reading finishes. This happens once for each file opened.'
+      ? 'Reading the site’s pages (' + next + ' of ' + total + '). Results appear when the reading finishes. This happens once for each file opened.'
       : 'Loading the search…') + '</div>';
     return;
   }
@@ -906,7 +906,7 @@ self.onmessage = async e => {
 };`;
 // The download's figure, then a line for the start that follows it.
 function meaningProgress(f) {
-  _meaning.progress = f >= 1 ? 'Starting the model…' : 'Downloading the model, ' + Math.round(100 * f) + ' percent.';
+  _meaning.progress = f >= 1 ? 'Starting the model…' : 'Downloading the model (' + Math.round(100 * f) + ' percent).';
   drawMeaningNote();
 }
 function meaningWorker() {
@@ -1250,7 +1250,7 @@ function drawMeaningNote() {
   if (!host || !window.SEARCH_MEANING || _meaning.done) return;
   const n = _meaning.pieces ? _meaning.pieces.length : 0;
   host.innerHTML = '<div class="sv-note">' + (_meaning.progress || (n
-    ? 'Reading the pages for their meaning, ' + _meaning.made + ' of ' + n + ' pieces. Results appear when it finishes. Later visits read only what changed.'
+    ? 'Reading the pages for their meaning (' + _meaning.made + ' of ' + n + ' pieces). Results appear when it finishes. Later visits read only what changed.'
     : 'Loading the model for search by meaning…')) + '</div>';
 }
 async function drawMeaningResults(q, S, host) {

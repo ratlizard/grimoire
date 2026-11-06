@@ -456,7 +456,7 @@ function atlasStateCard(resid) {
   const give = worn.length ? ' ' + svEsc('A ' + worn.join(' or a ') + ' gives the flag while worn.') : '';
   const has = pair.without ? 'without' : 'with';
   const text = showing
-    ? 'The game shows this place ' + has + ' ' + flag + ', in place of ' + svEsc(atlasMapName(pair.place) || '') + '.'
+    ? 'The game shows this place ' + has + ' ' + flag + ' in place of ' + svEsc(atlasMapName(pair.place) || '') + '.'
     : (pair.without ? 'Without ' : 'With ') + flag + ' the game puts the hero in ' + svEsc(toName) + ' instead' +
       (pair.message ? ': ' + svEsc('“' + pair.message + '”') : '.');
   return '<div class="inspCard"><span class="inspDim">' + text + give + '</span>' +
@@ -2972,14 +2972,14 @@ function atlasInspect(px, py) {
         const q = w.rect;
         if (tx < q.left || tx > q.right || ty < q.top || ty > q.bottom) continue;
         const name = w.dest.resid === node.resid ? 'square ' + w.dest.x + ', ' + w.dest.y : (atlasMapName(w.dest.resid) || w.name);
-        parts.push('<div class="inspCard"><b>' + svEsc(w.hidden ? 'A hidden way, ' + w.kind : w.kind === 'way' ? 'A way' : w.kind) + '</b> <span class="inspDim">to ' + svEsc(name) + '</span>' + go(w.x, w.y, name) + '</div>');
+        parts.push('<div class="inspCard"><b>' + svEsc(w.hidden ? 'A hidden way (' + w.kind + ')' : w.kind === 'way' ? 'A way' : w.kind) + '</b> <span class="inspDim">to ' + svEsc(name) + '</span>' + go(w.x, w.y, name) + '</div>');
       }
       const rv = ravineWayAt(node.resid, tx, ty);
       if (rv) { const name = atlasMapName(rv.dest.resid) || rv.name;
         parts.push('<div class="inspCard"><b>A ravine</b> <span class="inspDim">the way down to ' + svEsc(name) + ' is the ' + svEsc(rv.kind) + ' at (' + rv.x + ',' + rv.y + ') with a rope tied to it</span>' + go(rv.x, rv.y, name) + '</div>'); }
       for (const d of mapDescents(node.resid)) if (!d.egg && d.x === tx && d.y === ty) { const name = atlasMapName(d.dest.resid) || d.name;
         const act = go(d.x, d.y, name);
-        if (act) parts.push('<div class="inspCard"><b>A way</b> <span class="inspDim">the ' + svEsc(d.kind) + ', to ' + svEsc(name) + '</span>' + act + '</div>'); }
+        if (act) parts.push('<div class="inspCard"><b>A way</b> <span class="inspDim">the ' + svEsc(d.kind) + ' to ' + svEsc(name) + '</span>' + act + '</div>'); }
     }
     const hits = (e.result.props || []).filter(p => p.cells.some(c => c[0] === tx && c[1] === ty));
     var boxes = [];
@@ -3040,7 +3040,7 @@ function atlasGoWay(resid, x, y) {
     atlasView.x = vp.clientWidth / 2 - (node.ox + (m.dest.x + 0.5) * node.s) * atlasView.Z;
     atlasView.y = vp.clientHeight / 2 - (node.oy + (m.dest.y + 0.5) * node.s) * atlasView.Z;
     window.ATLAS_SEL = { resid, tx: m.dest.x, ty: m.dest.y };
-    atlasInspectShow('<span class="inspDim">' + svEsc(node.name + ', square ' + m.dest.x + ', ' + m.dest.y) + ', where the way lands.</span>', true);
+    atlasInspectShow('<span class="inspDim">' + svEsc(node.name + ' at square ' + m.dest.x + ', ' + m.dest.y) + ' where the way lands.</span>', true);
     paintAtlas();
     return;
   }

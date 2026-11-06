@@ -745,7 +745,7 @@ function renderAppPefSheet() {
   h += '<p class="mechLede" style="margin-top:10px">The page decodes each name from the compiler’s shorthand. It leaves a name it cannot decode as written.</p>';
   box.innerHTML = h;
   grid.appendChild(box);
-  out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '. ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
+  out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ' with ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ' by class') + '. ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
 }
 
 /* Cythera Preferences, the file the game stores its settings in, on a
@@ -832,7 +832,7 @@ function renderLicenseSheet() {
 function licenseReportHTML(bytes) {
   const lic = cytheraLicenseRead(bytes);
   if (!lic) return svEsc('This is not a ' + LICENSE_FILE_NAME + ' file. One is ' + LICENSE_FILE_SIZE + ' bytes and this is ' + bytes.length + '.');
-  return svEsc('The name in this file is ') + '<b>' + svEsc(lic.name) + '</b>' + svEsc(lic.hasCode ? ', with a code.' : ', with no code.');
+  return svEsc('The name in this file is ') + '<b>' + svEsc(lic.name) + '</b>' + svEsc(lic.hasCode ? ' with a code.' : ' with no code.');
 }
 const PREF_GROUPS = [['sound', 'Sound'], ['movement', 'Game control'], ['windows', 'Windows'], ['startup', 'Starting the game'], ['mouse', 'Mouse'], ['other', 'Other settings']];
 function renderPrefsSheet() {
@@ -2402,8 +2402,8 @@ function showMonsterDetail(idx) {
       '<br><span style="font-size:0.6875rem;color:#dcd8cc">' + monsterByteNote() + '</span></div>' +
     '<div><b>Special flags</b>' +
       ' <span style="font-size:0.6875rem;color:#f0ede4">' + monsterFlagsHTML(r.flags, true) + '</span>' +
-      '<br><span style="font-size:0.6875rem;color:#dcd8cc">' + (r.flags ? 'The file stores them added together as one number, ' +
-        srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' }, '0x' + r.flags.toString(16).toUpperCase().padStart(8, '0')) + '. ' : '') +
+      '<br><span style="font-size:0.6875rem;color:#dcd8cc">' + (r.flags ? 'The file stores them added together as one number (' +
+        srcNum({ resid: 0xF008, byte: r.index * stride + 8, stride, what: 'the special flags' }, '0x' + r.flags.toString(16).toUpperCase().padStart(8, '0')) + '). ' : '') +
       'Click a flag to see the line that checks it.</span></div>' +
     '</div>';
   // Where it hatches: every record of this type inside an egg, by zone, the
@@ -2414,8 +2414,8 @@ function showMonsterDetail(idx) {
   const sites = creatureHatchSites(r.proptype);
   if (sites.length) {
     h += '<div class="mechSub">Where It Hatches</div><ul class="ruleList">' + sites.map(s =>
-      '<li>' + svLink(s.zone + ' (zone ' + (s.map - 0x8000) + ')', 'jumpToResource(' + s.map + ')') + ' at (' + s.x + ', ' + s.y + ')' + (s.n > 1 ? ', ' + s.n + ' of them' : '') +
-      ', hatching ' + behaviorHTML(s.beh) + '</li>').join('') + '</ul>';
+      '<li>' + svLink(s.zone + ' (zone ' + (s.map - 0x8000) + ')', 'jumpToResource(' + s.map + ')') + ' at (' + s.x + ', ' + s.y + ')' + (s.n > 1 ? ' (' + s.n + ' of them)' : '') +
+      ' hatching ' + behaviorHTML(s.beh) + '</li>').join('') + '</ul>';
     /* The lich who stands still is taken for Tavara, the mage who destroyed
        Abydos; no text names him, and this is the line players read it from,
        quoted from the file. */
@@ -3295,7 +3295,7 @@ function renderConversationPane(data, subn, resid) {
       '<button class="sv-chip" onclick="jumpToResource(' + g + ')">' +
       svEsc((window.SHOW_BUILTIN_LABELS && DIALOGUE_GROUP_NAMES[g]) || ('0x' + g.toString(16).toUpperCase())) + '</button>').join(' ');
     head = conv.entries.length + ' topic' + (conv.entries.length === 1 ? '' : 's') +
-      ', read from the code' + (chain ? ' · generic topics: ' + chain : '');
+      ' read from the code' + (chain ? ' · generic topics: ' + chain : '');
   }
   let html = '<div class="convHead">' + head + '</div>' + dlgToolsHtml();
   if (subn !== 8) html += convSpeakerHtml(resid, conv);
@@ -3511,7 +3511,7 @@ function previewCodeEdit() {
       const a = fn[0] + o[0], mark = a >= e.at && a < e.at + e.asm.bytes.length ? '+ ' : '  ';
       return mark + a.toString(16).toUpperCase().padStart(4, '0') + '  ' + o[2] + (o[3] ? ' ' + o[3] : '');
     });
-    pre.textContent = (e.rl.delta >= 0 ? '+' : '') + e.rl.delta + ' bytes, ' + e.rl.moved + ' offsets moved. A + marks the new lines.\n\n' + lines.join('\n');
+    pre.textContent = (e.rl.delta >= 0 ? '+' : '') + e.rl.delta + ' bytes and ' + e.rl.moved + ' offsets moved. A + marks the new lines.\n\n' + lines.join('\n');
   } catch (err) { pre.textContent = err.message; }
 }
 function applyCodeEdit() {
@@ -3580,9 +3580,9 @@ function applyResourceEdit(resid, newData) {
   window.EDITED_RESIDS = dirty;
   refreshChangesBadge();
   setStatus('Rebuilt the file with 0x' + resid.toString(16).toUpperCase() +
-    (newData.length ? ' edited' : ' removed') + ', ' + dirty.size +
-    ' resource(s) changed this session. Edits stay in the page’s memory only. To download the edited file, ' +
-    'use the Patch in Progress in Tools › Patch Generator.');
+    (newData.length ? ' edited' : ' removed') + '. ' + dirty.size +
+    ' resource(s) changed this session. Edits stay in the page’s memory only. The Patch in Progress in Tools › Patch Generator ' +
+    'downloads the edited file.');
   showEditNotice(resid, newData.length ? 'edited' : 'removed', dirty.size);
   return true;
 }
@@ -3595,7 +3595,7 @@ let _editNoticeTimer = null;
 function showEditNotice(resid, what, count) {
   const el = document.getElementById('editNotice');
   if (!el) return;
-  el.innerHTML = '0x' + resid.toString(16).toUpperCase() + ' ' + what + ' in memory, ' + count + ' resource' + (count === 1 ? '' : 's') +
+  el.innerHTML = '0x' + resid.toString(16).toUpperCase() + ' ' + what + ' in memory. ' + count + ' resource' + (count === 1 ? '' : 's') +
     ' changed this session. The ' + svLink('Patch in Progress', "showCategory('CHANGES')", 'is where to download it');
   el.style.display = '';
   if (_editNoticeTimer) clearTimeout(_editNoticeTimer);
@@ -3649,7 +3649,7 @@ function applyPropEditForm(propResid, index) {
     storeref: num('storeref', 16, 0xFFFF)
   };
   for (const [k, v] of Object.entries(fields)) {
-    if (v === null) { setStatus('The page cannot use that value for ' + k + ', so nothing changed.', true); return; }
+    if (v === null) { setStatus('The page cannot use that value for ' + k + '. Nothing changed.', true); return; }
   }
   applyPropRecordEdit(propResid, index, fields);
 }

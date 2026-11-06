@@ -2040,7 +2040,7 @@ function drawMapMarks(lensCtx, lensTS) {
       if (changed.length) bits.push(changed.length + ' changed where it stands');
       if (offMap) bits.push(offMap + ' carried or inside something and not drawn');
       if (people.length) bits.push(people.length + (people.length === 1 ? ' character' : ' characters') + ' here');
-      if (sb.quest) bits.push('the day drawn is the save’s, ' + sb.quest.flagsSet + ' quest flag' + (sb.quest.flagsSet === 1 ? '' : 's') + ' set and ' + sb.quest.valuesSet + ' value' + (sb.quest.valuesSet === 1 ? '' : 's') + ' nonzero');
+      if (sb.quest) bits.push('the day drawn is the save’s with ' + sb.quest.flagsSet + ' quest flag' + (sb.quest.flagsSet === 1 ? '' : 's') + ' set and ' + sb.quest.valuesSet + ' value' + (sb.quest.valuesSet === 1 ? '' : 's') + ' nonzero');
       saveLegend = svEsc(sb.name) + (sb.player ? ' (' + svEsc(sb.player) + ')' : '') + ' over this zone: ' + (bits.length ? bits.join(', ') : 'the same records');
     }
   }

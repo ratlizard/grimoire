@@ -1207,7 +1207,7 @@ function onCategoryChangeImpl() {
   if (subn === 23) {
     const kw = forkStringList(window.CYTHERA_RSRC, 128);
     if (kw && kw.length) out.textContent += ' Every conversation also answers the default keywords ' +
-      kw.map(w => '“' + w + '”').join(', ') + ', from string list 128 in the resource fork.';
+      kw.map(w => '“' + w + '”').join(', ') + '. They come from string list 128 in the resource fork.';
   }
   document.getElementById('singlePreview').style.display = 'none';
   document.getElementById('zoomControls').style.display = 'none';

@@ -831,13 +831,13 @@ const US_OPTION_KEYS = { 0xA9: 'option-g', 0xC6: 'option-j', 0xEF: 'option-shift
 // renderCheatsSheet). A key the program does not have is not listed.
 const CHEAT_KEY_WORDS = {
   0xC6: ['Jump', x => 'Shows ' + x.q(0) + ' with the hero’s position and prompts for ' + x.prompts(1).join(', ') + ' ' + x.base() + '. Then it ' + x.via('GoToLocation', 'moves the hero there') + ' (anywhere in the game).'],
-  0xEF: ['Take teleporter', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ', then ' + x.via('TeleportTo', 'sends the hero') + ' where that teleporter goes.'],
-  0xA7: ['Create a prop', x => 'Prompts for ' + x.promptWords() + ', then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
+  0xEF: ['Take teleporter', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ' and then ' + x.via('TeleportTo', 'sends the hero') + ' where that teleporter goes.'],
+  0xA7: ['Create a prop', x => 'Prompts for ' + x.promptWords() + ' and then ' + x.via('NewProp', 'puts the thing') + ' in the hero’s pack. ' +
     'The number is type + 1,024 × aspect. So 0x0064 is a spear and 0x0864 is a spear at aspect 2. That one has the picture and name two tiles along but fights as a spear. Each item’s page under Entities › Items shows its number.'],
   0xB9: ['What prop is this?', x => 'Prompts for ' + x.q(0) + ' ' + x.base() + ' and prints the record: class, state, position, Data1, and Data2.' +
     (x.fallsInto ? ' A missing jump then lets it run on into ' + x.fallsInto + '.' : '')],
   0xC0: ['Where am I?', x => 'Prints the hero’s x and y as ' + x.q(0) + '.'],
-  0xFF: ['What time is it?', x => 'Prints ' + x.q(0) + ', the clock and the day.'],
+  0xFF: ['What time is it?', x => 'Prints ' + x.q(0) + ', the clock, and the day.'],
   0xA0: ['Pass the time', x => x.via('DoTicks', 'Passes') + ' ' + x.arg('DoTicks', 4) + ' clock units' + x.clockWords('DoTicks', 4) + '.'],
   0x3C: ['Darken', x => x.via('DarkenLight', 'Darkens') + ' the level’s light a step.'],
   0x3E: ['Brighten', x => x.via('BrightenLight', 'Brightens') + ' the level’s light a step.'],
@@ -1030,7 +1030,7 @@ function renderCheatsSheet() {
         if (!enemy || !enemy.peace) return '';
         const callers = exeCallersOf('TActiveMonster::GetEnemyStatus');
         const zero = callers.filter(k => { const n = exeFind(k.ops, k.i + 1, 3, d => d.mn === 'cmpwi' && d.ra === 3); return n >= 0 && k.ops[n].d.imm === 0; });
-        return 'It makes ' + srcNum(enemy.peace, 'no pair enemies') + ', so monsters stop finding targets.';
+        return 'It makes ' + srcNum(enemy.peace, 'no pair enemies') + '. Monsters then stop finding targets.';
       },
       // option-x switches flag 31 on character 0, the record no one uses, and that bit is
       // the debug switch Look reads: with it on, Look prints a square's location in hex
@@ -1433,7 +1433,7 @@ function byteMapDataFork(arc) {
         const e = off + k * 8, roff = u32be(b, e), rlen = u32be(b, e + 4), rid = ((i + 1) << 8) | k;
         p.f(e, 8, roff ? 'where resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ' is and its length' : 'resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ' (none)',
             { value: roff ? '0x' + roff.toString(16).toUpperCase() + ', ' + rlen + ' bytes' : '0', empty: !roff });
-        if (roff && rlen) p.f(roff, rlen, 'resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ', listed as a part below', { part: rid });
+        if (roff && rlen) p.f(roff, rlen, 'resource 0x' + rid.toString(16).toUpperCase().padStart(4, '0') + ' (listed as a part below)', { part: rid });
       }
     }
   }
@@ -1522,9 +1522,9 @@ function byteMapStream(p) {
         if (kind === 9 || kind === 10) {
           const segs = u16be(b, q + o);
           rec.f(o, 2, 'how many body segments it has (TCrawlMonster::Save)', { value: String(segs) }); o += 2;
-          for (let k = 0; k < segs; k++, o += 2) rec.f(o, 2, 'body segment ' + k + ', a prop of the level', { value: String(u16be(b, q + o)) });
+          for (let k = 0; k < segs; k++, o += 2) rec.f(o, 2, 'body segment ' + k + ' (a prop of the level)', { value: String(u16be(b, q + o)) });
         } else if (kind === 11 || kind === 12) {
-          for (let k = 0; k < (kind === 11 ? 4 : 8); k++, o += 2) rec.f(o, 2, (kind === 11 ? 'part ' : 'arm ') + k + ', a prop of the level (' + (kind === 11 ? 'TDragonMonster' : 'TOctoMonster') + '::Save)', { value: String(u16be(b, q + o)) });
+          for (let k = 0; k < (kind === 11 ? 4 : 8); k++, o += 2) rec.f(o, 2, (kind === 11 ? 'part ' : 'arm ') + k + ' (a prop of the level in ' + (kind === 11 ? 'TDragonMonster' : 'TOctoMonster') + '::Save)', { value: String(u16be(b, q + o)) });
         }
         q += n; m++;
       }
@@ -1552,7 +1552,7 @@ function byteMapStream(p) {
       // class's short (TInventoryWindow::Marshal, from +16), and its left,
       // top and a short from +134. Another class is left whole.
       for (let w = 0; q + 12 <= end && String.fromCharCode(b[q], b[q + 1], b[q + 2], b[q + 3]) === 'ChrW'; w++, q += 12) {
-        const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 12, 'open window ' + w + ', a character’s');
+        const r = byteMapRecord({ fields: chunk.kids, bytes: b }, q, 12, 'open window ' + w + ' (a character’s)');
         r.f(0, 4, 'the window’s class code', { value: 'ChrW' });
         r.f(4, 2, 'whose things it shows (+16 that the inventory window’s constructor sets and RenumberParent moves)', { value: String(u16be(b, q + 4)) });
         r.f(6, 2, 'the window’s left edge', { value: String(u16be(b, q + 6)) });
@@ -1652,7 +1652,7 @@ function byteMapHeap(p) {
   if (!chain) { p.f(0, b.length, 'the heap that does not parse as a chain of blocks', { value: byteMapHex(b, 0, b.length), unread: true }); return; }
   for (const { q, len, step } of chain) {
     const ref = u16be(b, q + 4), kind = (b[q + 6] >> 4) & 7, count = u16be(b, q + 6) & 0x3FF, free = !ref && !kind;
-    const r = byteMapRecord(p, q, step, free ? 'a free block' : 'block ' + ref + (kind === 1 ? ', a list' : kind === 2 ? ', a dict' : ', kind ' + kind));
+    const r = byteMapRecord(p, q, step, free ? 'a free block' : 'block ' + ref + (kind === 1 ? ' (a list)' : kind === 2 ? ' (a dict)' : ' (kind ' + kind + ')'));
     r.f(0, 4, 'the data’s length', { value: String(len) });
     r.f(4, 2, 'the block’s reference number (0 for a free block)', { value: String(ref) });
     r.f(6, 2, 'its kind (bits 4 to 6 of the first byte with 1 a list and 2 a dict) and its reference count (the low ten bits)', { value: 'kind ' + kind + ', count ' + count });
@@ -1663,7 +1663,7 @@ function byteMapHeap(p) {
       r.f(o, 2, 'how many entries are in use', { value: String(n) }); r.f(o + 2, 2, 'how many entries fit in the table', { value: String(size) }); o += 4;
       for (let k = 0; k < size && o + 8 <= 8 + len; k++, o += 8) {
         const v = u32be(b, q + o + 4), empty = v === 0x5000FFFE;
-        const e = byteMapRecord({ fields: r.kids }, q + o, 8, empty ? 'entry ' + k + ', empty' : 'entry ' + k);
+        const e = byteMapRecord({ fields: r.kids }, q + o, 8, empty ? 'entry ' + k + ' (empty)' : 'entry ' + k);
         e.f(0, 2, 'its key', { value: String(u16be(b, q + o)) });
         e.f(2, 2, 'two bytes the lookup does not read', { value: byteMapHex(b, q + o + 2, 2) });
         e.f(4, 4, empty ? 'the empty mark' : 'its value as a script value', { value: '0x' + v.toString(16).toUpperCase().padStart(8, '0') });
@@ -1671,7 +1671,7 @@ function byteMapHeap(p) {
     } else if (!free && kind === 1 && len >= 4) {
       const n = u16be(b, d);
       r.f(o, 2, 'the list’s length', { value: String(n) }); r.f(o + 2, 2, 'two bytes the game does not read (GetItem)', { value: byteMapHex(b, d + 2, 2) }); o += 4;
-      for (let k = 0; o + 4 <= 8 + len; k++, o += 4) r.f(o, 4, k < n ? 'item ' + k + ', a script value' : 'room for another item', { value: '0x' + u32be(b, q + o).toString(16).toUpperCase().padStart(8, '0') });
+      for (let k = 0; o + 4 <= 8 + len; k++, o += 4) r.f(o, 4, k < n ? 'item ' + k + ' (a script value)' : 'room for another item', { value: '0x' + u32be(b, q + o).toString(16).toUpperCase().padStart(8, '0') });
     }
     if (o < step) r.f(o, step - o, free ? 'free space' + (byteMapAllZero(b, q + o, step - o) ? '' : ' with what a freed block left') : o < 8 + len ? 'the block’s data (not read)' : 'rounding to four',
                       { value: byteMapAllZero(b, q + o, step - o) ? 'all zero' : byteMapHex(b, q + o, step - o), unread: !free && o < 8 + len });
@@ -1794,7 +1794,7 @@ function saveByteMap() {
         if (rid === 0x0400) byteMapStream(p);
         else if (rid === 0x0401) byteMapToDo(p);
         else if (rid === 0x0404) byteMapMacros(p);
-        else if (rid === 0xF009) for (let n = 0; n * 32 + 32 <= b.length; n++) byteMapCharRecord(p, n * 32, 'character ' + n + (n ? ', ' + (characterName(n) || '') : ', slot 0'));
+        else if (rid === 0xF009) for (let n = 0; n * 32 + 32 <= b.length; n++) byteMapCharRecord(p, n * 32, 'character ' + n + (n ? ' (' + (characterName(n) || 'no name') + ')' : ' (slot 0)'));
         else if (rid === 0xF00E) byteMapRooms(p);
         else if (rid === 0xF306) for (let n = 0; n * 16 + 16 <= b.length; n++) byteMapPropRecord(p, n * 16, 'prop ' + n);
         else if (hi === 0x81) for (let n = 0; n * 16 + 16 <= b.length; n++) byteMapPropRecord(p, n * 16, 'prop ' + (256 + n));
@@ -1932,7 +1932,7 @@ function renderSaveSheet() {
   const shown = window.SAVE_SHOW_ALL ? recs.filter(r => r.zone || r.raw.some(b => b)) : inUse;
   h += '<h4 class="saveH4">The Records</h4>' +
     '<div class="saveNote">' + inUse.length + ' of the 512 character slots are in use' +
-    (marked ? ', and ' + marked + ' more hold only a zone' : '') +
+    (marked ? '. ' + marked + ' more hold only a zone' : '') +
     '. Slot 0 is the character called Nothing on the nothing map. ' + actionChip('Cheats', "showCategory('CHEATS')") + ' ' +
     actionChip(window.SAVE_SHOW_ALL ? 'Only the ones in use' : 'Show every marked slot',
                'toggleSaveShowAll()') + '</div>';
@@ -1963,7 +1963,7 @@ function renderSaveSheet() {
     actionChip('Patch in Progress', "showCategory('CHANGES')") + ' to download.</div>';
   grid.innerHTML = '<div class="changesView">' + h + '</div>';
   out.textContent = (isSave ? 'Saved game' : 'Character records') + ': ' +
-    inUse.length + ' of 512 slots in use' + (hero && hero.zone ? ', the player in ' + zoneDisplayName(hero.zone) : '') + '.';
+    inUse.length + ' of 512 slots in use' + (hero && hero.zone ? ' with the player in ' + zoneDisplayName(hero.zone) : '') + '.';
   // An edit's rebuild redraws this sheet; put the reader back at the row they
   // were working in rather than folding it away under them.
   if (window.SAVE_EDIT_OPEN != null) {
@@ -2083,10 +2083,10 @@ const CHAR_GROUPS = [
     { id: 'nutrition', key: 'nutrition', label: 'food', off: 27, max: 0xFF, what: () => {
       const clk = appImage() ? exeClockRules() : null, full = fullStomach();
       return [clk && clk.model ? clk.fall.v + ' comes off each time the clock passes ' + exeClockWords(clk.table.v[clk.model.hungerIndex], clk.unitsPerHour.v) : '',
-              full ? 'the ' + svEsc(full.potion) + ' sets it to ' + full.v : ''].filter(Boolean).join(', and ');
+              full ? 'the ' + svEsc(full.potion) + ' sets it to ' + full.v : ''].filter(Boolean).join(' and ');
     } },
     { id: 'training', key: 'training', label: 'training points', off: 28, max: 0xFF,
-      what: () => { const t = trainingRules().points; return t && t.perLessonVal && t.masteryVal ? 'a lesson costs ' + t.perLessonVal.v + ', a mastery ' + t.masteryVal.v : ''; } },
+      what: () => { const t = trainingRules().points; return t && t.perLessonVal && t.masteryVal ? 'a lesson costs ' + t.perLessonVal.v + ' and a mastery ' + t.masteryVal.v : ''; } },
   ]},
   { head: 'Behavior', items: [
     { id: 'behaviour', raw: [22, 1], label: 'behavior', fieldNo: 21, max: 0xFF,
@@ -2185,8 +2185,8 @@ function charEditHTML(index) {
     h += '</div>';
   }
   h += '<div class="charGroup"><div class="charGroupHead">Flags</div><div class="charWhat">The character flags that the scripts set, clear, and check by number. ' +
-    'Flags 0 to 7 are ' + charWhere(index, 8, 1) + ', 8 to 23 ' + charWhere(index, 6, 2) + ' and 24 to 31 ' + charWhere(index, 26, 1) +
-    '. The names are the program’s' + (appImage() ? '' : ', and appear only when the program is open') + '.</div><div class="charFlags">';
+    'Flags 0 to 7 are ' + charWhere(index, 8, 1) + ', 8 to 23 ' + charWhere(index, 6, 2) + ', and 24 to 31 ' + charWhere(index, 26, 1) +
+    '. The names are the program’s' + (appImage() ? '' : '. They appear only when the program is open') + '.</div><div class="charFlags">';
   for (let f = 0; f < 32; f++) {
     const nm = appImage() ? charFlagName(f) : null;
     h += '<label><input type="checkbox" id="ce-' + index + '-flag' + f + '"' + (charFlagOn(rec, f) ? ' checked' : '') + '> ' + f + (nm ? ' ' + svEsc(nm.replace(/^Is/, '').replace(/([a-z])([A-Z])/g, '$1 $2')) : '') + '</label>';
@@ -2218,7 +2218,7 @@ function applyCharEditForm(index) {
     const el = document.getElementById('ce-' + index + '-' + it.id);
     if (!el) return;
     const v = parseInt(el.value, it.base || 10);
-    if (!Number.isInteger(v) || v < 0 || v > it.max) { setStatus('The page cannot use that value for ' + it.label + ', so nothing changed.', true); return; }
+    if (!Number.isInteger(v) || v < 0 || v > it.max) { setStatus('The page cannot use that value for ' + it.label + '. Nothing changed.', true); return; }
     if (it.key) fields[it.key] = v;
     else if (it.raw[1] === 2) { raw[it.raw[0]] = v >> 8; raw[it.raw[0] + 1] = v & 0xFF; }
     else raw[it.raw[0]] = v;
@@ -2539,7 +2539,7 @@ function saveMakerHTML() {
     (d.companions.length ? '<div class="mkRow"><span class="mkField">With</span>' + d.companions.map(k => '<label class="mkField"><input type="checkbox" class="mkWith" value="' + k.index + '"> ' + svEsc(k.name) + '</label>').join('') + '</div>' : '') +
     '<div class="mkRow"><button class="secondary" onclick="makeSaveFromForm()">Make the Save</button>' +
     '<button class="secondary" onclick="makeSaveFromForm(true)">Download It</button>' +
-    '<span class="mechSub" style="display:inline">' + svEsc('The hero starts with ') + srcNum(d.cr.training) + svEsc(' training points and nutrition ') + srcNum(d.cr.nutrition) + svEsc(', as a new game gives.') + '</span></div></div>';
+    '<span class="mechSub" style="display:inline">' + svEsc('The hero starts with ') + srcNum(d.cr.training) + svEsc(' training points and nutrition ') + srcNum(d.cr.nutrition) + svEsc(' as a new game gives.') + '</span></div></div>';
 }
 // A face clicked: the portrait's list follows, and the face is ringed.
 function saveMakerFace(rid) {
@@ -3142,7 +3142,7 @@ function applyQuestStateForm() {
     const el = document.getElementById('qv-' + n);
     if (!el) continue;
     const v = parseInt(el.value, 10);
-    if (!Number.isInteger(v) || v < 0 || v > 255) { setStatus('The page cannot use that value for quest value ' + n + ', so nothing changed.', true); return; }
+    if (!Number.isInteger(v) || v < 0 || v > 255) { setStatus('The page cannot use that value for quest value ' + n + '. Nothing changed.', true); return; }
     values[n] = v;
   }
   for (let n = 0; n < 256; n++) { const el = document.getElementById('qf-' + n); if (el) flags[n] = !!el.checked; }
@@ -3352,7 +3352,7 @@ function giveToCharacter(index, fields) {
   records.push({ flags: fields.flags, x: 0, y: index, aspect: fields.aspect & 0x1F, rotated: 0, proptype: fields.proptype,
                  d3: fields.d3 || 0, storeref: 0, tail: '000000000000' });
   const ok = applyResourceEdit(rid, writeDelverPropList(records));
-  if (ok) setStatus('Gave prop type ' + fields.proptype + ' to ' + characterName(index) + ', as record ' + (records.length - 1) + ' of 0x' + rid.toString(16).toUpperCase() + '.');
+  if (ok) setStatus('Gave prop type ' + fields.proptype + ' to ' + characterName(index) + ' as record ' + (records.length - 1) + ' of 0x' + rid.toString(16).toUpperCase() + '.');
   return ok;
 }
 function applyGiveForm(index) {

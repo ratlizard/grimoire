@@ -897,8 +897,8 @@ function renderBarksSheet() {
   grid.appendChild(scroll);
   const distinct = new Set(barks.flatMap(b => b.words.concat(b.then || []))).size;
   out.textContent = barks.length
-    ? barks.length + ' places in the scripts put a line over a character’s head, ' + distinct + ' distinct lines' +
-      (q ? ', ' + shown.length + ' shown' : '') + '. How the balloon works is in the card above.'
+    ? barks.length + ' places in the scripts put a line over a character’s head (' + distinct + ' distinct lines' +
+      (q ? ' and ' + shown.length + ' shown' : '') + '). How the balloon works is in the card above.'
     : 'No script in this file sets a talk balloon.';
 }
 
@@ -1698,7 +1698,7 @@ function damageRowWords(r) {
   else if (r.aspects.length && r.rule !== 'lock') bits.push('shows aspect ' + r.aspects.filter((a, i, all) => all.findIndex(b => b.v === a.v) === i).map(a => srcNum(a)).join(' or '));
   if (r.deletes && r.rule !== 'lock') bits.push('destroyed');
   if (r.spills !== null) bits.push('drops what it held');
-  if (r.xp) bits.push('checks for a hit and gives ' + srcNum(r.xp) + ' experience for one' + (r.xpWhileBelow ? ', until its Data1 counts to ' + srcNum(r.xpWhileBelow) : ''));
+  if (r.xp) bits.push('checks for a hit and gives ' + srcNum(r.xp) + ' experience for one' + (r.xpWhileBelow ? ' until its Data1 counts to ' + srcNum(r.xpWhileBelow) : ''));
   return bits.join('; ');
 }
 function damageTakers() {
@@ -2604,15 +2604,15 @@ function eggDetail(g, allProps, linked) {
                                 (h.d2 !== 1 ? svEsc(' ×' + h.d2) : ''));
     return 'hatches ' + (names.length ? names.join(' and ') : 'something') +
            ' when the party comes ' + (reach ? 'within ' + (linked ? srcNum(reach, String(reach.v)) : svEsc(String(reach.v))) + ' squares of it'
-                                             : 'near it') + ', unless walls cut it off from the party, ' + svEsc(chance) +
-           (when.length ? ', ' + when.join(', ') : '');
+                                             : 'near it') + ' unless walls cut it off from the party (' + svEsc(chance) +
+           (when.length ? ', ' + when.join(', ') : '') + ')';
   }
   if (g.aspect === 1) {
     // A way somewhere: name where it lands rather than the number alone.
     let z = null;
     try { z = zoneportInfo(g.proptype); } catch (e) { z = null; }
     return z ? 'a way to ' + one(z.name, 'jumpToResource(' + z.resid + ')') +
-               svEsc(', square ' + z.x + ', ' + z.y)
+               svEsc(' at square ' + z.x + ', ' + z.y)
              : 'a way to another place through zoneport ' + svEsc(String(g.proptype));
   }
   if (g.aspect === 8) {
@@ -2631,7 +2631,7 @@ function eggDetail(g, allProps, linked) {
     if (!n) return 'does nothing because its argument is 0 records';
     const c = scheduleCondition({ cond: g.d1, arg: g.d2 });
     return 'brings the ' + (n === 1 ? 'one thing' : n + ' things') + ' after it into view ' +
-           svEsc(c ? c.text : 'while its condition is true') + ', and hides ' + (n === 1 ? 'it' : 'them') + ' otherwise';
+           svEsc(c ? c.text : 'while its condition is true') + ' and hides ' + (n === 1 ? 'it' : 'them') + ' otherwise';
   }
   if (g.aspect === 4) {
     /* A kind-4 egg hands its argument to TGameViewer::ChangeZone, which
