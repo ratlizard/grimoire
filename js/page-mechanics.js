@@ -4086,7 +4086,8 @@ function renderMechanicsSheet(value) {
         (function () {
           const bl = blastRules();
           if (!bl || !bl.center) return '';
-          return 'A <b>bomb</b> is the one thing that damages a square rather than a target. When its fuse runs out it does <b>' + srcNum(bl.center) + '</b> damage to everything on its square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ' as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '. A locked door whose strength is below a fifth of that drops to a strength of 1.';
+          return 'A <b>bomb</b> is the one thing that damages a square rather than a target. When its fuse runs out it does <b>' + srcNum(bl.center) + '</b> damage to everything on its square, <b>' + srcNum(bl.edge) + '</b> to the four beside it and <b>' + srcNum(bl.corner) + '</b> to the four corners' + (bl.type && damageTypeName(bl.type.v) ? ' as ' + srcNum(bl.type, damageTypeName(bl.type.v)) + ' damage' : '') + '.' +
+            (door && door.destroy ? ' On a locked door the blast is a blow like any other. One above <b>' + srcNum(door.destroy.factor) + ' × the strength</b> destroys the door.' : '');
         })()
       ].filter(Boolean) : [],
       rows.length ? table(['thing', 'when struck', 'message'], rows.map(r => '<tr><td>' + propChip(r.pt, r.name) + '</td><td>' + damageRowWords(r) + ' ' + srcNum({ resid: r.resid, at: r.at }, 'script') + '</td><td>' +
