@@ -256,14 +256,14 @@ function exePlainLines(r) {
     const mem = /^(l|st)(b|h|w)(z|a)?(u)?(x)?$/.exec(mn);
     if (d.branch) {
       const to = o.to !== null ? '\u0001' : 'a fixed address';
-      if (d.indirect) s = d.lk ? 'Call a routine through an address.' : d.indirect === 'lr' ? (d.conditional || d.bo !== 20 ? 'Return, on a condition.' : 'Return.') : 'Go to one of several places, picked by a number.';
+      if (d.indirect) s = d.lk ? 'Call a routine through an address.' : d.indirect === 'lr' ? (d.conditional || d.bo !== 20 ? 'Return on a condition.' : 'Return.') : 'Go to one of several places that a number picks.';
       else if (d.conditional && /^b[tf]/.test(mn)) {
         const yes = mn[1] === 't', which = d.bi & 3;
         const cond = last === 'switch' ? (which === 2 ? (yes ? 'that switch is off' : 'that switch is on') : '')
           : last === 'cmp' ? [yes ? 'it is less' : 'it is not less', yes ? 'it is more' : 'it is not more', yes ? 'they are equal' : 'they are not equal'][which]
           : [yes ? 'the value is below zero' : 'the value is not below zero', yes ? 'the value is above zero' : 'the value is not above zero', yes ? 'the value is zero' : 'the value is not zero'][which];
         s = cond ? 'If ' + cond + ', go to ' + to + '.' : '';
-      } else if (d.conditional) s = /^bdnz/.test(mn) ? 'Count down, and go round again to ' + to + ' until the count runs out.' : '';
+      } else if (d.conditional) s = /^bdnz/.test(mn) ? 'Count down and go around again to ' + to + ' until the count runs out.' : '';
       else s = d.lk ? 'Call ' + to + '.' : 'Go to ' + to + '.';
     } else if (mn === 'nop') s = 'Do nothing.';
     else if (mem && d.ra === 2 && !mem[5]) s = mem[1] === 'l' ? 'Fetch an address from the program’s table of addresses.' : '';
@@ -272,7 +272,7 @@ function exePlainLines(r) {
     else if (mem) s = (mem[1] === 'l' ? 'Read the ' : 'Write the ') + SIZE[mem[2]] + ' at offset ' + d.d + ' of a record.';
     else if (mn === 'stmw') s = 'Save the values this routine will reuse.';
     else if (mn === 'lmw') s = 'Put the saved values back.';
-    else if (mn === 'mflr') s = 'Note where to return to.';
+    else if (mn === 'mflr') s = 'Note the return address.';
     else if (mn === 'mtlr') s = 'Get ready to return.';
     else if (mn === 'mtctr') s = 'Get ready to go somewhere through an address.';
     else if (mn === 'li') s = 'Take the number ' + d.imm + '.';
@@ -310,7 +310,7 @@ function exePlainLines(r) {
     else if (bare === 'and') s = 'Keep the switches two values share.';
     else if (bare === 'or') s = 'Join the switches of two values.';
     else if (bare === 'xor') s = 'Keep the switches on which two values differ.';
-    else if (bare === 'andc') s = 'Turn off, in one value, the switches of another.';
+    else if (bare === 'andc') s = 'Turn off in one value the switches another has on.';
     else if (bare === 'not') s = 'Flip every switch of a value.';
     else if (bare === 'cntlzw') s = 'Count the off switches at the top of a value.';
     // What a branch after this one would test.
@@ -505,7 +505,7 @@ function exePseudo(r) {
             for (let q = 0; q < 32; q++) if (vol(q) && (blk.out >>> q & 1) && !(d.indirect === 'lr' && q === 3)) settle(q);
             // r3 is what a routine hands back; named where the routine ever sets it.
             if (d.indirect === 'lr') addLine('return' + (reg[3].k !== undefined || reg[3].s !== 'r3' ? ' ' + str(reg[3]) : B.some(x => x.def >>> 3 & 1) ? ' r3' : ''));
-            else if (d.indirect) addLine('goto one of several places, by a number');
+            else if (d.indirect) addLine('goto one of several places by a number');
             else if (d.conditional && /^b[tf]/.test(mn)) {
               const yes = mn[1] === 't', which = d.bi & 3;
               const opn = [yes ? '<' : '>=', yes ? '>' : '<=', yes ? '==' : '!='][which];
@@ -678,7 +678,7 @@ function routineNoteHTML(text) {
 function routineCallersHTML(r) {
   const seen = new Map();
   for (const at of exeCallSitesOf(r.offset)) { const c = exeRoutineAt(at); if (c && !seen.has(c.offset)) seen.set(c.offset, { c, at }); }
-  if (!seen.size) return '<p class="mechLede">No call in the program reaches it directly. A routine called through a table of addresses, as a virtual routine is, has no direct call.</p>';
+  if (!seen.size) return '<p class="mechLede">No call in the program reaches it directly. A routine called through a table of addresses (as a virtual routine is) has no direct call.</p>';
   return '<p class="mechLede">' + [...seen.values()].map(x => svLink(x.c.name, 'jumpToExeAt(' + x.at + ')')).join(', ') + '.</p>';
 }
 function renderAppPefSheet() {
@@ -701,7 +701,7 @@ function renderAppPefSheet() {
         ? '<span class="inspDim">' + v[1] + '</span>' : svLink(v[1], 'exeSetView(\'' + v[0] + '\')')).join(' ') + '</div>' +
       '<div class="changesHead">' + svEsc(view.name) + '</div>' +
       '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
-      (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes, and a slot in the program’s table of addresses shows what the game stores there when it starts.</p>' +
+      (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes. A slot in the program’s table of addresses shows what the game stores there when it starts.</p>' +
       (note ? '<div class="mechSub">Description</div>' + routineNoteHTML(note.text) : '') +
       '<div class="mechSub">Callers</div>' + routineCallersHTML(view) +
       '<div class="mechSub">Instructions</div>' +
@@ -716,9 +716,9 @@ function renderAppPefSheet() {
   box.className = 'mechView';
   const ld = pef.loader;
   const code = pef.sections.find(x => x.kind === 0);
-  let h = '<div class="changesHead">The program’s data fork: a PEF container, ' + svEsc(pef.arch === 'pwpc' ? 'PowerPC' : pef.arch) + '</div>';
-  h += '<p class="mechLede">The program’s PowerPC code' + (pef.routines.length ? ': ' + pef.routines.length.toLocaleString() + ' routines, named from notes the compiler left in it' : '') +
-    (ld ? ', and the ' + ld.symbols.length + ' system calls it uses from ' + ld.libraries.length + ' libraries' : '') + '.</p>';
+  let h = '<div class="changesHead">The program’s data fork: a PEF container for ' + svEsc(pef.arch === 'pwpc' ? 'PowerPC' : pef.arch) + '</div>';
+  h += '<p class="mechLede">The program’s PowerPC code' + (pef.routines.length ? ' has ' + pef.routines.length.toLocaleString() + ' routines (named from notes the compiler left in it)' : '') +
+    (ld ? '. It uses ' + ld.symbols.length + ' system calls from ' + ld.libraries.length + ' libraries' : '') + '.</p>';
   h += '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th>no.</th><th>section</th><th class="num">unpacked</th><th class="num">packed</th><th class="num">at</th></tr></thead><tbody>' +
     pef.sections.map(x => '<tr>' + num(x.index) + '<td>' + svEsc(x.kindName) + (x.name ? ' ' + svEsc(x.name) : '') + '</td>' + num(x.unpackedSize.toLocaleString()) + num(x.packedSize.toLocaleString()) + num(hex(x.containerOffset)) + '</tr>').join('') + '</tbody></table></div>';
   if (ld) {
@@ -742,7 +742,7 @@ function renderAppPefSheet() {
     return '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(c || 'functions outside a class') + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + list.length + '</b></span>' +
       (told ? '<span class="mechStat"><b>' + told + '</b> described</span>' : '') + '</span></summary><div class="mechBody">' + (words ? routineNoteHTML(words.opening) : '') + table(list) + '</div></details>';
   }).join('');
-  h += '<p class="mechLede" style="margin-top:10px">The page decodes each name from the compiler’s shorthand, and leaves it as written where it cannot.</p>';
+  h += '<p class="mechLede" style="margin-top:10px">The page decodes each name from the compiler’s shorthand. It leaves a name it cannot decode as written.</p>';
   box.innerHTML = h;
   grid.appendChild(box);
   out.textContent = pef.routines.length.toLocaleString() + ' routines named in the program' + (q ? ', ' + rs.length + ' matching “' + window.PEF_FILTER.trim() + '”' : ', by class') + '. ' + (ld ? ld.symbols.length + ' imports from ' + ld.libraries.length + ' libraries.' : '');
@@ -769,21 +769,21 @@ function renderAppPefSheet() {
    maintainer could not answer from the labels alone. Element ids are what
    prefsOptionsFromUI and the smokes read, and are unchanged. */
 const PREF_HELP = {
-  Volume: ['sound', 'Preferences dialog', 'How loud the sound effects are, from 0, silent, to 8. At −1 the game leaves the Mac’s volume alone.'],
-  Music: ['sound', 'Preferences dialog', 'How loud the music is, in eighths of full volume: 8 is full, 0 is silent.'],
-  Ambient: ['sound', 'Preferences dialog', 'Background sounds, such as animals and ocean waves.'],
+  Volume: ['sound', 'Preferences dialog', 'How loud the sound effects are on a scale from 0 (silent) to 8. At −1 the game leaves the Mac’s volume alone.'],
+  Music: ['sound', 'Preferences dialog', 'How loud the music is in eighths of full volume. 8 is full and 0 is silent.'],
+  Ambient: ['sound', 'Preferences dialog', 'Background sounds such as animals and ocean waves.'],
   movement: ['movement', 'Preferences dialog', 'How the game draws a step from one square to the next: in four stages (Smoother), in two (Faster), or as one jump (Fastest). It takes the same game time in all three. The dialog’s Graphics Quality slider sets the same thing.'],
-  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second. These three come from the game’s hidden Preferences menu. The file can hold others, down to no limit at all. A higher limit plays each step’s animation faster, but holding a key still walks at the pace of the Mac’s key repeat.'],
+  frameRate: ['movement', 'Hidden menu', 'The most frames the game draws in a second. These three come from the game’s hidden Preferences menu. The file can hold others (down to no limit at all). A higher limit plays each step’s animation faster. Holding a key still walks at the pace of the Mac’s key repeat.'],
   motionFilters: ['movement', 'Preferences dialog', 'Leaves blowing on the trees and waves rippling across the ocean.'],
   walkAround: ['movement', 'Preferences dialog', 'The hero steps around things in the way rather than stopping at them.'],
   liveDrag: ['windows', 'Preferences dialog', 'The player can drag the game’s windows around the screen.'],
-  manualContainers: ['windows', 'Preferences dialog', 'Opening a container lets the player choose where its window goes. Off, the game places it.'],
+  manualContainers: ['windows', 'Preferences dialog', 'Opening a container lets the player choose where its window goes. When it is off the game places it.'],
   zoomRects: ['windows', 'Preferences dialog', 'Windows open with a zooming outline.'],
   Backdrop: ['windows', 'Not in the game', 'The pattern that fills the screen behind every window. Nothing in the game sets it.'],
-  switch256: ['startup', 'Startup prompt', 'On a screen set to more than 256 colors, the game switches it to 256 when it starts. Off, it runs in the colors the screen already has.'],
+  switch256: ['startup', 'Startup prompt', 'The game switches a screen set to more than 256 colors to 256 when it starts. When this is off it runs in the colors the screen already has.'],
   noPrompt: ['startup', 'Startup prompt', 'The game shows no 256-color prompt when it starts. Off, it shows the prompt on a screen set to more than 256 colors, and the answer replaces the switch above.'],
   cheats: ['startup', 'Not in the game', null],
-  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button. The second button clicks with Command held, the third with Control, the fourth Option and the fifth Shift. In this game Control-click opens the contextual menu at once and Option-click does the double-click action, so the middle button opens the menu. The right-click fix in the Patch Generator puts it on the right button. Infinite Mac passes only one button to the Mac, so it does nothing there.'],
+  mouseButtons: ['mouse', 'Not in the game', 'For a mouse with more than one button. The second button clicks with Command held, the third with Control, the fourth with Option, and the fifth with Shift. In this game Control-click opens the contextual menu immediately and Option-click does the double-click action. So the middle button opens the menu. The right-click fix in the Patch Generator puts it on the right button. Infinite Mac passes only one button to the Mac. The setting does nothing there.'],
 };
 /* The License tab, a stub by the maintainer's word (6 October 2026): what
    the file is, where it goes, a link to the thing that makes one, and a
@@ -805,7 +805,7 @@ function renderLicenseSheet() {
   const about = document.createElement('div');
   about.className = 'changesGroup';
   about.innerHTML = '<div class="changesGroupTitle">' + svEsc(LICENSE_FILE_NAME) + '</div>' +
-    '<div class="changesNote" style="margin-left:0">' + svEsc('The game stores its registration in this file, in the Preferences folder of the System Folder. Choose one to see the name it is registered to.') + '</div>';
+    '<div class="changesNote" style="margin-left:0">' + svEsc('The game stores its registration in this file in the Preferences folder of the System Folder. Choose one to see the registered name.') + '</div>';
   const inp = document.createElement('input');
   inp.type = 'file'; inp.id = 'licenseFile'; inp.accept = '*/*';
   about.appendChild(inp);
@@ -823,7 +823,7 @@ function renderLicenseSheet() {
   make.className = 'changesGroup';
   make.innerHTML = '<div class="changesGroupTitle">' + svEsc('Make a License') + '</div>' +
     '<div class="changesNote" style="margin-left:0"><a href="' + DECODER_RING_URL + '" target="_blank" rel="noopener">Decoder Ring</a>' +
-    svEsc(' makes a license for any Ambrosia game. Andrew Welch, who founded Ambrosia, released it for free distribution.') + '</div>';
+    svEsc(' makes a license for any Ambrosia game. Ambrosia’s founder Andrew Welch released it for free distribution.') + '</div>';
   box.appendChild(make);
   grid.appendChild(box);
   out.textContent = LICENSE_FILE_NAME + ', the file where the game stores its registration.';
@@ -831,7 +831,7 @@ function renderLicenseSheet() {
 // What the tab shows for a chosen file. The name is the file's, verbatim.
 function licenseReportHTML(bytes) {
   const lic = cytheraLicenseRead(bytes);
-  if (!lic) return svEsc('This is not a ' + LICENSE_FILE_NAME + ' file. One is ' + LICENSE_FILE_SIZE + ' bytes, and this is ' + bytes.length + '.');
+  if (!lic) return svEsc('This is not a ' + LICENSE_FILE_NAME + ' file. One is ' + LICENSE_FILE_SIZE + ' bytes and this is ' + bytes.length + '.');
   return svEsc('The name in this file is ') + '<b>' + svEsc(lic.name) + '</b>' + svEsc(lic.hasCode ? ', with a code.' : ', with no code.');
 }
 const PREF_GROUPS = [['sound', 'Sound'], ['movement', 'Game control'], ['windows', 'Windows'], ['startup', 'Starting the game'], ['mouse', 'Mouse'], ['other', 'Other settings']];
@@ -857,20 +857,20 @@ function renderPrefsSheet() {
     const d = document.createElement('div');
     d.className = 'changesGroup';
     d.innerHTML = '<div class="changesGroupTitle">' + svEsc('Cythera’s preferences file') + '</div>' +
-      '<div class="changesNote" style="margin-left:0"><b>' + svEsc('Open the game itself (Data › Installer, or drop the program on the page) and the settings appear here.') + '</b><br>' +
-      svEsc('This writes Cythera’s preferences file, with the settings the game stores in the Preferences folder of the System Folder, including the switch that makes its cheat keys work. ' +
-            'The page reads every switch in it from the program’s code, so the game has to be open for there to be anything to write.') + '</div>';
+      '<div class="changesNote" style="margin-left:0"><b>' + svEsc('Open the game itself (Data › Installer or drop the program on the page) and the settings appear here.') + '</b><br>' +
+      svEsc('This writes Cythera’s preferences file with the settings the game stores in the Preferences folder of the System Folder. One of them is the switch that makes its cheat keys work. ' +
+            'The page reads every switch in it from the program’s code. The game has to be open for there to be anything to write.') + '</div>';
     box.appendChild(d);
     grid.appendChild(box);
-    out.textContent = PREFS_FILE_NAME + ', the file where the game stores its settings.';
+    out.textContent = PREFS_FILE_NAME + ' is the file where the game stores its settings.';
     return;
   }
   const sheet = document.createElement('div');
   sheet.className = 'prefSheet';
-  sheet.innerHTML = '<p class="prefLede">' + svEsc('Choose the settings, then download the file and put it in the Preferences folder of the System Folder, replacing the one there. ' +
+  sheet.innerHTML = '<p class="prefLede">' + svEsc('Choose the settings. Then download the file and put it in the Preferences folder of the System Folder in place of the one there. ' +
       'Each setting starts as a new copy of the game has it.') + '</p>' +
     '<p class="prefFrom">' + svEsc(layout.from === 'shipped'
-      ? 'The settings are the same in all four releases, so nothing needs to be open. Open the game to read them from that copy instead.'
+      ? 'The settings are the same in all four releases and nothing needs to be open. Open the game to read them from that copy instead.'
       : 'The page reads the settings from the program open here.') + '</p>';
   /* The two presets (cytheraPrefsPreset): each sets every row, the switches
      by their ids and the choosers by their values. Built with createElement,
@@ -878,7 +878,7 @@ function renderPrefsSheet() {
   const presets = document.createElement('div');
   presets.className = 'prefPresets';
   for (const [label, name, title] of [['Default', 'default', 'A new copy of the game'],
-                                      ['Enable Everything', 'everything', 'Every switch on, Smoother Movement and the fastest frame rate']]) {
+                                      ['Enable Everything', 'everything', 'Every switch on with Smoother Movement and the fastest frame rate']]) {
     const b = document.createElement('button');
     b.className = 'secondary';
     b.textContent = label;
@@ -888,7 +888,7 @@ function renderPrefsSheet() {
   }
   const presetNote = document.createElement('span');
   presetNote.className = 'prefPresetNote';
-  presetNote.textContent = 'Default is a new copy of the game. Enable Everything turns every switch on, with Smoother Movement and the fastest frame rate.';
+  presetNote.textContent = 'Default is a new copy of the game. Enable Everything turns every switch on and picks Smoother Movement and the fastest frame rate.';
   presets.appendChild(presetNote);
   sheet.appendChild(presets);
   const rows = new Map(PREF_GROUPS.map(([g]) => [g, []]));
@@ -959,7 +959,7 @@ function renderPrefsSheet() {
   // start on: the game's recommendation, and no question in the way.
   (layout.startup || []).forEach((x, i) => { if (PREF_STARTUP_IDS[i]) sw(['switch256', 'noPrompt'][i], PREF_STARTUP_IDS[i], x.text, true); });
   sw('cheats', 'prefCheats', 'Allow the cheat keys', true,
-     svEsc('Lets the cheat keys work after typing ' + layout.gate.word + '. Nothing in the game turns this on, so a copy as released cannot enter cheat mode.'));
+     svEsc('Lets the cheat keys work after typing ' + layout.gate.word + '. Nothing in the game turns this on. A copy as released cannot enter cheat mode.'));
   // No label anywhere in the game, so the row's name is one the page supplies.
   if (layout.buttons) sw('mouseButtons', 'prefMouseButtons', 'Extra mouse buttons', false);
   for (const [g, title] of PREF_GROUPS) {
@@ -982,13 +982,13 @@ function renderPrefsSheet() {
   pbtns.className = 'prefSave';
   const saveNote = document.createElement('div');
   saveNote.className = 'prefSaveNote';
-  saveNote.textContent = 'Tested in the game. The game read a file this page wrote, and cheat mode came on.';
+  saveNote.textContent = 'Tested in the game. The game read a file this page wrote and cheat mode came on.';
   saveBox.appendChild(pbtns);
   saveBox.appendChild(saveNote);
   save.appendChild(saveBox);
   for (const [label, kind, title] of [
-    ['Disk image, for an emulator', 'dsk', 'Mounts as “' + PREFS_VOLUME_NAME + '” with an ' + PREFS_SCRIPT_NAME + ' script beside the file'],
-    ['MacBinary, for a real Mac', 'bin', 'Decode it and drag the file into System Folder ▸ Preferences']]) {
+    ['Disk image for an emulator', 'dsk', 'Mounts as “' + PREFS_VOLUME_NAME + '” with an ' + PREFS_SCRIPT_NAME + ' script beside the file'],
+    ['MacBinary for a real Mac', 'bin', 'Decode it and drag the file into System Folder ▸ Preferences']]) {
     const btn = document.createElement('button');
     btn.className = 'secondary';
     btn.textContent = label;
@@ -999,7 +999,7 @@ function renderPrefsSheet() {
   sheet.appendChild(save);
   box.appendChild(sheet);
   grid.appendChild(box);
-  out.textContent = PREFS_FILE_NAME + ', the file where the game stores its settings.';
+  out.textContent = PREFS_FILE_NAME + ' is the file where the game stores its settings.';
 }
 
 // Sets every row of the Preferences tab to a preset's options.
@@ -1078,10 +1078,10 @@ function renderToolsSheet() {
      Patch in Progress. The canvas page's row is its name drawn as that page draws it
      (.ccMark). */
   for (const [label, note, go, icon, mark] of [
-    ['Patch Generator', 'Bugfixes and the tools that make a patch, in one download.', () => showCategory('PATCHES'), BUILD_A_PATCH_ICON],
-    ['Save File Generator', 'A saved game made from the scenario open here, with the hero set on the form.', at('SAVEGAME', 'saveMaker')],
-    ['Preferences File Generator', 'The game’s settings file, made with the options chosen here.', at('PREFS')],
-    ['Graphics Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery, so a result can go straight into a portrait.',
+    ['Patch Generator', 'One download with bugfixes and the tools that make a patch.', () => showCategory('PATCHES'), BUILD_A_PATCH_ICON],
+    ['Save File Generator', 'A saved game made from the scenario open here with the hero set on the form.', at('SAVEGAME', 'saveMaker')],
+    ['Preferences File Generator', 'The game’s settings file made with the options chosen here.', at('PREFS')],
+    ['Graphics Ditherizer', 'Turns any image into checkerboard art in Cythera’s palette. It opens on the Portraits gallery. A result can go straight into a portrait.',
       () => { showCategory('135'); openDitherTool(); }],
     ['ColorCycleCanvas', 'A paint studio for the palette animation Cythera uses for water and fire.', () => window.open('canvas.html', '_blank', 'noopener'), null, true]]) {
     const d = document.createElement('div');
@@ -1125,10 +1125,10 @@ function renderToolsSheet() {
       // The file and line, not the origin it was served from.
       ul.textContent = [...QUIET_FAILURES].map(([m, v]) => (v.count > 1 ? v.count + '\u00d7 ' : '') + m + (v.where ? '\n    ' + v.where.replace(/https?:\/\/[^/\s]+\//g, '') : '')).join('\n');
       q.appendChild(ul);
-    } else q.innerHTML += '<div class="changesNote" style="margin:6px 0 0">Everything the page has tried to read has worked. Anything the page could not read or draw would appear here, one line each, with how many times it happened.</div>';
+    } else q.innerHTML += '<div class="changesNote" style="margin:6px 0 0">Everything the page has tried to read has worked. Anything the page could not read or draw would appear here as one line each with a count of the times it happened.</div>';
     box.appendChild(q);
   }
-  out.textContent = 'Everything here that makes or changes a file, and the other pages.';
+  out.textContent = 'Everything here that makes or changes a file and the other pages.';
 }
 
 /* ---- A tile on a sheet opens alone -------------------------------------------
@@ -1448,7 +1448,7 @@ function mapParts(resid, propResid) {
      Hall, the caves and the cellars linked to no strip. */
   try {
     const land = zoneLandscapeArg(level);
-    if (land !== null && refExists(0x8400 + Math.abs(land))) chips.push(partChip(land < 0 ? 'Landscape, no sky' : 'Landscape', 0x8400 + Math.abs(land)));
+    if (land !== null && refExists(0x8400 + Math.abs(land))) chips.push(partChip(land < 0 ? 'Landscape without sky' : 'Landscape', 0x8400 + Math.abs(land)));
   } catch (e) { quiet(e); }
   return chips;
 }
@@ -1611,7 +1611,7 @@ function soundUsageRows(resid, subn) {
     if (lists.length) rows.push(['Default in', lists.map(r => svChip(r, 'for anyone with no sounds set')), '']);
     const eggs = u.eggs.get(n) || [];
     if (eggs.length) rows.push(['Heard in', zoneSquareChips(eggs), '']);
-    if (!rows.length) rows.push(['Played by', [], 'Nothing plays this sound. No script, class, list or egg in the file names it.']);
+    if (!rows.length) rows.push(['Played by', [], 'Nothing plays this sound. No script, class, list, or egg in the file names it.']);
   } else if (subn === 143) {
     const chips = chipsFor(u.music.get(resid - 0x9000));
     rows.push(['Played by', chips, chips.length ? '' :
@@ -1977,7 +1977,7 @@ function monsterTopFlagSites() {
   if (DERIVED.MONSTER_TOP_FLAG_SITES) return DERIVED.MONSTER_TOP_FLAG_SITES;
   const out = new Map();
   let mf = null;
-  try { mf = appImage() ? exeMonsterFields() : null; } catch (e) { quiet(e, 'the unit fields, for the top half of the flags'); }
+  try { mf = appImage() ? exeMonsterFields() : null; } catch (e) { quiet(e, 'the unit fields for the top half of the flags'); }
   const f = mf && mf.fields.find(x => x.half === 'high');
   if (!f) return out;
   try {
@@ -2025,7 +2025,7 @@ function unitsWithTopFlag(bit) {
      pool and shore) or off them (`bt`: 0x10000000, the child, the gator,
      the goat, the unicorn and the titan, off rope and fence).
 
-   A rule that needs two of the unit's bits at once (a door, for 0x0C with
+   A rule that needs two of the unit's bits together (a door, for 0x0C with
    0x08000000, which no unit has) has a third test where the result
    would be and is left out. Two single tests read the word through the
    monster's pointer: TActiveMonster::HandleMove, on a square with
@@ -2106,7 +2106,7 @@ function exeUnitMoveRules() {
     // The party's mark, 0x80000000, which GetMonstAttrs ORs in for a party
     // member and that is set in the king's unit itself (Alaric is drawn with
     // it). CanMove tests it twice: first beside the walk-through-walls byte
-    // option-w flips with cheats on, answering 1 at once, then, on a square
+    // option-w flips with cheats on, answering 1 immediately, then, on a square
     // that blocks, before letting the mover onto it when what blocks it is a
     // character with the party bit (0x40 of its byte 8). The name describes
     // the second, which is all it does in play; it read "moves as a party
@@ -2422,7 +2422,7 @@ function showMonsterDetail(idx) {
     const still = sites.filter(s => s.beh === 0);
     if (r.proptype === 297 && still.length === 1 && sites.length > 1) {
       const shownText = srcQuoteText(0x187F, 'Instead, he just sits in his mountain strongholds, awaiting a death that will never truly come.');
-      if (/<button/.test(shownText)) h += '<div class="sv-note">The page takes the one that stands still for Tavara. Ur-Sylph, of the traitor who destroyed a colony: ' + shownText + '</div>';
+      if (/<button/.test(shownText)) h += '<div class="sv-note">The page identifies the one that stands still as Tavara. Ur-Sylph speaks of the traitor who destroyed a colony: ' + shownText + '</div>';
     }
   }
   panel.innerHTML = h;
@@ -2446,14 +2446,14 @@ function showMonsterDetail(idx) {
       const app = appImage();
       if (u.kind === 'octo') how.innerHTML = lay + ': <b>a body with ' + (u.rule ? srcNum(u.rule.arms, u.rule.arms.v + ' arms') : '8 arms') + '</b> of ' +
         (u.arm !== null ? svLink(propDisplayName(u.arm) || ('prop ' + u.arm), 'showMonsterDetail(' + (parseMonsterStats().findIndex(m => m.proptype === u.arm)) + ')') : 'no class') +
-        ', the class named by its key 54, with arm <i>i</i> at aspect <i>i</i> \u00d7 ' +
+        ' (the class named by its key 54). Arm <i>i</i> is at aspect <i>i</i> \u00d7 ' +
         (u.rule && u.rule.aspectStep ? srcNum(u.rule.aspectStep, String(u.step)) : String(u.step)) +
         ' (the frames for one direction) on the ' + (u.rule ? srcNum(u.rule.dx, 'eight squares') : 'eight squares') + ' around it' +
         '.' + (app ? ' ' + pefChip('TOctoMonster::TOctoMonster') : '');
       else if (u.kind === 'crawl') how.innerHTML = lay + ': <b>a head with its tail behind it</b>. The tail is a second record at the head’s aspect plus ' + (u.rule ? srcNum(u.rule.tailOffset, '8') : '8') +
         '. The layout sets which kind it is.' + (app ? ' ' + pefChip('TCrawlMonster::TCrawlMonster') + pefChip('TActiveMonster::CreateMonster') : '');
-      else if (u.kind === 'span') how.innerHTML = lay + ': one record, and <b>its tiles span ' + whole.cols + ' by ' + whole.rows + '</b> according to their attributes, as a thing placed in the world does.';
-      else how.innerHTML = lay + ': one record and one tile, and the layout sets the frame.' + (app ? ' ' + pefChip('TActiveMonster::AdjustAspect') : '');
+      else if (u.kind === 'span') how.innerHTML = lay + ': one record whose <b>tiles span ' + whole.cols + ' by ' + whole.rows + '</b> according to their attributes. A thing placed in the world does the same.';
+      else how.innerHTML = lay + ': one record and one tile. The layout sets the frame.' + (app ? ' ' + pefChip('TActiveMonster::AdjustAspect') : '');
       box.appendChild(how);
       panel.appendChild(box);
     }
@@ -2640,7 +2640,7 @@ function scriptPaneFor(value) {
 const SCRIPT_SUBN = new Set([0,1,2,3,4,7,8,9,10,11,12,13,14,15,16,19,20,23,24,25,26,27,29,47]);
 
 // `sameResource` is a re-render of what is already open (a listing chosen),
-// which stays on the view the reader is on rather than choosing afresh.
+// which stays on the view the reader is on rather than choosing again.
 function renderText(sameResource) {
   const out = document.getElementById('output');
   const sel = document.getElementById('residSelect');
@@ -2757,7 +2757,7 @@ function renderText(sameResource) {
                 "   Length: " + info.durationSec.toFixed(1) + "s\n" +
                 "Parts:\n" + (gm || "  (none declared)") + "\n\n" +
                 "\"Play with QuickTime's Instruments\" plays it through the samples QuickTime 3\n" +
-                "shipped, fetched from archive.org (7 MB) the first time.\n\n";
+                "shipped. The page fetches them from archive.org (7 MB) the first time.\n\n";
         if (midiBtn) midiBtn.style.display = '';
         if (qtPlayBtn) qtPlayBtn.style.display = '';
         if (midiInBtn) midiInBtn.style.display = '';
@@ -2791,7 +2791,7 @@ function renderText(sameResource) {
                        'The body starts at +0x' + named.bodyOffset.toString(16).toUpperCase() +
                        ' and runs ' + (resData.length - named.bodyOffset) + ' bytes.\n' +
                        'It is not Delver script code. Running the disassembler over it\n' +
-                       'produces meaningless output, and its real format is unknown.\n' +
+                       'produces meaningless output. Its real format is unknown.\n' +
                        'The bytes are in the raw dump below.';
         } else {
           /* Two renderers over one decoder. `dvmRender` is the raw listing and
@@ -3288,7 +3288,7 @@ function renderConversationPane(data, subn, resid) {
   let head = '';
   if (subn === 8) {
     const nm = window.SHOW_BUILTIN_LABELS ? DIALOGUE_GROUP_NAMES[resid] : null;
-    head = nm ? 'Generic <b>' + svEsc(nm) + '</b> topics, shared by everyone who uses this group'
+    head = nm ? 'Generic <b>' + svEsc(nm) + '</b> topics that everyone who uses this group shares'
               : 'Generic prompts';
   } else {
     const chain = conv.groups.map(g =>
@@ -3454,8 +3454,8 @@ function startResourceEdit() {
   document.getElementById('editBytesText').value = hex.trimEnd();
   document.getElementById('editBytesNote').textContent =
     'Plaintext bytes of 0x' + currentResid.toString(16).toUpperCase() +
-    (dec.wasDecrypted ? ' (the file stores it encrypted, and the rebuild encrypts it again)' : '') +
-    '. The page ignores spaces, and the length may change. Emptying it removes the ' +
+    (dec.wasDecrypted ? ' (the file stores it encrypted and the rebuild encrypts it again)' : '') +
+    '. The page ignores spaces and the length may change. Emptying it removes the ' +
     'resource from the file.';
   document.getElementById('editBytesWrap').style.display = '';
 }
@@ -3483,7 +3483,7 @@ function codeEditBytes() {
   const starts = new Set(dvmDisassemble(b.subarray(fn[0], fn[1]), 3).ops.map(o => fn[0] + o[0]));
   starts.add(fn[1]);
   if (!starts.has(at)) throw new Error('0x' + at.toString(16).toUpperCase() + ' is not where an instruction starts');
-  if (to !== null && (to < at || to > fn[1] || !starts.has(to))) throw new Error('0x' + to.toString(16).toUpperCase() + ' is not where an instruction starts, after the first, in the same function');
+  if (to !== null && (to < at || to > fn[1] || !starts.has(to))) throw new Error('0x' + to.toString(16).toUpperCase() + ' is not the start of an instruction after the first in the same function');
   const asm = dvmAssemble(document.getElementById('editCodeText').value, resid);
   const rl = dvmRelink(b, resid, at, to === null ? 0 : to - at, asm);
   return { resid, at, fn, asm, rl };
@@ -3495,7 +3495,7 @@ function startCodeEdit() {
   document.getElementById('editCodeTo').value = '';
   document.getElementById('editCodePreview').textContent = '';
   document.getElementById('editCodeNote').textContent = 'Instructions for 0x' + currentResid.toString(16).toUpperCase() +
-    ', one per line, as the raw listing prints them. The page inserts them at the offset given, replacing the instructions up to the second offset if there is one, and adjusts every other offset in the resource around them. A label is a name followed by a colon on its own line, and a jump to it reads "then -> name" or "branch name".';
+    ' (one per line as the raw listing prints them). The page inserts them at the offset given. They replace the instructions up to the second offset if there is one. The page adjusts every other offset in the resource around them. A label is a name followed by a colon on its own line. A jump to it reads "then -> name" or "branch name".';
   document.getElementById('editCodeWrap').style.display = '';
 }
 function cancelCodeEdit() { document.getElementById('editCodeWrap').style.display = 'none'; }
@@ -3536,7 +3536,7 @@ function parseHexBytes(text) {
 
 function applyResourceEditFromText() {
   const bytes = parseHexBytes(document.getElementById('editBytesText').value);
-  if (!bytes) { setStatus('That is not hex. Enter pairs of 0–9 and a–f. The page ignores spaces, and the count must be even.', true); return; }
+  if (!bytes) { setStatus('That is not hex. Enter pairs of 0–9 and a–f. The page ignores spaces and the count must be even.', true); return; }
   if (applyResourceEdit(currentResid, bytes)) cancelResourceEdit();
 }
 
@@ -3549,7 +3549,7 @@ function applyResourceEditFromText() {
    with the reason on the status line. */
 function addResource(resid, data, encrypted) {
   const spec = delverArchiveSpec(ARCHIVE.bytes);
-  if (!spec) { setStatus('The page could not read the open file again, so the file is as it was.', true); return false; }
+  if (!spec) { setStatus('The page could not read the open file again. The file is as it was.', true); return false; }
   if (spec.resources.some(r => r.resid === resid)) { setStatus('0x' + resid.toString(16).toUpperCase() + ' is already in the file.', true); return false; }
   spec.resources.push({ resid, data, encrypted: !!encrypted });
   const dirty = new Set(window.EDITED_RESIDS);
@@ -3564,7 +3564,7 @@ function addResource(resid, data, encrypted) {
 
 function applyResourceEdit(resid, newData) {
   const spec = delverArchiveSpec(ARCHIVE.bytes);
-  if (!spec) { setStatus('The page could not read the open file again after the change, so nothing changed.', true); return false; }
+  if (!spec) { setStatus('The page could not read the open file again after the change. Nothing changed.', true); return false; }
   const entry = spec.resources.find(r => r.resid === resid);
   if (!entry) { setStatus('0x' + resid.toString(16).toUpperCase() + ' is not in the file.', true); return false; }
   if (newData.length) entry.data = newData;
@@ -3630,8 +3630,8 @@ function togglePropEdit(propResid, index) {
     fld('d3 0x', 'd3', rec.d3.toString(16).padStart(4, '0').toUpperCase()) +
     fld('ref 0x', 'storeref', rec.storeref.toString(16).padStart(4, '0').toUpperCase()) +
     '<button class="sv-chip" onclick="applyPropEditForm(' + propResid + ',' + index + ')">Apply</button>' +
-    '<div class="inspDim">x and y are the location in the file. For a prop that is carried or inside something, ' +
-    'they give the holder, not a square. Apply rebuilds the whole file.</div>';
+    '<div class="inspDim">x and y are the location in the file. A prop in someone’s pack or inside something ' +
+    'has its holder there and not a square. Apply rebuilds the whole file.</div>';
   host.style.display = '';
 }
 
@@ -3715,7 +3715,7 @@ const DISK_ARCHIVE_NAME = 'Cythera Data';
    which is why index.html fetches the `.hqx` and not the data fork. */
 function missingForkWarning(rsrc) {
   if (rsrc && rsrc.length) return null;
-  return 'This file opened without its resource fork, so the disk will not ' +
+  return 'This file opened without its resource fork. The disk will not ' +
          'work in the game. Cythera rejects it with “Unable to open RT”. Open the ' +
-         '.hqx (or a MacBinary copy) instead of the data fork alone, and export again.';
+         '.hqx (or a MacBinary copy) instead of the data fork alone and export again.';
 }
