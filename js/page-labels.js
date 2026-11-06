@@ -17,7 +17,7 @@
    item index, the zone names, the map's tile canvases and paths, forty-odd
    tables in all -- were once `window.NAME` memos and module-level Maps,
    cleared by name in resetDerivedCaches() when another file opened. That
-   list missed ten entries at once on 16 September 2026 and could miss more.
+   list missed ten entries together on 16 September 2026 and could miss more.
    Since 19 September they live on the archive object js/delv-archive.js
    returns, under its `derived` map, the way the delv tier's tables do:
    `DERIVED.SCHEDULES` reads and writes the open archive's entry and is
@@ -187,34 +187,34 @@ function labelForResource(subn, n, resid) {
    A type in no kind falls under "Other". */
 const RSRC_KINDS = [
   { id: 'screens', label: 'Screens', types: ['PICT'],
-    note: 'Whole pictures: the title screen, the main menu and its parts, the DELVER stone, two night title scenes and the paper doll. The program adds the two Ambrosia logos.',
+    note: 'Whole pictures: the title screen, the main menu with its parts, the DELVER stone, two night title scenes, and the paper doll. The program adds the two Ambrosia logos.',
     view: 'SCREENS' },
   { id: 'fonts', label: 'Fonts', types: ['sfnt', 'NFNT', 'FOND', 'TxSt'],
     note: 'The game’s fonts: Argos A Nouveau, the Seldane script at two sizes, and the text styles that say which font each kind of text uses.',
     view: 'FONTS' },
   { id: 'strings', label: 'Strings', types: ['STR#', 'STR ', 'TEXT', 'styl'],
-    note: 'Lists of text. In Cythera Data: the default conversation keywords, the credits and the editor’s lists. In the program: the equipment slots, combat buttons, strategies, help balloons and the combat AI vocabulary.',
+    note: 'Lists of text. In Cythera Data: the default conversation keywords, the credits, and the editor’s lists. In the program: the equipment slots, combat buttons, strategies, help balloons, and the combat AI vocabulary.',
     view: 'STRINGS' },
   { id: 'sounds', label: 'Sounds', types: ['snd '],
-    note: 'Sounds from the program: get, use, look, talk and attack. The game’s other sounds and its music are under Audio.',
+    note: 'Sounds from the program: get, use, look, talk, and attack. The game’s other sounds and its music are under Audio.',
     view: 'APPSND' },
   { id: 'icons', label: 'Finder and command icons', types: ['ICN#', 'icl4', 'icl8', 'ics#', 'ics4', 'ics8', 'cicn', 'BNDL', 'FREF'],
-    note: 'The Finder icons for the program, the data file, a saved game and a patch, and the command icons: move, take, look, talk and attack.',
+    note: 'The Finder icons for the program, the data file, a saved game, and a patch. The command icons for move, take, look, talk, and attack are here too.',
     view: null },
   { id: 'cursors', label: 'Cursors', types: ['crsr', 'CURS', 'acur'],
-    note: 'The pointer in every state: the walking directions, the hand, the eye, the speech bubble, the sword, the magnifier, the pointing finger and the spinning ball.',
+    note: 'The pointer in every state: the walking directions, the hand, the eye, the speech bubble, the sword, the magnifier, the pointing finger, and the spinning ball.',
     view: null },
   { id: 'menus', label: 'Menus', types: ['MENU', 'MBAR', 'xmnu', 'CMNU', 'mctb', 'MDEF'],
     note: 'Every menu the game can show, with its keyboard shortcuts, and the two menu bars.',
     view: null },
   { id: 'dialogs', label: 'Dialogs and windows', types: ['DLOG', 'DITL', 'ALRT', 'WIND', 'CNTL', 'dctb', 'actb', 'nrct', 'CDEF', 'WDEF', 'LDEF', 'ppat', 'pltt', 'clut'],
-    note: 'The dialog boxes, alerts, windows and controls, with their colors, backdrop patterns and palettes.',
+    note: 'The dialog boxes, alerts, windows, and controls with their colors, backdrop patterns, and palettes.',
     view: null },
   { id: 'editor', label: 'Editor', types: ['eSTM', 'eBRS', 'MSta', 'FILT', 'LINF', 'DATA', 'PORT', 'RMAP', 'TMPL'],
-    note: 'What the map editor kept in the data file: stamps and brushes (under Composites), three saved game states (MSta), its tile names, the color cycles and the ResEdit templates. The displacement filters (FILT) belong to the game and have separate cards. The game reads none of the rest, so these readings are guesses. MSta has quest states (Plague Cured is quest value 2 at 10), DATA 260 is an earlier list of tile names, DATA 261 is the color-cycling ramps, and PORT 0 and 1 have no structure this page could find.',
+    note: 'What the map editor kept in the data file: stamps and brushes (under Composites), three saved game states (MSta), its tile names, the color cycles, and the ResEdit templates. The displacement filters (FILT) belong to the game and have separate cards. The game reads none of the rest. These readings are estimates. MSta has quest states (Plague Cured is quest value 2 at 10). DATA 260 is an earlier list of tile names. DATA 261 is the color-cycling ramps. PORT 0 and 1 have no structure this page could find.',
     view: 'RSRC' },
   { id: 'engine', label: 'Engine', types: ['Lite', 'Page', 'TILE', 'Audt', 'Pref', 'MemU', 'Delv', 'vers', 'SIZE', 'cfrg', 'CODE'],
-    note: 'What the program reads about itself: the light cones, the Delver engine’s help pages, the preference defaults, the version records and the program’s code. How much memory it requests is in SIZE.',
+    note: 'What the program reads about itself: the light cones, the Delver engine’s help pages, the preference defaults, the version records, and the program’s code. How much memory it requests is in SIZE.',
     view: null }
 ];
 const RSRC_KIND_OF = new Map();
@@ -479,7 +479,7 @@ function applyLabel(el, resid) {
   el.classList.toggle('placeholder', !txt);
   // Still recorded in the tooltip -- just not in the colour of the text.
   if (txt && labelSource(resid) === 'builtin')
-    el.title = 'Name supplied by this page, not found in the file';
+    el.title = 'This page supplies the name. The file does not have it.';
   else if (txt && editorNameSuffix(resid, txt))
     el.title = editorNameSuffix(resid, txt).replace(/^ \(|\)$/g, '');
   else el.removeAttribute('title');
@@ -681,7 +681,7 @@ function labelForUnnormalized(resid) {
   // 0x8EFF is IN the tile-sheet subindex but is not a tile sheet: it is the
   // sized 194x127 tombstone slab (see tileSheetIsSized). Say so where it is
   // listed, so nobody reads it as sixteen tiles.
-  if (resid === 0x8EFF) return 'Tombstone Slab, a sized image, not a tile sheet';
+  if (resid === 0x8EFF) return 'Tombstone Slab (a sized image and not a tile sheet)';
   if (subn === 141) { const w = tileSheetWords(n); return 'Tile Sheet ' + n + (w ? ': ' + w : ''); }
   if (subn === 142) { const w = pictureWords(resid); return 'General Graphic ' + n + (w ? ': ' + w : ''); }
   if (subn === 144) return 'Sound ' + n + (labelSourceOn('delvmod') && DELVMOD_SOUND_NAMES[resid] ? ': ' + DELVMOD_SOUND_NAMES[resid] : '');
@@ -693,7 +693,7 @@ const SOUND_CATEGORIES = new Set([144]);
 function decodeSound(resData) {
   let p = 0;
   const magic = fourcc(resData, 0); p += 4;
-  if (magic !== 'asnd') throw new Error("it starts with '" + magic + "', not 'asnd'");
+  if (magic !== 'asnd') throw new Error("it starts with '" + magic + "' and not 'asnd'");
   const duration = u32be(resData, p); p+=4;
   const rate = u16be(resData, p); p+=2;
   const flags = u16be(resData, p); p+=2;
@@ -815,7 +815,7 @@ function downloadCurrentWAV() {
 }
 
 // --- undither toggle --------------------------------------------------
-// This used to hand the resource to a separate page over postMessage and
+// This used to pass the resource to a separate page over postMessage and
 // sessionStorage. The tuning is settled, so the work happens here now and the
 // hand-off is gone; cythera_graphics_undither.html is still where the settings
 // can be explored, but nothing depends on it.
@@ -1367,18 +1367,18 @@ function animateSpriteTile(host, info, rec, opts) {
    the game's text. "class" is left alone on the program's pages, where it
    means a class of the program's code. */
 const GLOSSARY = [
-  { key: 'resource fork', re: 'resource forks?', text: 'The second of a classic Mac file’s two parts. It has numbered resources such as icons, fonts, sounds and menus.' },
-  { key: 'data fork', re: 'data forks?', text: 'The first of a classic Mac file’s two parts, with the file’s main contents. Cythera Data’s data fork has the game’s world, scripts, pictures and sound.' },
+  { key: 'resource fork', re: 'resource forks?', text: 'The second of a classic Mac file’s two parts. It has numbered resources such as icons, fonts, sounds, and menus.' },
+  { key: 'data fork', re: 'data forks?', text: 'The first of a classic Mac file’s two parts. It has the file’s main contents. Cythera Data’s data fork has the game’s world, scripts, pictures, and sound.' },
   { key: 'subindex', re: 'subindex(?:es)?', text: 'One of the 34 sections of Cythera Data. Each has one kind of resource, such as portraits or dialogue, and a resource’s number gives its section.' },
-  { key: 'resource', re: 'resources?', text: 'One numbered piece of a file, such as a picture, a script, a tune or a table.' },
-  { key: 'prop type', re: 'prop types?', text: 'Which kind of thing a prop is, a number from 0 to 1,023. The type gives the prop its first picture, its name and its class.' },
-  { key: 'prop', re: 'props?', text: 'Anything placed on a map, such as an item, a piece of furniture, a door, a creature or a person. Each zone has a list of its props.' },
-  { key: 'class', re: 'class(?:es)?', text: 'The script that makes a kind of thing behave as it does, such as what happens when the hero uses it, picks it up or wears it. Each prop type has its class.', skipOn: ['APPPEF', 'APPRSRC'] },
+  { key: 'resource', re: 'resources?', text: 'One numbered piece of a file such as a picture, a script, a tune, or a table.' },
+  { key: 'prop type', re: 'prop types?', text: 'Which kind of thing a prop is (a number from 0 to 1,023). The type gives the prop its first picture, its name, and its class.' },
+  { key: 'prop', re: 'props?', text: 'Anything placed on a map such as an item, a piece of furniture, a door, a creature, or a person. Each zone has a list of its props.' },
+  { key: 'class', re: 'class(?:es)?', text: 'The script that makes a kind of thing behave as it does. It sets what happens when the hero uses it, picks it up, or wears it. Each prop type has its class.', skipOn: ['APPPEF', 'APPRSRC'] },
   { key: 'aspect', re: 'aspects?', text: 'A number on a placed thing that picks which of its type’s pictures and names it shows. The thing behaves the same at any aspect unless its class reads the aspect.' },
-  { key: 'Data1', re: 'Data1', text: 'One of two numbers from 0 to 255 on each placed thing, with Data2. What they mean depends on the class. A bookshelf’s Data1 is the book on it, and a locked door’s Data1 is the signal that opens it.' },
-  { key: 'Data2', re: 'Data2', text: 'The second of two numbers from 0 to 255 on each placed thing, with Data1. What it means depends on the class.' },
-  { key: 'zone', re: 'zones?', text: 'One map of the game, with the props placed on it and the scripts that belong to it.' },
-  { key: 'egg', re: 'eggs?', text: 'An invisible trigger placed on a map. An egg can hatch a creature, mark a room, set the area’s name and music as the party comes near, or bring nearby things into view.' }
+  { key: 'Data1', re: 'Data1', text: 'One of two numbers from 0 to 255 on each placed thing (the other is Data2). What they mean depends on the class. A bookshelf’s Data1 is the book on it. A locked door’s Data1 is the signal that opens it.' },
+  { key: 'Data2', re: 'Data2', text: 'The second of two numbers from 0 to 255 on each placed thing (the first is Data1). What it means depends on the class.' },
+  { key: 'zone', re: 'zones?', text: 'One map of the game with the props placed on it and the scripts that belong to it.' },
+  { key: 'egg', re: 'eggs?', text: 'An invisible trigger placed on a map. An egg can hatch a creature, mark a room, bring nearby things into view, or set both the area’s name and its music as the party comes near.' }
 ];
 const GLOSSARY_RE = new RegExp('\\b(' + GLOSSARY.map(g => g.re).join('|') + ')\\b', 'gi');
 const GLOSSARY_ONE = GLOSSARY.map(g => [g, new RegExp('^(?:' + g.re + ')$', 'i')]);

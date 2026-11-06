@@ -432,7 +432,7 @@ function unitSteps(pt) {
      a cell it was sixteen blobs in turn, each cut off where it joins a
      square that was not there. It grows and shrinks over four squares
      instead (the maintainer, 28 October 2026): one square, then a square
-     more at a time round the four, clockwise, until all four are there,
+     more at a time around the four, clockwise, until all four are there,
      then a square less at a time in the same order until one is left. The
      next round grows from the square left, so the lone square goes round
      the four corners. Every square wears the frame that joins the squares
@@ -901,7 +901,7 @@ function renderPropTypeSheet() {
     // still, because the aspects in it are the scenario's, not a cycle.
     // Otherwise galleryFrames picks the anchors and the stride, and the cell
     // shows the first of them and then walks the rest.
-    // A sprite is laid out at once and painted, and set walking, when its
+    // A sprite is laid out immediately and painted, and set walking, when its
     // cell comes near the screen (lazyTile): 392 of them drawn before the
     // gallery showed was most of its first paint on a phone, for the twenty
     // that fit on a phone's screen (27 September 2026).
@@ -937,7 +937,7 @@ function renderPropTypeSheet() {
     grid.appendChild(cell);
   }
   out.textContent = scenery
-    ? entries.length + ' placed things that are neither units nor carried. The page draws each whole, covering the squares its tiles span. Where the scenario puts several of the same class side by side at different aspects, it draws the whole group as it stands' + (q ? ', matching \u201c' + q + '\u201d' : '') + '.'
+    ? entries.length + ' placed things that are neither units nor carried. The page draws each whole over the squares its tiles span. Where the scenario puts several of the same class side by side at different aspects it draws the whole group as it stands' + (q ? '. These match \u201c' + q + '\u201d' : '') + '.'
     : entries.length + ' prop types with artwork' + (q ? ' matching \u201c' + q + '\u201d' : '') + '.';
 }
 
@@ -998,7 +998,7 @@ function showPropTypeDetail(pt) {
       'color:' + (own ? '#cfc4a0' : '#8a8064');
     runHead.textContent = (run.name || 'unnamed in 0xF004') + ' \u00b7 frame' +
       (run.frames.length === 1 ? ' ' + run.frames[0] : 's ' + run.frames[0] + ' to ' + run.frames[run.frames.length-1]) +
-      (own ? '' : ', a neighbor on this sheet, not this prop');
+      (own ? '' : ' (a neighbor on this sheet and not this prop)');
     panel.appendChild(runHead);
     // A frame saves as a GIF from its view, beside the PNG; the button
     // that saved a run as an animated GIF went on 16 September 2026 (the
@@ -1111,23 +1111,23 @@ const ITEM_FIELD_INFO = {
   // Read by FillIntfCache as seven flag bits (0x01 to 0x40), not a count:
   // 0x04 is the letter under the picture (itemLetter). The rest are copied
   // into the class flag table and not yet followed to their readers.
-  0x28: { scalar:true, hex:true, gloss:'Flags. 0x04: the item shows a letter under its picture, as the keys do.' },
+  0x28: { scalar:true, hex:true, gloss:'Flags. 0x04: the item shows a letter under its picture as the keys do.' },
   // The combat fields were decoded on 5 September 2026 by following the
   // routines that read them: the attack resolver 0xE87 (type, skill, the
   // two sounds, the hit effect), the AI's weapon choice 0x3042 (reach,
   // squared against the distance), the bow scripts 0x903-0x988
   // (ammunition class and range) and the weapon describer 0xEB2 (damage).
-  0x2A: { gloss:'Melee: damage, reach in squares, damage type, the skill it is used with, the miss sound, the hit sound, and the hit effect (a reference into this resource).' },
-  0x2B: { gloss:'Thrown: damage, range, the effect, the sound.' },
+  0x2A: { gloss:'Melee: damage, reach in squares, damage type, the skill it goes with, the miss sound, the hit sound, and the hit effect (a reference into this resource).' },
+  0x2B: { gloss:'Thrown: damage, range, the effect, and the sound.' },
   0x2C: { scalar:true, gloss:'Points of protection this armor contributes.' },
-  0x2D: { gloss:'Ammunition: the class a launcher must match, the sound of its flight, damage type.' },
-  0x2E: { gloss:'Ranged: the ammunition class it fires, range in squares, damage, the sound of a shot.' },
-  0x2F: { gloss:'Shield: how much it blocks, and the skill (Shield) added to the block.' },
-  0x30: { scalar:true, gloss:'Reagent number, used by alchemy.' },
+  0x2D: { gloss:'Ammunition: the class a launcher must match, the sound of its flight, and damage type.' },
+  0x2E: { gloss:'Ranged: the ammunition class it fires, range in squares, damage, and the sound of a shot.' },
+  0x2F: { gloss:'Shield: how much it blocks and the skill (Shield) added to the block.' },
+  0x30: { scalar:true, gloss:'Reagent number for alchemy.' },
   0x32: { gloss:'Light this item casts.' },
   0x34: { gloss:'Lock settings: what the game tests a key or a lockpick against.' },
-  0x3B: { gloss:'Sounds. A prop plays the first one where it stands; a creature’s are the sounds of its fights.' },
-  0x3C: { scalar:true, unit:'oboloi', gloss:'Money value. Only the coin itself has one, and scripts work out shop prices.' }
+  0x3B: { gloss:'Sounds. A prop plays the first one where it stands. A creature’s are the sounds of its fights.' },
+  0x3C: { scalar:true, unit:'oboloi', gloss:'Money value. Only the coin itself has one. Scripts work out shop prices.' }
 };
 // Keys that mark an item as gear rather than goods, used only for grouping.
 const ITEM_COMBAT_KEYS = [0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F];
@@ -1626,7 +1626,7 @@ function aspectUseAt(pt, a) {
    one 16-bit value). They have no fixed meaning: each class script reads
    them for a different purpose -- a door its lock, a passage its destination,
    a candle its countdown -- and the weapons' purpose is not in the weapon
-   classes at all but in the attack resolver 0xE87, which reads Data1 off a
+   classes at all. It is in the attack resolver 0xE87, which reads Data1 off a
    weapon that is both a MeleeWeapon (0x2A) and Equipment (0x26), adds it to
    the blow after the damage roll (Random(0, damage) + 1 + Data1) and sets
    0x80, a magic bit, on the damage type when it is not zero. An arrow's
@@ -1734,7 +1734,7 @@ function propWordMount(pt, host) {
   host.innerHTML = '';
   const h4 = document.createElement('h4'); h4.textContent = 'Prop record'; host.appendChild(h4);
   const read = document.createElement('div'); read.className = 'pwReadout'; host.appendChild(read); st.read = read;
-  const sub = document.createElement('div'); sub.className = 'mechSub'; sub.textContent = 'Aspect: the tile each one shows, counted on from the class’s base tile'; host.appendChild(sub);
+  const sub = document.createElement('div'); sub.className = 'mechSub'; sub.textContent = 'Aspect: the tile each one shows (counted on from the class’s base tile)'; host.appendChild(sub);
   const rail = document.createElement('div'); rail.className = 'pwRail';
   for (let n = 0; n < 32; n++) {
     const b = document.createElement('button'); b.type = 'button';
@@ -1826,7 +1826,7 @@ function swingFramesHTML(pt) {
     return (u ? '<img class="brandTile" src="' + u + '" alt="" width="20" height="20"> ' : '') +
            srcNum({ resid: sw.resid, at: sw.off }, propWordHex(t)); }).join(', ');
   const where = svLink(sw.own ? 'its class script' : 'the outcome routine’s default', 'jumpToResource(' + sw.resid + ')', propWordHex(sw.resid) + ' at ' + propWordHex(sw.off));
-  return sw.own ? ' In a fight it swings through ' + tiles + ' (' + where + ').' : ' It has no swing animation, so in a fight it plays the default (' + where + '): ' + tiles + '.';
+  return sw.own ? ' In a fight it swings through ' + tiles + ' (' + where + ').' : ' It has no swing animation. In a fight it plays the default (' + where + '): ' + tiles + '.';
 }
 
 // Another class's page, at the aspect that shows the same tile.
@@ -1838,10 +1838,10 @@ function propWordAspectSentence(pt) {
   const own = svEsc(propDisplayName(pt) || 'this item');
   let ar = null;
   try { ar = aspectReaders().get(pt) || null; } catch (e) { ar = null; }
-  if (!ar) return 'This prop type has no class script, so the aspect changes only the picture and the name.';
-  if (ar.reads) return w('This class’s script reads its aspect') + ' (' + ar.reads + (ar.reads === 1 ? ' place' : ' places') + '): what a ' + own + ' does depends on it, not just how it looks.' + (ar.writes ? ' It also changes it, to keep a state.' : '');
-  if (ar.writes) return 'This class’s script ' + w('writes its aspect') + ' to keep a state and never reads it; the pictures after the base tile are what it turns into.';
-  return w('This class’s script never reads its aspect') + ', so at any aspect it is the same ' + own + ' in every number, with a different picture and name.';
+  if (!ar) return 'This prop type has no class script. The aspect changes only the picture and the name.';
+  if (ar.reads) return w('This class’s script reads its aspect') + ' (' + ar.reads + (ar.reads === 1 ? ' place' : ' places') + '). What a ' + own + ' does depends on it and not just how it looks.' + (ar.writes ? ' It also changes it to keep a state.' : '');
+  if (ar.writes) return 'This class’s script ' + w('writes its aspect') + ' to keep a state and never reads it. It turns into the pictures after the base tile.';
+  return w('This class’s script never reads its aspect') + '. At any aspect it is the same ' + own + ' in every number with a different picture and name.';
 }
 // What using the item at this aspect does, for the classes that read the
 // aspect at use: a food's nutrition and its line, a potion's effect.
@@ -1849,10 +1849,10 @@ function propWordUseSentence(pt, a) {
   const w = s => '<b style="color:#fff">' + s + '</b>';
   const u = aspectUseAt(pt, a);
   if (!u) return '';
-  if (u.kind === 'food') return u.beyond ? ' The class reads a nutrition for ' + u.count + ' variants; beyond those, the amount comes from whatever follows the table.'
-    : ' Eaten, it feeds ' + w('+' + u.plus) + (u.message ? ' and the eater says “' + svEsc(u.message) + '”' : '') + '.';
-  if (u.kind === 'potion') return u.beyond ? ' The class calls one of ' + u.count + ' effect scripts by the aspect; beyond those there is none.'
-    : ' Drunk, it is the ' + w(svEsc(u.name)) + (u.does.length ? ': ' + svEsc(u.does.join('; ')) : '') + (u.message ? ', “' + svEsc(u.message) + '”' : '') + '.';
+  if (u.kind === 'food') return u.beyond ? ' The class reads a nutrition for ' + u.count + ' variants. Past those the amount comes from whatever follows the table.'
+    : ' Eating it feeds ' + w('+' + u.plus) + (u.message ? ' and the eater says “' + svEsc(u.message) + '”' : '') + '.';
+  if (u.kind === 'potion') return u.beyond ? ' The class calls one of ' + u.count + ' effect scripts by the aspect. Past those there is none.'
+    : ' As a drink it is the ' + w(svEsc(u.name)) + (u.does.length ? ': ' + svEsc(u.does.join('; ')) : '') + (u.message ? ' (“' + svEsc(u.message) + '”)' : '') + '.';
   return '';
 }
 function propWordRender() {
@@ -1861,18 +1861,18 @@ function propWordRender() {
   const w = s => '<b style="color:#fff">' + s + '</b>';
   const name = terrainNameFor(tile) || '', own = terrainNameFor(base) || propDisplayName(pt) || '';
   const bits = word.toString(2).padStart(16, '0');
-  let h = '<div class="sv-note" style="margin:0 0 8px">The file stores every placed thing as one number: its prop type, here ' + w(pt) + ' (' + w(propWordHex(pt)) + '), plus 1,024 for each step of aspect. ' +
-    'Aspect <i>n</i> shows the picture <i>n</i> tiles along, with that picture’s name. ' + propWordAspectSentence(pt) + (swingFramesHTML(pt) || (gearTable().some(r => r.pt === pt && r.melee) ? ' The swing in a fight is the class’s animation, whatever the aspect.' : ''));
+  let h = '<div class="sv-note" style="margin:0 0 8px">The file stores every placed thing as one number. It is the prop type (here ' + w(pt) + ' or ' + w(propWordHex(pt)) + ') plus 1,024 for each step of aspect. ' +
+    'Aspect <i>n</i> shows the picture <i>n</i> tiles along and that picture’s name. ' + propWordAspectSentence(pt) + (swingFramesHTML(pt) || (gearTable().some(r => r.pt === pt && r.melee) ? ' The swing in a fight is the class’s animation at every aspect.' : ''));
   let wear = [];
   try { wear = orphanArtReachable(pt); } catch (e) { wear = []; }
   if (wear.length) h += ' At ' + wear.map(x => 'aspect ' + w(x.aspect) + ' it is a ' + w(svEsc(x.name)) + ' (' + propWordHex(x.word) + ')').join(', ') +
-    ', pictures no other item uses, with this item’s numbers.';
+    '. No other item uses these pictures. They have this item’s numbers.';
   h += '</div><div class="pwBits">';
   for (let i = 0; i < 16; i++) {
     if (i === 1 || i === 6) h += '<span class="pwGap"></span>';
     h += '<span class="pwBit ' + (i === 0 ? 'pwSpare' : i < 6 ? 'pwAsp' : 'pwCls') + (bits[i] === '1' ? ' on' : '') + '">' + bits[i] + '</span>';
   }
-  h += '</div><div class="pwKeys"><span style="width:var(--pwb)"></span><span class="pwGap"></span><span style="width:calc(5 * var(--pwb) + 8px)">aspect, 5 bits</span><span class="pwGap"></span><span>class, 10 bits</span></div>';
+  h += '</div><div class="pwKeys"><span style="width:var(--pwb)"></span><span class="pwGap"></span><span style="width:calc(5 * var(--pwb) + 8px)">aspect (5 bits)</span><span class="pwGap"></span><span>class (10 bits)</span></div>';
   h += '<div class="pwRead"><b>' + propWordHex(word) + '</b><span>' + word.toLocaleString('en-US') + '</span><span>' + a + ' × 1,024 + ' + pt + '</span></div>';
   // What is shown, and what is kept.
   let g = null;
@@ -1912,7 +1912,7 @@ function propWordRender() {
     } else if (reader) m = 'The class script ' + propWordOps(reader.ops) + (reader.ops.some(o => /data3/.test(o)) ? ' (Data3 is both bytes read as one value)' : '') + '. What they mean depends on this class.';
     else m = 'This item’s script does not use Data1 or Data2.';
   }
-  m += ' To make it with the create-a-prop cheat, enter ' + w(propWordHex(word)) + ', then ' + w(st.d1) + ' for Data1 (in decimal) and ' + w(propWordHex(st.d2, 2)) + ' for Data2 (in hex).';
+  m += ' The create-a-prop cheat makes it from ' + w(propWordHex(word)) + ' followed by ' + w(st.d1) + ' for Data1 (in decimal) and ' + w(propWordHex(st.d2, 2)) + ' for Data2 (in hex).';
   st.meaning.innerHTML = m;
 }
 
@@ -1968,7 +1968,7 @@ const ITEM_GROUP_ORDER = ['Weapons & Armor', 'Containers', 'Carried Goods'];
 // class script's members (itemGroup), named here from the file's symbol
 // table, and the item test is isInventoryItem's.
 function itemGroupNote(group) {
-  if (group === 'Weapons & Armor') return 'Anything used in a fight: weapons, launchers, ammunition, armor and shields.';
+  if (group === 'Weapons & Armor') return 'Anything used in a fight: weapons, launchers, ammunition, armor, and shields.';
   if (group === 'Containers') return 'Anything that contains other things or has a lock.';
   return 'Everything else the hero can carry.';
 }
@@ -2038,7 +2038,7 @@ function renderItemSheet() {
   if (orphans.length) {
     const h = document.createElement('div');
     h.className = 'propHead';
-    h.innerHTML = '<span class="groupTitle">Unused Art</span><span class="groupNote">Named pictures no item uses. An item placed at one of them has its picture and name, and its numbers stay the same.</span>';
+    h.innerHTML = '<span class="groupTitle">Unused Art</span><span class="groupNote">Named pictures no item uses. An item placed at one of them has its picture and name. Its numbers stay the same.</span>';
     grid.appendChild(h);
     for (const o of orphans) {
       const cell = document.createElement('div');
@@ -2225,7 +2225,7 @@ function classCacheBlock(pt) {
   if (!cw) {
     if (!ic || parseClassTable(0x1000 + pt)) return null;
     return { gist: 'nothing noted',
-      html: '<div class="sv-note" style="margin:0 0 6px">When the game starts, the program notes a few things about each kind of thing from its class script (' + pefChip('FillIntfCache') + '). This kind has no class script, so nothing about it is noted.</div>' +
+      html: '<div class="sv-note" style="margin:0 0 6px">When the game starts the program notes a few things about each kind of thing from its class script (' + pefChip('FillIntfCache') + '). This kind has no class script and the program notes nothing about it.</div>' +
         '<div class="sv-note" style="margin-top:6px">' + mechLink('classflags', 'Mechanics › Class Flags') + '</div>' };
   }
   const cell = 'padding:3px 10px 3px 0;vertical-align:top';
@@ -2240,9 +2240,9 @@ function classCacheBlock(pt) {
   const looked = ic ? [...new Set(ic.has.map(h => h.key).concat(ic.bits.map(x => x.key), ic.tables.map(t => t.key)))].map(itemFieldLabel) : [];
   const noted = [...new Set(cw.bits.map(b => b.key).concat(cw.tables.map(t => t.key)))].map(itemFieldLabel);
   const none = !cw.bits.length && !cw.tables.length;
-  const lede = 'When the game starts, the program notes a few things about each kind of thing, so it does not have to look them up in the script again (' + pefChip('FillIntfCache') + ')' +
+  const lede = 'When the game starts the program notes a few things about each kind of thing so that it does not look them up in the script again (' + pefChip('FillIntfCache') + ')' +
     (looked.length ? '. It looks for ' + looked.map(svEsc).join(', ') + '.' : '.') +
-    (none ? ' None of them applies to this kind, so nothing about it is noted.' : '');
+    (none ? ' None of them applies to this kind and the program notes nothing about it.' : '');
   return {
     gist: none ? 'nothing noted' : noted.slice(0, 3).join(', ') + (noted.length > 3 ? ' and ' + (noted.length - 3) + ' more' : ''),
     html: '<div class="sv-note" style="margin:0 0 6px">' + lede + '</div>' +
@@ -2335,7 +2335,7 @@ function showItemDetail(pt) {
   // a tile in each slot.
   {
     const host = document.createElement('div');
-    fold('word', 'Prop record', propWordHex(pt) + ' at aspect 0, Data1 and Data2', host);
+    fold('word', 'Prop record', propWordHex(pt) + ' at aspect 0 with Data1 and Data2', host);
     try { propWordMount(pt, host); } catch (e) { host.className = 'sv-note'; host.textContent = 'The page could not read the prop record: ' + (e && e.message ? e.message : e); }
   }
   const strangers = runs.filter(r => r.name !== terrainNameFor(base));
@@ -2346,12 +2346,12 @@ function showItemDetail(pt) {
     // The scythe's block runs on into fourteen other things, so the list is
     // capped -- the point is that the block is not all one item, not to
     // enumerate a sheet.
-    note.innerHTML = 'The rest of this part of the sheet holds other things, ' +
+    note.innerHTML = 'The rest of this part of the sheet has other things too (' +
       strangers.slice(0, 6).map(r => '<b style="color:#fff">' + svEsc(r.name || 'unnamed') + '</b> (frame' +
         (r.frames.length === 1 ? ' ' + r.frames[0] : 's ' + r.frames[0] + ' to ' + r.frames[r.frames.length-1]) + ')'
       ).join(', ') +
       (strangers.length > 6 ? ' and ' + (strangers.length - 6) + ' more' : '') +
-      '. A frame block ends where the 16-tile sheet does, not where the item does. ' +
+      '). A frame block ends where the 16-tile sheet does and not where the item does. ' +
       'The names come from 0xF004.';
     panel.appendChild(note);
   }
@@ -2379,7 +2379,7 @@ function showItemDetail(pt) {
     }
     fold('data', 'Class data', cls.data.length + ' field' + (cls.data.length === 1 ? '' : 's'), '<table style="border-collapse:collapse;width:100%">' + rows + '</table>');
   } else if (cls) {
-    fold('data', 'Class data', 'no data fields', '<div class="sv-note">This class has only behavior, and no data fields.</div>');
+    fold('data', 'Class data', 'no data fields', '<div class="sv-note">This class has only behavior and no data fields.</div>');
   }
 
   // The long the application stores for this class at load, computed from
@@ -2434,8 +2434,8 @@ function showItemDetail(pt) {
     if (t) {
       const words = targetWordWords(t.word);
       fold('aimed', 'Aimed at', words.join(', '),
-        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">Its prompt is “' + svEsc(t.prompt) + '”, and its answer is ' + srcNum(t.val, propWordHex(t.word)) +
-        ', which accepts <b>' + words.map(svEsc).join(', ') + '</b>.' + ((t.word & 0x8000) ? ' Within reach means the user’s square and the eight around it.' : '') + '</div>' +
+        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">Its prompt is “' + svEsc(t.prompt) + '”. Its answer is ' + srcNum(t.val, propWordHex(t.word)) +
+        '. It accepts <b>' + words.map(svEsc).join(', ') + '</b>.' + ((t.word & 0x8000) ? ' Within reach means the user’s square and the eight around it.' : '') + '</div>' +
         '<div class="sv-note">' + mechLink('target', 'Mechanics › What the ‘Use’ Command Can Target') + '</div>');
     }
   }
@@ -2445,9 +2445,9 @@ function showItemDetail(pt) {
     try { bl = blastRules(); } catch (e) { bl = null; }
     if (bl && bl.center && bl.resid === (cls && cls.resid)) {
       fold('blast', 'When it goes off', bl.center.v + ' on its square, ' + (bl.edge ? bl.edge.v : '') + ' beside it',
-        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It hands ' + srcNum(bl.center) + ' to everything on its square, ' +
-        srcNum(bl.edge) + ' to the four squares beside it and ' + srcNum(bl.corner) + ' to the four corners, as ' +
-        (bl.type ? svEsc(damageTypeName(bl.type.v)) + ' (type ' + srcNum(bl.type) + ')' : 'its type') + '.</div>' +
+        '<div style="color:#fff;font-size:0.8125rem;line-height:1.55">It deals ' + srcNum(bl.center) + ' to everything on its square. The four squares beside it take ' +
+        srcNum(bl.edge) + ' each and the four corners ' + srcNum(bl.corner) + '. Its damage type is ' +
+        (bl.type ? svEsc(damageTypeName(bl.type.v)) + ' (type ' + srcNum(bl.type) + ')' : 'the one its class sets') + '.</div>' +
         '<div class="sv-note">' + mechLink('damage', 'Mechanics › Damage to Things') + '</div>');
     }
   }
@@ -2519,7 +2519,7 @@ function showItemDetail(pt) {
     body += itemEachOneHTML(pt);
     fold('world', 'In the world', idx.total + ' placed' + (idx.carried + idx.equipped ? ', ' + (idx.carried + idx.equipped) + ' carried' : '') + (idx.contained ? ', ' + idx.contained + ' in containers' : ''), body);
   } else {
-    fold('world', 'In the world', 'none placed', '<div class="sv-note">The original scenario places none of these, so either a script creates it or nothing uses it.</div>');
+    fold('world', 'In the world', 'none placed', '<div class="sv-note">The original scenario places none of these. Either a script creates it or nothing uses it.</div>');
   }
 
   // The key is one prop type with eight different keys, distinguished by
@@ -2535,7 +2535,7 @@ function showItemDetail(pt) {
           '</div>';
       }).join('') +
       '<div class="sv-note">' + lockedNoKey + ' further lock numbers have no matching key. ' +
-      'The lockpick, magic or a script opens those locks.</div>');
+      'The lockpick, magic, or a script opens those locks.</div>');
   }
   {
     const all = document.createElement('div');
