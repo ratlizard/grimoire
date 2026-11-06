@@ -9,7 +9,7 @@
 /* ---- One knob for every size of type ------------------------------------
    Every font-size in this sheet is in rem, so the two rules below are the
    only places a text size is decided. Raising the root raises the whole
-   page at once -- captions, chips, tab labels, table cells, the hover cards
+   page together -- captions, chips, tab labels, table cells, the hover cards
    -- in the proportions the sheet already had.
 
    It was px before, and the cost of that was visible on a desktop screen:
@@ -49,7 +49,7 @@
   .cell.charCell .portraitBox { position:relative; width:76px; height:76px; margin:14px auto; }
   /* Scoped to the portrait itself. This rule used to match ANY canvas inside
      the box, which included the walker -- so the sprite was being blown up to
-     76px and pinned over the portrait instead of walking round it. */
+     76px and pinned over the portrait instead of walking around it. */
   .cell.charCell .portraitBox > canvas.portrait { width:76px !important; height:76px !important; display:block; }
   .cell.charCell .portraitBox > canvas.walker { width:26px !important; height:26px !important; }
   .cell.charCell .lbl { margin-top:6px; display:-webkit-box; -webkit-line-clamp:2;
@@ -184,7 +184,7 @@ body { color:#fff; font-family:var(--face-text); font-synthesis:none;
    are built from the same file and the same checkerboard -- so what is on
    screen is the game's layering: brown planks, and a dithered blue box drawn
    over them. */
-/* No frame round the viewport since 9 September 2026: the dialogue border
+/* No frame around the viewport since 9 September 2026: the dialogue border
    that edged the screen at half strength was the maintainer's to keep and
    he asked for it gone. The folder sheets (.tabSheet) still wear it. */
 h2, #soundLabel { color:#fff !important; font-family:var(--face); }
@@ -277,7 +277,7 @@ button { line-height:1.35 !important; min-height:44px;
   { padding-left:10px !important; padding-right:10px !important; font-size:0.8125rem !important; min-height:34px !important; }
 button:hover { color:#ffe98a !important; text-decoration:underline; background:rgba(255,255,255,.05) !important; }
 button::before, button::after { display:none !important; }
-/* The way round a gallery from an open resource: a quiet line of small links
+/* The way around a gallery from an open resource: a quiet line of small links
    under the gallery's chips, not four plaques. They were 1.18rem, bold and
    52 px tall, two to a row on a phone, and took more of the screen above a
    listing than the listing's head did (the maintainer, 23 September 2026). */
@@ -343,7 +343,7 @@ select { text-overflow:ellipsis; }
 /* Since 6 October 2026 neither this nor the picture's box below traps the
    scroll. Both had overscroll-behavior:contain, which on a phone made half
    the screen a place where a drag moved nothing once the box was at its
-   end, or at once where the picture fitted and the box had nothing to
+   end, or immediately where the picture fitted and the box had nothing to
    scroll (the maintainer, 6 October 2026: "scroll capture in non-obvious
    subwindow"). A box with more to show still scrolls first and then
    hands the drag on to the page. */
@@ -554,7 +554,7 @@ h2, #sourceStatus, #output, #textLabel, #soundLabel { overflow-wrap:anywhere; }
 .ftab.off, .ftab.off:hover { opacity:.3; cursor:default; transform:none; background:var(--cardDark) !important; color:#3a2a0c !important; }
 .ftab .tabBadge { font-size:0.625rem; line-height:1; padding:2px 5px; border-radius:8px;
   background:#3a2a0c; color:#fff; font-family:ui-monospace,Menlo,Consolas,monospace; }
-/* The folder's edge runs up and round the open tab: the tab wears the same
+/* The folder's edge runs up and around the open tab: the tab wears the same
    edge on its top and sides and hangs a pixel over the folder, covering the
    folder's top edge under it, so the outline is one curve. All four
    corners round (the maintainer, 10 September 2026). */
@@ -1479,7 +1479,7 @@ details:not([open]) > summary .mechFrom { display:none; }
    On the cells rather than the columns, because border-collapse is already
    on and a <col> border does not survive it in every engine. Left edges
    only, skipping the first cell, so the table gains internal rules without a
-   box drawn round the outside of it -- the panel already provides that, and
+   box drawn around the outside of it -- the panel already provides that, and
    two borders a pixel apart read as a mistake. Lighter than the horizontal
    rules on purpose: these are there to be followed down, not noticed. */
 .mechTable th + th, .mechTable td + td,
@@ -2092,7 +2092,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
      of the screen under the tabs now, and the fit is to the island, which
      is taller than it is wide (atlasLandBounds). */
   #atlasViewport { height:calc(100vh - 250px); height:calc(100svh - 250px); min-height:320px; aspect-ratio:auto; }
-  /* A zone's map box was 62vh tall round a square map fitted to the
+  /* A zone's map box was 62vh tall around a square map fitted to the
      screen's width, a band of empty box above and below it and the
      toggles pushed off the screen. Square on a phone, as most maps are.
      The inline height is the desktop's and is what the atlas check watches,
@@ -2224,33 +2224,33 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
        by where the file is going (renderChangesSheet). -->
   <div id="animModeWrap">Color cycling
     <label><input type="radio" name="animMode" value="all" onchange="setAnimMode(this.value)"> everything on screen</label>
-    <label><input type="radio" name="animMode" value="graphics" onchange="setAnimMode(this.value)"> graphics only, not the maps</label>
+    <label><input type="radio" name="animMode" value="graphics" onchange="setAnimMode(this.value)"> graphics only and not the maps</label>
     <label><input type="radio" name="animMode" value="tiles" onchange="setAnimMode(this.value)"> tile sheets only</label>
     <label><input type="radio" name="animMode" value="off" onchange="setAnimMode(this.value)"> off</label>
-    <span class="amNote">Water, lava and magic appear to move because the game cycles their colors in the palette, not
-    because the picture changes. This setting controls that, and also the sprites walking and turning in the galleries.
-    It does not affect something drawn from several frames, like a fountain.</span></div>
+    <span class="amNote">Water, lava, and magic appear to move because the game cycles their colors in the palette and not
+    because the picture changes. This setting controls that and also the sprites walking and turning in the galleries.
+    It does not affect something drawn from several frames (such as a fountain).</span></div>
   <div id="labelPrecWrap">Data Label Precedence
     <ol id="labelPrecList"></ol>
-    <span class="amNote">Where a thing has a name from more than one source, the page uses the first source in this list.
-    Use the arrows to reorder the sources, and clear a box to leave that source out. The game’s files are the 0xF004 tile names,
-    the zone-entry text, the editor’s zone names, the resource symbols and the program’s resource names. The maintainer’s
+    <span class="amNote">When a thing has names from more than one source the page uses the first source in this list.
+    Use the arrows to reorder the sources and clear a box to leave that source out. The game’s files are the 0xF004 tile names,
+    the zone-entry text, the editor’s zone names, the resource symbols, and the program’s resource names. The maintainer’s
     descriptions are short notes on the data file’s tables. The community’s names are the soundtrack’s titles for the tunes and
-    Cythera Guides’ names for the program’s unnamed sounds. delvmod’s wiki has names for the sounds, written by ear.</span></div>
+    Cythera Guides’ names for the program’s unnamed sounds. delvmod’s wiki has names for the sounds that people wrote down by ear.</span></div>
   <div id="faceWrap">The font this page uses
-    <label><input type="radio" name="faceChoice" value="game" onchange="setFaceChoice(this.value)"> the game’s, from the open file</label>
+    <label><input type="radio" name="faceChoice" value="game" onchange="setFaceChoice(this.value)"> the game’s from the open file</label>
     <label><input type="radio" name="faceChoice" value="chicago" onchange="setFaceChoice(this.value)"> Chicago</label>
     <label><input type="radio" name="faceChoice" value="system" onchange="setFaceChoice(this.value)"> this device’s</label>
-    <span class="amNote">Cythera uses the font Argos A Nouveau, which is in the game’s resource fork. The page reads it from
-    whatever file is open and uses it unless the choice above is Chicago or this device’s font. With no file open there is nothing to read it from, so the
-    page uses Chicago, Susan Kare’s 1984 font for the Macintosh, recreated by Duane King. The page does not include a copy
+    <span class="amNote">Cythera uses the font Argos A Nouveau from the game’s resource fork. The page reads it from
+    whatever file is open and uses it unless the choice above is Chicago or this device’s font. With no file open the
+    page uses Chicago (Susan Kare’s 1984 font for the Macintosh as recreated by Duane King). The page does not include a copy
     of the game’s font.</span></div>
   <div id="unditherWrap">Undither
     <label><input type="radio" name="unditherScope" value="off" onchange="setUnditherScope(this.value)"> off</label>
     <label><input type="radio" name="unditherScope" value="portraits" onchange="setUnditherScope(this.value)"> portraits</label>
     <label><input type="radio" name="unditherScope" value="all" onchange="setUnditherScope(this.value)"> every graphic</label>
     <span class="amNote">Cythera’s art uses dithering for a 256-color screen. This smooths the checkerboard patterns
-    back into continuous shades. The result is an interpretation of the pixels, not the pixels themselves.</span></div>
+    back into continuous shades. The result is an interpretation of the pixels and not the pixels themselves.</span></div>
 </div>
 <div id="creditsCaret" aria-hidden="true"></div>
 <div id="creditsMenu" role="dialog" aria-label="Credits">
@@ -2285,7 +2285,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   use OR for either, a minus sign to leave a word out, and quotes for a phrase.</p>
   <input id="searchBox" type="search" placeholder="lava damage -potion, &quot;a phrase&quot;" oninput="queueSearch()">
   <label class="srMeaning"><input type="checkbox" id="chkMeaning" onchange="setSearchMeaning(this.checked)"> Search by meaning
-    <span class="amNote">Finds pages about the search, not only pages with its words. The first time, this downloads about 57 MB of models.</span></label>
+    <span class="amNote">Finds pages about the search and not only pages with its words. The first time this downloads about 57 MB of models.</span></label>
   <div id="searchResults"></div>
 </div>
 <!-- The folder-tab shell. Three tab rows, each the lip of a folder, nested;
@@ -2310,10 +2310,10 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   <select id="categorySelect" onchange="onCategoryChange()">
       <optgroup label="People & creatures">
         <option value="CHARACTERS">Characters (all info)</option>
-        <option value="SCHEDULES">Schedules (where everyone is, hour by hour)</option>
-        <option value="PROPS">Sprites, by prop type</option>
+        <option value="SCHEDULES">Schedules (where everyone is each hour)</option>
+        <option value="PROPS">Sprites by prop type</option>
         <option value="ITEMS">Inventory Items</option>
-        <option value="SCENERY">Scenery (placed things, whole)</option>
+        <option value="SCENERY">Scenery (whole placed things)</option>
         <option value="RSRC">Editor Stamps &amp; Brushes</option>
         <option value="MACRSRC">Resource Fork (all types)</option>
         <option value="MONSTERS">Monster Stats (0xF008)</option>
@@ -2325,8 +2325,8 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
       </optgroup>
       <optgroup label="World">
         <option value="WORLD">The world of Cythera</option>
-        <option value="127">Maps (0x80xx, structured)</option>
-        <option value="128">Prop Lists (0x81xx, structured)</option>
+        <option value="127">Maps (structured 0x80xx)</option>
+        <option value="128">Prop Lists (structured 0x81xx)</option>
         <option value="131">Landscapes (288x32)</option>
         <option value="19">Zone Entry Scripts (0x14xx)</option>
         <option value="20">Sub-zone Scripts (0x15xx)</option>
@@ -2336,7 +2336,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
         <option value="142">General Graphics (variable size)</option>
         <option value="SCREENS">Screens (resource fork)</option>
         <option value="COMPOSITE">Composite Tiles (stitched from fragments)</option>
-        <option value="143">Music (0x90xx, QTMA, raw only)</option>
+        <option value="143">Music (raw QTMA in 0x90xx)</option>
         <option value="144">Sounds (playable audio)</option>
         <option value="APPSND">Application sounds (resource fork)</option>
       </optgroup>
@@ -2378,7 +2378,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
         <option value="PREFS">Cythera Preferences: the game's settings file</option>
         <option value="LICENSE">Cythera License: the game's registration file</option>
         <option value="PATCHES">Patch Generator</option>
-        <option value="CHEATS">Cheat mode: the keys, and how to switch it on</option>
+        <option value="CHEATS">Cheat mode: the keys and how to switch it on</option>
         <option value="DATAFORK">Data fork (every subindex)</option>
         <option value="CHANGES">Patch in Progress: this session's changes</option>
         <option value="INSTALLER">The installer: every file in it</option>
@@ -2393,13 +2393,13 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
              naming it opens the first group (parseDeepLink). -->
         <option value="MECH_PROGRESS">Progress: what a character gains</option>
         <option value="MECH_STATUS">Status: the body and the clock</option>
-        <option value="MECH_INTERACT">Interactions: what a thing does when it is used</option>
+        <option value="MECH_INTERACT">Interactions: what a thing does on use</option>
         <option value="MECH_PUZZLES">Puzzles: the ones the file fully explains</option>
         <option value="MECH_COMBAT">Combat: what a blow does</option>
         <option value="MECH_ECONOMY">Economy: what things cost</option>
         <option value="HACKERY">Hackery: how the scenario works underneath</option>
-        <option value="SKILLS">Skills (each one, with everything in the file about it)</option>
-        <option value="SPELLS">Spells (each one, with what it does)</option>
+        <option value="SKILLS">Skills (each one with everything in the file about it)</option>
+        <option value="SPELLS">Spells (each one with what it does)</option>
         <option value="TOOLS">Tools</option>
       </optgroup>
     </select>
@@ -2443,7 +2443,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
     <label>At <input id="editCodeAt" type="text" spellcheck="false" autocomplete="off" placeholder="0x0000"></label>
     <label>Take out up to <input id="editCodeTo" type="text" spellcheck="false" autocomplete="off" placeholder="nothing"></label>
   </div>
-  <textarea id="editCodeText" spellcheck="false" autocomplete="off" placeholder="one instruction per line, as the listing prints them"></textarea>
+  <textarea id="editCodeText" spellcheck="false" autocomplete="off" placeholder="one instruction per line as the listing prints them"></textarea>
   <div>
     <button onclick="previewCodeEdit()">Preview</button>
     <button onclick="applyCodeEdit()">Apply and rebuild the file</button>
@@ -2517,7 +2517,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
     <div class="mapToggleGroup">
       <span class="mtgLabel">Time</span>
       <label><input type="checkbox" id="chkWalk" onchange="toggleMapWalk(this.checked)"> Walk the day</label>
-      <label title="Lines people say as they go about their day, while the day walks"><input type="checkbox" id="chkBarks" checked disabled onchange="toggleBarks(this.checked)"> Barks</label>
+      <label title="Lines people say as they go about their day while the day walks"><input type="checkbox" id="chkBarks" checked disabled onchange="toggleBarks(this.checked)"> Barks</label>
       <label style="gap:6px">Speed
         <select id="walkSpeed" onchange="setMapWalkSpeed(this.value)">
           <option value="0.25">0.25&times;</option>
@@ -2582,7 +2582,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   <button class="secondary" id="qtPlayBtn" style="display:none" onclick="playCurrentTune()">Play with QuickTime's Instruments</button>
   <button class="secondary" id="midiInBtn" style="display:none" onclick="document.getElementById('midiInFile').click()" title="Makes a MIDI file into a tune and puts it in this tune's place">Replace with a MIDI File</button>
   <input type="file" id="midiInFile" accept=".mid,.midi,audio/midi" style="display:none" onchange="midiFilePicked(this)">
-  <button class="secondary" id="midiAddBtn" style="display:none" onclick="document.getElementById('midiAddFile').click()" title="Makes a MIDI file into a tune under the next free tune number, keeping this one">Add a MIDI File as a New Tune</button>
+  <button class="secondary" id="midiAddBtn" style="display:none" onclick="document.getElementById('midiAddFile').click()" title="Makes a MIDI file into a tune under the next free tune number and leaves this one in place">Add a MIDI File as a New Tune</button>
   <input type="file" id="midiAddFile" accept=".mid,.midi,audio/midi" style="display:none" onchange="midiFileAdded(this)">
   <button class="secondary" id="qtPickBtn" style="display:none" onclick="document.getElementById('qtInstFile').click()">Choose the Instruments File</button>
   <input type="file" id="qtInstFile" style="display:none" onchange="qtInstrumentsPicked(this)">
@@ -2606,7 +2606,7 @@ label.prefRow:hover .prefSwitch { border-color:var(--gold); }
   <button class="secondary" onclick="downloadCurrentWAV()">Save as WAV</button>
 </div>
 <div id="labelLegend" style="display:none"><span class="guessTag">wiki</span> marks a name that comes from the delvmod
-wiki, not from the file. Turn these names on or off in Settings.</div>
+wiki and not from the file. Turn these names on or off in Settings.</div>
 <div id="galleryTools" style="display:none">
   <span id="galleryArrange">
     <label id="gallerySortWrap">Sort
@@ -2614,7 +2614,7 @@ wiki, not from the file. Turn these names on or off in Settings.</div>
         <option value="archive">as the file has them</option>
         <option value="name">by name</option>
         <option value="id">by id</option>
-        <option value="size">by size, largest first</option>
+        <option value="size">by size (largest first)</option>
       </select>
     </label>
     <span id="sheetShapeWrap" style="display:none">
@@ -2828,7 +2828,7 @@ function drawBrand() {
 }
 /* The book fills only part of its 32-pixel tile, so beside the name and as
    the tab's icon it was a small book in a wide margin (the maintainer,
-   3 October 2026). Cut to the square round its drawn pixels, centred, and
+   3 October 2026). Cut to the square around its drawn pixels, centered, and
    scaled by a whole number to at least 64 pixels so the browser shrinks a
    sharp picture rather than blurring a small one up. Null when the tile drew
    nothing. */
