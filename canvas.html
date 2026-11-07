@@ -1,4 +1,8 @@
+<meta charset="UTF-8">
 <script>
+// The charset above is first in the file, inside the 1,024 bytes a browser
+// reads it from: without it a copy opened from file:// is read as Latin-1,
+// and the middle dot in "Water · 8 steps" comes out as two characters.
 // Without this a phone lays the page out at ~980px and scales the result
 // down, which is why every control came out unreadably small. The artifact
 // host writes the <head> itself, so this tag is added here rather than authored.
@@ -170,6 +174,13 @@ code{font-family:"DM Mono",monospace; font-size:.92em; color:var(--ink-2)}
 .swatchBtn i{width:20px; height:20px; border-radius:2px; border:1px solid var(--line); display:block}
 .swatchBtn .mono{margin-left:auto; color:var(--muted)}
 .opts{flex:1; min-height:0; overflow-y:auto; padding:8px 10px 12px}
+/* More options below the edge: the last 40 px fade out, the cue that the
+   list scrolls. On a phone held sideways four options sat below the fold
+   with nothing to show it (the review of 12 October 2026). `more` is set
+   by optsCue at the end of the script and goes once the list reaches its
+   end. */
+.opts.more{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 40px),transparent);
+  mask-image:linear-gradient(to bottom,#000 calc(100% - 40px),transparent)}
 .optHd{display:flex; flex-direction:column; gap:1px; margin-bottom:2px}
 .optHd b{font-size:0.8438rem; font-weight:600}
 .optHd span{font-size:0.7188rem; color:var(--muted); line-height:1.3}
@@ -290,6 +301,24 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
      a picture is zoomed or dragged aside. */
   .zoomBox #bZoomOut,.zoomBox #bZoomIn,.zoomBox #rZoom{display:none}
   .transport .btn{min-height:40px}
+  /* The Advanced controls wrapped the row to two lines and pushed the
+     picture down (the review of 12 October 2026). On a phone the frame dots
+     and the rate slider go, since the status line shows the frame and the
+     number box sets the rate, and the row never wraps. Undo, Redo and Clear
+     come straight after Pause, so turning Advanced on moves none of them,
+     and on a narrow phone the end of the row, the rate, scrolls sideways
+     under the same fade as the options (.more, set by edgeCue). */
+  .transport{flex-wrap:nowrap; overflow-x:auto; gap:4px; scrollbar-width:none}
+  .transport > *{flex:0 0 auto}
+  .transport #frames,.transport #rate{display:none}
+  .transport .btn{padding:5px 7px}
+  .transport #undo{order:1} .transport #redo{order:2} .transport #clear{order:3}
+  .transport .zoomBox{order:4} .transport .advOnly{order:5}
+  .transport > span[style]{order:6}
+  #stepB,#stepF{min-width:40px}
+  #rateN{width:48px}
+  .transport.more{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent);
+    mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent)}
   .status span:nth-child(n+4){display:none}
   .paperWrap{padding:0; align-items:flex-start}
   /* the dock: ink on one line, the tools and the creatures on the next */
@@ -310,7 +339,8 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
     background:var(--raise); border:1px solid var(--line); border-radius:3px; color:var(--ink); font:inherit; cursor:pointer}
   .rampPick canvas{width:48px; height:20px; flex:0 0 auto; image-rendering:pixelated; border:1px solid var(--line); border-radius:2px}
   .rampPick span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .dirRow .seg.small button{padding:3px 7px}
+  /* The Turns arrows were 26 by 25 px, smaller than a thumb. */
+  .dirRow .seg.small button{padding:3px 7px; min-width:40px; min-height:40px}
   .dirRow{margin-top:0}
   .dirRow .eyebrow{display:none}
   .swatchBtn{margin-top:0}
@@ -330,7 +360,6 @@ dialog h4{margin:14px 0 5px; font-size:0.7812rem}
     max-height:min(46dvh,360px); overflow-y:auto; padding:8px 10px 12px; background:var(--surface);
     border-top:1px solid var(--line); border-bottom:1px solid var(--line); box-shadow:0 -14px 34px -20px rgba(0,0,0,.85)}
   dialog{max-width:96vw}
-  .pal{grid-template-columns:repeat(12,1fr)}
 }
 @media (max-width:860px) and (orientation:landscape){
   .main{flex-direction:row}
@@ -4757,6 +4786,27 @@ async function sendBackToGrimoire() {
 relut(); setInk('ramp'); paintRamps(); paintPal(); sync(); setTool('flow'); refreshHistory();
 paintStops(); previewBuilder(); setAdvanced(false); drawSel();
 document.getElementById('rSize').textContent = W + '×' + H;
+/* The fade at the far edge of the options (.opts.more) and of the phone's
+   transport row (.transport.more): on while the box has more past that
+   edge. A tool's options and the Advanced controls are shown and hidden by
+   attributes and classes, which change the content's size and not the
+   box's, so a MutationObserver follows them, on <body> too for the `adv`
+   class. The class is written only when it changes, so the write that cue
+   makes does not start another round. */
+function edgeCue(o, across) {
+  var cue = function () {
+    var more = across ? o.scrollWidth - o.scrollLeft - o.clientWidth > 2
+                      : o.scrollHeight - o.scrollTop - o.clientHeight > 2;
+    if (o.classList.contains('more') !== more) o.classList.toggle('more', more);
+  };
+  o.addEventListener('scroll', cue, { passive: true });
+  window.addEventListener('resize', cue);
+  new MutationObserver(cue).observe(o, { subtree: true, attributes: true, childList: true });
+  new MutationObserver(cue).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  cue();
+}
+edgeCue(document.getElementById('opts'), false);
+edgeCue(document.querySelector('.transport'), true);
 if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) {
   playing = false; playBtn.textContent = 'Play';
 }
