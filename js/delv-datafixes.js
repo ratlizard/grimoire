@@ -1707,6 +1707,65 @@ const DATA_FIXES = [
           'done_inside:']).join('\n'));
       return { edits: [edit], dataEdits: [dataFixLocals(s, 'Detect Secrets has two more locals', 0x1AF3, edit.at, 7, 9)] };
     } },
+  // The dart trap in the Sewers (bugs.md, *The dart trap in the Sewers can
+  // never go off*, 7 November 2026). Five fine wires (type 357, class
+  // 0x1165) lie hidden across the corridor at x 50 of zone 21 with Data1
+  // 80, and a small hole (type 355, 0x1163) at the end answers signal 80
+  // with a dart. The wire's UseOn fires only while bit 2 of its first byte,
+  // the hidden mark, is set. But a step reaches UseOn through
+  // TActiveMonster::HandleMove, which clears that bit on the thing
+  // underfoot before it runs the step method (0x048DF4 to 0x048EE4), so
+  // every step found the bit clear and printed "You step carefully over a
+  // fine wire". An armed wire and a spent one have the same bit, since the
+  // step, the wire's firing and Deactivate Trap all clear it, so the
+  // wire's Data2 (0 on all five) becomes the spent mark: UseOn fires while
+  // Data2 is 0, and the wire's loop over its line, and Deactivate Trap's,
+  // set Data2 to 1 beside clearing the bit. The detect spells only light a
+  // wire up and change neither. Each insert goes at the end of its branch
+  // with shiftAt, so the branch that skips the clear skips the new line
+  // too. Deactivate Trap's loop over the line (0x1AF2's UseAt, 0x0147 on)
+  // compared each thing with Arg00, which there is the spell, where it
+  // meant Var01, the wire it found: the comparison reads as copied from the
+  // wire's UseOn, whose Arg00 is the wire. So no thing ever matched, and
+  // "Trip wire marked, allowing it to be stepped over." changed nothing.
+  // The six `arg Arg00` of the loop become `local Var01`, the same length,
+  // so the line is marked and Data2 is set. Edits to one resource go from
+  // the highest offset down. Stage `found`, anchored by offset; `traps`
+  // and `secrets-traps` find their places in 0x1AF2 by instruction later.
+  { id: 'dart-wire', group: 'rules', stage: 'found', title: 'Stepping on a hidden fine wire in the Sewers now sets off the dart trap it is joined to, instead of never',
+    edits: [
+      { what: 'the wire’s y branch marks each wire spent', resid: 0x1165, at: 0x00D4, shiftAt: true,
+        expect: { 0x00D2: 'bitwise_and', 0x00D3: 'end', 0x00D4: 'set_local 0x00' }, code: 'set_field data2 (0x7)\nlocal Var00\nend\nbyte 0x01\nend' },
+      { what: 'the wire’s x branch marks each wire spent', resid: 0x1165, at: 0x00B8, shiftAt: true,
+        expect: { 0x00B6: 'bitwise_and', 0x00B7: 'end' }, code: 'set_field data2 (0x7)\nlocal Var00\nend\nbyte 0x01\nend' },
+      { what: 'the wire fires while it is not spent', resid: 0x1165, at: 0x000F, to: 0x0014,
+        expect: { 0x000E: 'arg Arg00', 0x000F: 'get_field flags (0x0)', 0x0011: 'byte 0x02', 0x0013: 'bitwise_and' }, code: 'get_field data2 (0x7)\nbyte 0x00\neq' },
+      { what: 'Deactivate Trap’s y branch marks each wire spent', resid: 0x1AF2, at: 0x01B7, shiftAt: true,
+        expect: { 0x01B5: 'bitwise_and', 0x01B6: 'end', 0x01B7: 'set_local 0x05' }, code: 'set_field data2 (0x7)\nlocal Var05\nend\nbyte 0x01\nend' },
+      { what: 'Deactivate Trap’s line compares the wire found', resid: 0x1AF2, at: 0x019F, replaceOp: true,
+        expect: { 0x019E: 'if_not', 0x019F: 'arg Arg00', 0x01A0: 'get_field y (0x2)' }, code: 'local Var01' },
+      { what: 'Deactivate Trap’s x branch marks each wire spent', resid: 0x1AF2, at: 0x019B, shiftAt: true,
+        expect: { 0x0199: 'bitwise_and', 0x019A: 'end' }, code: 'set_field data2 (0x7)\nlocal Var05\nend\nbyte 0x01\nend' },
+      ...[[0x0183, 'get_field x (0x1)'], [0x017C, 'get_field rotate (0xD)'], [0x0170, 'get_field data1 (0x6)'],
+          [0x0168, 'get_field rotate (0xD)'], [0x0161, 'get_field obj_type (0x4)']].map(([at, next]) => (
+        { what: 'Deactivate Trap’s line compares the wire found', resid: 0x1AF2, at, replaceOp: true,
+          expect: { [at]: 'arg Arg00', [at + 1]: next }, code: 'local Var01' })),
+    ] },
+  // A falling rock and the helmet (bugs.md, *A helmet does not soften a
+  // falling rock*, 7 November 2026). 0xE81 adds up the armor worn, and a
+  // damage type with bit 2048 counts a piece only when `Equipment[0] & 0`
+  // is not 0, which is never true, so no armor counted against the rock of
+  // a loose roof (0x118B, type 2052). Equipment is a slot number and every
+  // helmet is in slot 0, the head, so the test is read as one meant for the
+  // head: the `bitwise_and` becomes `eq`, and a helmet's ArmorValue counts
+  // against the rock. The type-4096 branch beside it (`& 8`, the spikes)
+  // is left as it is, since whether it was meant for the feet alone is an
+  // inference and slots 8 and 9 both pass it.
+  { id: 'rock-helmet', group: 'rules', stage: 'found', title: 'A helmet now softens a rock falling from a loose roof, instead of no armor counting against it',
+    edits: [
+      { what: 'the head’s armor against a falling rock', resid: 0xE81, at: 0x005D, replaceOp: true,
+        expect: { 0x0058: 'class_member 0x2600', 0x005B: 'byte 0x00', 0x005D: 'bitwise_and' }, code: 'eq' },
+    ] },
   // Magpie's west standing frame (tile 0x72D, sheet 0x8E72): every other west
   // frame of his is the north frame transposed, to the pixel, and this one
   // is the transposed north sitting frame; it becomes the transposed north
