@@ -305,6 +305,31 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       }
     } catch (e) { fail('class cache', e); }
 
+    /* Who tests each bit of the cache (exeTocReaders), held to readings
+       made by hand on 7 November 2026 (GRIMOIRE-NOTES.md, under
+       `grimoire/hard-coded-2v8am9`). The true readers must be found, and
+       they cover each form the walk follows: an unrotated test
+       (CanMove on 0x40), a word spilled to the stack and loaded back
+       (SetStage on 0x100000), a mask built in a register for the X-form
+       AND (SetStage on 0x01000800) and a byte table (LoadLevelProps on
+       0x04000000). The false readers are the negative control: each is a test
+       of another value in a register that once had the word in it, which the
+       scan reported until v1.374.5, and none may come back. */
+    try {
+      const ic = ctx.exeIntfCache();
+      const readers = ic ? ctx.exeTocReaders(ic.cacheDisp.v) : [];
+      const tests = (routine, bit) => readers.some(r => r.routine === routine && r.masks.some(m => (m.mask & bit) === bit));
+      const must = [['TActiveMonster::CanMove', 0x40], ['TGameSys::DropCommand', 0x08], ['LoadLevelProps', 0x04000000], ['TViewer::SetStage', 0x00100000], ['TViewer::SetStage', 0x01000000], ['TViewer::SetStage', 0x800], ['GetItemCount', 0x100], ['TGameSys::SendSignal', 0x10000]];
+      const mustNot = [['TGameSys::MoveCommand', 0x02], ['TViewer::InteractProps', 0x04], ['TViewer::SetStage', 0x10], ['TGameViewer::MagicMap', 0x200], ['TGameViewer::DoTicks', 0x80], ['TActiveMonster::CanMove', 0x20000000]];
+      const untested = [0x01, 0x02, 0x04, 0x10, 0x1000, 0x800000].filter(bit => !readers.some(r => r.masks.some(m => m.mask & bit)));
+      const missing = must.filter(([r, b]) => !tests(r, b)), extra = mustNot.filter(([r, b]) => tests(r, b));
+      const said = list => list.map(([r, b]) => r + ' on ' + ctx.propWordHex(b)).join(', ');
+      if (!ic || !readers.length) fail('cache readers', 'no FillIntfCache map or no routine loads the cache');
+      else if (missing.length) fail('cache readers', 'true readers not found (' + said(missing) + ')');
+      else if (extra.length) fail('cache readers', 'a test of another register counted as a reader again (' + said(extra) + ')');
+      else console.log(`  cache readers: ${readers.length} routines, the ${must.length} true readers found and none of the ${mustNot.length} false ones, and no routine tests ${untested.map(b => ctx.propWordHex(b)).join(', ')}`);
+    } catch (e) { fail('cache readers', e); }
+
     /* Who ScheduleTime schedules, read off the routine (exeScheduleRules):
        the four tests as the notes read them on 24 September 2026, the
        behaviour 112 traced to the scripts that set it, and the Schedules

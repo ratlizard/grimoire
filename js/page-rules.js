@@ -5854,23 +5854,60 @@ function exeIntfCache() {
 /* Every routine that loads a pointer kept beside the TOC and tests bits of
    what it finds there: the reader list for the per-class cache and its
    side tables. One pass over the code section finds the loads; then each
-   routine that has one is followed register by register -- the pointer,
-   any register it is copied into, the word loaded through it, and any
-   register that word is copied into -- and a mask tested on the word
-   anywhere in the routine is a reader, at that instruction. The first
-   version looked only twenty-four instructions past the load and missed
-   the tests of four bits that sit further down (LoadLevelProps on 0x200,
-   MoveCommand on 0x02, SetStage on the Stacking bits); a routine with no
-   mask read the table for a value rather than a bit. Kept on the
-   program per displacement. */
+   routine that has one is walked in address order, keeping three sets of
+   registers: the pointer (its copies, and an element address added to it),
+   the word loaded through it, and registers with a known constant. A mask
+   tested on the word is a reader, at that instruction.
+
+   The program tests a bit in four ways, and the walk reads all four:
+   rlwinm with or without a rotate (the mask is rotated back), andi.,
+   andis., and the X-form AND against a constant built in a register
+   (SetStage's `lis 3, 256` and `addi 3, 3, 2048` before it, 0x01000800,
+   the Portal has-bit with Stacking's 0x10). A word spilled to a stack slot
+   and loaded back is still the word; SetStage spills six of them. A byte
+   or a halfword loaded through the pointer has its mask moved up to the
+   long's bit positions.
+
+   A register written by anything else leaves the sets. Until v1.374.5 it
+   did not, and a register that had once had the word in it was the word
+   for the rest of the routine. That named readers that test something
+   else in a reused register: MoveCommand's 0x02 is a test of the Portal
+   value GetProperty returns, InteractProps' 0x04 is of byte 0 of the prop
+   record, SetStage's 0x10 and 0x20 and MagicMap's 0x40 and 0x200 are of
+   the tile flags at another TOC slot, DoTicks' 0x80 is of byte 6 of the
+   record. Every one was read by hand (GRIMOIRE-NOTES.md, under
+   `grimoire/hard-coded-2v8am9`). The installer smoke requires the true
+   readers and none of those. Branches are not followed, so a register
+   live on one arm only would be dropped; the smoke's true readers are
+   the check that nothing real is lost that way.
+
+   The first version looked only twenty-four instructions past the load
+   and missed LoadLevelProps' test of 0x200. A routine with no mask read the
+   table for a value rather than a bit. Kept on the program per
+   displacement. The workbench's tools/cache_bits.mjs is the same walk with
+   every other use of the word printed, for reading by eye. */
 function exeTocReaders(disp) {
   const img = appImage(), pef = appPef();
   if (!img || !pef) return [];
   if (!pef._tocReaders) pef._tocReaders = new Map();
   if (pef._tocReaders.has(disp)) return pef._tocReaders.get(disp);
   const code = img.code, out = [];
-  const reg = d => d.rt !== undefined ? d.rt : d.rd !== undefined ? d.rd : d.rs;
-  const src = d => d.rs !== undefined ? d.rs : (d.args ? d.args[1] : undefined);
+  // The register an instruction writes, by the decoder's fields: a load
+  // has rt, an arithmetic form rd, a logical or rotate form ra with its
+  // source in rs. A call leaves the volatile registers undefined.
+  const dests = d => {
+    if (/^st[bhw]/.test(d.mn)) return /u$|ux$/.test(d.mn) ? [d.ra] : [];
+    if (/^(bl|bctrl|blrl)$/.test(d.mn)) return [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    if (/^(b|bt|bf|bc|blr|bctr|cmp|cmpw|cmplw|cmpwi|cmplwi|mtctr|mtlr|mtspr|mtcrf|crmove|crnot|crclr|crset)/.test(d.mn) && d.rt === undefined && d.rd === undefined) return [];
+    if (/^l[bhw].*u/.test(d.mn)) return [d.rt, d.ra];
+    if (d.rt !== undefined) return [d.rt];
+    if (d.rd !== undefined) return [d.rd];
+    if (d.rs !== undefined && d.ra !== undefined) return [d.ra];
+    return [];
+  };
+  const dst = d => d.rd !== undefined ? d.rd : d.rt;
+  const rotr = (m, sh) => ((m >>> sh) | (m << (32 - sh))) >>> 0;
+  const span = (mb, me) => { let m = 0; for (let b = mb; ; b = (b + 1) & 31) { m |= 1 << (31 - b); if (b === me) break; } return m >>> 0; };
   const seen = new Set();
   for (let at = 0; at + 4 <= code.length; at += 4) {
     // lwz is primary opcode 32 with rA in bits 11-15 and the displacement
@@ -5884,21 +5921,51 @@ function exeTocReaders(disp) {
     if (!r || /^FillIntfCache\b/.test(r.name) || seen.has(r.offset)) continue;
     seen.add(r.offset);
     const ops = exeOpsOf(r);
-    const ptr = new Set(), word = new Set(), masks = [];
+    // ptr: the pointer's registers. word: register -> how far up a mask on
+    // it moves to reach the long's bits (0, 8, 16 or 24). konst: register ->
+    // its value. The two slot maps are the same for stack slots off r1.
+    const ptr = new Set(), word = new Map(), konst = new Map(), ptrSlot = new Set(), wordSlot = new Map(), masks = [];
     let first = null;
     for (const o of ops) {
       const e = o.d;
       if (!e) continue;
-      if (e.mn === 'lwz' && e.ra === 2 && e.d === disp) { ptr.add(reg(e)); if (first === null) first = o.at; continue; }
-      if (e.mn === 'mr' && ptr.has(src(e))) { ptr.add(reg(e)); continue; }
-      if ((e.mn === 'lwzx' || e.mn === 'lwz' || e.mn === 'lbzx' || e.mn === 'lhzx') && ptr.has(e.ra)) { word.add(reg(e)); continue; }
-      if (e.mn === 'mr' && word.has(src(e))) { word.add(reg(e)); continue; }
-      let m = null, from = null;
-      if ((e.mn === 'rlwinm.' || e.mn === 'rlwinm') && e.sh === 0 && e.mb !== undefined) { m = 0; for (let b = e.mb; b <= e.me; b++) m |= 1 << (31 - b); m >>>= 0; from = e.rs; }
-      else if (e.mn === 'andi.') { m = e.imm; from = e.rs; }
-      else if (e.mn === 'andis.') { m = (e.imm << 16) >>> 0; from = e.rs; }
-      if (m === null || m === 0xFFFFFFFF || !word.has(from)) continue;
-      masks.push({ mask: m, at: o.at });
+      let newPtr = null, newWord = null, newKonst = null;
+      if (e.mn === 'lwz' && e.ra === 2 && e.d === disp) { newPtr = e.rt; if (first === null) first = o.at; }
+      else if (e.mn === 'mr' && ptr.has(e.rs)) newPtr = e.ra;
+      else if (e.mn === 'add' && (ptr.has(e.ra) || ptr.has(e.rb))) newPtr = e.rd;
+      else if (e.mn === 'addi' && e.ra !== 0 && ptr.has(e.ra)) newPtr = dst(e);
+      else if (e.mn === 'lwz' && e.ra === 1 && ptrSlot.has(e.d)) newPtr = e.rt;
+      else if (e.mn === 'lwz' && e.ra === 1 && wordSlot.has(e.d)) newWord = [e.rt, wordSlot.get(e.d)];
+      else if (/^(lwz|lwzx|lbz|lbzx|lhz|lhzx)$/.test(e.mn) && ptr.has(e.ra)) {
+        // Byte k of a big-endian long has the long's bits from 8*(3-k) up.
+        const k = e.d !== undefined ? ((e.d % 4) + 4) % 4 : 0, size = e.mn[1] === 'b' ? 1 : e.mn[1] === 'h' ? 2 : 4;
+        newWord = [e.rt, (4 - k - size) * 8];
+      } else if (e.mn === 'mr' && word.has(e.rs)) newWord = [e.ra, word.get(e.rs)];
+      else if (e.mn === 'li') newKonst = [dst(e), e.imm >>> 0];
+      else if (e.mn === 'lis') newKonst = [dst(e), (e.imm << 16) >>> 0];
+      else if (e.mn === 'ori' && konst.has(e.rs)) newKonst = [e.ra, (konst.get(e.rs) | e.imm) >>> 0];
+      else if (e.mn === 'addi' && e.ra !== 0 && konst.has(e.ra)) newKonst = [dst(e), (konst.get(e.ra) + e.imm) >>> 0];
+
+      let m = null, from = e.rs;
+      if (/^(rlwinm|clrlwi|extrwi|rotlwi|slwi|srwi)\.?$/.test(e.mn) && e.mb !== undefined) m = rotr(span(e.mb, e.me), e.sh);
+      else if (e.mn === 'andi.') m = e.imm >>> 0;
+      else if (e.mn === 'andis.') m = (e.imm << 16) >>> 0;
+      else if (/^and\.?$/.test(e.mn)) {
+        if (word.has(e.rs) && konst.has(e.rb)) m = konst.get(e.rb);
+        else if (word.has(e.rb) && konst.has(e.rs)) { m = konst.get(e.rs); from = e.rb; }
+      }
+      if (m !== null && m !== 0xFFFFFFFF && word.has(from)) masks.push({ mask: (m << word.get(from)) >>> 0, at: o.at });
+
+      if (e.mn === 'stw' && e.ra === 1) {
+        const v = e.rs !== undefined ? e.rs : e.rt;
+        ptrSlot.delete(e.d); wordSlot.delete(e.d);
+        if (ptr.has(v)) ptrSlot.add(e.d);
+        if (word.has(v)) wordSlot.set(e.d, word.get(v));
+      }
+      for (const x of dests(e)) { ptr.delete(x); word.delete(x); konst.delete(x); }
+      if (newPtr !== null) ptr.add(newPtr);
+      if (newWord !== null) word.set(newWord[0], newWord[1]);
+      if (newKonst !== null) konst.set(newKonst[0], newKonst[1]);
     }
     out.push({ at: first, routine: r.name.replace(/\(.*$/, ''), masks });
   }
