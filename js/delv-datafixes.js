@@ -940,7 +940,8 @@ const DATA_FIXES = [
   // the `then` lands, and dvmRelink puts an inserted run in front of a jump
   // to its place, so the jump reaches the new call first.
   { id: 'charax-voice', group: 'talk', stage: 'further', title: 'Charax’s question about alchemy now shows the hero’s “No, I don’t.” beside the hero, instead of in Charax’s voice',
-    plan: (s) => ({ edits: [
+    played: 'fork, 68K, 6 November 2026, alone and on “All Fixes”. A hero with no Alchemy and Palaestra’s flag set jumped by cheat mode into Charax’s house beside him and spoke to him. "No, I don’t." is drawn at the hero’s place, with the hero’s line about Palaestra, against Charax’s place unpatched. His reply after it stays at his place in all three runs. Not played on Mac OS',
+    plan:(s) => ({ edits: [
       dataFixInsert(s, 'the hero says "No, I don’t." to Charax', 0x184F,
         ['string(implicit) "\\"No, I don\'t.', 'sys TalkParticipant', 'arg Arg00', 'byte 0x00', 'end'], 0,
         dataFixTalk('byte 0x01', 2)),
