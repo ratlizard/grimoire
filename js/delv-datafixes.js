@@ -1766,6 +1766,29 @@ const DATA_FIXES = [
       { what: 'the head’s armor against a falling rock', resid: 0xE81, at: 0x005D, replaceOp: true,
         expect: { 0x0058: 'class_member 0x2600', 0x005B: 'byte 0x00', 0x005D: 'bitwise_and' }, code: 'eq' },
     ] },
+  // A diamond in the distiller (bugs.md, *A diamond distilled makes a potion
+  // of the removed Far Sight*, 7 November 2026). The diamond (0x10F3) has
+  // AlchemicalReagent 7, left from Far Sight, a potion the game no longer
+  // has, and the potion (prop type 31) has names and effects for aspects 0
+  // to 6 only. The distiller (0x10EA) used up the diamond and made a potion
+  // of aspect 7, with no name and no effect, and Timon (0x184A) named the
+  // potion a diamond makes by building one of aspect 7 and printing its
+  // Look. Both places now test that the reagent is below 7 as well. With a
+  // diamond the distiller prints "Hm, nothing seemed to happen." and the
+  // diamond stays in the pack, as with any thing that is no reagent, and
+  // Timon goes on to the diamond's Ask About line for him, "It is
+  // alchemically distilled into a Far Sight Potion.", the game's text, left
+  // as it is. Removing the member from the diamond would do the same, and
+  // no fix edits a class's members.
+  { id: 'diamond-reagent', group: 'rules', stage: 'found', title: 'A diamond put in the distiller is no longer used up to make a potion with no name and no effect',
+    edits: [
+      { what: 'the distiller accepts only a reagent of a potion in the game', resid: 0x10EA, at: 0x05EB, shiftAt: true,
+        expect: { 0x05E4: 'if_not', 0x05E5: 'arg Arg01', 0x05E6: 'has_member AlchemicalReagent (0x30)', 0x05E8: 'then -> 0x0637', 0x05EB: 'if_not' },
+        code: ['if_not', 'arg Arg01', 'class_member 0x3000', 'byte 0x07', 'lt', 'then -> 0x0637'].join('\n') },
+      { what: 'Timon names only a potion in the game', resid: 0x184A, at: 0x0341, shiftAt: true,
+        expect: { 0x033A: 'if_not', 0x033B: 'arg Arg01', 0x033C: 'has_member AlchemicalReagent (0x30)', 0x033E: 'then -> 0x037C', 0x0341: 'string(implicit) "\\"^"' },
+        code: ['if_not', 'arg Arg01', 'class_member 0x3000', 'byte 0x07', 'lt', 'then -> 0x037C'].join('\n') },
+    ] },
   // Magpie's west standing frame (tile 0x72D, sheet 0x8E72): every other west
   // frame of his is the north frame transposed, to the pixel, and this one
   // is the transposed north sitting frame; it becomes the transposed north
