@@ -205,14 +205,14 @@ const QT_URL = 'https://archive.org/cors/apple-quicktime-3/apple-quicktime-3.iso
 const ART_PACK = `${TMP}/dungeon-crawl-tiles.zip`;
 const ART_PACK_URL = 'https://opengameart.org/sites/default/files/Dungeon%20Crawl%20Stone%20Soup%20Full_0.zip';
 // The game itself, for game_check.mjs: the playthrough kit beside the
-// workspace (saves reached by play, in no repository), the fork's binary
-// built against the patched m68k crate (the stock crate halts a new game;
-// `m68k-patched/README.md` in the workspace), and the registered licence,
+// workspace (saves reached by play, in no repository), the fork's release
+// build (a build older than the fork's rebase of 6 November 2026 halts a new
+// game on the m68k crate it used), and the registered license,
 // without which the shareware notice swallows the first click. A front's
 // `..` is the front, so the workspace is one more level up. Without any of
 // the three the row skips and states it.
 const KIT = firstHolding('work/pristine/.systemless', process.env.PLAYKIT, '../playthrough-2026-09-08', '../../../playthrough-2026-09-08');
-const GAME_BIN = firstExisting(process.env.SYSTEMLESS_BIN, '../m68k-patched/systemless', '../../../m68k-patched/systemless');
+const GAME_BIN = firstExisting(process.env.SYSTEMLESS_BIN, '../wolflizard/target/release/systemless', '../../../wolflizard/target/release/systemless');
 const LICENSE = firstExisting('reference/game/installed-folders/Cythera License (registered).data',
   '../cythera-reference/game/installed-folders/Cythera License (registered).data');
 const EXPORTS = `${TMP}/check_all_exports`;

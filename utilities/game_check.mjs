@@ -28,9 +28,20 @@
  * the kit's saves and drive scripts all use; the fork's binary prefers the
  * PowerPC slice since 3 October 2026, so the run requests the 68K one with
  * SYSTEMLESS_PREFER_POWERPC=0. Skips when the kit, the binary or the licence
- * is not on the disk, which a checkout without the workspace beside it is. */
+ * is not on the disk, which a checkout without the workspace beside it is.
+ *
+ * Since upstream v0.110 the fork's binary stores its saves under
+ * $HOME/Library/Application Support/Systemless/saves/<archive SHA-256>/ and
+ * imports the .systemless folder beside the archive only on a launch that
+ * finds no such store. Under the real HOME a run would write into the
+ * maintainer's store, and the next run on the same archive bytes would open
+ * that store in place of the save seeded for it. So each run is given its game
+ * folder as HOME with any earlier store removed (runEnv), and the store it
+ * wrote is copied back over the seeded folder (copyBack), where the save is
+ * read. A build older than v0.110 writes the seeded folder itself, and
+ * copyBack then finds no store. */
 
-import {readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, cpSync, statSync} from 'node:fs';
+import {readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, cpSync, statSync, readdirSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import {crc32} from 'node:zlib';
@@ -44,7 +55,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const [htmlPath, kitArg, binArg, licenseArg, scenarioArg, appDataArg, appRsrcArg] = process.argv.slice(2);
 const KIT = resolve(ROOT, kitArg || '../playthrough-2026-09-08');
-const BIN = resolve(ROOT, binArg || '../m68k-patched/systemless');
+const BIN = resolve(ROOT, binArg || '../wolflizard/target/release/systemless');
 const LICENSE = resolve(ROOT, licenseArg || 'reference/game/installed-folders/Cythera License (registered).data');
 for (const [what, p] of [['the playthrough kit', join(KIT, 'work/pristine/.systemless')], ['the fork binary', BIN], ['the registered licence', LICENSE], ['the seed save', join(KIT, 'saves/cp2-omens-test/data.fork')]])
   if (!existsSync(p)) { console.log(`  skip: ${what} is not at ${p}`); process.exit(0); }
@@ -55,6 +66,15 @@ const STORE = join(PLAY, 'game/.systemless/saves/Cythera Installed Folder/Cyther
 const SCRIPT = join(PLAY, 'open-save.txt');
 let failures = 0;
 const fail = m => { failures++; console.log('  FAIL ' + m); };
+const STORES = 'Library/Application Support/Systemless/saves';
+const runEnv = (game, env) => { rmSync(join(game, 'Library'), {recursive: true, force: true}); return {...env, HOME: game}; };
+function copyBack(game) {
+  const root = join(game, STORES), staged = join(game, '.systemless/saves/Cythera Installed Folder');
+  const stores = existsSync(root) ? readdirSync(root).filter(n => !n.startsWith('.')) : [];
+  if (stores.length !== 1) return;
+  cpSync(join(root, stores[0]), staged, {recursive: true});
+  rmSync(join(staged, 'manifest.json'), {force: true});
+}
 
 // ---- the scratch store: the kit's, with the registered licence --------------
 rmSync(PLAY, {recursive: true, force: true});
@@ -117,7 +137,8 @@ function run(label, dataFork, made) {
   // The fork writes its account to stderr, so both streams are the log.
   const r0 = spawnSync(BIN, ['--headless', '--max-ticks', '1800', '--tick-input-script', SCRIPT, join(PLAY, 'game/Cythera Installed Folder.sit')],
     {encoding: 'utf8', maxBuffer: 64 << 20, timeout: 180000, killSignal: 'SIGKILL', stdio: ['ignore', 'pipe', 'pipe'],
-     env: {...process.env, SYSTEMLESS_HEADLESS_SCREENSHOT_DIR: shots, SYSTEMLESS_HEADLESS_SCREENSHOT_EVERY: '0', SYSTEMLESS_PREFER_POWERPC: '0', SYSTEMLESS_STANDARD_GET_FILE: 'Cythera 1.0.4 \u0192/Bellerophon'}});
+     env: runEnv(join(PLAY, 'game'), {...process.env, SYSTEMLESS_HEADLESS_SCREENSHOT_DIR: shots, SYSTEMLESS_HEADLESS_SCREENSHOT_EVERY: '0', SYSTEMLESS_PREFER_POWERPC: '0', SYSTEMLESS_STANDARD_GET_FILE: 'Cythera 1.0.4 \u0192/Bellerophon'})});
+  copyBack(join(PLAY, 'game'));
   const log = (r0.stdout || '') + (r0.stderr || '');
   if (r0.error || r0.signal) fail(`${label}: the fork did not finish: ` + (r0.error ? r0.error.message : 'killed by ' + r0.signal));
   writeFileSync(join(PLAY, label + '.log'), log);
@@ -309,7 +330,8 @@ if (scenarioArg && existsSync(scenarioArg) && appDataArg && existsSync(appDataAr
       '1450 click 475 494\n1700 press 124 29\n1800 press 124 29\n1900 press 125 31\n2100 keydown 55 0\n2102 press 1 115\n2104 keyup 55 0\n');
     const r0 = spawnSync(BIN, ['--headless', '--max-ticks', '2500', '--tick-input-script', NEWGAME, join(SCEN, 'Cythera Installed Folder.zip')],
       {encoding: 'utf8', maxBuffer: 64 << 20, timeout: 300000, killSignal: 'SIGKILL', stdio: ['ignore', 'pipe', 'pipe'],
-       env: {...process.env, SYSTEMLESS_HEADLESS_SCREENSHOT_DIR: join(PLAY, 'shots', 'scenario'), SYSTEMLESS_HEADLESS_SCREENSHOT_EVERY: '0', SYSTEMLESS_PREFER_POWERPC: '1'}});
+       env: runEnv(SCEN, {...process.env, SYSTEMLESS_HEADLESS_SCREENSHOT_DIR: join(PLAY, 'shots', 'scenario'), SYSTEMLESS_HEADLESS_SCREENSHOT_EVERY: '0', SYSTEMLESS_PREFER_POWERPC: '1'})});
+    copyBack(SCEN);
     const slog = join(PLAY, 'scenario.log');
     writeFileSync(slog, (r0.stdout || '') + (r0.stderr || ''));
     const saved = join(SCEN, '.systemless/saves/Cythera Installed Folder/Cythera 1.0.4 %C6%92/NewGame01/data.fork');
