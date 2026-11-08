@@ -283,6 +283,28 @@ const notes = ev(`(() => {
   out.r12addedList = [...out.r12added].sort();
   out.r12compilerOnly = r12.resized.filter(r => r.compilerOnly).length;
 
+  /* Flour on a doorway: the class test in TViewer::SetStage, counted by
+     shape in every release. The old form tests the one bit 0x10 and
+     branches on the record bit. The new form masks 0x30 and compares the
+     result with 16. A form counts only as its instructions in a row, on
+     the same register. */
+  out.flourTests = {};
+  for (const v of ['1.0.1', '1.0.2', '1.0.3', '1.0.4']) {
+    const C = codeOf(appOf(v).data);
+    const r = C.rs.find(x => /^TViewer::SetStage\\(/.test(x.name));
+    if (!r) { out.flourTests[v] = null; continue; }
+    const at = a => ppcDecode(((C.img[a] << 24) | (C.img[a + 1] << 16) | (C.img[a + 2] << 8) | C.img[a + 3]) >>> 0);
+    let oneBit = 0, twoBits = 0;
+    for (let a = r.offset; a + 12 <= r.offset + r.length; a += 4) {
+      const d = at(a); if (!d) continue;
+      const n1 = at(a + 4), n2 = at(a + 8);
+      if (d.mn === 'rlwinm.' && d.sh === 0 && d.mb === 27 && d.me === 27 && n1 && /^bt/.test(n1.mn)) oneBit++;
+      if (d.mn === 'rlwinm' && d.sh === 0 && d.mb === 26 && d.me === 27 &&
+          n1 && n1.mn === 'cmpwi' && n1.ra === d.ra && n1.imm === 16 && n2 && /^bf/.test(n2.mn)) twoBits++;
+    }
+    out.flourTests[v] = {oneBit, twoBits};
+  }
+
   // --- 1.0.3: which routines changed, and which are the compiler's ---
   const r23 = routines('1.0.2', '1.0.3');
   out.r23 = {};
@@ -466,6 +488,21 @@ eq('and it grows', notes.defendAiBytes.join(' -> '), '584 -> 712');
   claim('multi-button mice: the event routine tests a preferences bit first',
         (notes.r12['TDelverApp::MyGetEvent(short, EventRecord*, unsigned char)'] || {}).up === '1 addi 1 bt 1 lbz 1 rlwinm.',
         'TDelverApp::MyGetEvent gains lbz + rlwinm. + bt');
+  /* "Spreading flour on a doorway no longer prevents it from being opened
+     again." The prop with the highest class owns a square of the view,
+     and a click on the square uses that prop. TViewer::SetStage gave class
+     1 to a tile with attribute bit 0x10. The shut doors have bits 0x10 and
+     0x20, so in 1.0.1 a door shut over flour (class 3) lost the square to
+     the flour, and a click on the door played in the flour. From 1.0.2 the
+     test is for 0x10 without 0x20, and a shut door is class 3. The six
+     sites are the test for the square and for the squares around it.
+     1.0.1 is the control, since the same matcher finds six of the old form
+     there and none of the new. Pinned on 8 November 2026 from the
+     workbench's reading of 7 November. */
+  const flour = v => notes.flourTests[v] ? notes.flourTests[v].oneBit + ' one-bit, ' + notes.flourTests[v].twoBits + ' masked' : 'no SetStage';
+  eq('flour on a doorway, 1.0.1\'s SetStage tests bit 0x10 alone', flour('1.0.1'), '6 one-bit, 0 masked');
+  for (const v of ['1.0.2', '1.0.3', '1.0.4'])
+    eq('and ' + v + '\'s tests bits 0x30 for 0x10', flour(v), '0 one-bit, 6 masked');
   eq('and every one of 1.0.2\'s recompiles is a real edit', notes.r12compilerOnly, 0);
 }
 
