@@ -384,7 +384,9 @@ function exeSetView(v) {
    everything pending is written out.
 
    These lines are flat, a jump a line. The view prints them with the
-   jumps made into blocks (exePseudoBlocks, below). */
+   jumps made into blocks (exePseudoBlocks, below). A field of a prop, a
+   character or a monster is printed by its name where the bits read are
+   exactly a field GetField reads (exeRecordFields, below). */
 /* The routine a call goes to, when it is one of this program's routines
    entered at its start, and the number of its arguments. Null for a call
    through an address or into another library, whose count nothing here
@@ -787,10 +789,292 @@ function exeFlow(r, forCount, shapeOnly) {
   }
   return { ops, N, idx, inside, ud, target, B, inOf, MEM, tables };
 }
+/* ---- a record's fields by name ---------------------------------------------
+ * The pseudo-code printed a field of a prop as `(byte[toc_m30268 + (r29 <<
+ * 4) + 4] >> 2) & 0x1F`. No file has a record's fields by name. The
+ * interpreter does read them by number: the scripts' get_field and
+ * set_field call GetField(short, short, short), which reads field n of a
+ * prop, a character or a monster in a switch on n, one case a field, each
+ * case loading the field out of the kind's table of records. delvmod names
+ * those numbers (DVM_SYM.field: 3 aspect, 21 behavior), so a case's value,
+ * read bit for bit, is the field of that name, and the same bits read
+ * anywhere else in the program are that field too. Nothing is typed in:
+ * the tables, their strides, the offsets and bits come out of GetField's
+ * code, and the names from delvmod, the one outside source the listings use.
+ *
+ * WHICH VALUES ARE RECORDS. A register's fact (exeRecStep) follows the
+ * shape the program indexes a table with: a pointer loaded from the TOC (a
+ * table's address) or through it (a global pointing at a table), an index
+ * shifted or multiplied by the record size, and the two added; an `addi`
+ * moves the pointer within the record. The facts are carried across the
+ * blocks (exeRecFacts): a register is a record pointer at a block's start
+ * when it is the same one at the end of every block that leads there. An
+ * argument whose type in the routine's name is a record's (PropItem*,
+ * CharEntry*) starts as one; GetField gives each type its table, by the
+ * routines it hands a record to (GetItemCount(PropItem*)).
+ *
+ * WHICH BITS. A value read out of a record is followed bit by bit
+ * (exeCellBits and exeBitsStep): each bit of the value is a bit of the
+ * record or a zero, through shifts, rotates, masks, sign extensions and an
+ * `or` of two pieces. A field is named where the bits are exactly the bits
+ * GetField's case reads for it, so `(byte[r30 + 4] >> 2) & 0x1F` is the
+ * aspect, `byte[r30 + 4] & 0x80` is not (the rotate bit, not shifted down),
+ * and a value read some other way is printed as code.
+ *
+ * WHICH KIND. GetField picks the table by the object's type first, a test
+ * `type == 72` and so on; the kind of a table is delvmod's name for the
+ * lowest type whose test leads to the switch that reads it (DVM_SYM.objtype:
+ * 0 Prop, 64 Character, 72 Monster). A record is printed `Prop[i].aspect`
+ * where the pointer is worked out in view, and `r30->aspect` where the
+ * pointer is in a register or an argument. */
+function exeRecTable(f) { return typeof f === 'string' && /^(toc|glob|data):/.test(f); }
+function exeRecOf(f) { if (typeof f !== 'string' || f.slice(0, 4) !== 'rec|') return null; const p = f.split('|'); return { table: p[1], stride: +p[2], off: +p[3] }; }
+function exeRecFact(table, stride, off) { return 'rec|' + table + '|' + stride + '|' + off; }
+// A table's address: a table, or its first record where the stride is known.
+function exeRecBase(f) { if (exeRecTable(f)) return { table: f, stride: 0 }; const r = exeRecOf(f); return r && r.off === 0 ? { table: r.table, stride: r.stride } : null; }
+// An index scaled by a stride, with a byte offset added: `scaled:16:4`.
+function exeScaledOf(f) { if (typeof f !== 'string' || f.slice(0, 7) !== 'scaled:') return null; const p = f.split(':'); return { stride: +p[1], off: +p[2] }; }
+/* One instruction's change to the facts `st`, a fact a register.
+   `strideOf` gives a table's stride where GetField reads it with one, so
+   the table's address plus a constant is a record: `toc_m30268 + 4096` is
+   Prop 256. A record pointer moved by a whole record is still one, so a
+   pointer a loop steps by 16 through the props is a record pointer
+   throughout. */
+function exeRecStep(st, d, strideOf) {
+  if (!d) return;
+  if (d.branch) { if (d.lk) for (const q of [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) st[q] = null; return; }
+  const m = EXE_MEM.exec(d.mn);
+  if (m) {
+    if (m[2] === 'mw') { if (m[1] === 'l') for (let q = d.rt; q < 32; q++) st[q] = null; return; }
+    if (m[1] === 'l') {
+      let v = null;
+      if (!m[5] && d.ra === 2) v = 'toc:' + d.d;
+      else if (!m[5] && d.d === 0 && m[2] === 'w' && /^toc:/.test(st[d.ra] || '')) v = 'glob:' + st[d.ra].slice(4);
+      if (m[4] && d.ra) st[d.ra] = null;
+      st[d.rt] = v;
+    } else if (m[4] && d.ra) st[d.ra] = null;
+    return;
+  }
+  const bare = d.mn.replace(/\.$/, '');
+  let q = -1, v = null;
+  if (bare === 'addi' || bare === 'addic' || bare === 'addis') {
+    q = d.rd;
+    const imm = bare === 'addis' ? d.imm << 16 : d.imm;
+    const r = exeRecOf(st[d.ra]), s = exeScaledOf(st[d.ra]), stride = exeRecTable(st[d.ra]) && strideOf ? strideOf(st[d.ra]) : 0;
+    if (d.ra === 2 && bare === 'addi') v = 'data:' + imm;
+    else if (r) v = exeRecFact(r.table, r.stride, ((r.off + imm) % r.stride + r.stride) % r.stride);
+    else if (s) v = 'scaled:' + s.stride + ':' + (s.off + imm);
+    else if (stride) v = exeRecFact(st[d.ra], stride, (imm % stride + stride) % stride);
+  } else if (bare === 'mr') { q = d.ra; v = st[d.rs]; }
+  else if (/^(rlwinm|slwi)$/.test(bare) && d.sh > 0 && d.sh < 16 && d.me === 31 - d.sh) { q = d.ra; v = 'scaled:' + (1 << d.sh) + ':0'; }
+  else if (bare === 'mulli' && d.imm > 1) { q = d.rd; v = 'scaled:' + d.imm + ':0'; }
+  else if (bare === 'add') {
+    q = d.rd;
+    const a = exeRecBase(st[d.ra]), b = exeRecBase(st[d.rb]), sa = exeScaledOf(st[d.ra]), sb = exeScaledOf(st[d.rb]);
+    if (a && sb && (!a.stride || a.stride === sb.stride)) v = exeRecFact(a.table, sb.stride, sb.off);
+    else if (b && sa && (!b.stride || b.stride === sa.stride)) v = exeRecFact(b.table, sa.stride, sa.off);
+  }
+  if (q >= 0) { st[q] = v; return; }
+  for (const w of exeRegUse(d).w) st[w] = null;
+}
+// Each table's stride, where GetField reads it with one and the fields are learned.
+function exeRecStrides(RF) {
+  if (!RF || RF.learning) return null;
+  if (RF.strideOf) return RF.strideOf;
+  const by = new Map();
+  for (const k of RF.tables.keys()) { const [t, s] = k.split('|'); by.set(t, by.has(t) ? 0 : +s); }
+  return (RF.strideOf = t => by.get(t) || 0);
+}
+/* The facts at the start of each block of `flow` (exeFlow's), by the
+   block's first instruction: a register has a fact where every block
+   leading there ends with it. Block 0 starts with the record arguments. */
+function exeRecFacts(r, flow, RF) {
+  const { ops, B } = flow, strideOf = exeRecStrides(RF);
+  const start = new Array(32).fill(null);
+  if (RF && RF.types.size) {
+    const list = exeArgList(r.name), n = list ? exeArgCount(r) : 0;
+    const cls = /^([A-Za-z_]\w*)::/.exec(r.name);
+    if (list && n >= list.length && n <= list.length + 1) {
+      const skip = n - list.length;
+      if (skip && cls && RF.types.has(cls[1] + '*')) start[3] = RF.types.get(cls[1] + '*');
+      list.forEach((t, i) => { const k = RF.types.get(t.replace(/^const /, '').replace(/&$/, '*')); if (k && 3 + skip + i <= 10) start[3 + skip + i] = k; });
+    }
+  }
+  const at = new Map([[0, start]]);
+  const preds = B.map(() => []);
+  B.forEach((b, i) => { for (const q of b.succ) preds[q].push(i); });
+  const out = B.map(() => null);
+  for (let round = 0, again = true; again && round < 32; round++) {
+    again = false;
+    B.forEach((b, i) => {
+      let st;
+      if (i === 0) st = start.slice();
+      else {
+        // Where a loop starts a pointer at a table and steps it a record at
+        // a time, the table meets a record pointer: both are a record then.
+        const norm = f => exeRecTable(f) && strideOf && strideOf(f) ? exeRecFact(f, strideOf(f), 0) : f;
+        // A block none of whose ways in has been read yet waits for one.
+        // Taken as knowing nothing, it cleared every fact in every loop.
+        const ins = preds[i].map(p => out[p]).filter(Boolean);
+        if (!ins.length) return;
+        st = ins[0].map((f, q) => ins.every(x => x[q] === f) ? f : ins.every(x => norm(x[q]) === norm(f)) ? norm(f) : null);
+      }
+      at.set(b.s, st.slice());
+      for (let k = b.s; k <= b.e; k++) exeRecStep(st, ops[k].d, strideOf);
+      if (!out[i] || out[i].some((f, q) => f !== st[q])) { out[i] = st; again = true; }
+    });
+  }
+  return at;
+}
+// A demangled name's argument list, split at its top-level commas.
+function exeArgList(name) {
+  const open = name.indexOf('(');
+  if (open < 0) return null;
+  let depth = 0, cur = '';
+  const out = [];
+  for (let i = open + 1; i < name.length; i++) {
+    const c = name[i];
+    if (c === '(' || c === '<') depth++;
+    if (c === ')' || c === '>') { if (depth === 0) { if (cur.trim()) out.push(cur.trim()); return out; } depth--; }
+    if (c === ',' && depth === 0) { out.push(cur.trim()); cur = ''; continue; }
+    cur += c;
+  }
+  return null;
+}
+/* A value's bits as the record has them: entry p is the bit of the record
+   (counted from its first byte's top bit) at bit p of the value, bit 0 the
+   lowest, or -1 for a zero. */
+function exeCellBits(off, size, signed) {
+  const n = size * 8, out = new Array(32).fill(-1);
+  for (let p = 0; p < n; p++) out[p] = off * 8 + n - 1 - p;
+  if (signed) for (let p = n; p < 32; p++) out[p] = out[n - 1];
+  return out;
+}
+// The bits a transform of a record's value leaves, or null.
+function exeBitsStep(d, reg) {
+  const bare = d.mn.replace(/\.$/, '');
+  const mask = (mb, me) => ((0xFFFFFFFF >>> mb) & (0xFFFFFFFF << (31 - me))) >>> 0;
+  const keep = (b, m) => b.map((x, p) => (m >>> p) & 1 ? x : -1);
+  const rotl = (b, n) => { const o = new Array(32); for (let p = 0; p < 32; p++) o[(p + n) & 31] = b[p]; return o; };
+  let b = null;
+  if (/^(rlwinm|clrlwi|slwi|srwi|rotlwi)$/.test(bare)) { const s = reg[d.rs].bits; if (s) b = keep(rotl(s, d.sh), mask(d.mb, d.me)); }
+  else if (bare === 'andi' || bare === 'andis') { const s = reg[d.rs].bits; if (s) b = keep(s, bare === 'andi' ? d.imm : (d.imm << 16) >>> 0); }
+  else if (bare === 'srawi') { const s = reg[d.rs].bits; if (s) b = s.map((x, p) => p + d.sh <= 31 ? s[p + d.sh] : s[31]); }
+  else if (bare === 'mr') b = reg[d.rs].bits || null;
+  else if (bare === 'extsh' || bare === 'extsb') { const s = reg[d.rs].bits, top = bare === 'extsh' ? 15 : 7; if (s) b = s.map((x, p) => p > top ? s[top] : x); }
+  else if (bare === 'or' || bare === 'rlwimi') {
+    const m = bare === 'rlwimi' ? mask(d.mb, d.me) : 0;
+    const a = bare === 'rlwimi' ? (reg[d.ra].bits ? keep(reg[d.ra].bits, ~m >>> 0) : reg[d.ra].k === 0 ? new Array(32).fill(-1) : null) : reg[d.rs].bits;
+    const c = bare === 'rlwimi' ? (reg[d.rs].bits ? keep(rotl(reg[d.rs].bits, d.sh), m) : null) : reg[d.rb].bits;
+    const fa = bare === 'rlwimi' ? reg[d.ra].fld : reg[d.rs].fld, fc = bare === 'rlwimi' ? reg[d.rs].fld : reg[d.rb].fld;
+    if (a && c && (!fa || !fc || fa.key === fc.key)) { b = a.map((x, p) => x !== -1 && c[p] !== -1 ? null : x !== -1 ? x : c[p]); if (b.includes(null)) b = null; }
+  }
+  return b && b.some(x => x !== -1) ? b : null;
+}
+/* The fields GetField reads, learned once for the program: for each table
+   (`toc:D` the TOC slot with its address, `glob:D` the global it points
+   at, `data:D` data at D from the TOC) and stride, its kind's name and a
+   map from a field's bits to its name; and the record types the program's
+   routine names give a table. */
+function exeRecordFields() {
+  const pef = appPef();
+  if (!pef) return null;
+  if (pef.recordFields) return pef.recordFields;
+  const RF = pef.recordFields = { tables: new Map(), types: new Map(), learning: true };
+  try {
+    const g = exeRoutineNamed('GetField(short, short, short)');
+    if (!g || typeof DVM_SYM === 'undefined') return RF;
+    const flow = exeFlow(g, false, true), { ops, B, tables } = flow;
+    const facts = exeRecFacts(g, flow, null);
+    // The types: a record handed to a routine whose name gives the argument's type.
+    for (const b of B) {
+      const st = (facts.get(b.s) || new Array(32).fill(null)).slice();
+      for (let k = b.s; k <= b.e; k++) {
+        const o = ops[k], d = o.d;
+        if (d && d.branch && d.lk && !d.indirect && o.to !== null) {
+          const e = exeOpEntry(o), list = e ? exeArgList(e.name) : null;
+          if (list) {
+            const skip = exeArgCount(e) - list.length;
+            list.forEach((t, i) => { const q = 3 + skip + i, rf = exeRecOf(st[q]); if (q <= 10 && rf && rf.off === 0 && /\*$/.test(t)) RF.types.set(t, exeRecFact(rf.table, rf.stride, 0)); });
+          }
+        }
+        exeRecStep(st, d);
+      }
+    }
+    // The kind of each switch on a field: the lowest object type whose
+    // test (`== N` jumping to a block) leads to it first.
+    const blockAt = new Map(B.map((b, i) => [b.s, i]));
+    const switchOf = from => {
+      const seen = new Set([from]), queue = [from];
+      for (let h = 0; h < queue.length && h < 64; h++) {
+        const b = B[queue[h]];
+        if (tables.has(b.e)) return b.e;
+        for (const q of b.succ) if (!seen.has(q)) { seen.add(q); queue.push(q); }
+      }
+      return null;
+    };
+    const kindOf = new Map();
+    ops.forEach((o, k) => {
+      const d = o.d;
+      if (!d || d.mn !== 'cmpwi' || !DVM_SYM.objtype[d.imm]) return;
+      const br = ops[k + 1] && ops[k + 1].d;
+      if (!br || br.mn !== 'bt' || (br.bi & 3) !== 2 || !blockAt.has((ops[k + 1].to - g.offset) >> 2)) return;
+      const sw = switchOf(blockAt.get((ops[k + 1].to - g.offset) >> 2));
+      if (sw !== null && (!kindOf.has(sw) || d.imm < kindOf.get(sw).type)) kindOf.set(sw, { type: d.imm, name: DVM_SYM.objtype[d.imm] });
+    });
+    // Each case's value: the first value read out of a record that the case
+    // stores, from its first line to the next case.
+    const L = exePseudoLines(g, RF);
+    for (const [sw, kind] of kindOf) {
+      let low = 0, bound = -1;
+      for (let j = sw - 1; j >= Math.max(0, sw - 16); j--) { const d = ops[j].d; if (d && d.mn === 'cmplwi') { bound = j; break; } }
+      if (bound < 0) continue;
+      const by = ops[bound].d.ra;
+      for (let j = bound - 1; j >= 0; j--) { const d = ops[j].d; if (d && exeRegUse(d).w.includes(by)) { if (d.mn === 'addi' && d.ra) low = -d.imm; break; } }
+      const deflt = ops[bound + 1] && ops[bound + 1].to;
+      const cases = tables.get(sw), starts = [...new Set(cases)].filter(a => a !== deflt).sort((a, b) => a - b);
+      cases.forEach((a, k) => {
+        if (a === deflt) return;
+        const name = DVM_SYM.field[low + k];
+        if (!name) return;
+        const end = starts.find(x => x > a) || g.offset + g.length;
+        const l = L.find(x => x.at >= a && x.at < end && x.val && x.val.bits && x.val.fld);
+        if (!l) return;
+        const key = l.val.fld.key;
+        if (!RF.tables.has(key)) RF.tables.set(key, { kind: kind.name, fields: new Map() });
+        const t = RF.tables.get(key);
+        if (t.kind === kind.name && !t.fields.has(l.val.bits.join(','))) t.fields.set(l.val.bits.join(','), name);
+      });
+    }
+    // Each field shifted left by 1 to 15 with no bit of it lost.
+    for (const t of RF.tables.values()) {
+      t.shifted = new Map();
+      for (const [key, name] of t.fields) {
+        const b = key.split(',').map(Number);
+        for (let k = 1; k < 16; k++) {
+          if (b.some((x, p) => x !== -1 && p + k > 31)) break;
+          const s = new Array(32).fill(-1);
+          b.forEach((x, p) => { if (x !== -1) s[p + k] = x; });
+          if (!t.fields.has(s.join(','))) t.shifted.set(s.join(','), { name, k });
+        }
+      }
+    }
+  } finally { RF.learning = false; }
+  return RF;
+}
 function exePseudo(r) {
   if (r.pseudo) return r.pseudo;
+  const lines = exePseudoLines(r, exeRecordFields());
+  // The line an instruction's work ends up on: the first written at or after it.
+  const ops = exeOpsOf(r), stmtOf = new Int32Array(ops.length).fill(-1);
+  let li = 0;
+  for (let i = 0; i < ops.length; i++) { while (li < lines.length - 1 && lines[li].at < ops[i].at) li++; stmtOf[i] = lines.length ? li : -1; }
+  return (r.pseudo = { lines, stmtOf });
+}
+function exePseudoLines(r, RF) {
   const img = appImage();
-  const { ops, N, ud, target, B, MEM, tables, inside } = exeFlow(r, false);
+  const flow = exeFlow(r, false), { ops, N, ud, target, B, MEM, tables, inside } = flow;
+  const facts = exeRecFacts(r, flow, RF);
   const vol = n => n === 0 || (n >= 3 && n <= 12);
   // ---- expressions ----
   const hexOf = v => '0x' + (v >>> 0).toString(16).toUpperCase();
@@ -818,14 +1102,101 @@ function exePseudo(r) {
     if (base.k === undefined && base.p === 0 && base.s[0] === '&' && dsp === 0) return { s: base.s.slice(1), p: 0, mem: true };
     return { s: WIDTH[wd] + '[' + str(add(base, dsp)) + ']', p: 0, mem: true };
   };
-  const lines = [], stmtOf = new Int32Array(N).fill(-1);
+  const lines = [];
+  // A load or store through a record pointer (the facts before the
+  // instruction, `st`): the record's table, stride and the bits read, and
+  // how the record is printed, `Prop[i].` where the pointer was worked out
+  // in view (`recOf`) and `r30->` where a register or an argument has it.
+  let st = null, reg = null;
+  // A table and an index in registers a and b, either way round: the
+  // record's table, stride and offset, and `Prop[i]` where the table's kind
+  // is known and the index before its scaling is in view. An index with no
+  // scaling reads a table of bytes, one record a byte.
+  const strideOf = exeRecStrides(RF);
+  /* A record worked out in view, `recOf` on its expression: the kind, the
+     index (an expression, or a number for a constant one), how many whole
+     records were added to it, and the byte offset into the record. */
+  const recRef = (kind, stride, idx, num, k, off) => {
+    k += Math.floor(off / stride); off = ((off % stride) + stride) % stride;
+    if (num !== null) { num += k; k = 0; }
+    const txt = kind + '[' + (num !== null ? num : k ? wrap(idx, 3, false, true) + (k > 0 ? ' + ' + k : ' - ' + -k) : str(idx)) + ']';
+    return { kind, stride, idx, num, k, off, txt };
+  };
+  const recExpr = ro => ({ s: '&' + ro.txt + (ro.off ? ' + ' + ro.off : ''), p: ro.off ? 3 : 0, recOf: ro });
+  // A table's address loaded, where its stride and kind are known: `&Prop[0]`.
+  const tableStart = t => {
+    const s = strideOf ? strideOf(t) : 0, known = s && RF.tables.get(t + '|' + s);
+    return known ? recExpr(recRef(known.kind, s, null, 0, 0, 0)) : null;
+  };
+  // A table and an index in registers a and b, either way round: the
+  // record's table, stride and offset, and the record where the table's
+  // kind is known and the index before its scaling is in view. An index
+  // with no scaling reads a table of bytes, one record a byte.
+  const recIndex = (a, b) => {
+    for (const [t, i] of [[a, b], [b, a]]) {
+      const base = exeRecBase(st[t]);
+      if (!base) continue;
+      const s = exeScaledOf(st[i]);
+      if (!s && st[i]) continue;
+      const stride = s ? s.stride : 1, off = s ? s.off : 0;
+      if (base.stride && base.stride !== stride) continue;
+      // The index is printed only against the table's start: a record
+      // pointer that is not known to be record 0 gives the sum no name.
+      const x = reg[t], start = !base.stride || (x.recOf && x.recOf.num === 0 && x.recOf.off === 0);
+      const known = RF && RF.tables.get(base.table + '|' + stride);
+      const idx = s ? reg[i].unscaled : reg[i];
+      const ro = known && idx && start ? recRef(known.kind, stride, idx, null, 0, off) : null;
+      return { table: base.table, stride, off: ro ? ro.off : off, ro };
+    }
+    return null;
+  };
+  /* A load or store through a record pointer: its bits, the table's key,
+     and how the record is printed (`rt`), `Prop[i].` where it was worked
+     out in view and `r30->` where a register or an argument has it; with
+     `plain`, the cell printed against the record where no field matches. */
+  const recCell = (d, m) => {
+    if (!RF) return null;
+    const size = { b: 1, h: 2, w: 4 }[m[2]];
+    let rec = null, ro = null, rt = null;
+    if (!m[5]) {
+      // Through a table's address itself, record 0.
+      const f = exeRecOf(st[d.ra]) || (exeRecTable(st[d.ra]) && strideOf && strideOf(st[d.ra]) ? { table: st[d.ra], stride: strideOf(st[d.ra]), off: 0 } : null), x = reg[d.ra];
+      if (f) {
+        rec = { table: f.table, stride: f.stride, off: f.off + d.d };
+        if (x.recOf && x.recOf.off === f.off) ro = x.recOf;
+        else if (f.off === 0 && /^(r|arg)\d+$/.test(x.s || '')) rt = x.s + '->';
+      }
+    } else {
+      const ri = recIndex(d.ra, d.rb);
+      if (ri) { rec = ri; ro = ri.ro; }
+    }
+    if (!rec || rec.off < 0 || rec.off + size > rec.stride) return null;
+    const key = rec.table + '|' + rec.stride;
+    if (!RF.learning && !RF.tables.has(key)) return null;
+    if (ro) rt = ro.txt + '.';
+    const plain = ro ? WIDTH[m[2]] + '[&' + ro.txt + (rec.off ? ' + ' + rec.off : '') + ']' : null;
+    return { bits: exeCellBits(rec.off, size, m[3] === 'a'), fld: { key, rt }, plain };
+  };
+  // A value as a field, where its bits are exactly a field's, or a field's
+  // shifted left: `(r30->obj_type << 2)` indexes a table of words by the
+  // prop's type.
+  const fieldName = (f, bits) => {
+    if (!f || !f.rt || !RF || RF.learning) return null;
+    const t = RF.tables.get(f.key);
+    if (!t) return null;
+    const key = bits.join(','), nm = t.fields.get(key);
+    if (nm) return { s: f.rt + nm, p: 0 };
+    const sh = t.shifted.get(key);
+    return sh ? { s: f.rt + sh.name + ' << ' + sh.k, p: 4 } : null;
+  };
   // A test carried into the next block. A block that only a conditional
   // jump falls into, and nothing jumps to, sees the comparison that jump
   // tested: `cmpwi`, `beq`, `bge` is two blocks, and the second jump read
   // "an earlier test >= 0" in 338 places.
   let carry = null;
   for (const blk of B) {
-    const reg = [];
+    reg = [];
+    st = (facts.get(blk.s) || new Array(32).fill(null)).slice();
     for (let i = 0; i < 32; i++) reg.push(atom('r' + i));
     if (blk.s === 0) for (let i = 3; i <= 10; i++) reg[i] = atom('arg' + (i - 2));
     const fresh = new Set();
@@ -834,7 +1205,8 @@ function exePseudo(r) {
     // `flow` is what the line does to the order the code runs in, for
     // exePseudoBlocks: a test that jumps (`cond`, with the test as written
     // and its opposite), a jump in the routine, a switch, or an end.
-    const addLine = (text, link, flow) => lines.push({ at, text, to: link === undefined ? null : link, flow: flow || null });
+    // `val` is the value a store writes, which exeRecordFields reads.
+    const addLine = (text, link, flow, val) => lines.push({ at, text, to: link === undefined ? null : link, flow: flow || null, val: val || null });
     const name = q => 'r' + q;
     const settle = q => { if (reg[q].k === undefined && reg[q].s === name(q)) return; addLine(name(q) + ' = ' + str(reg[q])); reg[q] = atom(name(q)); };
     // Whether a register's value is read from instruction `from` on: later
@@ -930,20 +1302,31 @@ function exePseudo(r) {
           // Below the stack pointer the routine saves the registers it must hand back, and restores them.
           else if (d.d < 0) { if (m[1] === 'l') reg[d.rt] = atom(name(d.rt)); }
           else if (m[1] === 'l') { dest = d.rt; res = atom('local' + d.d); }
-          else if (reg[d.rt].s !== 'return address') { const v = str(reg[d.rt]); before(mentions('local' + d.d)); stale(mentions('local' + d.d)); addLine('local' + d.d + ' = ' + v); }
-        } else if (m && d.ra === 2 && !m[5] && m[1] === 'l') { dest = d.rt; res = atom(tocName(d.d)); }
+          else if (reg[d.rt].s !== 'return address') { const v = str(reg[d.rt]); before(mentions('local' + d.d)); stale(mentions('local' + d.d)); addLine('local' + d.d + ' = ' + v, undefined, undefined, reg[d.rt]); }
+        } else if (m && d.ra === 2 && !m[5] && m[1] === 'l') { dest = d.rt; res = tableStart('toc:' + d.d) || atom(tocName(d.d)); }
         else if (m && m[2] !== 'mw') {
           const base = m[5] ? bin('+', reg[d.ra], reg[d.rb], 3) : reg[d.ra];
-          const cell = memOf(m[2], base, m[5] ? 0 : d.d);
-          if (m[1] === 'l') { dest = d.rt; res = cell; }
-          else { const v = str(reg[d.rt]); before(e => e.mem); stale(e => e.mem); addLine(cell.s + ' = ' + v); }
+          let cell = memOf(m[2], base, m[5] ? 0 : d.d);
+          const rf = recCell(d, m);
+          if (rf) cell = Object.assign(cell, { bits: rf.bits, fld: rf.fld }, rf.plain ? { s: rf.plain } : {}, fieldName(rf.fld, rf.bits) || {});
+          if (m[1] === 'l') { dest = d.rt; res = (!m[5] && d.d === 0 && m[2] === 'w' && /^toc:/.test(st[d.ra] || '') && tableStart('glob:' + st[d.ra].slice(4))) || cell; }
+          else { const v = str(reg[d.rt]); before(e => e.mem); stale(e => e.mem); addLine(cell.s + ' = ' + v, undefined, undefined, reg[d.rt]); }
         } else if (mn === 'li') { dest = d.rd; res = konst(d.imm); }
         else if (mn === 'lis') { dest = d.rd; res = konst(d.imm << 16); }
         else if (/^addi[cs]?$/.test(bare) && d.ra === 1) { if (d.rd !== 1) { dest = d.rd; res = atom('&local' + d.imm); } }
         else if (bare === 'addi' && d.ra === 2) { dest = d.rd; res = atom('&data_' + (img.toc.offset + d.imm).toString(16).toUpperCase()); }
-        else if (bare === 'addi' || bare === 'addic') { dest = d.rd; res = add(reg[d.ra], d.imm); }
-        else if (bare === 'addis') { dest = d.rd; res = add(reg[d.ra], d.imm << 16); }
-        else if (bare === 'mulli') { dest = d.rd; res = bin('*', reg[d.ra], konst(d.imm), 2); }
+        else if (bare === 'addi' || bare === 'addic' || bare === 'addis') {
+          const imm = bare === 'addis' ? d.imm << 16 : d.imm;
+          dest = d.rd; res = add(reg[d.ra], imm);
+          // A scaled index or a record moved by a constant is still one.
+          const x = reg[d.ra];
+          if (x.unscaled) res = Object.assign({}, res, { unscaled: x.unscaled });
+          const ro = x.recOf, stride = !ro && exeRecTable(st[d.ra]) && strideOf ? strideOf(st[d.ra]) : 0;
+          if (ro) res = recExpr(recRef(ro.kind, ro.stride, ro.idx, ro.num, ro.k, ro.off + imm));
+          // A table's address plus a constant: a record of a constant index.
+          else if (stride) res = recExpr(recRef(RF.tables.get(st[d.ra] + '|' + stride).kind, stride, null, 0, 0, imm));
+        }
+        else if (bare === 'mulli') { dest = d.rd; res = Object.assign(bin('*', reg[d.ra], konst(d.imm), 2), { unscaled: reg[d.ra] }); }
         else if (bare === 'subfic') { dest = d.rd; res = bin('-', konst(d.imm), reg[d.ra], 3); }
         else if (bare === 'andi') { dest = d.ra; res = and(reg[d.rs], d.imm); }
         else if (bare === 'andis') { dest = d.ra; res = and(reg[d.rs], d.imm << 16); }
@@ -956,6 +1339,9 @@ function exePseudo(r) {
           if (d.sh) e = d.me <= 31 - d.sh ? bin('<<', x, konst(d.sh), 4) : d.mb >= 32 - d.sh ? bin('>>', x, konst(32 - d.sh), 4) : { s: 'rotl(' + str(x) + ', ' + d.sh + ')', p: 0, mem: x.mem };
           const whole = d.sh ? (d.me <= 31 - d.sh ? (0xFFFFFFFF << d.sh) >>> 0 : d.mb >= 32 - d.sh ? 0xFFFFFFFF >>> (32 - d.sh) : 0xFFFFFFFF) : 0xFFFFFFFF;
           dest = d.ra; res = (mask & whole) >>> 0 === whole ? e : and(e, mask);
+          // An index scaled to a table's stride (exeRecStep), and the index
+          // before the shift: the bits under the mask, shifted back down.
+          if (d.sh > 0 && d.sh < 16 && d.me === 31 - d.sh) res = Object.assign({}, res, { unscaled: mask >>> d.sh === 0xFFFFFFFF >>> d.sh ? x : and(x, mask >>> d.sh) });
         } else if (bare === 'rlwimi') {
           const mask = ((0xFFFFFFFF >>> d.mb) & (0xFFFFFFFF << (31 - d.me))) >>> 0, x = reg[d.rs];
           const e = d.sh ? bin('<<', x, konst(d.sh), 4) : x;
@@ -964,7 +1350,13 @@ function exePseudo(r) {
         else if (bare === 'mr' || bare === 'extsh' || bare === 'extsb' || bare === 'addze') { dest = bare === 'addze' ? d.rd : d.ra; res = reg[bare === 'addze' ? d.ra : d.rs]; }
         else if (bare === 'not') { dest = d.ra; res = { s: '~' + wrap(reg[d.rs], 1), p: 1, mem: reg[d.rs].mem }; }
         else if (bare === 'neg') { dest = d.rd; res = { s: '-' + wrap(reg[d.ra], 1), p: 1, mem: reg[d.ra].mem }; }
-        else if (bare === 'add') { dest = d.rd; res = bin('+', reg[d.ra], reg[d.rb], 3); }
+        else if (bare === 'add') {
+          dest = d.rd; res = bin('+', reg[d.ra], reg[d.rb], 3);
+          // A table's address and an index scaled by its stride: a record,
+          // `&Prop[i]`, where the table is one GetField reads.
+          const rec = recIndex(d.ra, d.rb);
+          if (rec && rec.ro) res = recExpr(rec.ro);
+        }
         else if (bare === 'sub') { dest = d.rd; res = bin('-', reg[d.rb], reg[d.ra], 3); }
         else if (bare === 'subf' || bare === 'subc') { dest = d.rd; res = bin('-', reg[d.rb], reg[d.ra], 3); }
         else if (bare === 'mullw') { dest = d.rd; res = bin('*', reg[d.ra], reg[d.rb], 2); }
@@ -978,22 +1370,32 @@ function exePseudo(r) {
         else if (mn === 'cmpwi' || mn === 'cmplwi') cond = { a: reg[d.ra], b: konst(d.imm) };
         else if (mn === 'cmpw' || mn === 'cmplw') cond = { a: reg[d.ra], b: reg[d.rb] };
         else raw();
+        if (dest >= 0 && res && RF) {
+          // A value out of a record, shifted or masked, has its bits
+          // followed, and where they are a field's it is printed by the
+          // field's name.
+          const bits = exeBitsStep(d, reg);
+          if (bits) {
+            const f = bare === 'or' ? reg[d.rs].fld || reg[d.rb].fld : reg[d.rs].fld;
+            res = Object.assign({}, res, { bits, fld: f });
+            const nm = f ? fieldName(f, bits) : null;
+            if (nm) res = { s: nm.s, p: nm.p, mem: true, bits, fld: f };
+          }
+        }
         if (dest >= 0 && res) {
           set(dest, res);
           // The test is of what is now in the register: its name, if the value was written out.
           if (dot) cond = { a: reg[dest].k === undefined && reg[dest].s === name(dest) ? reg[dest] : res, b: konst(0), hexy: /&|\|/.test(res.s || '') };
         }
       }
+      exeRecStep(st, d, strideOf);
       // A block that runs on into the next writes out every register read after it.
       if (i === blk.e && !(d && d.branch && !d.lk)) for (let q = 0; q < 32; q++) if (vol(q) && (blk.out >>> q & 1)) settle(q);
     }
     const last = ops[blk.e].d;
     if (exeConditional(last) && !last.lk) carry = cond;
   }
-  // The line an instruction's work ends up on: the first written at or after it.
-  let li = 0;
-  for (let i = 0; i < N; i++) { while (li < lines.length - 1 && lines[li].at < ops[i].at) li++; stmtOf[i] = lines.length ? li : -1; }
-  return (r.pseudo = { lines, stmtOf });
+  return lines;
 }
 /* The pseudo-code with its jumps made into blocks: `if (...) { }`, `else`,
    `while`, `do ... while`, `loop`, with `break`, `continue` and a jump to

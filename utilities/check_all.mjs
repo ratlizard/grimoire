@@ -538,7 +538,7 @@ const CHECKS = [
      counts every import at eight, which the rule must catch. */
   {page: 'viewer', name: 'pseudo-code', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_check.mjs', 'index.html', APP_DATA], grep: /PSEUDO [^\n]*/,
-   expect: 'PSEUDO 1664 checked, 0 over, 67730 lines, 18299 register lines, 39 at eight'},
+   expect: 'PSEUDO 1664 checked, 0 over, 67682 lines, 18272 register lines, 39 at eight'},
   {page: 'viewer', name: 'pseudo-code control', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_check.mjs', 'index.html', APP_DATA, '--control'], grep: /PSEUDO control: [^\n]*/,
    expect: 'PSEUDO control: 69 routines over with every import at eight'},
@@ -547,10 +547,19 @@ const CHECKS = [
      controls, each required to fail the assertion named for it. */
   {page: 'viewer', name: 'pseudo-code blocks', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_blocks_check.mjs', 'index.html', APP_DATA], grep: /BLOCKS \d[^\n]*/,
-   expect: 'BLOCKS 1390 routines with jumps, 971 with no goto left, 3133 gotos left, 7973 blocks, 741 joined tests, 542 whiles with the test at the end'},
+   expect: 'BLOCKS 1390 routines with jumps, 971 with no goto left, 3133 gotos left, 7970 blocks, 740 joined tests, 542 whiles with the test at the end'},
   {page: 'viewer', name: 'pseudo-code blocks controls', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_blocks_check.mjs', 'index.html', APP_DATA, '--controls'], grep: /BLOCKS controls: [^\n]*/,
    expect: 'BLOCKS controls: all 6 fail their assertion'},
+  /* The pseudo-code's field names: the layouts GetField gives against
+     delvmod's prop-list reader and the save editor's character records,
+     and lines pinned in three routines; three controls. */
+  {page: 'viewer', name: 'pseudo-code fields', requiredInputs: [APP_DATA, DELV],
+   cmd: ['utilities/pseudo_fields_check.mjs', 'index.html', APP_DATA, DELV], grep: /FIELDS \d[^\n]*/,
+   expect: 'FIELDS 30 fields in 4 tables, 2 record types, 773 of 67682 lines name a field'},
+  {page: 'viewer', name: 'pseudo-code fields controls', requiredInputs: [APP_DATA, DELV],
+   cmd: ['utilities/pseudo_fields_check.mjs', 'index.html', APP_DATA, DELV, '--controls'], grep: /FIELDS controls: [^\n]*/,
+   expect: 'FIELDS controls: all 3 fail their assertion'},
   /* js/mac-ppc.js against LLVM's PowerPC disassembler, word for word: the
      application's code section when it is there, every branch-field
      combination, and 300,000 generated words. A word read differently, or
