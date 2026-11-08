@@ -855,7 +855,25 @@ function dvmIsProse(seg) {
   return hasSpace && good / seg.length > 0.95;
 }
 
-function dvmRender(arc, b, resid) {
+/* `opts.shown` is for the listing a reader sees on a script's page, and adds
+   two things the folded and structured views already have. The dispatch
+   table's name for an object is a note on its header
+   (`function obj_0061(1 args, 0 locals) {   // Use`), and a line such as
+   `  0x0094:` stands before each op a jump lands on, written the way the
+   jump writes its target (`then -> 0x0094`). The gutter counts from the
+   object's start and a target from the resource's, so without the line a
+   reader had to add 0x0061 to 0x0033 to find where a jump goes.
+ *
+ * Without `opts.shown` the text is unchanged: the decoder snapshot, the
+ * search index and the rule matchers in js/page-rules.js read it, and those
+ * matchers join ops across lines with `\s+`, which a label line between two
+ * ops would break. The name stays a note, never the header, for the same
+ * reason the raw listing retains `set_local 0x31  // Arg01`: every reader of
+ * this text (dvmOpsOf, listingLineFor, scriptSearchLines) finds an object's
+ * start from `obj_XXXX`. The names and targets come from js/delv-fold.js
+ * (dvmSlotNames, dvmBranchTargets), which loads after this file and is in
+ * place by the time a page is drawn. */
+function dvmRender(arc, b, resid, opts) {
   // So a dref back into this same resource reads as `here:0x0031`.
   dvmContextResid = (typeof resid === 'number') ? resid : null;
   const objs = dvmExtents(b, resid);
@@ -863,6 +881,9 @@ function dvmRender(arc, b, resid) {
   let clean = 0, failed = 0;
   const hex4 = v => v.toString(16).padStart(4,'0').toUpperCase();
   const str = seg => decodeMacRoman(seg.filter(c => c));
+  const shown = !!(opts && opts.shown) && typeof dvmSlotNames === 'function' && typeof dvmBranchTargets === 'function';
+  const slots = shown ? dvmSlotNames(b, resid) : null;
+  const named = st => (slots && slots.has(st)) ? '   // ' + slots.get(st) : '';
   for (const [st, en, kind] of objs) {
     const seg = b.subarray(st, Math.min(en, b.length));
     if (!seg.length) continue;
@@ -878,13 +899,15 @@ function dvmRender(arc, b, resid) {
       // text must be the whole function bar its return (dvmProseHead), or
       // the code after it is disassembled with it.
       const ph = dvmProseHead(body);
-      if (ph && ph.bare) { lines.push('', name + ' = ' + JSON.stringify(str(ph.head))); clean++; continue; }
+      if (ph && ph.bare) { lines.push('', name + ' = ' + JSON.stringify(str(ph.head)) + named(st)); clean++; continue; }
       const r = dvmDisassemble(seg, 3);
-      lines.push('', 'function ' + name + '(' + seg[1] + ' args, ' + seg[2] + ' locals) {');
+      lines.push('', 'function ' + name + '(' + seg[1] + ' args, ' + seg[2] + ' locals) {' + named(st));
+      const targets = shown ? dvmBranchTargets(r.ops) : null;
       let ind = 1;
       for (const op of r.ops) {
         const at = op[0], delta = op[1], mn = op[2], arg = op[3];
         if (delta < 0 && ind > 1) ind--;
+        if (targets && targets.has(st + at)) lines.push('  0x' + hex4(st + at) + ':');
         lines.push('  ' + hex4(at) + '  ' + '    '.repeat(ind) + mn + (arg ? ' ' + arg : ''));
         if (delta > 0) ind++;
       }
@@ -893,11 +916,11 @@ function dvmRender(arc, b, resid) {
       else clean++;
     } else if (kind === 'array') {
       const v = dvmArrayContents(seg);
-      lines.push('', name + ' = ' + (v ? '[' + v.join(', ') + ']' : '<array>'));
+      lines.push('', name + ' = ' + (v ? '[' + v.join(', ') + ']' : '<array>') + named(st));
       clean++;
     }
     else if (kind === 'table') { lines.push('', name + ' = <table>'); clean++; }
-    else if (dvmIsProse(seg) || dvmIsIdentifier(seg)) { lines.push('', name + ' = ' + JSON.stringify(str(seg))); clean++; }
+    else if (dvmIsProse(seg) || dvmIsIdentifier(seg)) { lines.push('', name + ' = ' + JSON.stringify(str(seg)) + named(st)); clean++; }
     else { lines.push('', name + ' = <' + seg.length + ' bytes>'); failed++; }
   }
   const cls = dvmClassName(resid);

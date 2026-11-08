@@ -2804,7 +2804,8 @@ function renderText(sameResource) {
             (window.SCRIPT_FOLD === 'structured' && typeof dvmStructureRender === 'function') ? dvmStructureRender :
             (window.SCRIPT_FOLD && typeof dvmFoldRender === 'function') ? dvmFoldRender :
             dvmRender;
-          const dis = render(ARCHIVE, resData, resid, listingExtra);
+          const dis = render === dvmRender ? dvmRender(ARCHIVE, resData, resid, { shown: true })
+                                           : render(ARCHIVE, resData, resid, listingExtra);
           if (dis && dis.split('\n').length > 2) scriptText = dis;
           // The folded views name a call without its id; the links in them
           // are learned from this (paintDecodedPane, renderLinked).

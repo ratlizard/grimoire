@@ -535,7 +535,8 @@ function readViewHtml(fns) {
 /* A branch in a listing is a link to where it goes. In the structured and
    folded listings a target is a label, `goto L0042` or a switch's
    `-> L0015, L0019`, and the label's line (`L0042:`) is left alone; in the
-   raw one it is `then -> 0x0094`. Both are offsets into the resource, which is
+   raw one it is `then -> 0x0094`, `branch 0x0094` or a switch's
+   `cases ( 0x0015, 0x0019 )`, and the line `0x0094:` is left alone. Both are offsets into the resource, which is
    what the ring counts in (listingLineFor), so a tap rings the statement at
    the target and scrolls to it without leaving the page.
 
@@ -545,7 +546,10 @@ function readViewHtml(fns) {
    continue the place the loop goes round. */
 function listingJumps(html, raw, exits) {
   const go = hx => '<a class="reflink" onclick="ringListingAt(' + parseInt(hx, 16) + ')">';
-  if (raw) return html.replace(/(then -&gt; )0x([0-9A-F]{4})\b/g, (m, pre, hx) => pre + go(hx) + '0x' + hx + '</a>');
+  if (raw) return html
+    .replace(/(then -&gt; |branch )0x([0-9A-F]{4})\b/g, (m, pre, hx) => pre + go(hx) + '0x' + hx + '</a>')
+    .replace(/^(.*\bcases \( )(.*)( \))$/gm, (m, pre, list, post) =>
+      pre + list.replace(/0x([0-9A-F]{4})\b/g, (t, hx) => go(hx) + t + '</a>') + post);
   html = html.replace(/\bL([0-9A-F]{4})\b(?!:)/g, (m, hx) => go(hx) + m + '</a>');
   if (exits && exits.size)
     html = html.replace(/^(    ([0-9A-F]{4}) .*?)\b(break|continue)$/gm, (m, pre, hx, word) => {

@@ -683,6 +683,28 @@ try {
   const head = ctx.document.getElementById('scriptView');
   if (!/0x1(80B|A13)/i.test(head.innerHTML) || head.style.display === 'none')
     fail('script page', 'the script head is not built and shown');
+  /* The raw listing as a script's page shows it (dvmRender's `shown`): the
+     dispatch table's name in a note on an object's header, and a line at
+     each jump's target, written as the jump writes it. Directed Nexus's Use
+     (0x1A00, at 0xC4) jumps to 0x00F5, which is 0x31 in its gutter. The
+     targets of a `then` and of a switch's cases are links, and following
+     one rings the op under its line. */
+  ctx.setScriptFold(false);
+  ctx.jumpToResource(0x1A00);
+  const rawPane = ctx.document.getElementById('textContent').innerHTML;
+  if (!/\nfunction obj_00C4\(1 args, 0 locals\) \{   \/\/ Use\n/.test(rawPane))
+    fail('script page', 'the header of 0x1A00\'s Use in the raw listing has no name');
+  if (!/\n  0x00F5:\n  0031      return\n/.test(rawPane))
+    fail('script page', 'the raw listing has no line 0x00F5 over the op its jump lands on');
+  if (!/then -&gt; <a [^>]*ringListingAt\(245\)[^>]*>0x00F5<\/a>/.test(rawPane))
+    fail('script page', 'the raw listing\'s then -> 0x00F5 is not a link');
+  ctx.ringListingAt(0xF5);
+  const rawHit = /class="listingHit">([^\n]*)/.exec(ctx.document.getElementById('textContent').innerHTML);
+  if (!rawHit || !/^  0031      return/.test(rawHit[1]))
+    fail('script page', 'following 0x00F5 in the raw listing rings ' + (rawHit ? '"' + rawHit[1].slice(0, 40) + '"' : 'nothing'));
+  ctx.jumpToResource(0xE95);
+  if (!/cases \( <a [^>]*ringListingAt\(21\)[^>]*>0x0015<\/a>, <a [^>]*ringListingAt\(25\)[^>]*>0x0019<\/a>/.test(ctx.document.getElementById('textContent').innerHTML))
+    fail('script page', 'the cases of 0xE95\'s switch are not links in the raw listing');
 
   ctx.setScriptFold('structured');
   ctx.jumpToScriptAt(0x987, 0x34);

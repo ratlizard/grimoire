@@ -205,6 +205,43 @@ for (const subn of IMG_SUBN) {
   writeLine(`disassembly: ${rendered} scripts, ${chars} chars  text=${d.digest('hex').slice(0, 16)}`);
 }
 
+// The same listing as a script's page shows it (dvmRender's `shown`): the
+// dispatch table's names as notes on the headers and a line at each jump's
+// target. The line above does not see either, since the search index and the
+// rule matchers read the plain text. The counts are the two additions, and
+// the plain text with both taken out must be the line above's text.
+{
+  let names = 0, labels = 0, same = 0, rendered = 0;
+  const d = createHash('sha256');
+  const SCRIPT_SUBN = [0, 3, 7, 8, 9, 11, 12, 13, 14, 15, 16, 19, 20, 23, 24, 25, 26, 27, 29, 47];
+  for (const subn of SCRIPT_SUBN) {
+    const [off, cnt] = masterIndex[subn] || [0, 0];
+    if (!off || off + cnt > archive.length) continue;
+    for (let ri = 0, n = Math.min(256, cnt / 8); ri < n; ri++) {
+      const resid = (subn + 1) * 0x100 + ri;
+      let raw;
+      try { raw = g.getResourceBytes(arc, resid); } catch (e) { continue; }
+      if (!raw || !raw.length) continue;
+      let plain = '', shown = '';
+      try {
+        const data = g.smartDecrypt(raw, resid).data;
+        plain = g.dvmRender(arc, data, resid) || '';
+        shown = g.dvmRender(arc, data, resid, {shown: true}) || '';
+      } catch (e) { shown = 'ERR'; }
+      if (!shown) continue;
+      rendered++;
+      d.update(shown);
+      const ls = shown.split('\n');
+      labels += ls.filter(l => /^  0x[0-9A-F]{4}:$/.test(l)).length;
+      names += ls.filter(l => /^(?:function )?obj_[0-9A-F]{4}\b.*   \/\/ \w+$/.test(l)).length;
+      const back = ls.filter(l => !/^  0x[0-9A-F]{4}:$/.test(l))
+                     .map(l => /^(?:function )?obj_[0-9A-F]{4}\b/.test(l) ? l.replace(/   \/\/ \w+$/, '') : l).join('\n');
+      if (back === plain) same++;
+    }
+  }
+  writeLine(`disassembly as shown: ${rendered} scripts, ${names} names, ${labels} labels, ${same} plain underneath  text=${d.digest('hex').slice(0, 16)}`);
+}
+
 // text / strings
 {
   const es = entries(1);
