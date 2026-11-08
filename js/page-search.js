@@ -49,8 +49,10 @@
 
    What the crawl cannot see: text drawn on a canvas (the World map's
    place names are found through Names instead), a fold whose contents are
-   drawn only when it opens (the save's byte map), and the World tab, which
-   is skipped because drawing it starts the whole atlas for no text. */
+   drawn only when it opens (the save's byte map, whose parts each have a
+   .searchOnly line of their fields' names for it, byteMapSearchLine), and
+   the World tab, which is skipped because drawing it starts the whole
+   atlas for no text. */
 
 function searchFold(s) {
   return String(s == null ? '' : s).toLowerCase().replace(/[‘’ʼ]/g, '\'').replace(/[“”]/g, '"');

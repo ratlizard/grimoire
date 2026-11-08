@@ -1833,7 +1833,21 @@ function saveByteMapHTML() {
     (m.unread ? '. ' + m.unread.toLocaleString('en-US') + ' of them are in fields that nobody has worked out. A <span class="byteUnread">not read</span> marks those.'
               : '. Every field’s meaning is clear.') + '</div>' +
     m.parts.map(p => '<details class="byteMapPart" ontoggle="openSaveBytePart(this, ' + JSON.stringify(String(p.key)).replace(/"/g, '&quot;') + ')"><summary>' +
-      svEsc(p.title) + ' <span class="byteMapSize">' + fmtBytes(p.size) + '</span></summary><div class="byteMapBody"></div></details>').join('');
+      svEsc(p.title) + ' <span class="byteMapSize">' + fmtBytes(p.size) + '</span></summary>' +
+      searchSentences([byteMapSearchLine(p)]) + '<div class="byteMapBody"></div></details>').join('');
+}
+/* What the site's search reads of a part whose table is not drawn yet: the
+   part's title and its fields' names, once each, in a .searchOnly line
+   after the summary. A hit on it outlines the summary, and opening the
+   fold to show it draws the table. The values are left out: the search is
+   for where a field is, and a part's thousands of values in hex would fill
+   the search's reading with numbers. Until 8 November 2026 the search read
+   none of the byte map, since a closed part has no table. */
+function byteMapSearchLine(p) {
+  const names = new Set();
+  const walk = fs => { for (const x of fs || []) { if (x.name) names.add(String(x.name)); if (x.kids) walk(x.kids); } };
+  walk(p.fields);
+  return names.size ? p.title + ': ' + [...names].join(', ') + '.' : '';
 }
 function openSaveBytePart(el, key) {
   if (!el.open) return;

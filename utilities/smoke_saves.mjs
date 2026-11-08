@@ -236,6 +236,10 @@ if (savePath && !onlyCat) {
       else if (!stream || !/the block’s tag<\/td><td>Char</.test(ctx.byteMapTableHTML(stream.fields).replace(/ <span[^>]*>not read<\/span>/g, '')))
         fail('every byte', 'the stream’s first field is not the Char tag');
       else if (!/Every field’s meaning is clear/.test(sheet)) fail('every byte', 'the Saved Game sheet does not say every field is read');
+      /* The site's search reads a closed part by its fields' names
+         (byteMapSearchLine), in a .searchOnly line after its summary. */
+      else if (!/<\/summary><div class="searchOnly"><p>[^<]*the block’s tag[^<]*<\/p><\/div><div class="byteMapBody">/.test(sheet))
+        fail('every byte', 'a closed part of the byte map has no line of its fields for the search');
       else console.log('  every byte: ' + opened + ' saves, ' + bytes.toLocaleString('en-US') + ' bytes, each in one labelled field whose meaning is read');
     } catch (e) { fail('every byte', e); }
     // Back to the game archive, and the identity goes back with it. With no
