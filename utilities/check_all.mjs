@@ -533,6 +533,15 @@ const CHECKS = [
   {page: 'viewer', name: 'executable', requiredInputs: [APP_DATA],
    cmd: ['utilities/pef_check.mjs', 'js/mac-pef.js', APP_DATA, PEF_SYMBOLS],
    grep: /\d+ routines named[^\n]*/},
+  /* A routine's pseudo-code over the whole program: each routine's argument
+     count held to its demangled name, and the lines it prints. The control
+     counts every import at eight, which the rule must catch. */
+  {page: 'viewer', name: 'pseudo-code', requiredInputs: [APP_DATA],
+   cmd: ['utilities/pseudo_check.mjs', 'index.html', APP_DATA], grep: /PSEUDO [^\n]*/,
+   expect: 'PSEUDO 1664 checked, 0 over, 67701 lines, 18280 register lines, 39 at eight'},
+  {page: 'viewer', name: 'pseudo-code control', requiredInputs: [APP_DATA],
+   cmd: ['utilities/pseudo_check.mjs', 'index.html', APP_DATA, '--control'], grep: /PSEUDO control: [^\n]*/,
+   expect: 'PSEUDO control: 69 routines over with every import at eight'},
   /* js/mac-ppc.js against LLVM's PowerPC disassembler, word for word: the
      application's code section when it is there, every branch-field
      combination, and 300,000 generated words. A word read differently, or

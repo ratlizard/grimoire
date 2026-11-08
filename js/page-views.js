@@ -118,21 +118,34 @@ function exeOpsOf(r) {
   if (!r) return [];
   if (r.ops) return r.ops;
   const img = appImage(); if (!img) return [];
+  // One decode an address for the program: the helpers exeEntryAt makes
+  // overlap each other and the routines.
+  const cache = img.opCache || (img.opCache = new Array(img.code.length >> 2));
   const ops = [];
   for (let at = r.offset; at < r.offset + r.length && at + 4 <= img.code.length; at += 4) {
-    const w = pefU32(img.code, at), d = ppcDecode(w);
-    ops.push({ at, word: w, d, mn: d ? d.mn : '', text: d ? d.text : '.long 0x' + w.toString(16).toUpperCase(),
-               to: d && d.branch && !d.indirect && !d.aa ? at + d.disp : null });
+    let o = cache[at >> 2];
+    if (!o) {
+      const w = pefU32(img.code, at), d = ppcDecode(w);
+      o = cache[at >> 2] = { at, word: w, d, mn: d ? d.mn : '', text: d ? d.text : '.long 0x' + w.toString(16).toUpperCase(),
+                             to: d && d.branch && !d.indirect && !d.aa ? at + d.disp : null };
+    }
+    ops.push(o);
   }
   return (r.ops = ops);
 }
 // The import a glue stub at `at` calls, or null.
 function exeGlueImport(at) {
   const img = appImage(); if (!img || !img.toc) return null;
+  const memo = img.glueAt || (img.glueAt = new Map());
+  if (memo.has(at)) return memo.get(at);
   const d = [0, 1, 2, 3, 4, 5].map(k => { const w = exeWord(at + 4 * k); return w === null ? null : ppcDecode(w); });
-  if (!d[0] || d[0].mn !== 'lwz' || d[0].rt !== 12 || d[0].ra !== 2 || !d[5] || d[5].mn !== 'bctr') return null;
-  const p = pefPointerAt(img, img.toc.section, img.toc.offset + d[0].d);
-  return p && p.name ? p.name : null;
+  let name = null;
+  if (d[0] && d[0].mn === 'lwz' && d[0].rt === 12 && d[0].ra === 2 && d[5] && d[5].mn === 'bctr') {
+    const p = pefPointerAt(img, img.toc.section, img.toc.offset + d[0].d);
+    name = p && p.name ? p.name : null;
+  }
+  memo.set(at, name);
+  return name;
 }
 // What a branch reaches, by name: a routine (with its offset inside it) or an import.
 function exeTargetName(to) {
@@ -345,15 +358,20 @@ function exeSetView(v) {
    - When an instruction after a block reads a scratch register (r0, r3 to
      r12), the register is written out as `rN = ...` at the block's end.
      Which registers are read later is found by ordinary liveness analysis
-     over the routine's blocks; a call is taken to read r3 to r10, since nothing
-     here records how many arguments a routine has, so some of those lines
-     are a value nothing reads.
+     over the routine's blocks (exeFlow). A call reads one register for each
+     argument of the routine it calls (exeArgCount), and a call into another
+     library as many as most of its call sites set (exeImportArgs). A call
+     through an address is counted as reading all eight, so some lines
+     before one of those are a value nothing reads.
    - Before a line changes a register, a stack slot or memory, any pending
      expression that mentions it is written out first, so no expression is
      ever printed after what it reads has changed.
-   - A call is printed with the argument registers set in its block since
-     the last call, from r3 up, which is an estimate of the count and is right
-     when the arguments are set where the call is made.
+   - A call is printed with one value for each argument of the routine it
+     calls. A call into another library, or to a routine with `...`, is
+     printed with what its call site sets (exeImportSiteArgs). A call
+     through an address is printed with the argument registers set in its
+     block since the last call, from r3 up, which is right when the
+     arguments are set where the call is made.
 
    What it leaves as the code has it: registers keep their numbers (r3 to
    r10 are arg1 to arg8 until the routine moves them), a stack slot is
@@ -364,56 +382,383 @@ function exeSetView(v) {
    exit bookkeeping (the link register, stmw, the stack pointer) is left
    out. An instruction it has no rule for is printed as code, after
    everything pending is written out. */
-function exePseudo(r) {
-  if (r.pseudo) return r.pseudo;
-  const img = appImage(), ops = exeOpsOf(r), N = ops.length;
+/* The routine a call goes to, when it is one of this program's routines
+   entered at its start, and the number of its arguments. Null for a call
+   through an address or into another library, whose count nothing here
+   reads. */
+function exeCalleeArgs(o) {
+  const d = o.d;
+  if (!d || !d.branch || !d.lk || d.indirect || o.to === null) return null;
+  const e = exeOpEntry(o);
+  return e ? exeArgCount(e) : exeArgsAt(o.to);
+}
+/* The number of arguments of the code a call reaches at an address. A
+   routine's start has its count. An import's glue has the count its call
+   sites set (exeImportArgs). Any other address is a helper the traceback
+   tables give no routine, laid out after the routine before it. It counts
+   as a routine running from there to the end of that one, since the
+   liveness follows only the code the address reaches and what lies after
+   the helper's return does not count. Null where nothing is known. */
+function exeArgsAt(to) {
+  const e = exeEntryAt(to);
+  if (e) return exeArgCount(e);
+  if (to !== null && exeGlueImport(to) !== null) { const n = exeImportArgs().get(to); return n === undefined ? null : n; }
+  return null;
+}
+/* A routine's blocks for exeArgCount, kept with it: the blocks' shape
+   does not depend on any count, so each block is reduced once to the
+   registers its instructions read before writing and write, between its
+   calls, and a count is then a few bit operations a block (exeCountOnce).
+   It reads as exeFlow reads with `forCount`: a call through a pointer
+   reads nothing, a return reads nothing, a jump to another routine's start
+   reads that routine's arguments and writes nothing. */
+function exeCountFlow(x) {
+  if (x.countFlow) return x.countFlow;
+  const f = exeFlow(x, true, true);
+  const blocks = f.B.map(b => {
+    const items = [];
+    let u = 0, w = 0;
+    for (let i = b.s; i <= b.e; i++) {
+      const o = f.ops[i], d = o.d;
+      if (!d) continue;
+      if (!d.branch) {
+        // The instruction's two masks, kept on it (exeOpsOf shares it).
+        if (!o.regMask) {
+          const x2 = exeRegUse(d);
+          let mu = 0, mw = 0;
+          for (const q of x2.u) mu |= 1 << q;
+          for (const q of x2.w) mw |= 1 << q;
+          o.regMask = [mu >>> 0, mw >>> 0];
+        }
+        u |= o.regMask[0] & ~w; w |= o.regMask[1];
+        continue;
+      }
+      const tail = !d.lk && !d.indirect && o.to !== null && !f.inside(o.to);
+      if (!d.lk && !tail) continue;
+      let e = d.indirect ? null : exeOpEntry(o);
+      let fixed = 0;
+      if (exeVarargs(e)) { fixed = exeSiteArgs(8, w); e = null; }
+      else if (!e && !d.indirect && o.to !== null) { const n = exeImportSiteArgs(o.to, w); fixed = n === null ? 0 : n; }
+      items.push({ u: u >>> 0, w: w >>> 0 });
+      items.push({ call: true, lk: !!d.lk, e, fixed, site: w >>> 0 });
+      u = 0; w = 0;
+    }
+    items.push({ u: u >>> 0, w: w >>> 0 });
+    return { items, succ: b.succ, wild: b.wild };
+  });
+  return (x.countFlow = blocks);
+}
+function exeCountOnce(x, all) {
+  const blocks = exeCountFlow(x);
+  const use = new Uint32Array(blocks.length), def = new Uint32Array(blocks.length), out = new Uint32Array(blocks.length);
+  blocks.forEach((b, k) => {
+    let u = 0, w = 0;
+    for (const it of b.items) {
+      if (!it.call) { u |= it.u & ~w; w |= it.w; continue; }
+      let n = it.e ? (all.has(it.e) ? all.get(it.e) : exeArgCount(it.e)) : it.fixed;
+      if (n === 8 && it.e) n = exeSiteArgs(8, it.site);
+      const reads = n ? ((1 << (3 + n)) - 8) : 0;               // r3 to r(2+n)
+      u |= reads & ~w;
+      if (it.lk) w |= 0x1FF9;
+    }
+    use[k] = u >>> 0; def[k] = w >>> 0;
+  });
+  const inOf = k => ((out[k] & ~def[k]) | use[k]) >>> 0;
+  for (let again = true; again;) {
+    again = false;
+    for (let k = blocks.length - 1; k >= 0; k--) {
+      let o = blocks[k].wild ? 0x1FF9 : 0;
+      for (const q of blocks[k].succ) o |= inOf(q);
+      o >>>= 0;
+      if (o !== out[k]) { out[k] = o; again = true; }
+    }
+  }
+  const live = blocks.length ? inOf(0) : 0;
+  let n = 0;
+  for (let q = 3; q <= 10; q++) if (live >>> q & 1) n = q - 2;
+  return n;
+}
+// exeEntryAt for a branch's target, kept on the instruction.
+function exeOpEntry(o) {
+  if (o.entry === undefined) o.entry = exeEntryAt(o.to);
+  return o.entry;
+}
+/* The routine whose arguments a call to `to` passes: a routine's start, or
+   a helper the traceback tables give no routine, as a routine object kept
+   with the program. Null for an import's glue and for the glue of a call
+   through a pointer (the routine's address in r12), which reaches a
+   different routine at each call. */
+function exeEntryAt(to) {
+  const pef = appPef(), img = appImage();
+  if (!pef || !img || to === null || to < 0 || to >= img.code.length) return null;
+  const memo = pef.entryAt || (pef.entryAt = new Map());
+  if (memo.has(to)) return memo.get(to);
+  let e = null;
+  const c = exeRoutineAt(to);
+  if (c && c.offset === to) e = c;
+  else if (exeGlueImport(to) === null) {
+    const g0 = ppcDecode(exeWord(to) || 0), g4 = ppcDecode(exeWord(to + 16) || 0);
+    if (!(g0 && g0.mn === 'lwz' && g0.rt === 0 && g0.ra === 12 && g4 && g4.mn === 'bctr')) {
+      // To the end of the routine it is in or the next routine's start, and
+      // before the next address a call goes to, which starts another helper:
+      // these are laid out one after another, and a jump from one into the
+      // next is a call that returns for it, not a jump inside the first.
+      let end = c ? c.offset + c.length : Math.min(img.code.length, to + 0x1000);
+      if (!c) for (const r of pef.routines || []) if (r.offset > to) { end = Math.min(end, r.offset); break; }
+      exeCallSitesOf(to);
+      const starts = pef.callStarts || (pef.callStarts = [...pef.callIndex.keys()].sort((a, b) => a - b));
+      let lo = 0, hi = starts.length;
+      while (lo < hi) { const m = (lo + hi) >> 1; if (starts[m] <= to) lo = m + 1; else hi = m; }
+      if (lo < starts.length) end = Math.min(end, starts[lo]);
+      e = { offset: to, length: end - to, name: '0x' + to.toString(16).toUpperCase() };
+      // A helper inside a routine reads the routine's decoded instructions.
+      if (c && c.ops) e.ops = c.ops.slice((to - c.offset) >> 2);
+    }
+  }
+  memo.set(to, e);
+  return e;
+}
+/* The number of arguments of each routine of another library (the Toolbox,
+   the C library), by its glue. The program has no list of them, so each
+   call site counts the argument registers set from r3 up between the
+   block's start or the last call and this call. A routine's count is the
+   one most of its call sites set (the larger, on a tie). The most a site
+   sets is no good: a register set for later use before a call counts as
+   one of its arguments, and gave TickCount two. A site that passes a value
+   it was handed, unchanged, counts it as unset. Worked out once for the
+   program. */
+function exeImportArgs() {
+  const pef = appPef();
+  if (pef.importArgs) return pef.importArgs;
+  const tally = new Map();
+  for (const r of pef.routines || []) {
+    let set = 0;
+    for (const o of exeOpsOf(r)) {
+      const d = o.d;
+      if (!d) continue;
+      if (d.branch && d.lk) {
+        if (!d.indirect && o.to !== null && exeGlueImport(o.to) !== null) {
+          let n = 0;
+          while (n < 8 && (set >>> (3 + n) & 1)) n++;
+          const t = tally.get(o.to) || tally.set(o.to, new Array(9).fill(0)).get(o.to);
+          t[n]++;
+        }
+        set = 0;
+      } else if (d.branch) set = 0;
+      else for (const q of exeRegUse(d).w) set |= 1 << q;
+    }
+  }
+  const out = new Map();
+  for (const [to, t] of tally) { let best = 0; for (let n = 1; n <= 8; n++) if (t[n] >= t[best]) best = n; out.set(to, best); }
+  return (pef.importArgs = out);
+}
+/* Where a `bctr` at ops[i] can go, when it is a switch's jump through a
+   table: `addi rB, 2, D` puts the table's address in rB (the table is in
+   the data, at D from the TOC), `lwzx rX, rB, rI` reads an entry, and
+   `mtctr rX` sets the jump. Each entry is a relocated pointer into the code.
+   The entries are read while each is an address in this routine; a word
+   past the table is data or another table and stops it. Null for any other
+   `bctr` (a call through a pointer that returns for its caller).
+   page-rules.js has exeJumpTable, which finds a table by its shape for the
+   readers that name its cases. */
+function exeSwitchTargets(r, ops, i) {
+  const img = appImage();
+  if (!img || !img.toc) return null;
+  let x = -1, b = -1, k = i - 1;
+  for (; k >= Math.max(0, i - 6); k--) { const d = ops[k].d; if (d && d.mn === 'mtctr') { x = d.rd; break; } }
+  if (x < 0) return null;
+  for (k--; k >= Math.max(0, i - 10); k--) { const d = ops[k].d; if (d && d.mn === 'lwzx' && d.rt === x) { b = d.ra; break; } }
+  if (b < 0) return null;
+  let base = null;
+  for (k--; k >= Math.max(0, i - 16); k--) {
+    const d = ops[k].d;
+    if (d && d.mn === 'addi' && d.rd === b && d.ra === 2) { base = img.toc.offset + d.imm; break; }
+    if (d && exeRegUse(d).w.includes(b)) break;
+  }
+  if (base === null) return null;
+  const out = [];
+  for (let e = 0; e < 256; e++) {
+    const p = pefPointerAt(img, img.toc.section, base + 4 * e);
+    if (!p || p.section !== img.codeIndex || p.offset < r.offset || p.offset >= r.offset + r.length) break;
+    out.push(p.offset);
+  }
+  return out.length ? out : null;
+}
+/* The arguments one call to an import passes, from `setMask`, the registers
+   set since the block's start or the last call. The import's count
+   (exeImportArgs) is what most of its call sites set, and some imports take
+   a varying number (CallUniversalProc, which most sites call with five and
+   one helper with three), so a site that sets r3 up passes as many as it
+   sets, up to that count. A site that sets none of them is passing on the
+   values it was handed, and passes the count. Null for no import there. */
+function exeImportSiteArgs(to, setMask) {
+  const k = exeImportArgs().get(to);
+  return k === undefined ? null : exeSiteArgs(k, setMask);
+}
+function exeSiteArgs(k, setMask) {
+  let n = 0;
+  while (n < 8 && (setMask >>> (3 + n) & 1)) n++;
+  return n === 0 ? k : Math.min(n, k);
+}
+/* A routine of this program with `...` in its arguments (myprintf,
+   MyMoveTo, and the helper at 0xB6A80, which has no name) stores all eight
+   argument registers and counts eight, and a call to it passes what the
+   call site sets, as a call to an import with a varying count does. A
+   routine at eight is read that way whatever its name: one with eight real
+   arguments has all eight set where it is called. */
+function exeVarargs(e) { return !!e && /\.\.\.\)$/.test(e.name || ''); }
+/* The registers an instruction other than a branch reads and writes. */
+const EXE_MEM = /^(l|st)(b|h|w|mw)(z|a)?(u)?(x)?$/;
+function exeRegUse(d) {
+  const u = [], w = [];
+  // An operation of a register with itself whose result does not depend on
+  // it reads nothing: `subfe 6, 6, 6` is -1 or 0 by the XER's CA bit, and
+  // `xor`, `andc` and `subf` of a register with itself give 0. Counted as a
+  // read, `subfe 6, 6, 6` at the head of a loop gave the tree's find an
+  // argument too many, and every routine that calls it.
+  const bare = d.mn.replace(/\.$/, '');
+  if (/^subf[ce]?$/.test(bare) && d.ra === d.rb) { w.push(d.rd); return { u, w }; }
+  if (/^(xor|andc|eqv)$/.test(bare) && d.rs === d.rb) { w.push(d.ra); return { u, w }; }
+  const m = EXE_MEM.exec(d.mn);
+  if (m && m[2] !== 'mw') {
+    if (d.ra) u.push(d.ra);
+    if (m[5]) u.push(d.rb);
+    if (m[1] === 'l') w.push(d.rt); else u.push(d.rt);
+  } else if (d.mn === 'li' || d.mn === 'lis' || /^mf/.test(d.mn)) { if (d.rd !== undefined) w.push(d.rd); }
+  else if (/^mt/.test(d.mn)) { if (d.rd !== undefined) u.push(d.rd); }
+  else if (/^cmp/.test(d.mn)) { u.push(d.ra); if (d.rb !== undefined) u.push(d.rb); }
+  else if (d.rs !== undefined) { u.push(d.rs); if (d.rb !== undefined) u.push(d.rb); if (/^rlwimi/.test(d.mn)) u.push(d.ra); w.push(d.ra); }
+  else if (d.rd !== undefined) { if (d.ra !== undefined) u.push(d.ra); if (d.rb !== undefined) u.push(d.rb); w.push(d.rd); }
+  return { u, w };
+}
+/* The number of a routine's arguments: the highest of r3 to r10 that it
+   reads before it sets it (the liveness at its entry), minus two. An
+   argument the routine never reads is counted when a later one is read,
+   since a caller sets the registers in order. The return counts as reading
+   nothing here, or a routine that hands back no value would count r3 as an
+   argument, which is the only place this differs from the liveness
+   exePseudo uses. A call inside the routine reads one register for each
+   argument of the routine it calls, counted the same way.
+ *
+ * Routines call each other in cycles (the interpreter's VAddrToPtr and
+ * DoInterp), so a routine's count is worked out together with the count of
+ * every routine a chain of calls from it reaches, and of nothing else,
+ * since a count depends on its callees alone: each starts at 0 and all of
+ * them are counted again until no count changes. A count only grows as its
+ * callees' counts grow, and stops at eight, so the rounds end. A count
+ * worked out one routine at a time, with a routine in a cycle counting
+ * eight, left 268 routines at eight. The whole program in one solve took
+ * nearly four seconds on a desktop, so it is solved by the routines shown.
+ *
+ * The traceback tables' fixedparms, which would give the count directly,
+ * are 0 in every routine of this program.
+ *
+ * The check is utilities/pseudo_check.mjs: against the demangled names,
+ * where a name lists only whole-number and pointer arguments, the count is
+ * never more than the list plus `this` and one hidden argument (a
+ * destructor's flag, or the address a struct is returned to). */
+function exeArgCount(r) {
+  const pef = appPef();
+  if (!pef) return 0;
+  const all = pef.argCounts || (pef.argCounts = new Map());
+  if (all.has(r)) return all.get(r);
+  if (pef.argSolving) { all.set(r, 0); return 0; }
+  // The routines a chain of calls from r reaches, not yet counted, and
+  // which of them call which.
+  const todo = [r], seen = new Set([r]), callers = new Map([[r, new Set()]]);
+  for (let k = 0; k < todo.length; k++) {
+    const x = todo[k];
+    for (const o of exeOpsOf(x)) {
+      const d = o.d;
+      if (!d || !d.branch || d.indirect || o.to === null) continue;
+      if (!d.lk && o.to >= x.offset && o.to < x.offset + x.length) continue;
+      const e = exeOpEntry(o);
+      if (!e || all.has(e)) continue;
+      if (!seen.has(e)) { seen.add(e); todo.push(e); callers.set(e, new Set()); }
+      callers.get(e).add(x);
+    }
+  }
+  for (const x of todo) all.set(x, 0);
+  // Callees first, so most counts are right the first time; a routine is
+  // counted again when a count it reads grows.
+  const queue = todo.slice().reverse(), queued = new Set(queue);
+  pef.argSolving = true;
+  try {
+    for (const x of todo) exeCountFlow(x);
+    for (let guard = 0; queue.length && guard < todo.length * 16; guard++) {
+      const x = queue.shift(); queued.delete(x);
+      const n = exeCountOnce(x, all);
+      if (n > all.get(x)) {
+        all.set(x, n);
+        for (const c of callers.get(x)) if (!queued.has(c)) { queued.add(c); queue.push(c); }
+      }
+    }
+  } finally { pef.argSolving = false; }
+  return all.get(r);
+}
+/* A routine's instructions as blocks (a stretch with one way in and one way
+   out) and which registers are read after each block, by ordinary liveness
+   analysis. With `forCount`, for exeArgCount, the return reads nothing.
+   With `shapeOnly`, for exeCountFlow, the blocks come without the liveness. */
+function exeFlow(r, forCount, shapeOnly) {
+  const ops = exeOpsOf(r), N = ops.length;
   const idx = at => (at - r.offset) >> 2;
   const inside = at => at !== null && at >= r.offset && at < r.offset + r.length;
-  const vol = n => n === 0 || (n >= 3 && n <= 12);
   // ---- what each instruction reads and writes, for the liveness ----
-  const MEM = /^(l|st)(b|h|w|mw)(z|a)?(u)?(x)?$/;
+  // A call whose count is unknown (through an address) reads all eight
+  // argument registers, so no value it might be handed is dropped; for the
+  // count it reads none, since its arguments are set beside it.
+  const callReads = n => n === null ? (forCount ? 0 : 8) : n;
   const ud = o => {
-    const d = o.d, u = [], w = [];
-    if (!d) return { u, w };
-    const m = MEM.exec(d.mn);
-    if (d.branch) {
-      if (d.lk) { for (let i = 3; i <= 10; i++) u.push(i); w.push(0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12); }
-      else if (d.indirect === 'lr') u.push(3);
-    } else if (m && m[2] !== 'mw') {
-      if (d.ra) u.push(d.ra);
-      if (m[5]) u.push(d.rb);
-      if (m[1] === 'l') w.push(d.rt); else u.push(d.rt);
-    } else if (d.mn === 'li' || d.mn === 'lis' || /^mf/.test(d.mn)) { if (d.rd !== undefined) w.push(d.rd); }
-    else if (/^mt/.test(d.mn)) { if (d.rd !== undefined) u.push(d.rd); }
-    else if (/^cmp/.test(d.mn)) { u.push(d.ra); if (d.rb !== undefined) u.push(d.rb); }
-    else if (d.rs !== undefined) { u.push(d.rs); if (d.rb !== undefined) u.push(d.rb); if (/^rlwimi/.test(d.mn)) u.push(d.ra); w.push(d.ra); }
-    else if (d.rd !== undefined) { if (d.ra !== undefined) u.push(d.ra); if (d.rb !== undefined) u.push(d.rb); w.push(d.rd); }
+    const d = o.d;
+    if (!d) return { u: [], w: [] };
+    if (!d.branch) return exeRegUse(d);
+    const u = [], w = [];
+    if (d.lk) {
+      const n = callReads(exeCalleeArgs(o));
+      for (let i = 3; i <= 2 + n; i++) u.push(i);
+      w.push(0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+    }
+    else if (d.indirect === 'lr' && !forCount) u.push(3);
+    // A jump into another routine's start is a call that returns for it.
+    else if (!d.indirect && o.to !== null && !inside(o.to)) {
+      const e = exeOpEntry(o);
+      const n = callReads(e ? exeArgCount(e) : exeArgsAt(o.to));
+      for (let i = 3; i <= 2 + n; i++) u.push(i);
+    }
     return { u, w };
   };
+  const MEM = EXE_MEM;
   // ---- blocks ----
   const leader = new Uint8Array(N + 1), target = new Uint8Array(N + 1);
   leader[0] = 1;
+  const tables = new Map();
   ops.forEach((o, i) => {
     const d = o.d;
     if (!d || !d.branch || d.lk) return;
     leader[i + 1] = 1;
     if (inside(o.to)) { leader[idx(o.to)] = 1; target[idx(o.to)] = 1; }
+    if (d.indirect === 'ctr') {
+      const t = exeSwitchTargets(r, ops, i);
+      if (t) { tables.set(i, t); for (const a of t) { leader[idx(a)] = 1; target[idx(a)] = 1; } }
+    }
   });
   const starts = []; for (let i = 0; i < N; i++) if (leader[i]) starts.push(i);
   const blockOf = new Int32Array(N); starts.forEach((s, b) => { for (let i = s; i < (b + 1 < starts.length ? starts[b + 1] : N); i++) blockOf[i] = b; });
   const B = starts.map((s, b) => {
     const e = (b + 1 < starts.length ? starts[b + 1] : N) - 1, o = ops[e], d = o.d;
     let use = 0, def = 0;
-    for (let i = s; i <= e; i++) { const x = ud(ops[i]); for (const q of x.u) if (!(def >>> q & 1)) use |= 1 << q; for (const q of x.w) def |= 1 << q; }
+    if (!shapeOnly) for (let i = s; i <= e; i++) { const x = ud(ops[i]); for (const q of x.u) if (!(def >>> q & 1)) use |= 1 << q; for (const q of x.w) def |= 1 << q; }
     const succ = []; let wild = false;
     if (d && d.branch && !d.lk) {
-      if (d.indirect) wild = d.indirect === 'ctr';
+      if (tables.has(e)) for (const a of tables.get(e)) { const q = blockOf[idx(a)]; if (!succ.includes(q)) succ.push(q); }
+      else if (d.indirect) wild = d.indirect === 'ctr';
       else { if (inside(o.to)) succ.push(blockOf[idx(o.to)]); if (d.conditional && e + 1 < N) succ.push(blockOf[e + 1]); }
     } else if (e + 1 < N) succ.push(blockOf[e + 1]);
     return { s, e, use: use >>> 0, def: def >>> 0, succ, wild, out: 0 };
   });
   const inOf = b => ((b.out & ~b.def) | b.use) >>> 0;
-  for (let again = true; again;) {
+  for (let again = !shapeOnly; again;) {
     again = false;
     for (let b = B.length - 1; b >= 0; b--) {
       let out = B[b].wild ? 0x1FF9 : 0;                       // a jump through a table: r0, r3 to r12 all live
@@ -422,6 +767,13 @@ function exePseudo(r) {
       if (out !== B[b].out) { B[b].out = out; again = true; }
     }
   }
+  return { ops, N, idx, inside, ud, target, B, inOf, MEM };
+}
+function exePseudo(r) {
+  if (r.pseudo) return r.pseudo;
+  const img = appImage();
+  const { ops, N, ud, target, B, MEM } = exeFlow(r, false);
+  const vol = n => n === 0 || (n >= 3 && n <= 12);
   // ---- expressions ----
   const hexOf = v => '0x' + (v >>> 0).toString(16).toUpperCase();
   const num = (v, hexy) => { v |= 0; return hexy || v > 0xFFFF || v < -0xFFFF ? (hexy && v >= 0 && v < 10 ? String(v) : hexOf(v)) : String(v); };
@@ -496,7 +848,14 @@ function exePseudo(r) {
         let res = null, dest = -1;
         if (d.branch) {
           if (d.lk) {
-            const args = []; for (let q = 3; q <= 10 && fresh.has(q); q++) args.push(str(reg[q]));
+            let freshMask = 0;
+            for (const q of fresh) freshMask |= 1 << q;
+            const entry = !d.indirect && o.to !== null ? exeOpEntry(o) : null;
+            const imp = entry && (exeVarargs(entry) || exeArgCount(entry) === 8) ? exeSiteArgs(8, freshMask)
+              : !d.indirect && o.to !== null && !entry ? exeImportSiteArgs(o.to, freshMask) : null;
+            const n = imp !== null ? imp : exeCalleeArgs(o), args = [];
+            if (n !== null) for (let q = 3; q <= 2 + n; q++) args.push(str(reg[q]));
+            else for (let q = 3; q <= 10 && fresh.has(q); q++) args.push(str(reg[q]));
             const callee = d.indirect ? '(*' + (d.indirect === 'ctr' ? 'address' : 'return address') + ')' : '\u0001';
             addLine('r3 = ' + callee + '(' + args.join(', ') + ')', d.indirect ? null : o.to);
             for (const q of [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) reg[q] = atom(name(q));
