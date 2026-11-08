@@ -33,7 +33,8 @@
 // returns its container, DoTicks counts each prop's data1 down in a loop
 // that steps a pointer through the props from Prop 256, and
 // TActiveMonster::CanMove works out a prop's record by its index and
-// compares its x and y with a square.
+// compares its x and y with a square, and ScheduleTime tests a flag of a
+// character's bit_flags in place, which names part of a field.
 //
 // THE CONTROLS, with --controls, each in a fresh page:
 //   cell    a record's bits counted a byte late; the layout must fail;
@@ -150,6 +151,7 @@ function run(control) {
     ['TGameViewer::DoTicks(long, unsigned char)', /r30 = &Prop\[256\]/, 'starts its pointer at Prop 256'],
     ['TGameViewer::DoTicks(long, unsigned char)', /r30->data1 = 0/, 'clears data1 through the pointer in the loop'],
     ['TActiveMonster::CanMove(short&, short&, short&, short&)', /r30 = &Prop\[local\d+ & 0x7FFF\]/, 'works out a prop’s record by its index'],
+    ['ScheduleTime(short, unsigned char)', /\(Character\[r27\]\.bit_flags & 0x40\) [!=]= 0/, 'tests a character’s flag 0x40 in its bit_flags'],
     ['TActiveMonster::CanMove(short&, short&, short&, short&)', /[!=]= r30->x\)/, 'compares its x'],
     ['TActiveMonster::CanMove(short&, short&, short&, short&)', /[!=]= r30->y\)/, 'compares its y'],
   ];

@@ -538,7 +538,7 @@ const CHECKS = [
      counts every import at eight, which the rule must catch. */
   {page: 'viewer', name: 'pseudo-code', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_check.mjs', 'index.html', APP_DATA], grep: /PSEUDO [^\n]*/,
-   expect: 'PSEUDO 1664 checked, 0 over, 67682 lines, 18272 register lines, 39 at eight'},
+   expect: 'PSEUDO 1664 checked, 0 over, 67684 lines, 18274 register lines, 39 at eight'},
   {page: 'viewer', name: 'pseudo-code control', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_check.mjs', 'index.html', APP_DATA, '--control'], grep: /PSEUDO control: [^\n]*/,
    expect: 'PSEUDO control: 69 routines over with every import at eight'},
@@ -556,7 +556,7 @@ const CHECKS = [
      and lines pinned in three routines; three controls. */
   {page: 'viewer', name: 'pseudo-code fields', requiredInputs: [APP_DATA, DELV],
    cmd: ['utilities/pseudo_fields_check.mjs', 'index.html', APP_DATA, DELV], grep: /FIELDS \d[^\n]*/,
-   expect: 'FIELDS 30 fields in 4 tables, 2 record types, 773 of 67682 lines name a field'},
+   expect: 'FIELDS 30 fields in 4 tables, 2 record types, 785 of 67684 lines name a field'},
   {page: 'viewer', name: 'pseudo-code fields controls', requiredInputs: [APP_DATA, DELV],
    cmd: ['utilities/pseudo_fields_check.mjs', 'index.html', APP_DATA, DELV, '--controls'], grep: /FIELDS controls: [^\n]*/,
    expect: 'FIELDS controls: all 3 fail their assertion'},

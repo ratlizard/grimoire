@@ -1046,17 +1046,26 @@ function exeRecordFields() {
         if (t.kind === kind.name && !t.fields.has(l.val.bits.join(','))) t.fields.set(l.val.bits.join(','), name);
       });
     }
-    // Each field shifted left by 1 to 15 with no bit of it lost.
+    // Each field's bits by the place each has in the field's value, for a
+    // value that is part of one field (exePseudoLines' fieldName). Smallest
+    // first, so a bit in two fields is printed by the narrower.
     for (const t of RF.tables.values()) {
-      t.shifted = new Map();
+      t.parts = [];
       for (const [key, name] of t.fields) {
-        const b = key.split(',').map(Number);
-        for (let k = 1; k < 16; k++) {
-          if (b.some((x, p) => x !== -1 && p + k > 31)) break;
-          const s = new Array(32).fill(-1);
-          b.forEach((x, p) => { if (x !== -1) s[p + k] = x; });
-          if (!t.fields.has(s.join(','))) t.shifted.set(s.join(','), { name, k });
-        }
+        const at = new Map();
+        key.split(',').map(Number).forEach((x, p) => { if (x !== -1 && !at.has(x)) at.set(x, p); });
+        t.parts.push({ name, at });
+      }
+      t.parts.sort((a, b) => a.at.size - b.at.size);
+      // A field made of whole smaller fields (aspect_and_proptype is the
+      // rotate bit, the aspect and the type) is the same bits under another
+      // name. One that only shares bits with them (a prop's container, the
+      // low 16 bits of its location, where its y is the low 12) is another
+      // reading of them.
+      for (const P of t.parts) {
+        const union = new Set();
+        for (const Q of t.parts) if (Q !== P && Q.at.size < P.at.size && [...Q.at.keys()].every(x => P.at.has(x))) for (const x of Q.at.keys()) union.add(x);
+        P.composite = union.size === P.at.size;
       }
     }
   } finally { RF.learning = false; }
@@ -1180,14 +1189,40 @@ function exePseudoLines(r, RF) {
   // A value as a field, where its bits are exactly a field's, or a field's
   // shifted left: `(r30->obj_type << 2)` indexes a table of words by the
   // prop's type.
-  const fieldName = (f, bits) => {
+  /* Where the bits are part of one field, in its order and moved together
+     (a flag tested in place, `byte[r30 + 4] & 0x80`), the field with a
+     mask and a shift: `r30->rotate << 7`. `unshift` is the same without
+     the shift, which a test of equality with 0 prints, since moving the
+     bits does not change whether any is set. */
+  // A cell read or written whole is named only where it is a whole field
+  // (`partial` false): a byte that is part of a field prints as the byte.
+  const fieldName = (f, bits, partial) => {
     if (!f || !f.rt || !RF || RF.learning) return null;
     const t = RF.tables.get(f.key);
     if (!t) return null;
-    const key = bits.join(','), nm = t.fields.get(key);
+    const nm = t.fields.get(bits.join(','));
     if (nm) return { s: f.rt + nm, p: 0 };
-    const sh = t.shifted.get(key);
-    return sh ? { s: f.rt + sh.name + ' << ' + sh.k, p: 4 } : null;
+    const set = bits.map((x, p) => [x, p]).filter(e => e[0] !== -1);
+    if (new Set(set.map(e => e[0])).size !== set.length) return null;
+    // The bits are named only where they have one reading: every field
+    // holding them but the narrowest is made of whole smaller fields.
+    if (!partial) return null;
+    const holding = t.parts.filter(P => set.every(e => P.at.has(e[0])));
+    if (!holding.length || holding.slice(1).some(P => !P.composite)) return null;
+    for (const part of holding.slice(0, 1)) {
+      let k = null, m = 0, ok = true;
+      for (const [x, p] of set) {
+        const q = part.at.get(x);
+        if (q === undefined || (k !== null && p - q !== k)) { ok = false; break; }
+        k = p - q; m |= 1 << q;
+      }
+      if (!ok || k === null) continue;
+      const whole = (m >>> 0) === (part.at.size >= 32 ? 0xFFFFFFFF : ((1 << part.at.size) - 1) >>> 0);
+      const base = whole ? { s: f.rt + part.name, p: 0 } : { s: f.rt + part.name + ' & ' + hexOf(m), p: 5 };
+      if (!k) return base;
+      return { s: (base.p ? '(' + base.s + ')' : base.s) + (k > 0 ? ' << ' + k : ' >> ' + -k), p: 4, unshift: base };
+    }
+    return null;
   };
   // A test carried into the next block. A block that only a conditional
   // jump falls into, and nothing jumps to, sees the comparison that jump
@@ -1267,7 +1302,10 @@ function exePseudoLines(r, RF) {
               const yes = (d.bo & 8) !== 0, which = d.bi & 3;
               const opn = [yes ? '<' : '>=', yes ? '>' : '<=', yes ? '==' : '!='][which];
               const not = [yes ? '>=' : '<', yes ? '<=' : '>', yes ? '!=' : '=='][which];
-              const test = op => cond ? (cond.old ? 'earlier: ' : '') + wrap(cond.a, 3, cond.hexy, true) + ' ' + op + ' ' + wrap(cond.b, 3, cond.hexy, true) : 'an earlier test ' + op + ' 0';
+              // Part of a field shifted, tested for equality with 0, is
+              // printed unshifted (fieldName's `unshift`).
+              const a = cond && which === 2 && cond.b.k === 0 && cond.a.unshift ? cond.a.unshift : cond && cond.a;
+              const test = op => cond ? (cond.old ? 'earlier: ' : '') + wrap(a, 3, cond.hexy, true) + ' ' + op + ' ' + wrap(cond.b, 3, cond.hexy, true) : 'an earlier test ' + op + ' 0';
               return { taken: test(opn), fall: test(not) };
             };
             // r3 is what a routine hands back; named where the routine ever sets it.
@@ -1378,8 +1416,8 @@ function exePseudoLines(r, RF) {
           if (bits) {
             const f = bare === 'or' ? reg[d.rs].fld || reg[d.rb].fld : reg[d.rs].fld;
             res = Object.assign({}, res, { bits, fld: f });
-            const nm = f ? fieldName(f, bits) : null;
-            if (nm) res = { s: nm.s, p: nm.p, mem: true, bits, fld: f };
+            const nm = f ? fieldName(f, bits, true) : null;
+            if (nm) res = { s: nm.s, p: nm.p, mem: true, bits, fld: f, unshift: nm.unshift };
           }
         }
         if (dest >= 0 && res) {
