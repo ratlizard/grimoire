@@ -381,7 +381,10 @@ function exeSetView(v) {
    change no value the routine goes on to use as written. The entry and
    exit bookkeeping (the link register, stmw, the stack pointer) is left
    out. An instruction it has no rule for is printed as code, after
-   everything pending is written out. */
+   everything pending is written out.
+
+   These lines are flat, a jump a line. The view prints them with the
+   jumps made into blocks (exePseudoBlocks, below). */
 /* The routine a call goes to, when it is one of this program's routines
    entered at its start, and the number of its arguments. Null for a call
    through an address or into another library, whose count nothing here
@@ -560,7 +563,14 @@ function exeImportArgs() {
    past the table is data or another table and stops it. Null for any other
    `bctr` (a call through a pointer that returns for its caller).
    page-rules.js has exeJumpTable, which finds a table by its shape for the
-   readers that name its cases. */
+   readers that name its cases.
+ *
+ * The `cmplwi` that sends a number past the last case elsewhere gives the
+ * table's length, and the entries stop there. Two tables can lie end to
+ * end, both into the same routine: GetField's for a prop's fields at
+ * TOC+0xA1A4 runs straight into the one for a character's at TOC+0xA1F0,
+ * and read to the first word outside the routine the first gave 41 cases
+ * where the code has 19. */
 function exeSwitchTargets(r, ops, i) {
   const img = appImage();
   if (!img || !img.toc) return null;
@@ -576,8 +586,10 @@ function exeSwitchTargets(r, ops, i) {
     if (d && exeRegUse(d).w.includes(b)) break;
   }
   if (base === null) return null;
+  let cases = 256;
+  for (let j = i - 1; j >= Math.max(0, i - 16); j--) { const d = ops[j].d; if (d && d.mn === 'cmplwi') { cases = d.imm + 1; break; } }
   const out = [];
-  for (let e = 0; e < 256; e++) {
+  for (let e = 0; e < cases; e++) {
     const p = pefPointerAt(img, img.toc.section, base + 4 * e);
     if (!p || p.section !== img.codeIndex || p.offset < r.offset || p.offset >= r.offset + r.length) break;
     out.push(p.offset);
@@ -700,6 +712,12 @@ function exeArgCount(r) {
    out) and which registers are read after each block, by ordinary liveness
    analysis. With `forCount`, for exeArgCount, the return reads nothing.
    With `shapeOnly`, for exeCountFlow, the blocks come without the liveness. */
+/* Whether a jump can fall through to the next instruction. The decoder
+   marks a `bc` that tests a condition; a `bclr` or `bcctr` whose options
+   are not "always" (0x14) is the same, and 18 such returns in the program
+   (`bclr 12, 2`, a return when equal) had no way on, which dropped what
+   the code after them reads from the liveness. */
+function exeConditional(d) { return !!d && !!d.branch && (!!d.conditional || (!!d.indirect && d.bo !== undefined && (d.bo & 0x14) !== 0x14)); }
 function exeFlow(r, forCount, shapeOnly) {
   const ops = exeOpsOf(r), N = ops.length;
   const idx = at => (at - r.offset) >> 2;
@@ -752,7 +770,7 @@ function exeFlow(r, forCount, shapeOnly) {
     const succ = []; let wild = false;
     if (d && d.branch && !d.lk) {
       if (tables.has(e)) for (const a of tables.get(e)) { const q = blockOf[idx(a)]; if (!succ.includes(q)) succ.push(q); }
-      else if (d.indirect) wild = d.indirect === 'ctr';
+      else if (d.indirect) { wild = d.indirect === 'ctr'; if (exeConditional(d) && e + 1 < N) succ.push(blockOf[e + 1]); }
       else { if (inside(o.to)) succ.push(blockOf[idx(o.to)]); if (d.conditional && e + 1 < N) succ.push(blockOf[e + 1]); }
     } else if (e + 1 < N) succ.push(blockOf[e + 1]);
     return { s, e, use: use >>> 0, def: def >>> 0, succ, wild, out: 0 };
@@ -767,12 +785,12 @@ function exeFlow(r, forCount, shapeOnly) {
       if (out !== B[b].out) { B[b].out = out; again = true; }
     }
   }
-  return { ops, N, idx, inside, ud, target, B, inOf, MEM };
+  return { ops, N, idx, inside, ud, target, B, inOf, MEM, tables };
 }
 function exePseudo(r) {
   if (r.pseudo) return r.pseudo;
   const img = appImage();
-  const { ops, N, ud, target, B, MEM } = exeFlow(r, false);
+  const { ops, N, ud, target, B, MEM, tables, inside } = exeFlow(r, false);
   const vol = n => n === 0 || (n >= 3 && n <= 12);
   // ---- expressions ----
   const hexOf = v => '0x' + (v >>> 0).toString(16).toUpperCase();
@@ -801,13 +819,22 @@ function exePseudo(r) {
     return { s: WIDTH[wd] + '[' + str(add(base, dsp)) + ']', p: 0, mem: true };
   };
   const lines = [], stmtOf = new Int32Array(N).fill(-1);
+  // A test carried into the next block. A block that only a conditional
+  // jump falls into, and nothing jumps to, sees the comparison that jump
+  // tested: `cmpwi`, `beq`, `bge` is two blocks, and the second jump read
+  // "an earlier test >= 0" in 338 places.
+  let carry = null;
   for (const blk of B) {
     const reg = [];
     for (let i = 0; i < 32; i++) reg.push(atom('r' + i));
     if (blk.s === 0) for (let i = 3; i <= 10; i++) reg[i] = atom('arg' + (i - 2));
     const fresh = new Set();
-    let cond = null, at = 0, to = null;
-    const addLine = (text, link) => lines.push({ at, text, to: link === undefined ? null : link });
+    let cond = blk.s > 0 && !target[blk.s] ? carry : null, at = 0, to = null;
+    carry = null;
+    // `flow` is what the line does to the order the code runs in, for
+    // exePseudoBlocks: a test that jumps (`cond`, with the test as written
+    // and its opposite), a jump in the routine, a switch, or an end.
+    const addLine = (text, link, flow) => lines.push({ at, text, to: link === undefined ? null : link, flow: flow || null });
     const name = q => 'r' + q;
     const settle = q => { if (reg[q].k === undefined && reg[q].s === name(q)) return; addLine(name(q) + ' = ' + str(reg[q])); reg[q] = atom(name(q)); };
     // Whether a register's value is read from instruction `from` on: later
@@ -861,17 +888,40 @@ function exePseudo(r) {
             for (const q of [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) reg[q] = atom(name(q));
             fresh.clear(); cond = null;
           } else {
-            for (let q = 0; q < 32; q++) if (vol(q) && (blk.out >>> q & 1) && !(d.indirect === 'lr' && q === 3)) settle(q);
-            // r3 is what a routine hands back; named where the routine ever sets it.
-            if (d.indirect === 'lr') addLine('return' + (reg[3].k !== undefined || reg[3].s !== 'r3' ? ' ' + str(reg[3]) : B.some(x => x.def >>> 3 & 1) ? ' r3' : ''));
-            else if (d.indirect) addLine('goto one of several places by a number');
-            else if (d.conditional && /^b[tf]/.test(mn)) {
-              const yes = mn[1] === 't', which = d.bi & 3;
+            const iffy = exeConditional(d);
+            for (let q = 0; q < 32; q++) if (vol(q) && (blk.out >>> q & 1) && !(d.indirect === 'lr' && !iffy && q === 3)) settle(q);
+            // The test a conditional jump makes, as written and its opposite.
+            const testOf = () => {
+              const yes = (d.bo & 8) !== 0, which = d.bi & 3;
               const opn = [yes ? '<' : '>=', yes ? '>' : '<=', yes ? '==' : '!='][which];
-              addLine('if (' + (cond ? (cond.old ? 'earlier: ' : '') + wrap(cond.a, 3, cond.hexy, true) + ' ' + opn + ' ' + wrap(cond.b, 3, cond.hexy, true) : 'an earlier test ' + opn + ' 0') + ') goto \u0001', o.to);
-            } else if (d.conditional) addLine('\u0003' + o.text + ' \u0001', o.to);
-            else addLine('goto \u0001', o.to);
+              const not = [yes ? '>=' : '<', yes ? '<=' : '>', yes ? '!=' : '=='][which];
+              const test = op => cond ? (cond.old ? 'earlier: ' : '') + wrap(cond.a, 3, cond.hexy, true) + ' ' + op + ' ' + wrap(cond.b, 3, cond.hexy, true) : 'an earlier test ' + op + ' 0';
+              return { taken: test(opn), fall: test(not) };
+            };
+            // r3 is what a routine hands back; named where the routine ever sets it.
+            const back = 'return' + (reg[3].k !== undefined || reg[3].s !== 'r3' ? ' ' + str(reg[3]) : B.some(x => x.def >>> 3 & 1) ? ' r3' : '');
+            // A return that tests a condition goes on to the next line when
+            // the test fails, so for the blocks it is a plain statement.
+            if (d.indirect === 'lr' && iffy) addLine((d.bi & 3) === 3 || (d.bo & 0x4) === 0 ? '\u0003' + o.text : 'if (' + testOf().taken + ') ' + back);
+            else if (d.indirect === 'lr') addLine(back, undefined, { kind: 'end' });
+            else if (d.indirect && tables.has(i)) {
+              // The number a switch goes by is what the `cmplwi` before it
+              // held to the table's length, while nothing has changed it.
+              const t = tables.get(i), cases = new Map();
+              t.forEach((a, k) => { if (!cases.has(a)) cases.set(a, []); cases.get(a).push(k); });
+              const by = cond && !cond.old && cond.b.k !== undefined && cond.b.k + 1 === t.length ? str(cond.a) : null;
+              addLine(by !== null ? 'switch (' + by + ')' : 'goto one of several places by a number', undefined, { kind: 'switch', targets: [...cases.keys()], cases });
+            } else if (d.indirect) addLine('goto one of several places by a number', undefined, { kind: 'end' });
+            else if (d.conditional && /^b[tf]/.test(mn) && (d.bi & 3) !== 3) {
+              const t = testOf();
+              addLine('if (' + t.taken + ') goto \u0001', o.to, { kind: 'cond', taken: t.taken, fall: t.fall });
+            } else if (mn === 'bdnz') addLine('if (--ctr != 0) goto \u0001', o.to, { kind: 'cond', taken: '--ctr != 0', fall: '--ctr == 0' });
+            else if (d.conditional) addLine('\u0003' + o.text + ' \u0001', o.to, { kind: 'cond', taken: o.text, fall: '!(' + o.text + ')' });
+            else addLine('goto \u0001', o.to, inside(o.to) ? { kind: 'jump' } : { kind: 'end' });
           }
+        } else if (mn === 'mtctr' && !(ops[blk.e].d && ops[blk.e].d.indirect === 'ctr')) {
+          // The count a `bdnz` loop goes round, which the loop's test reads.
+          addLine('ctr = ' + str(reg[d.rd]));
         } else if (mn === 'nop' || mn === 'stmw' || mn === 'lmw' || mn === 'mflr' || mn === 'mtlr' || mn === 'mtctr') {
           if (mn === 'mflr') reg[d.rd] = atom('return address');
         } else if (m && d.ra === 1 && !m[5]) {
@@ -937,11 +987,256 @@ function exePseudo(r) {
       // A block that runs on into the next writes out every register read after it.
       if (i === blk.e && !(d && d.branch && !d.lk)) for (let q = 0; q < 32; q++) if (vol(q) && (blk.out >>> q & 1)) settle(q);
     }
+    const last = ops[blk.e].d;
+    if (exeConditional(last) && !last.lk) carry = cond;
   }
   // The line an instruction's work ends up on: the first written at or after it.
   let li = 0;
   for (let i = 0; i < N; i++) { while (li < lines.length - 1 && lines[li].at < ops[i].at) li++; stmtOf[i] = lines.length ? li : -1; }
   return (r.pseudo = { lines, stmtOf });
+}
+/* The pseudo-code with its jumps made into blocks: `if (...) { }`, `else`,
+   `while`, `do ... while`, `loop`, with `break`, `continue` and a jump to
+   the routine's return printed as the return.
+
+   The recovery is the scripts' (dvmRecoverStructure and dvmLoopExits in
+   js/delv-fold.js), which builds a block only where its region has one way
+   in and one way out and leaves every other jump as a goto.
+   utilities/structure_check.mjs compares it with the scripts' jumps. It
+   reads a list of statements in order, each a test that jumps, a jump, a
+   switch, an end or a plain statement, with the places each can go to;
+   here each line of exePseudo is one, by the `flow` exePseudo gives it, and
+   a place is the index of the first line written at or after a jump's
+   target address. This view leaves out the labels exePseudo writes at each
+   target and prints a label only where a goto to it is left.
+
+   Every test here jumps when its comparison is true (`if (r3 == 0) goto
+   L`), so a block that runs when the jump is not taken prints the opposite
+   test, which exePseudo writes beside it (`fall`) by swapping the operator
+   rather than wrapping the test in `!( )`. Two tests in a row that jump to
+   one place merge into one condition: `if (A) goto L; if (B) goto L` jumps
+   when A || B, and the code after it runs when not-A && not-B.
+
+   CodeWarrior compiles a `while` as a jump to the test at the loop's end,
+   which jumps back to the loop's first line: `goto T; L: body; T: if (C)
+   goto L`. The recovery reads that as a goto and a `do ... while (C)`,
+   which is the same program, and the view prints it as `while (C)` when
+   nothing else jumps to the test.
+
+   utilities/pseudo_check.mjs compares the result with exePseudo's jumps
+   over the whole program: the same edges, every block a region, every
+   statement once, each printed test's operator against its branch's, each
+   break and continue against its loop, and a label for every goto. */
+function exePseudoBlocks(r) {
+  if (r.pseudoBlocks) return r.pseudoBlocks;
+  const ps = exePseudo(r), L = ps.lines;
+  const keep = [];
+  for (let k = 0; k < L.length; k++) if (L[k].text !== '\u0002') keep.push(k);
+  // The statement an address starts: the first kept line at or after it.
+  const firstAt = a => {
+    let lo = 0, hi = keep.length;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (L[keep[m]].at < a) lo = m + 1; else hi = m; }
+    return lo < keep.length ? keep[lo] : null;
+  };
+  // A label is the lowest address that lands on its line.
+  const labelOf = new Map(), caseOf = new Map();
+  const place = a => { const k = firstAt(a); if (k !== null && (!labelOf.has(k) || a < labelOf.get(k))) labelOf.set(k, a); return k; };
+  const stmts = keep.map(k => {
+    const l = L[k], f = l.flow, node = { mn: 'ppc', k };
+    if (!f) return { abs: k, node, kind: 'plain', targets: [], negated: false };
+    if (f.kind === 'end') return { abs: k, node, kind: 'end', targets: [], negated: false };
+    if (f.kind === 'switch') {
+      const targets = [];
+      for (const a of f.targets) {
+        const t = place(a);
+        if (t === null) continue;
+        if (!targets.includes(t)) targets.push(t);
+        caseOf.set(t, (caseOf.get(t) || []).concat(f.cases.get(a)));
+      }
+      return { abs: k, node, kind: 'switch', targets, negated: false };
+    }
+    const t = place(l.to);
+    if (t === null) return { abs: k, node, kind: f.kind === 'jump' ? 'end' : 'plain', targets: [], negated: false };
+    return { abs: k, node, kind: f.kind, targets: [t], negated: f.kind === 'cond' };
+  });
+  /* Tests in a row, each jumping to one of two places, are one condition.
+     C's `if (A || B) { X } Y` compiles to `if (A) goto X; if (!B) goto Y;
+     X: ...`: the first test jumps past the second to where the block
+     starts, which the scripts' merge (tests in a row with one target) does
+     not take, and the block was left with a goto into its first line.
+     A run of tests c1 ... cn merges where each jumps either to E, where the
+     last one jumps, or to T, the statement after the last, and nothing
+     else jumps to the second test or a later one. Read from the end, the
+     run reaches E when cn is true. A test before that jumping to E reaches
+     E when it is true or the rest is, and a test jumping to T reaches E
+     when it is false and the rest is true (exeJoinTests).
+     The join runs again over its result until nothing more joins, which
+     is how `(A || B || C) && D` comes out: the first round joins A, B and
+     C, whose jumps past D to its block go to that run's T, and the second
+     joins the run with D. A joined test's parts are kept (`joined`), each
+     a line or a joined test of an earlier round, for the texts and for
+     utilities/pseudo_blocks_check.mjs. */
+  const joined = new Map();
+  const testText = (s, toward) => s.joined ? (toward ? s.node.taken : s.node.fall) : (toward ? L[s.node.k].flow.taken : L[s.node.k].flow.fall);
+  let list = stmts;
+  for (let round = 0; round < 8; round++) {
+    const jumpedTo = new Set();
+    for (const s of list) for (const t of s.targets) jumpedTo.add(t);
+    const next = [];
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i];
+      let last = -1;
+      if (s.kind === 'cond')
+        for (let j = i + 1; j + 1 < list.length && list[j].kind === 'cond' && !jumpedTo.has(list[j].abs); j++) {
+          const T = list[j + 1].abs, E = list[j].targets[0];
+          if (E !== T && list.slice(i, j + 1).every(p => p.targets[0] === T || p.targets[0] === E)) last = j;
+        }
+      if (last < 0) { next.push(s); continue; }
+      const parts = list.slice(i, last + 1), T = list[last + 1].abs, E = list[last].targets[0];
+      const toE = parts.map(p => p.targets[0] === E);
+      const taken = parts.map(p => testText(p, true)), fall = parts.map(p => testText(p, false));
+      const node = { mn: 'ppc', k: s.node.k, taken: exeJoinTests(toE, taken, fall, true), fall: exeJoinTests(toE, taken, fall, false) };
+      next.push({ abs: s.abs, node, kind: 'cond', targets: [E], negated: true, joined: parts, toE, follow: T });
+      for (const p of parts.slice(1)) joined.set(p.abs, s.abs);
+      i = last;
+    }
+    if (next.length === list.length) break;
+    list = next;
+  }
+  const rec = dvmRecoverStructure(list);
+  const loops = dvmLoopExits(rec.tree, {});
+  const labels = dvmRemainingLabels(rec.tree, loops.exits);
+  // The rotated `while`: a jump to a do-while's test from just before it,
+  // where nothing jumps to the test but that jump and the loop's `continue`s.
+  const sources = new Map(), nextOf = new Map();
+  list.forEach((s, i) => { if (i + 1 < list.length) nextOf.set(s.abs, list[i + 1].abs); });
+  for (const s of list) for (const t of s.targets) sources.set(t, (sources.get(t) || 0) + 1);
+  const rotated = new Set();
+  const findRotated = list => {
+    for (let i = 0; i + 1 < list.length; i++) {
+      const a = list[i], b = list[i + 1];
+      if (a.kind === 'stmt' && a.stmt.kind === 'jump' && a.goes === undefined && !loops.exits.has(a.stmt) &&
+          b.kind === 'dowhile' && !b.cond.parts && a.stmt.targets[0] === b.cond.abs && b.body.length &&
+          dvmFirstAbs(b.body[0]) === nextOf.get(a.stmt.abs)) {
+        const continues = [...loops.exits.keys()].filter(s => s.targets[0] === b.cond.abs).length;
+        if (sources.get(b.cond.abs) === 1 + continues) { rotated.add(a); rotated.add(b); }
+      }
+    }
+    for (const n of list) for (const q of ['then', 'els', 'body']) if (n[q]) findRotated(n[q]);
+  };
+  findRotated(rec.tree);
+  const out = [];
+  // A test's text, as written (`taken`) or its opposite (`fall`). Tests the
+  // scripts' merge joins (`parts`, one target) jump when any part is true.
+  const textOf = (s, k) => {
+    if (s.parts) { const op = k === 'fall' ? '&&' : '||'; return s.parts.map(p => exeJoinPart(textOf(p, k), op)).join(' ' + op + ' '); }
+    return testText(s, k === 'taken');
+  };
+  const line = (at, depth, text, to) => out.push({ at, depth, text, to: to === undefined ? null : to });
+  const atOf = s => L[s.abs].at;
+  const goTo = k => labelOf.has(k) ? labelOf.get(k) : L[k].at;
+  const label = (k, depth) => {
+    if (k === null || !labels.has(k)) return;
+    out.push({ at: goTo(k), depth, text: '\u0002', to: null, cases: caseOf.get(k) || null });
+  };
+  const render = (list, depth) => {
+    for (const n of list) {
+      if (rotated.has(n) && n.kind === 'stmt') continue;
+      if (n.kind !== 'dowhile' && n.kind !== 'loop') label(dvmFirstAbs(n), depth);
+      switch (n.kind) {
+        case 'stmt': {
+          const s = n.stmt, word = loops.exits.get(s);
+          const where = s.targets.length === 1 ? (n.goes !== undefined ? n.goes : s.targets[0]) : null;
+          if (s.kind === 'cond') line(atOf(s), depth, 'if (' + textOf(s, 'taken') + ') ' + (word || 'goto \u0001'), word ? null : goTo(where));
+          else if (s.kind === 'jump') line(atOf(s), depth, word || 'goto \u0001', word ? null : goTo(where));
+          else { const t = L[s.node.k]; line(atOf(s), depth, t.text, t.to); }
+          break;
+        }
+        case 'if':
+          line(atOf(n.cond), depth, 'if (' + textOf(n.cond, 'fall') + ') {');
+          render(n.then, depth + 1);
+          line(null, depth, '}');
+          break;
+        case 'ifelse':
+          if (!n.then.length) {
+            line(atOf(n.cond), depth, 'if (' + textOf(n.cond, 'taken') + ') {');
+            render(n.els, depth + 1);
+            line(null, depth, '}');
+            break;
+          }
+          line(atOf(n.cond), depth, 'if (' + textOf(n.cond, 'fall') + ') {');
+          render(n.then, depth + 1);
+          line(null, depth, '} else {');
+          render(n.els, depth + 1);
+          line(null, depth, '}');
+          break;
+        case 'while':
+          line(atOf(n.cond), depth, 'while (' + textOf(n.cond, 'fall') + ') {');
+          render(n.body, depth + 1);
+          line(null, depth, '}');
+          break;
+        case 'dowhile':
+          if (rotated.has(n)) {
+            line(atOf(n.cond), depth, 'while (' + textOf(n.cond, 'taken') + ') {');
+            render(n.body, depth + 1);
+            line(null, depth, '}');
+            break;
+          }
+          line(null, depth, 'do {');
+          render(n.body, depth + 1);
+          // A jump to the test from outside the loop lands here.
+          label(n.cond.abs, depth + 1);
+          line(atOf(n.cond), depth, '} while (' + textOf(n.cond, 'taken') + ')');
+          break;
+        case 'loop':
+          line(null, depth, 'loop {');
+          render(n.body, depth + 1);
+          line(null, depth, '}');
+          break;
+      }
+    }
+  };
+  render(rec.tree, 0);
+  // The line an instruction's work ends up on: the first line, by address,
+  // written at or after it.
+  const ops = exeOpsOf(r);
+  const byAt = out.map((l, i) => i).filter(i => out[i].at !== null && out[i].text !== '\u0002').sort((a, b) => out[a].at - out[b].at || a - b);
+  const stmtOf = new Int32Array(ops.length).fill(-1);
+  let j = 0;
+  for (let i = 0; i < ops.length; i++) { while (j < byAt.length - 1 && out[byAt[j]].at < ops[i].at) j++; stmtOf[i] = byAt.length ? byAt[j] : -1; }
+  return (r.pseudoBlocks = { lines: out, stmtOf, stmts, list, joined, rec, loops, labels, rotated, gotos: rec.gotos - loops.exits.size - rotated.size / 2 });
+}
+/* A run of tests as one condition (exePseudoBlocks): `toE[i]` is whether
+   test i jumps to E, the place the last one jumps to, rather than to T,
+   the statement after the run. With `toward` true it is the condition for
+   reaching E, and with it false the condition for reaching T. Built from
+   the last test back; a part whose operator differs from the one joining
+   it is bracketed. */
+function exeJoinTests(toE, taken, fall, toward) {
+  const n = toE.length;
+  let e = toward ? taken[n - 1] : fall[n - 1];
+  for (let i = n - 2; i >= 0; i--) {
+    // Toward E: a test jumping to E reaches it when the test is true or
+    // the rest is; one jumping to T, when the test is false and the rest
+    // is true. Toward T, the opposite of each.
+    const op = toE[i] === toward ? '||' : '&&';
+    const head = toE[i] ? (toward ? taken[i] : fall[i]) : (toward ? fall[i] : taken[i]);
+    e = exeJoinPart(head, op) + ' ' + op + ' ' + exeJoinPart(e, op);
+  }
+  return e;
+}
+// A part of a joined condition, bracketed when an `&&` or `||` outside
+// every bracket in it differs from `op`. A part from an earlier round of
+// the join has them, and a single test has neither.
+function exeJoinPart(s, op) {
+  let depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '(' || c === '[') depth++;
+    else if (c === ')' || c === ']') depth--;
+    else if (depth === 0 && (s.startsWith(' && ', i) || s.startsWith(' || ', i)) && s.slice(i + 1, i + 3) !== op) return '(' + s + ')';
+  }
+  return s;
 }
 // A target as a link: a place in this routine by its offset, another routine by name.
 function exeTargetHTML(r, to) {
@@ -950,14 +1245,16 @@ function exeTargetHTML(r, to) {
   return exeRoutineAt(to) ? svLink(inside ? '+0x' + (to - r.offset).toString(16).toUpperCase() : nm, 'jumpToExeAt(' + to + ')') : '<span class="refnote">' + svEsc(nm) + '</span>';
 }
 function exePseudoHTML(r, ringAt, why) {
-  const ps = exePseudo(r), ops = exeOpsOf(r);
+  const ps = exePseudoBlocks(r), ops = exeOpsOf(r);
   const ringLine = ringAt >= r.offset && ringAt < r.offset + r.length ? ps.stmtOf[(ringAt - r.offset) >> 2] : -1;
-  const off = at => ('+0x' + (at - r.offset).toString(16).toUpperCase()).padEnd(7) + ' ';
+  const off = at => (at === null ? '' : '+0x' + (at - r.offset).toString(16).toUpperCase()).padEnd(7) + ' ';
   const lines = ps.lines.map((l, i) => {
     let line;
-    if (l.text === '\u0002') line = '<span class="refnote">' + off(l.at).trim() + ':</span>';
-    else if (l.text[0] === '\u0003') line = off(l.at) + '  <span class="refnote">' + svEsc(l.text.slice(1)).replace('\u0001', l.to !== null ? exeTargetHTML(r, l.to) : '') + '</span>';
-    else line = off(l.at) + '  ' + svEsc(l.text).replace('\u0001', l.to !== null ? exeTargetHTML(r, l.to) : '');
+    const pad = '    '.repeat(l.depth);
+    // A switch's case is the label of the line it jumps to, with its numbers.
+    if (l.text === '\u0002') line = '<span class="refnote">' + off(l.at).trim() + ':' + (l.cases ? ' case ' + l.cases.join(', ') : '') + '</span>';
+    else if (l.text[0] === '\u0003') line = off(l.at) + '  ' + pad + '<span class="refnote">' + svEsc(l.text.slice(1)).replace('\u0001', l.to !== null ? exeTargetHTML(r, l.to) : '') + '</span>';
+    else line = off(l.at) + '  ' + pad + svEsc(l.text).replace('\u0001', l.to !== null ? exeTargetHTML(r, l.to) : '');
     if (i !== ringLine) return line;
     const o = ops[(ringAt - r.offset) >> 2];
     const note = (why ? 'The link \u201c' + svEsc(why) + '\u201d leads here. ' : '') + 'The line above has the instruction at +0x' + (ringAt - r.offset).toString(16).toUpperCase() +
