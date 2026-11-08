@@ -1200,8 +1200,32 @@ const SEARCH_FRAME_WAIT = 120000, SEARCH_FRAME_IDLE = 1500;
 let _searchFrame = null;
 // The time of the visitor's last touch, key or scroll, which the frame reads.
 function searchNoteInput() { window._searchInputAt = Date.now(); }
+/* A PAGE THE READER ENDED. The frame is a second copy of the site with the
+   game open in it, and at a phone's size the two take some 0.9 to 1.3 GB
+   while it reads (measured in headless Chrome, 8 November 2026). A phone
+   that runs out ends the tab and loads it again, which opens the file and
+   starts the frame again, round and round: the likely reading of the
+   maintainer's report that day of the page reloading over and over. So
+   the page notes in localStorage that the frame is reading, and clears the
+   note when it finishes, gives up, or the page is left. A page that opens
+   to the note finds the last one ended while the frame read, and from then
+   on this browser reads the pages in the panel instead, one copy of the
+   site. */
+const SEARCH_FRAME_MARK = 'cythera.searchFrameReading', SEARCH_FRAME_DIED = 'cythera.searchFrameEnded';
+function searchFrameMark(on) {
+  try { if (on) localStorage.setItem(SEARCH_FRAME_MARK, String(Date.now())); else localStorage.removeItem(SEARCH_FRAME_MARK); }
+  catch (e) { quiet(e, 'noting the search’s hidden reader'); }
+}
+function searchFrameDied() {
+  try { return localStorage.getItem(SEARCH_FRAME_DIED) === '1'; } catch (e) { quiet(e); return false; }
+}
+// Once a page, before any frame starts: a note left from the last page.
+if (!SEARCH_CRAWL) try {
+  if (localStorage.getItem(SEARCH_FRAME_MARK)) { localStorage.setItem(SEARCH_FRAME_DIED, '1'); localStorage.removeItem(SEARCH_FRAME_MARK); }
+} catch (e) { quiet(e, 'reading the search’s note of its hidden reader'); }
 function searchCrawlInFrame(S) {
   if (_searchFrame || S.done || !/^https?:$/.test(location.protocol) || typeof indexedDB === 'undefined') return;
+  if (searchFrameDied()) { S.frameGaveUp = true; siteSearchResume(S); return; }
   if (!window._searchInputWatched) {
     window._searchInputWatched = true;
     for (const t of ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchmove', 'scroll'])
@@ -1213,6 +1237,8 @@ function searchCrawlInFrame(S) {
   f.style.cssText = 'position:fixed;left:-20000px;top:0;width:1280px;height:900px;border:0;opacity:0;pointer-events:none';
   const end = () => {
     window.removeEventListener('message', hear);
+    window.removeEventListener('pagehide', left);
+    searchFrameMark(false);
     clearTimeout(f._quiet);
     f.remove();
     if (_searchFrame === f) _searchFrame = null;
@@ -1228,6 +1254,10 @@ function searchCrawlInFrame(S) {
     else { S.frameGaveUp = true; siteSearchResume(S); }
   };
   window.addEventListener('message', hear);
+  // Leaving the page is not the page ending; only an ending leaves the note.
+  const left = () => searchFrameMark(false);
+  window.addEventListener('pagehide', left);
+  searchFrameMark(true);
   f.src = 'index.html?searchcrawl=1';
   _searchFrame = f;
   quietFor();
