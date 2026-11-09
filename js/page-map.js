@@ -1715,6 +1715,7 @@ function drawMapMarks(lensCtx, lensTS) {
     if (!anything) {
       mc.width = 0; mc.height = 0;          // deflate, see drawRoofLayer
       if (legend) legend.innerHTML = '';
+      setPathLabels([], cm);
       scheduleLensPaint();
       return;
     }
@@ -1856,7 +1857,11 @@ function drawMapMarks(lensCtx, lensTS) {
   // One character's day, as the line they walk (drawSchedulePath in
   // js/delv-mapview.js, which explains why it is the whole day and not the
   // hour).
-  const drawnPath = M.path ? drawSchedulePath(ctx, TS, cm, colors.path) : null;
+  // The screen's hours are page text, the lens's are those same labels, and
+  // the download's are drawn into its picture (drawSchedulePath).
+  const where = !lensCtx ? 'screen' : lensCtx.canvas && lensCtx.canvas.id === 'mapDetailLens' ? 'lens' : 'export';
+  if (where === 'screen' && !M.path) setPathLabels([], cm);
+  const drawnPath = M.path ? drawSchedulePath(ctx, TS, cm, colors.path, where) : null;
   const pathStops = drawnPath ? drawnPath.stops : 0;
   const pathName = drawnPath ? drawnPath.name : '';
 

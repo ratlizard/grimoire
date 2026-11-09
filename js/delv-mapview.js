@@ -75,7 +75,7 @@ function refreshPathPicker() {
    Only posts on THIS level are joined. A character whose day crosses zones
    leaves the map and comes back, and a line drawn across that gap would
    claim a walk through places this map does not contain. */
-function drawSchedulePath(ctx, TS, cm, color) {
+function drawSchedulePath(ctx, TS, cm, color, where) {
   const scheds = loadSchedules();
   const character = window.MAP_PATH_CHARACTER;
   const daySchedule = (character !== null && character !== undefined && scheds[character]) ? scheduleDay(character) : [];
@@ -156,18 +156,25 @@ function drawSchedulePath(ctx, TS, cm, color) {
   }
   ctx.restore();
 
-  /* A dot on every post, and the hour beside it, both a size on the SCREEN.
-     They were a size in the layer's pixels (9 to 13, from the square), and
-     the layer is shown through the zoom: zoomed out on a phone the hours
-     came out a few pixels high and could not be read, and zoomed in the
-     label started a quarter square into the post's square, under the
-     selection box's corners (the maintainer, 9 November 2026). `k` is the
-     canvas's pixels to a screen pixel, from the square's size on screen
-     (cm.TS times the zoom), so the hour is 13 screen pixels at every zoom
-     and sits outside the square. drawMapMarks is run again when a zoom
-     settles (applyMapTransform), since the layer itself does not change. */
+  /* A dot on every post, and the hours beside it.
+
+     The hours were drawn into the mark layer, which the zoom magnifies: a
+     few pixels high zoomed out on a phone, soft between 100% and 150% where
+     the layer (capped in size, layerGeom) is stretched and the lens is not
+     yet painting, and starting inside the post's square under the
+     selection box's corners (the maintainer, 9 November 2026). Two posts on
+     one square drew two labels on one spot, the later hiding the earlier
+     (Thuria's 5 pm over her other hour). So on screen the hours are page
+     text over the map (setPathLabels), one label a square with each hour
+     in the color of its post, placed past the square's right edge from
+     the zoom and moved with it (placePathLabels, from applyMapTransform):
+     sharp at every zoom and 13 pixels high on any screen. The picture the
+     download makes has no page over it, so there the label is drawn into
+     it, at 13 pixels to a 32-pixel square. `where` is 'screen', 'lens' or
+     'export'. The dot stays in the canvas, at 4 screen pixels or more, and
+     drawMapMarks is run again when a zoom settles, at the new size. */
   const spt = cm.TS * (typeof mapView !== 'undefined' && mapView.scale ? mapView.scale : 1);
-  const k = TS / spt;
+  const k = where === 'export' ? TS / 32 : TS / spt;
   ctx.save();
   ctx.font = canvasFace(Math.max(1, Math.round(13 * k)));
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
@@ -180,28 +187,76 @@ function drawSchedulePath(ctx, TS, cm, color) {
   const ingress = j => (here.length > 1
     ? 'hsl(' + Math.round((here[(j - 1 + here.length) % here.length].hour % 24) * 15) + ' 85% 62%)'
     : color);
+  // The posts by square, each square's hours in the order of the day.
+  const squares = new Map();
+  for (let j = 0; j < here.length; j++) {
+    const e = here[j], key = e.x + ',' + e.y;
+    if (!squares.has(key)) squares.set(key, { x: e.x, y: e.y, parts: [] });
+    squares.get(key).parts.push({ text: hourAmPm(e.hour), hue: ingress(j) });
+  }
   for (let j = 0; j < here.length; j++) {
     const e = here[j];
-    const hue = ingress(j);
-    // Whole pixels. A dot or a label box on a fractional coordinate is drawn
-    // across two device pixels and reads as a smudge at close zoom, which is
-    // the one part of this the canvas will actually let us fix -- text
-    // antialiasing itself has no switch.
+    // Whole pixels. A dot on a fractional coordinate is drawn across two
+    // device pixels and reads as a smudge at close zoom.
     const cx = Math.round(e.x * TS + TS / 2), cy = Math.round(e.y * TS + TS / 2);
-    ctx.fillStyle = hue;
+    ctx.fillStyle = ingress(j);
     ctx.beginPath();
     ctx.arc(cx, cy, Math.max(4 * k, TS / 5), 0, Math.PI * 2);
     ctx.fill();
-    const label = hourAmPm(e.hour);
-    const tw = atlasTextWidth(ctx, label), pad = Math.round(4 * k), h = Math.round(18 * k);
-    // Past the square's right edge, and past the selection box drawn on it.
-    const bx = Math.round((e.x + 1) * TS + 3 * k), by = Math.round(cy - h / 2);
-    ctx.fillStyle = 'rgba(8,7,5,.78)';
-    ctx.fillRect(bx, by, tw + 2 * pad, h);
-    ctx.fillStyle = hue;
-    ctx.fillText(label, bx + pad, cy);
   }
+  if (where === 'export') {
+    for (const s of squares.values()) {
+      const cy = Math.round(s.y * TS + TS / 2), pad = Math.round(4 * k), h = Math.round(18 * k);
+      const sep = ', ', sw = atlasTextWidth(ctx, sep);
+      const tw = s.parts.reduce((a, p, i) => a + atlasTextWidth(ctx, p.text) + (i ? sw : 0), 0);
+      let bx = Math.round((s.x + 1) * TS + 3 * k);
+      ctx.fillStyle = 'rgba(8,7,5,.78)';
+      ctx.fillRect(bx, Math.round(cy - h / 2), tw + 2 * pad, h);
+      bx += pad;
+      s.parts.forEach((p, i) => {
+        if (i) { ctx.fillStyle = '#f0ede4'; ctx.fillText(sep, bx, cy); bx += sw; }
+        ctx.fillStyle = p.hue; ctx.fillText(p.text, bx, cy); bx += atlasTextWidth(ctx, p.text);
+      });
+    }
+  } else if (where === 'screen') setPathLabels([...squares.values()], cm);
   ctx.restore();
 
   return { stops: here.length, name: characterName(character) };
+}
+/* The path's hours as page text over the map (drawSchedulePath has why):
+   one span a square in #pathLabels, a layer of the viewport above the
+   lens, and placed from the zoom by placePathLabels. An empty list clears
+   them. */
+function setPathLabels(squares, cm) {
+  const vp = document.getElementById('mapViewport');
+  if (!vp) return;
+  let box = document.getElementById('pathLabels');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'pathLabels';
+    Object.assign(box.style, { position: 'absolute', left: '0', top: '0', right: '0', bottom: '0', pointerEvents: 'none', zIndex: '6', overflow: 'hidden' });
+    vp.appendChild(box);
+  }
+  box.innerHTML = '';
+  window.PATH_LABELS = squares.length ? { cm, squares } : null;
+  for (const s of squares) {
+    const el = document.createElement('span');
+    Object.assign(el.style, { position: 'absolute', transform: 'translateY(-50%)', whiteSpace: 'nowrap', padding: '1px 4px', background: 'rgba(8,7,5,.78)', font: canvasFace(13) });
+    el.innerHTML = s.parts.map(p => '<span style="color:' + p.hue + '">' + svEsc(p.text) + '</span>').join('<span style="color:#f0ede4">, </span>');
+    box.appendChild(el);
+  }
+  placePathLabels();
+}
+// Each label just past the right edge of its square, where the zoom and
+// the pan put that square now.
+function placePathLabels() {
+  const L = window.PATH_LABELS, box = document.getElementById('pathLabels');
+  if (!L || !box || typeof mapView === 'undefined') return;
+  const spt = L.cm.TS * mapView.scale;
+  [...box.children].forEach((el, i) => {
+    const s = L.squares[i];
+    if (!s) return;
+    el.style.left = Math.round(mapView.x + (s.x + 1) * spt + 3) + 'px';
+    el.style.top = Math.round(mapView.y + (s.y + 0.5) * spt) + 'px';
+  });
 }

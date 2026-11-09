@@ -35,8 +35,10 @@ function applyMapTransform() {
   const wrap = document.getElementById('mapCanvasWrap');
   wrap.style.transform = 'translate(' + mapView.x + 'px,' + mapView.y + 'px) scale(' + mapView.scale + ')';
   scheduleLensPaint();
-  // The path's hours are a size on the screen (drawSchedulePath), so the
-  // marks are drawn again once a zoom settles at a new scale.
+  // The path's hours are page text over the map, moved with it; its dots
+  // are a size on the screen (drawSchedulePath), so the marks are drawn
+  // again once a zoom settles at a new scale.
+  if (typeof placePathLabels === 'function') placePathLabels();
   if (window.MAP_MARKS && window.MAP_MARKS.path && window.MARKS_SCALE !== mapView.scale) {
     clearTimeout(window.MARKS_ZOOM_TIMER);
     window.MARKS_ZOOM_TIMER = setTimeout(() => { if (window.MARKS_SCALE !== mapView.scale) drawMapMarks(); }, 150);
