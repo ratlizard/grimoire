@@ -1193,6 +1193,32 @@ function classFieldNumber(cls, key, word, slot) {
   return (w & 0xF0000000) === 0 ? w : null;
 }
 
+/* What word `word` of class member `key` is in every item class that has
+   it: 'text' where each points at a string, 'list' where each points at
+   an array, null for a number, for None alone, or where the classes
+   differ. For the Read view (dvmProseOperator), which writes word 1 of
+   member 51 (`AskedAbout[1]`) as the member's list: the AskAbout helper
+   (0xEB6) prints word 0 and walks word 1 for the characters who answer. */
+function classMemberWordKind(key, word) {
+  const memo = DERIVED.MEMBER_WORD_KINDS || (DERIVED.MEMBER_WORD_KINDS = new Map());
+  const id = key + ':' + word;
+  if (memo.has(id)) return memo.get(id);
+  let kind = null, mixed = false;
+  for (let pt = 1; pt < 1024 && !mixed; pt++) {
+    const c = parseItemClass(pt);
+    const f = c && c.data.find(x => x.key === key);
+    const w = f ? f.words[word] : undefined;
+    if (w === undefined || w === 0x5000FFFF) continue;
+    let k = 'number';
+    if ((w & 0x80000000) && ((w >>> 16) & 0x7FFF) === c.resid) k = dvmArrayWords(c.bytes, w & 0xFFFF) ? 'list' : itemStringAt(c.bytes, w & 0xFFFF) ? 'text' : 'other';
+    else if (w & 0xF0000000) k = 'other';
+    if (kind === null) kind = k; else if (kind !== k) mixed = true;
+  }
+  const v = mixed || (kind !== 'text' && kind !== 'list') ? null : kind;
+  memo.set(id, v);
+  return v;
+}
+
 /* Whether a class has a member, by its table: what `has_member` in a
    script answers. Every class table is "Item" (no class here has a
    parent), so a class without the key has not got it. This is the file's

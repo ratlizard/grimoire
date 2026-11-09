@@ -552,9 +552,8 @@ function readLinkHex(html) {
 }
 
 /* The Read view's HTML: each function's name and arguments, then its
-   sentences as nested lists, each with the offset its statement has in the
-   listings' gutter, so a "go to L0042" can be found and any line checked
-   against the code. A prose object is written as what it contains. */
+   sentences as nested lists. A prose object is written as what it
+   contains. */
 function readViewHtml(fns) {
   const hex4 = v => v.toString(16).toUpperCase().padStart(4, '0');
   // A prompt as the player types it and as the game stores it, as the
@@ -563,7 +562,13 @@ function readViewHtml(fns) {
     const w = typeof convIntendedFor === 'function' ? convIntendedFor(k) : [];
     return (w[0] || k).toUpperCase() + ' (' + k + ')';
   }).join(', ') + ':';
-  const list = cl => '<ul class="readList">' + cl.map(c => '<li>' + (c.at !== null && c.at !== undefined ? '<span class="readAt">' + hex4(c.at) + '</span>' : '') +
+  /* A sentence's offset is shown only where a "go to L0042" points, as that
+     label, so the place a jump goes can be found. Every other offset went
+     on 8 November 2026 (the maintainer: "I don't think we need line values
+     in Read view"). */
+  const wanted = new Set();
+  (function walk(cl) { for (const c of cl || []) { for (const m of String(c.text || '').matchAll(/\bL([0-9A-F]{4})\b/g)) wanted.add(parseInt(m[1], 16)); walk(c.kids); } })(fns.flatMap(f => f.clauses || []));
+  const list = cl => '<ul class="readList">' + cl.map(c => '<li>' + (c.at !== null && c.at !== undefined && wanted.has(c.at) ? '<span class="readAt">L' + hex4(c.at) + '</span>' : '') +
     readLinkHex(svEsc(c.prompt !== undefined ? prompt(c.prompt) : c.text.charAt(0).toUpperCase() + c.text.slice(1))) + (c.kids ? list(c.kids) : '') + '</li>').join('') + '</ul>';
   return fns.map(f => {
     if (f.prose !== undefined) return '<div class="readFn"><div class="readHead">' + svEsc(f.name) + '</div><div class="readProse">' + svEsc(f.prose) + '</div></div>';

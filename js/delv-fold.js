@@ -1969,7 +1969,14 @@ function dvmProseOperator(n, args, ctx) {
       const m = /^0x([0-9A-F]{2})([0-9A-F]{2})$/i.exec(bare);
       const k = m && String(parseInt(m[1], 16));
       const key = m && ((DVM_SYM.method && DVM_SYM.method[k]) || (DVM_SYM.field && DVM_SYM.field[k]));
-      return dvmProseOwner(args[0]) + (key ? dvmProseName(key) + ' ' + parseInt(m[2], 16) : bare);
+      // A word that is text or a list in every class reads as that kind, with
+      // its number only where two words of the member are the same kind
+      // (classMemberWordKind): word 1 of member 51 reads as its list.
+      const w = m ? parseInt(m[2], 16) : 0;
+      const kindOf = j => dvmFoldPage(ctx, () => classMemberWordKind(+k, j));
+      const wk = key ? kindOf(w) : null;
+      const twin = wk && [0, 1, 2, 3, 4, 5].some(j => j !== w && kindOf(j) === wk);
+      return dvmProseOwner(args[0]) + (key ? dvmProseName(key) + ' ' + (wk ? wk + (twin ? ' ' + w : '') : w) : bare);
     }
     case 0x62: return dvmProseOwner(args[0]) + dvmProseName(bare);
     case 0x63: {
@@ -2573,7 +2580,8 @@ function dvmProseArgNames(forest, slots, ctx) {
       }
       if (!pops) { st.push({ arg: n.mn === 'arg' ? dvmBareOperand(n.arg) : null, global: n.mn === 'global' ? plain(n) : null }); continue; }
       const ops = st.splice(Math.max(0, st.length - pops), pops);
-      if (n.op === 0x63 && /^Character$/i.test(plain(n))) mark(ops[0], 'character');
+      if ((n.op === 0x63 || n.op === 0x64) && /^Character$/i.test(plain(n))) mark(ops[0], 'character');
+      if (n.op === 0x64 && /^Prop$/i.test(plain(n))) mark(ops[0], 'prop');
       if (n.op === 0x62 && PROP_FIELDS.has(plain(n))) mark(ops[0], 'prop');
       const infix = DVM_INFIX[n.op];
       if ((infix === '==' || infix === '!=') && ops.length === 2)
