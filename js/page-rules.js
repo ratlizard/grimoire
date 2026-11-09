@@ -6162,10 +6162,13 @@ function exeSyscallCharacterArgs() {
    number in the argument and every other value unknown. A register has a
    number or nothing. The run follows each branch whose test it can work
    out (the compares on the number, the tag test before them, a table of
-   addresses indexed by the number). It stops at a branch on an unknown
-   value, at a call once the number has picked a way, at a return, and at
-   an instruction it has already run. The answer is where the last branch
-   on the number went, and null when no branch depended on the number.
+   addresses indexed by the number). Before the number has picked a way, a
+   branch on an unknown value is followed both ways, the way that falls
+   through first: cbCD_Tool tests whether there is a CD drive before it
+   reads its number. After that the run stops at a branch on an unknown
+   value, at a call, at a return, and at an instruction it has already
+   run. The answer is where the last branch on the number went, and null
+   when no branch depended on the number.
 
    A script's number is the word with its top four bits clear
    (`v & 0x0FFFFFFF`), as every handler that reads one tests and then
@@ -6174,106 +6177,122 @@ function exeSyscallCharacterArgs() {
 function exeHandlerCaseAt(r, k, v) {
   const img = appImage(); if (!img || !r) return null;
   const ops = exeOpsOf(r), inside = at => at !== null && at >= r.offset && at < r.offset + r.length;
-  const reg = new Array(32).fill(null), stack = new Map(), cr = new Array(8).fill(null);
-  let ctr = null, i = 0, landing = null;
-  const seen = new Set();
-  reg[4] = { args: true };
-  const num = n => reg[n] && typeof reg[n].v === 'number' ? reg[n] : null;
-  const put = (n, x, a) => { reg[n] = x === null ? null : { v: x | 0, a: !!a }; };
+  const first = { reg: new Array(32).fill(null), stack: new Map(), cr: new Array(8).fill(null), ctr: null, i: 0, seen: new Set() };
+  first.reg[4] = { args: true };
+  const ways = [first];
+  let forks = 0;
   const mask = (mb, me) => { let m = 0; for (let b = mb; ; b = (b + 1) & 31) { m |= 0x80000000 >>> b; if (b === me) break; } return m; };
   const compare = (x, y, unsigned) => {
     const p = unsigned ? x >>> 0 : x | 0, q = unsigned ? y >>> 0 : y | 0;
     return [p < q, p > q, p === q, false];
   };
-  for (let steps = 0; steps < 800 && i >= 0 && i < ops.length; steps++) {
-    if (seen.has(i)) break;
-    seen.add(i);
-    const o = ops[i], d = o.d;
-    if (!d) break;
-    const mn = d.mn.replace(/\.$/, ''), rec = d.mn.endsWith('.');
-    let res = null, dst = null, a = false;
-    const one = n => { const x = num(n); if (x) a = x.a; return x ? x.v : null; };
-    const two = (n, m) => { const x = num(n), y = num(m); if (x && y) a = x.a || y.a; return x && y ? [x.v, y.v] : null; };
-    if (d.branch) {
-      if (d.lk) {
-        // A call: what it leaves in the volatile registers is unknown.
-        if (landing !== null) break;
-        for (const n of [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) reg[n] = null;
-        cr.fill(null); ctr = null; i++; continue;
+  // One way through, from the state in w. Returns where the number sent it,
+  // or null, and queues the other way of a branch it cannot work out.
+  const walk = w => {
+    const { reg, stack, cr, seen } = w;
+    let { ctr, i } = w, landing = null;
+    const num = n => reg[n] && typeof reg[n].v === 'number' ? reg[n] : null;
+    const put = (n, x, a) => { reg[n] = x === null ? null : { v: x | 0, a: !!a }; };
+    for (let steps = 0; steps < 800 && i >= 0 && i < ops.length; steps++) {
+      if (seen.has(i)) break;
+      seen.add(i);
+      const o = ops[i], d = o.d;
+      if (!d) break;
+      const mn = d.mn.replace(/\.$/, ''), rec = d.mn.endsWith('.');
+      let res = null, dst = null, a = false;
+      const one = n => { const x = num(n); if (x) a = x.a; return x ? x.v : null; };
+      const two = (n, m) => { const x = num(n), y = num(m); if (x && y) a = x.a || y.a; return x && y ? [x.v, y.v] : null; };
+      if (d.branch) {
+        if (d.lk) {
+          // A call: what it leaves in the volatile registers is unknown.
+          if (landing !== null) break;
+          for (const n of [0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]) reg[n] = null;
+          cr.fill(null); ctr = null; i++; continue;
+        }
+        if (mn === 'bctr' && !exeConditional(d)) {
+          if (!ctr || !inside(ctr.code)) break;
+          if (ctr.a) landing = ctr.code;
+          i = (ctr.code - r.offset) >> 2; continue;
+        }
+        if (!exeConditional(d)) {
+          if (d.indirect || !inside(o.to)) break;
+          // A way that starts with a jump starts where the jump goes.
+          if (landing === o.at) landing = o.to;
+          i = (o.to - r.offset) >> 2; continue;
+        }
+        if (!(d.bo & 0x04)) break;
+        const f = cr[d.bi >> 2];
+        if (!f) {
+          if (landing !== null) break;
+          if (!d.indirect && inside(o.to) && forks++ < 16)
+            ways.push({ reg: reg.slice(), stack: new Map(stack), cr: cr.slice(), ctr, i: (o.to - r.offset) >> 2, seen: new Set(seen) });
+          i++; continue;
+        }
+        const taken = f.bits[d.bi & 3] === !!(d.bo & 0x08);
+        if (taken && (d.indirect || !inside(o.to))) break;
+        const next = taken ? o.to : o.at + 4;
+        if (f.a) landing = next;
+        i = (next - r.offset) >> 2; continue;
       }
-      if (mn === 'bctr' && !exeConditional(d)) {
-        if (!ctr || !inside(ctr.code)) break;
-        if (ctr.a) landing = ctr.code;
-        i = (ctr.code - r.offset) >> 2; continue;
+      if (mn === 'cmpwi' || mn === 'cmplwi') {
+        const x = num(d.ra);
+        cr[d.crf || 0] = x ? { bits: compare(x.v, d.imm, mn === 'cmplwi'), a: x.a } : null;
+        i++; continue;
       }
-      if (!exeConditional(d)) {
-        if (d.indirect || !inside(o.to)) break;
-        // A way that starts with a jump starts where the jump goes.
-        if (landing === o.at) landing = o.to;
-        i = (o.to - r.offset) >> 2; continue;
+      if (mn === 'cmpw' || mn === 'cmplw') {
+        const p = two(d.ra, d.rb);
+        cr[d.crf || 0] = p ? { bits: compare(p[0], p[1], mn === 'cmplw'), a } : null;
+        i++; continue;
       }
-      if (!(d.bo & 0x04)) break;
-      const f = cr[d.bi >> 2];
-      if (!f) break;
-      const taken = f.bits[d.bi & 3] === !!(d.bo & 0x08);
-      if (taken && (d.indirect || !inside(o.to))) break;
-      const next = taken ? o.to : o.at + 4;
-      if (f.a) landing = next;
-      i = (next - r.offset) >> 2; continue;
+      if (mn === 'lwz' && reg[d.ra] && reg[d.ra].args) {
+        if (d.d === 4 * k) put(d.rt, v & 0x0FFFFFFF, true); else reg[d.rt] = null;
+        i++; continue;
+      }
+      if ((mn === 'lwz' || mn === 'stw') && d.ra === 1) {
+        if (mn === 'stw') stack.set(d.d, reg[d.rt]); else reg[d.rt] = stack.get(d.d) || null;
+        i++; continue;
+      }
+      if (mn === 'lwzx') {
+        // An entry of a table of addresses in the TOC (exeSwitchTargets).
+        const t = reg[d.ra] && reg[d.ra].toc !== undefined ? reg[d.ra] : reg[d.rb] && reg[d.rb].toc !== undefined ? reg[d.rb] : null;
+        const x = t === reg[d.ra] ? num(d.rb) : num(d.ra);
+        let p = null;
+        try { p = t && x ? pefPointerAt(img, img.toc.section, t.toc + x.v) : null; } catch (e) { p = null; }
+        reg[d.rt] = p && p.section === img.codeIndex ? { code: p.offset, a: x.a } : null;
+        i++; continue;
+      }
+      if (mn === 'mtctr') { ctr = reg[d.rd !== undefined ? d.rd : d.rs]; i++; continue; }
+      if (mn === 'mr') { reg[d.ra] = reg[d.rs]; i++; continue; }
+      if (mn === 'li') { put(d.rd, d.imm, false); i++; continue; }
+      if (mn === 'lis') { put(d.rd, d.imm << 16, false); i++; continue; }
+      if (mn === 'addi' && d.ra === 2) { reg[d.rd] = { toc: img.toc.offset + d.imm }; i++; continue; }
+      if (mn === 'addi' || mn === 'addis' || mn === 'subi') { const x = one(d.ra); dst = d.rd; res = x === null ? null : x + (mn === 'addis' ? d.imm << 16 : mn === 'subi' ? -d.imm : d.imm); }
+      else if (d.sh !== undefined && d.mb !== undefined && d.me !== undefined && d.rs !== undefined) {
+        const x = one(d.rs); dst = d.ra; res = x === null ? null : (((x << d.sh) | (x >>> ((32 - d.sh) & 31))) & mask(d.mb, d.me));
+      }
+      else if (mn === 'srawi') { const x = one(d.rs); dst = d.ra; res = x === null ? null : x >> d.sh; }
+      else if (mn === 'extsh' || mn === 'extsb') { const x = one(d.rs); dst = d.ra; res = x === null ? null : mn === 'extsh' ? (x << 16) >> 16 : (x << 24) >> 24; }
+      else if (mn === 'andi' || mn === 'ori' || mn === 'xori') { const x = one(d.rs); dst = d.ra; res = x === null ? null : mn === 'andi' ? x & d.imm : mn === 'ori' ? x | d.imm : x ^ d.imm; }
+      else if (mn === 'neg') { const x = one(d.ra); dst = d.rd; res = x === null ? null : -x; }
+      else if (mn === 'add' || mn === 'subf') { const p = two(d.ra, d.rb); dst = d.rd; res = p === null ? null : mn === 'add' ? p[0] + p[1] : p[1] - p[0]; }
+      else if (mn === 'and' || mn === 'or' || mn === 'xor') { const p = two(d.rs, d.rb); dst = d.ra; res = p === null ? null : mn === 'and' ? p[0] & p[1] : mn === 'or' ? p[0] | p[1] : p[0] ^ p[1]; }
+      if (dst !== null) {
+        put(dst, res, a);
+        if (rec) cr[0] = res === null ? null : { bits: compare(res, 0, false), a };
+        i++; continue;
+      }
+      // Any other instruction: what it writes is unknown.
+      for (const n of exeRegUse(d).w) if (n >= 0 && n < 32) reg[n] = null;
+      if (rec) cr[0] = null;
+      i++;
     }
-    if (mn === 'cmpwi' || mn === 'cmplwi') {
-      const x = num(d.ra);
-      cr[d.crf || 0] = x ? { bits: compare(x.v, d.imm, mn === 'cmplwi'), a: x.a } : null;
-      i++; continue;
-    }
-    if (mn === 'cmpw' || mn === 'cmplw') {
-      const p = two(d.ra, d.rb);
-      cr[d.crf || 0] = p ? { bits: compare(p[0], p[1], mn === 'cmplw'), a } : null;
-      i++; continue;
-    }
-    if (mn === 'lwz' && reg[d.ra] && reg[d.ra].args) {
-      if (d.d === 4 * k) put(d.rt, v & 0x0FFFFFFF, true); else reg[d.rt] = null;
-      i++; continue;
-    }
-    if ((mn === 'lwz' || mn === 'stw') && d.ra === 1) {
-      if (mn === 'stw') stack.set(d.d, reg[d.rt]); else reg[d.rt] = stack.get(d.d) || null;
-      i++; continue;
-    }
-    if (mn === 'lwzx') {
-      // An entry of a table of addresses in the TOC (exeSwitchTargets).
-      const t = reg[d.ra] && reg[d.ra].toc !== undefined ? reg[d.ra] : reg[d.rb] && reg[d.rb].toc !== undefined ? reg[d.rb] : null;
-      const x = t === reg[d.ra] ? num(d.rb) : num(d.ra);
-      let p = null;
-      try { p = t && x ? pefPointerAt(img, img.toc.section, t.toc + x.v) : null; } catch (e) { p = null; }
-      reg[d.rt] = p && p.section === img.codeIndex ? { code: p.offset, a: x.a } : null;
-      i++; continue;
-    }
-    if (mn === 'mtctr') { ctr = reg[d.rd !== undefined ? d.rd : d.rs]; i++; continue; }
-    if (mn === 'mr') { reg[d.ra] = reg[d.rs]; i++; continue; }
-    if (mn === 'li') { put(d.rd, d.imm, false); i++; continue; }
-    if (mn === 'lis') { put(d.rd, d.imm << 16, false); i++; continue; }
-    if (mn === 'addi' && d.ra === 2) { reg[d.rd] = { toc: img.toc.offset + d.imm }; i++; continue; }
-    if (mn === 'addi' || mn === 'addis' || mn === 'subi') { const x = one(d.ra); dst = d.rd; res = x === null ? null : x + (mn === 'addis' ? d.imm << 16 : mn === 'subi' ? -d.imm : d.imm); }
-    else if (d.sh !== undefined && d.mb !== undefined && d.me !== undefined && d.rs !== undefined) {
-      const x = one(d.rs); dst = d.ra; res = x === null ? null : (((x << d.sh) | (x >>> ((32 - d.sh) & 31))) & mask(d.mb, d.me));
-    }
-    else if (mn === 'srawi') { const x = one(d.rs); dst = d.ra; res = x === null ? null : x >> d.sh; }
-    else if (mn === 'extsh' || mn === 'extsb') { const x = one(d.rs); dst = d.ra; res = x === null ? null : mn === 'extsh' ? (x << 16) >> 16 : (x << 24) >> 24; }
-    else if (mn === 'andi' || mn === 'ori' || mn === 'xori') { const x = one(d.rs); dst = d.ra; res = x === null ? null : mn === 'andi' ? x & d.imm : mn === 'ori' ? x | d.imm : x ^ d.imm; }
-    else if (mn === 'neg') { const x = one(d.ra); dst = d.rd; res = x === null ? null : -x; }
-    else if (mn === 'add' || mn === 'subf') { const p = two(d.ra, d.rb); dst = d.rd; res = p === null ? null : mn === 'add' ? p[0] + p[1] : p[1] - p[0]; }
-    else if (mn === 'and' || mn === 'or' || mn === 'xor') { const p = two(d.rs, d.rb); dst = d.ra; res = p === null ? null : mn === 'and' ? p[0] & p[1] : mn === 'or' ? p[0] | p[1] : p[0] ^ p[1]; }
-    if (dst !== null) {
-      put(dst, res, a);
-      if (rec) cr[0] = res === null ? null : { bits: compare(res, 0, false), a };
-      i++; continue;
-    }
-    // Any other instruction: what it writes is unknown.
-    for (const n of exeRegUse(d).w) if (n >= 0 && n < 32) reg[n] = null;
-    if (rec) cr[0] = null;
-    i++;
+    return landing;
+  };
+  while (ways.length) {
+    const at = walk(ways.shift());
+    if (at !== null) return at;
   }
-  return landing;
+  return null;
 }
 /* The syscalls whose handler picks its code by a number, and in which
    argument: the ones where 0 to 15 reach three places or more. Two places
@@ -6324,7 +6343,7 @@ function exeSyscallCase(op, k, v) {
       let j = best.j;
       while (j > 0 && !has(j)) j--;
       const s = has(j) ? best.ss[j] : best.ss[best.j];
-      words = s.replace(/\s*\((?:`0x[0-9A-F]{6}`(?: to `0x[0-9A-F]{6}`)?(?:, )?)+\)/g, '').replace(/`/g, '');
+      words = s.replace(/\s*\((?:`0x[0-9A-F]{6}`(?: to `0x[0-9A-F]{6}`)?(?:, )?)+\)/g, '').replace(/`/g, '').replace(/\s+/g, ' ');
     }
   }
   return { at, words };
