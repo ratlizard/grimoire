@@ -1723,6 +1723,8 @@ function drawMapMarks(lensCtx, lensTS) {
     ctx = mc.getContext('2d');
     ctx.clearRect(0, 0, mc.width, mc.height);
     TS = layerGeom(cm).TS;   // the layer canvas is capped; draw at the layer's scale
+    // The zoom the path's hours were sized for (drawSchedulePath).
+    window.MARKS_SCALE = typeof mapView !== 'undefined' ? mapView.scale : 1;
   }
   const colors = { doors: '#ffd166', secret: '#8fd4ff', chest: '#a8e06a', exits: '#ff9ad5', path: '#7ef0c0' };
   // A line on every square's edge, so a coordinate can be counted off the map.

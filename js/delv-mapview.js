@@ -156,11 +156,21 @@ function drawSchedulePath(ctx, TS, cm, color) {
   }
   ctx.restore();
 
-  // A dot on every post, and the hour beside it where the tiles are big
-  // enough to read one. One font for all of them, the World tab's lesson.
+  /* A dot on every post, and the hour beside it, both a size on the SCREEN.
+     They were a size in the layer's pixels (9 to 13, from the square), and
+     the layer is shown through the zoom: zoomed out on a phone the hours
+     came out a few pixels high and could not be read, and zoomed in the
+     label started a quarter square into the post's square, under the
+     selection box's corners (the maintainer, 9 November 2026). `k` is the
+     canvas's pixels to a screen pixel, from the square's size on screen
+     (cm.TS times the zoom), so the hour is 13 screen pixels at every zoom
+     and sits outside the square. drawMapMarks is run again when a zoom
+     settles (applyMapTransform), since the layer itself does not change. */
+  const spt = cm.TS * (typeof mapView !== 'undefined' && mapView.scale ? mapView.scale : 1);
+  const k = TS / spt;
   ctx.save();
-  ctx.font = canvasFace(Math.max(9, Math.min(13, Math.round(TS / 2.4))));
-  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.font = canvasFace(Math.max(1, Math.round(13 * k)));
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   /* A post wears the colour of the line that ENDS at it, not the one that
      leaves. A leg is coloured by the hour it sets out, so the line reaching
      post j is leg j-1: colouring the dot by its hour would put a dot of
@@ -180,16 +190,16 @@ function drawSchedulePath(ctx, TS, cm, color) {
     const cx = Math.round(e.x * TS + TS / 2), cy = Math.round(e.y * TS + TS / 2);
     ctx.fillStyle = hue;
     ctx.beginPath();
-    ctx.arc(cx, cy, Math.max(2, Math.round(TS / 5)), 0, Math.PI * 2);
+    ctx.arc(cx, cy, Math.max(4 * k, TS / 5), 0, Math.PI * 2);
     ctx.fill();
-    if (TS < 14) continue;
     const label = hourAmPm(e.hour);
-    const tw = atlasTextWidth(ctx, label);
-    const bx = cx + Math.round(TS / 4), by = cy - 12;
-    ctx.fillStyle = 'rgba(8,7,5,.72)';
-    ctx.fillRect(bx, by, tw + 8, 15);
+    const tw = atlasTextWidth(ctx, label), pad = Math.round(4 * k), h = Math.round(18 * k);
+    // Past the square's right edge, and past the selection box drawn on it.
+    const bx = Math.round((e.x + 1) * TS + 3 * k), by = Math.round(cy - h / 2);
+    ctx.fillStyle = 'rgba(8,7,5,.78)';
+    ctx.fillRect(bx, by, tw + 2 * pad, h);
     ctx.fillStyle = hue;
-    ctx.fillText(label, bx + 4, cy);
+    ctx.fillText(label, bx + pad, cy);
   }
   ctx.restore();
 

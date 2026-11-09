@@ -35,6 +35,12 @@ function applyMapTransform() {
   const wrap = document.getElementById('mapCanvasWrap');
   wrap.style.transform = 'translate(' + mapView.x + 'px,' + mapView.y + 'px) scale(' + mapView.scale + ')';
   scheduleLensPaint();
+  // The path's hours are a size on the screen (drawSchedulePath), so the
+  // marks are drawn again once a zoom settles at a new scale.
+  if (window.MAP_MARKS && window.MAP_MARKS.path && window.MARKS_SCALE !== mapView.scale) {
+    clearTimeout(window.MARKS_ZOOM_TIMER);
+    window.MARKS_ZOOM_TIMER = setTimeout(() => { if (window.MARKS_SCALE !== mapView.scale) drawMapMarks(); }, 150);
+  }
 
   // Thin 1px detail -- the wavy streaks in the Expanse void tiles are only
   // ~37 pixels per tile -- is destroyed by nearest-neighbour when the map is
