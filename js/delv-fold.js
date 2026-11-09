@@ -390,6 +390,15 @@ function dvmFoldCallNotes(name, vals, ctx) {
     try { sym = resourceSymbol(rid); } catch (e) { quiet(e); }
     dvmFoldNote(ctx, 'sound ' + v + (sym ? ': ' + sym : '') + ' (0x' + rid.toString(16).toUpperCase() + ')');
   }
+  // A tune is 0x9000 plus PlayMusic's number (tunePlaces). A landscape strip
+  // is 0x8400 plus SetLandscapeImage's, and a negative number draws it with
+  // no sky behind (landscapeSetters). renderLinked links both.
+  if (name === 'PlayMusic' && /^\d+$/.test(vals[0] || ''))
+    dvmFoldNote(ctx, 'tune ' + vals[0] + ' (0x' + (0x9000 + +vals[0]).toString(16).toUpperCase() + ')');
+  if (name === 'SetLandscapeImage' && /^-?\d+$/.test(vals[0] || '')) {
+    const n = Math.abs(+vals[0]);
+    dvmFoldNote(ctx, 'landscape strip ' + n + (+vals[0] < 0 ? ', no sky' : '') + ' (0x' + (0x8400 + n).toString(16).toUpperCase() + ')');
+  }
   if ((name === 'AddQuest' || name === 'CompleteQuest') && /^\d+$/.test(vals[0] || '') && ctx && ctx.arc) {
     const ref = name === 'AddQuest' && /^\((0x[0-9A-F]+)\[(\d+)\] \+ (\d+)\)$/i.exec(vals[1] || '');
     const resid = ref ? parseInt(ref[1], 16) : dvmTodoTextResid(ctx.arc);

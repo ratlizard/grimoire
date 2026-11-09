@@ -381,10 +381,11 @@ function renderLinked(text, resid, raw) {
         ? pre + '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>'
         : m;
     });
-    // A sound a line's comment names (dvmFoldNote) is a link to the sound.
-    h = h.replace(/(sound \d+(?:: [^;<]*?)? \()0x(9[01][0-9A-F]{2})\)/g, (m, pre, hx) => {
+    // A sound, tune or landscape strip a line's comment names (dvmFoldNote)
+    // is a link to it.
+    h = h.replace(/((?:sound \d+(?:: [^;<]*?)?|tune \d+|landscape strip \d+(?:, no sky)?) \()0x((?:9[01]|84)[0-9A-F]{2})\)/g, (m, pre, hx) => {
       const rid = parseInt(hx, 16);
-      return refExists(rid) ? pre + '<a class="reflink" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>)' : m;
+      return refExists(rid) ? pre + '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>)' : m;
     });
     return h;
   }
