@@ -819,6 +819,8 @@ function inspectMapSquare(tx, ty) {
       (face && face.url ? '<img class="inspFace" src="' + face.url + '" alt="" width="64" height="64">' : '') +
       '<div><b>' + svEsc(c.name || ('Character ' + c.index)) + '</b>' +
       ' <span class="inspDim">' + (c.walking ? 'walking'
+          : c.asleep ? 'asleep in bed'
+          : c.standingAsleep ? 'asleep on their feet (no bed beside them)'
           : c.sitting ? ('sitting facing ' + ['north','east','south','west'][(c.aspect >> 2) & 3] +
               ', ' + svEsc(c.seat ? c.seat.why : ''))
           : svEsc(String(c.mode || 'here'))) + '</span>' +

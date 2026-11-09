@@ -3007,7 +3007,7 @@ function atlasInspect(px, py) {
       parts.push('<div class="inspCard person">' +
         (face && face.url ? '<img class="inspFace" src="' + face.url + '" alt="" width="64" height="64">' : '') +
         '<div><b>' + svEsc(c.name || ('Character ' + c.index)) + '</b> <span class="inspDim">' +
-        svEsc(c.walking ? 'walking' : c.sitting ? 'sitting' : String(c.mode || 'here')) + '</span>' +
+        svEsc(c.walking ? 'walking' : c.asleep ? 'asleep in bed' : c.sitting ? 'sitting' : String(c.mode || 'here')) + '</span>' +
         '<div class="inspActs">' + svLink('Open ' + (c.name || ('Character ' + c.index)) + ' in Characters', 'openCharacter(' + c.index + ')') + '</div></div></div>');
     }
   }
@@ -3258,6 +3258,7 @@ function squareCard(level, e, tx, ty, placeName, isTouch) {
   if (!people.length && !props.length && !isTouch) return null;
   const c = people[0] || null;
   const what = c ? (c.walking ? 'walking'
+    : c.asleep ? 'asleep in bed'
     : c.sitting ? ('sitting facing ' + ['north', 'east', 'south', 'west'][(c.aspect >> 2) & 3])
     : String(c.mode || 'here')) : '';
   const seen = new Set(); const shown = props.filter(n => !seen.has(n) && seen.add(n)).slice(0, 3);

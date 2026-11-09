@@ -2945,6 +2945,71 @@ function seatsOnMap(resid, m) {
   return seats;
 }
 
+/* A sleeper in bed, as the game makes one (the maintainer, 9 November 2026:
+   "Character should also show as being asleep in bed if asleep").
+
+   A character's EveryTurn is the default method 0x3020, which every
+   character runs (it calls the prop class's EveryTurn from inside). At the
+   behavior its schedule gives for sleep it looks for a bed: a record of one
+   packed type and aspect on the square below, then another on the square
+   to the right, and on finding one sets the character's appearance to the
+   sleeping type at the aspect that bed gives. With no bed there it stays
+   on its feet and snores ("Zzzz..."). Every number here is read off the
+   script's structured listing, so a changed 0x3020 changes the map: the
+   behavior (145), each LocationIterator's offset from the character's
+   square with the packed word it compares and the aspect it sets, and the
+   type of the swap (264, "person sleeping"). Null when the shape is not
+   there. */
+function sleepRule() {
+  if (DERIVED.SLEEP_RULE !== undefined) return DERIVED.SLEEP_RULE;
+  let rule = null;
+  try {
+    const raw = getResourceBytes(ARCHIVE, 0x3020);
+    const text = raw ? dvmStructureRender(ARCHIVE, smartDecrypt(raw, 0x3020).data, 0x3020) || '' : '';
+    const lines = text.split('\n');
+    const beh = /\.behavior == (\d+)\)/.exec(text), swap = /\.aspect_and_proptype = \(\(\w+ << 10\) \| (\d+)\)/.exec(text);
+    const beds = [];
+    for (let i = 0; i + 2 < lines.length; i++) {
+      const it = /for \w+ in LocationIterator\((.*)\) \{$/.exec(lines[i]);
+      const cmp = it && /\.aspect_and_proptype == (\d+)\)/.exec(lines[i + 1]);
+      const set = cmp && /^\s+[0-9A-F]{4}\s+\w+ = (\d+)$/.exec(lines[i + 2]);
+      if (!set) continue;
+      // `Arg00.x, (Arg00.y + 1)`: the offset is whatever is added to each.
+      const [ax, ay] = it[1].split(/, (?![^(]*\))/);
+      const off = s => { const m = /\+ (\d+)\)?$/.exec(s || ''); return m ? +m[1] : 0; };
+      const w = +cmp[1];
+      beds.push({ dx: off(ax), dy: off(ay), proptype: w & 0x3FF, aspect: w >> 10, sleepAspect: +set[1] });
+    }
+    if (beh && swap && beds.length) rule = { behavior: +beh[1], type: +swap[1], beds };
+  } catch (e) { quiet(e, 'the sleep rule in 0x3020'); }
+  return (DERIVED.SLEEP_RULE = rule);
+}
+// The squares of a map with the beds 0x3020 looks for, by "x,y", as the
+// record's packed word. Kept with the map, as seatsOnMap's are.
+function bedsOnMap(resid) {
+  if (DERIVED.MAP_BEDS && DERIVED.MAP_BEDS.resid === resid) return DERIVED.MAP_BEDS.map;
+  const out = new Map(), rule = sleepRule();
+  try {
+    const praw = rule ? getResourceBytes(ARCHIVE, resid + 0x100) : null;
+    if (praw) for (const r of parseDelverPropList(smartDecrypt(praw, resid + 0x100).data)) {
+      if (r.flags === 0xFF || (r.flags & 0x58)) continue;
+      if (rule.beds.some(b => b.proptype === r.proptype && b.aspect === r.aspect)) out.set(r.x + ',' + r.y, (r.aspect << 10) | r.proptype);
+    }
+  } catch (e) { quiet(e, 'the beds on a map'); }
+  DERIVED.MAP_BEDS = { resid, map: out };
+  return out;
+}
+// The sleeping aspect for a character at (x, y) on this map, or null:
+// the first bed of the rule's order that is there, as 0x3020 tries them.
+function sleepAspectAt(resid, x, y) {
+  const rule = sleepRule();
+  if (!rule) return null;
+  const beds = bedsOnMap(resid);
+  for (const b of rule.beds)
+    if (beds.get((x + b.dx) + ',' + (y + b.dy)) === ((b.aspect << 10) | b.proptype)) return b.sleepAspect;
+  return null;
+}
+
 function charactersOnLevel(level, hour) {
   const scheds = loadSchedules(), chars = loadCharacterTable();
   const props = getPropTileList();
@@ -2961,9 +3026,16 @@ function charactersOnLevel(level, hour) {
     if (base === undefined) continue;
     // A sheet is 4 facings x 4 poses. While walking, face the direction of
     // travel and cycle the pose so they stride rather than slide.
-    let aspect = c.aspect;
-    let sitting = null;
-    if (w.walking && w.dir !== undefined) {
+    let aspect = c.aspect, base0 = base;
+    let sitting = null, asleep = false;
+    const rule = sleepRule();
+    // The bed is looked up on the level's map, 0x8000 plus the level, since
+    // the World tab draws levels other than the open zone.
+    const sa = rule && !w.walking && e.mode === rule.behavior ? sleepAspectAt(0x8000 + level, w.x, w.y) : null;
+    if (sa !== null && props[rule.type] !== undefined) {
+      // In bed: the sleeping type at the bed's aspect, on the sleeper's square.
+      base0 = props[rule.type]; aspect = sa; asleep = true;
+    } else if (w.walking && w.dir !== undefined) {
       // Column layout: 0=left-foot-forward, 1=standing, 2=right-foot-forward,
       // 3=sitting (not used while walking). Confirmed by the saved game quoted
       // above seatsOnMap: Alaric on the throne is frame 11, row 2 column 3. A real
@@ -2979,9 +3051,10 @@ function charactersOnLevel(level, hour) {
     }
     out.push({ index: i, name: characterName(i), x: w.x, y: w.y, mode: e.mode,
                fx: w.fx !== undefined ? w.fx : w.x, fy: w.fy !== undefined ? w.fy : w.y,
-               walking: !!w.walking, dir: w.dir, sitting: !!sitting,
+               walking: !!w.walking, dir: w.dir, sitting: !!sitting, asleep,
+               standingAsleep: !asleep && !w.walking && !!rule && e.mode === rule.behavior,
                seat: sitting || null, path: w.path || null, pi: w.i,
-               proptype: c.proptype, aspect, base, tile: base + aspect });
+               proptype: asleep ? rule.type : c.proptype, aspect, base: base0, tile: base0 + aspect });
   }
   keepApart(out);
   return out;
