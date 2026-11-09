@@ -1947,7 +1947,15 @@ function dvmProseOperator(n, args, ctx) {
       return infix === '!=' ? args[0] : args[0].replace(/ has bit /, ' does not have bit ');
     const w = DVM_PROSE_INFIX[infix];
     const rhs = (infix === '==' || infix === '!=') && /\bbehavior$/.test(args[0]) ? dvmProseBehavior('behavior', args[1], ctx) : args[1];
-    return w ? args[0] + ' ' + w + ' ' + rhs : '(' + args[0] + ' ' + infix + ' ' + args[1] + ')';
+    if (w) return args[0] + ' ' + w + ' ' + rhs;
+    // Sums as they are written by hand: × for *, and a product inside a sum
+    // without its brackets, since it is worked out first either way.
+    if (infix === '*') return '(' + args[0] + ' × ' + args[1] + ')';
+    if (infix === '+' || infix === '-') {
+      const term = a => /^\(.* × .*\)$/.test(a) && dvmProseUnbracket(a) !== a && !/ [+-] /.test(dvmProseUnbracket(a)) ? dvmProseUnbracket(a) : a;
+      return '(' + term(args[0]) + ' ' + infix + ' ' + term(args[1]) + ')';
+    }
+    return '(' + args[0] + ' ' + infix + ' ' + args[1] + ')';
   }
   const prefix = DVM_PREFIX[n.op];
   if (prefix === '!') return 'not ' + dvmProseGroup(args[0]);
@@ -1976,11 +1984,24 @@ function dvmProseOperator(n, args, ctx) {
     default: return dvmProseName(n.mn) + ' ' + args.join(', ');
   }
 }
+// A value without the one pair of brackets around the whole of it, for a
+// value that stands alone (a call's argument): "(100 + 10)" is "100 + 10".
+// In "(a) + (b)" the first bracket closes before the end, so the value is
+// left as it is.
+function dvmProseUnbracket(s) {
+  if (!/^\(.*\)$/.test(s || '')) return s;
+  let depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '(') depth++;
+    else if (s[i] === ')' && --depth === 0 && i < s.length - 1) return s;
+  }
+  return s.slice(1, -1);
+}
 // Whose: "its" for the receiver, "X's" for anything else.
 function dvmProseOwner(x) {
   // A cast changes what the engine checks, not whose field it is.
   const y = String(x).replace(/ as [a-z ]+$/, '');
-  return y === 'it' ? 'its ' : /^\w+$|^the (target|signal|wearer)$|^[A-Z][\w' -]* \(\d+\)$/.test(y) ? y + '’s ' : '(' + y + ')’s ';
+  return y === 'it' ? 'its ' : /^\w+$|^the (target|signal|wearer)$|^the (?:(?:first|second|third|fourth|fifth|sixth) )?(?:character|prop)$|^[A-Z][\w' -]* \(\d+\)$/.test(y) ? y + '’s ' : '(' + y + ')’s ';
 }
 /* A helper that is only a few settings of its locals and one return --
    `Var00 = Character(Arg00); return (Var00.bit_flags & 64)` -- is written as
@@ -2248,10 +2269,28 @@ function dvmProseGroup(e) { return / (is|and|or|has) /.test(e) ? '(' + e + ')' :
 function dvmProseCall(n, ctx) {
   const bare = dvmPlainName(dvmBareOperand(n.arg));
   const vals = f => dvmReduceFrame(f || [], ctx);
-  const withArgs = (verb, a) => verb + (a.length ? ' ' + a.join(', ') : '');
+  const withArgs = (verb, a) => verb + (a.length ? ' ' + a.map(dvmProseUnbracket).join(', ') : '');
   if (/^sys /.test(n.mn)) {
     const name = n.mn.slice(4), v = vals(n.groups[0]);
+    const before = ctx.notes ? ctx.notes.length : 0;
     dvmFoldCallNotes(name, v, ctx);
+    // A number its note puts a name to (dvmFoldArgNotes) reads as the name,
+    // with the number in brackets, and the note goes: "Lava Proof (flag 23)"
+    // where the listing has 23 and a comment.
+    if (ctx.notes) for (let i = ctx.notes.length - 1; i >= before; i--) {
+      const m = /^(flag|skill|prop type) (\d+): ([^;]+?)(?: \(0x[0-9A-F]+\))?$/.exec(ctx.notes[i]);
+      const k = m ? v.indexOf(m[2]) : -1;
+      if (k >= 0) { v[k] = m[3] + ' (' + m[1] + ' ' + m[2] + ')'; ctx.notes.splice(i, 1); }
+    }
+    // A roll in words. cbrnd gives a + (a random number mod (b - a)), so
+    // Random(a, b) is a to b - 1 (rollWords in js/page-rules.js has why).
+    // In brackets, so that in a sum the range ends where the brackets do:
+    // "(a random number from 0 to 5) + 3 × Arg00".
+    if (name === 'Random' && v.length === 2) {
+      if (/^\d+$/.test(v[0]) && /^\d+$/.test(v[1]))
+        return '(' + (+v[1] - 1 <= +v[0] ? 'a random number, always ' + v[0] : 'a random number from ' + v[0] + ' to ' + (+v[1] - 1)) + ')';
+      return '(a random number from ' + dvmProseUnbracket(v[0]) + ' to ' + dvmProseUnbracket(v[1]) + ' minus 1)';
+    }
     if ((name === 'GetState' || name === 'GetStateFlag') && /^\d+$/.test(v[0] || '') && ctx.arc) dvmProseStateNote(ctx, name, +v[0]);
     // A character given by number to a syscall that accepts one (the program
     // shows which: exeSyscallCharacterArgs), named from the character table.
@@ -2306,7 +2345,8 @@ function dvmProseCall(n, ctx) {
 }
 function dvmProseStatement(n, ctx) {
   const bare = dvmPlainName(dvmBareOperand(n.arg));
-  const g = n.groups.map(f => dvmFoldFrame(f, ctx));
+  // A value that stands alone, as what is set or returned, needs no brackets.
+  const g = n.groups.map(f => dvmProseUnbracket(dvmFoldFrame(f, ctx)));
   switch (n.mn) {
     case 'return': return g[0] ? 'return ' + g[0] : 'return';
     case 'print': return 'print ' + (g[0] || '');
@@ -2314,6 +2354,7 @@ function dvmProseStatement(n, ctx) {
     case 'set_local': {
       let lhs = dvmSlotName(bare) || 'local ' + bare;
       if (lhs === ctx.self) lhs = 'it'; else if (lhs === ctx.target) lhs = ctx.targetName || 'the target';
+      else if (ctx.subst && ctx.subst.has(lhs)) lhs = ctx.subst.get(lhs);
       return 'set ' + lhs + ' to ' + (g[0] || '');
     }
     case 'set_global': return 'set ' + dvmProseName(bare) + ' to ' + (g[0] || '');
@@ -2383,7 +2424,7 @@ function dvmProseSummary(clauses) {
   const parts = [];
   if (does.length) parts.push(does.join(', '));
   if (rets.length) parts.push('returns ' + rets.map(r => r === '' ? 'nothing' : r).join(' or '));
-  if (tests) parts.push(tests + (tests === 1 ? ' test sets' : ' tests set') + ' which');
+  if (tests) parts.push('what runs depends on ' + tests + (tests === 1 ? ' test' : ' tests'));
   return parts.join('; ');
 }
 /* The tree as clauses: { text, kids } with the blocks as kids. `notes` a
@@ -2498,6 +2539,62 @@ function dvmProseConversation(stmts, ctx) {
   };
   return build(stmts);
 }
+/* Names for a function's arguments, by what the function does with each
+   (the maintainer, 8 November 2026: "Why does it have to be Arg00? That
+   strikes me as not very readable"). The file gives an argument no name,
+   so the name is the kind of thing the code treats it as:
+   - a character when it goes into an argument the program reads as a
+     character (exeSyscallCharacterArgs), is cast to Character, or is
+     compared with PlayerCharacter or CurrentCharacter;
+   - a prop when its obj_type, data1, data2, data3 or quantity is read or
+     set.
+   An argument with signs of both, or of neither, is printed by its slot
+   name. Two of a kind are "the first character" and "the second
+   character", in their order. Map of slot (Arg00) to name. */
+function dvmProseArgNames(forest, slots, ctx) {
+  const kinds = new Map(slots.map(s => [s, new Set()]));
+  const mark = (it, kind) => { if (it && it.arg && kinds.has(it.arg)) kinds.get(it.arg).add(kind); };
+  const chars = dvmFoldPage(ctx, () => exeSyscallCharacterArgs());
+  const PROP_FIELDS = new Set(['obj_type', 'data1', 'data2', 'data3', 'quantity']);
+  const plain = n => dvmPlainName(dvmBareOperand(n.arg));
+  const reduce = frame => {
+    const st = [];
+    for (const n of frame || []) {
+      const pops = n.expect > 0 ? 0 : (DVM_POPS[n.op] || 0);
+      if (n.groups && n.groups.length && (n.expect > 0 || !pops)) {
+        const gs = n.groups.map(reduce);
+        if (/^sys /.test(n.mn)) {
+          const which = chars && chars.get(n.op);
+          if (which) (gs[0] || []).forEach((it, k) => { if (which.has(k)) mark(it, 'character'); });
+        }
+        if (n.mn === 'set_field' && PROP_FIELDS.has(plain(n))) (gs[0] || []).forEach(it => mark(it, 'prop'));
+        if (n.expect > 0) st.push({});
+        continue;
+      }
+      if (!pops) { st.push({ arg: n.mn === 'arg' ? dvmBareOperand(n.arg) : null, global: n.mn === 'global' ? plain(n) : null }); continue; }
+      const ops = st.splice(Math.max(0, st.length - pops), pops);
+      if (n.op === 0x63 && /^Character$/i.test(plain(n))) mark(ops[0], 'character');
+      if (n.op === 0x62 && PROP_FIELDS.has(plain(n))) mark(ops[0], 'prop');
+      const infix = DVM_INFIX[n.op];
+      if ((infix === '==' || infix === '!=') && ops.length === 2)
+        for (const [a, b] of [[ops[0], ops[1]], [ops[1], ops[0]]])
+          if (b && /^(PlayerCharacter|CurrentCharacter)$/.test(b.global || '')) mark(a, 'character');
+      st.push({});
+    }
+    return st;
+  };
+  reduce(forest);
+  const out = new Map(), count = {}, seen = {};
+  for (const [s, k] of kinds) if (k.size === 1) { const kind = [...k][0]; count[kind] = (count[kind] || 0) + 1; }
+  const ORD = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
+  for (const [s, k] of kinds) {
+    if (k.size !== 1) continue;
+    const kind = [...k][0], i = seen[kind] = (seen[kind] || 0) + 1;
+    if (count[kind] > ORD.length) continue;
+    out.set(s, 'the ' + (count[kind] > 1 ? ORD[i - 1] + ' ' : '') + kind);
+  }
+  return out;
+}
 /* Every function of a resource, in words. The same extents, names and recovery
    as dvmStructureRender; a prose object is written as what it contains. */
 function dvmReadRender(arc, b, resid, opts) {
@@ -2554,7 +2651,10 @@ function dvmReadRender(arc, b, resid, opts) {
     const methodNo = Object.keys(ARG2).find(k => DVM_SYM.method[k] === name);
     const target = self && methodNo !== undefined && args.length > 1 ? 'Arg01' : null;
     const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], asProse: true, self, target, targetName: target ? ARG2[methodNo] : null }, extra);
-    const stmts = dvmStatementList(dvmForest(r.ops), st);
+    const forest = dvmForest(r.ops);
+    const named = dvmProseArgNames(forest, args.filter(a => a !== self && a !== target), ctx);
+    if (named.size) ctx.subst = named;
+    const stmts = dvmStatementList(forest, st);
     const rec = dvmRecoverStructure(stmts);
     const loops = dvmLoopExits(rec.tree, ctx);
     ctx.notes.length = 0;
@@ -2572,7 +2672,7 @@ function dvmReadRender(arc, b, resid, opts) {
         if (prev.returns !== undefined && !prev.kids && c.returns !== undefined && !c.kids && !jumped.has(c.at)) { clauses.splice(i, 1); i--; }
       }
     }
-    const proseText = args.map((a, k) => a === self ? 'it' : a === target ? ctx.targetName : a);
+    const proseText = args.map((a, k) => a === self ? 'it' : a === target ? ctx.targetName : named.get(a) || a);
     out.push({ at: st, name, args: proseText, clauses, summary: dvmProseSummary(clauses),
                self: !!self, bad: r.bad || 0, tree: rec.tree, ops: r.ops });
   }
