@@ -938,35 +938,65 @@ DERIVED.LIGHT_SOURCES = null;
 function buildLightSources(resid, m) {
   const key = resid + ':' + m.width;
   if (DERIVED.LIGHT_SOURCES && DERIVED.LIGHT_SOURCES.key === key) return DERIVED.LIGHT_SOURCES.list;
+  /* A square's light is its stage word's, as TViewer::CalcLighting reads
+     it: the low two bits of word 0 are the level, and 0x10000 the flicker.
+     The word is every attribute word on the square OR'd together (the
+     terrain tile, the faux prop its tile draws, and each prop the engine
+     stages there), which buildPropBlockers builds the same way for walking.
+
+     Until 9 November 2026 this took the terrain tile and every record in
+     the prop list, each as a separate light. Eggs (flags 0x42) and roofs
+     (0x44) are records the engine never stages, and an egg's aspect 8
+     reads a tile that is not drawn: on Odemia a fountain egg, a hole egg
+     and a key egg each put a light on bare floor (the maintainer: "random
+     lights on floors"). The filter is buildPropBlockers', the records the
+     draw passes take, without its skip of the living, which is about
+     walking.
+
+     0x10000 is the flicker, and the archive really does have it. The
+     engine tests exactly this bit -- `rlwinm. 0,0,0,15,15`, bit 15 in the
+     PowerPC's numbering -- and a light that has it goes through Random to
+     choose between the two cones of its level. It varies across the lit
+     tiles (0x410001 has it, 0x400001 does not), so which lights gutter and
+     which burn steady is the file's, not an assumption made here. */
   const list = [];
-  const attrs = getTileAttributes(ARCHIVE);
-  // Terrain tiles that are themselves lit (braziers baked into the floor).
-  for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) {
+  const attrs = getTileAttributes(ARCHIVE), faux = getFauxProps(), tiles = getPropTileList();
+  const W = m.width, word = new Uint32Array(W * m.height);
+  for (let y = 0; y < m.height; y++) for (let x = 0; x < W; x++) {
     const t = mapTileAt(m, x, y);
-    /* 0x10000 is the flicker, and the archive really does have it. The
-       engine tests exactly this bit -- `rlwinm. 0,0,0,15,15`, bit 15 in the
-       PowerPC's numbering -- and a light that has it goes through Random to
-       choose between the two cones of its level. It varies across the lit
-       tiles (0x410001 has it, 0x400001 does not), so which lights gutter and
-       which burn steady is the file's, not an assumption made here. */
-    const a = attrs[t] || 0, lvl = a & 0x03;
-    if (lvl) list.push({ x, y, lvl, flicker: !!(a & 0x10000) });
+    let w = attrs[t] || 0;
+    const fp = faux.get(t);
+    if (fp && tiles[fp.proptype] !== undefined) w |= attrs[tiles[fp.proptype] + fp.aspect] || 0;
+    word[y * W + x] = w;
   }
-  // Lit props (wall torches, lanterns, braziers).
   try {
     const praw = getResourceBytes(ARCHIVE, resid + 0x100);
     if (praw) {
       const recs = parseDelverPropList(smartDecrypt(praw, resid + 0x100).data);
-      const tiles = getPropTileList();
       for (const r of recs) {
-        if (r.flags === 0xFF || r.x >= m.width || r.y >= m.height) continue;
+        if (r.flags === 0xFF || r.flags === 0x42 || r.flags === 0x44 || (r.flags & 0x58)) continue;
+        if ((r.flags & 0x9E) && (r.flags & 0x44) !== 4) continue;
+        if (r.x >= W || r.y >= m.height) continue;
         const base = tiles[r.proptype];
         if (base === undefined) continue;
-        const a = attrs[base + r.aspect] || 0, lvl = a & 0x03;
-        if (lvl) list.push({ x: r.x, y: r.y, lvl, flicker: !!(a & 0x10000) });
+        const t = base + r.aspect;
+        word[r.y * W + r.x] |= attrs[t] || 0;
+        /* A prop of two or four squares puts a tile on each, as the map
+           draws it (multiTilePieces), and each square has that tile's word.
+           A blacksmith's firepit is placed as its corner, aspect 3, which
+           has no light, and its far piece, tile 740, has level 1 and the
+           flicker: the forge's glow is on that square. */
+        for (const pc of multiTilePieces(t, r.rotated) || []) {
+          const px = r.x + pc.dx, py = r.y + pc.dy;
+          if (px >= 0 && py >= 0 && px < W && py < m.height) word[py * W + px] |= attrs[pc.tile] || 0;
+        }
       }
     }
-  } catch (e) { quiet(e); }
+  } catch (e) { quiet(e, 'the props that light a map'); }
+  for (let y = 0; y < m.height; y++) for (let x = 0; x < W; x++) {
+    const w = word[y * W + x], lvl = w & 0x03;
+    if (lvl) list.push({ x, y, lvl, flicker: !!(w & 0x10000) });
+  }
   // Whether anything on this map gutters at all settles whether the animation
   // tick has to repaint the lighting layer; on a map of steady lights it
   // would be redrawing an identical picture seven times a second.
