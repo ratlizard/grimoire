@@ -373,6 +373,12 @@ function dvmFoldNote(ctx, text) {
 // Which argument of a sound call is the sound (SOUND_CALLS in the page has
 // the same, and why ShootEffect's is its eighth).
 const DVM_SOUND_ARG = { PlaySound: 0, UnknownD4: 0, PlayAmbientSound: 0, ShootEffect: 7 };
+// A syscall's opcode by its delvmod name, or null.
+let _dvmSyscallOps = null;
+function dvmSyscallOp(name) {
+  if (!_dvmSyscallOps) _dvmSyscallOps = new Map(Object.entries(DVM_SYM.syscall || {}).map(([op, n]) => [n, +op]));
+  return _dvmSyscallOps.has(name) ? _dvmSyscallOps.get(name) : null;
+}
 // Page readers of the file, called only where the page has them and the
 // archive being rendered is the one they read.
 function dvmFoldPage(ctx, f) {
@@ -399,6 +405,17 @@ function dvmFoldCallNotes(name, vals, ctx) {
     const n = Math.abs(+vals[0]);
     dvmFoldNote(ctx, 'landscape strip ' + n + (+vals[0] < 0 ? ', no sky' : '') + ' (0x' + (0x8400 + n).toString(16).toUpperCase() + ')');
   }
+  // A number that picks which code the handler runs, as ScreenFX's effect
+  // does (exeSyscallCase): the handler's note about that code, and the
+  // code's address, which renderLinked links. An iterator's step number is
+  // left out, since the folded views print those loops as `for` (dvmForEach).
+  const op = /Iterator$/.test(name) ? null : dvmSyscallOp(name);
+  if (op !== null) vals.forEach((x, k) => {
+    if (!/^-?\d+$/.test(x || '')) return;
+    const c = dvmFoldPage(ctx, () => exeSyscallCase(op, k, +x));
+    if (c) dvmFoldNote(ctx, (c.words ? c.words.replace(/\.$/, '') : dvmSyscallShown(name) + ' ' + x) +
+                            ' (0x' + c.at.toString(16).toUpperCase().padStart(6, '0') + ')');
+  });
   if ((name === 'AddQuest' || name === 'CompleteQuest') && /^\d+$/.test(vals[0] || '') && ctx && ctx.arc) {
     const ref = name === 'AddQuest' && /^\((0x[0-9A-F]+)\[(\d+)\] \+ (\d+)\)$/i.exec(vals[1] || '');
     const resid = ref ? parseInt(ref[1], 16) : dvmTodoTextResid(ctx.arc);

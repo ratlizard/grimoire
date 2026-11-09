@@ -381,6 +381,16 @@ function renderLinked(text, resid, raw) {
         ? pre + '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>'
         : m;
     });
+    // A syscall is a link to its handler in the program.
+    const handlers = syscallHandlers();
+    if (handlers.size) h = h.replace(/(^|[^\w.>])([A-Za-z_]\w*)(?=\()/gm, (m, pre, nm) =>
+      handlers.has(nm) ? pre + handlerLink(nm, handlers.get(nm)) : m);
+    // The code a comment points to (exeSyscallCase), a link to it.
+    h = h.split('\n').map(line => {
+      const c = line.indexOf('   // ');
+      return c < 0 ? line : line.slice(0, c) + line.slice(c).replace(/\(0x([0-9A-F]{6})\)/g, (m, hx) =>
+        '(<a class="reflink" onclick="jumpToExeAt(' + parseInt(hx, 16) + ')">0x' + hx + '</a>)');
+    }).join('\n');
     // A sound, tune or landscape strip a line's comment names (dvmFoldNote)
     // is a link to it.
     h = h.replace(/((?:sound \d+(?:: [^;<]*?)?|tune \d+|landscape strip \d+(?:, no sky)?) \()0x((?:9[01]|84)[0-9A-F]{2})\)/g, (m, pre, hx) => {
@@ -403,7 +413,28 @@ function renderLinked(text, resid, raw) {
   });
   h = h.replace(/\bResource 0x([0-9A-Fa-f]{4})/g,
     (m, hx) => 'Resource ' + refLink(parseInt(hx, 16)));
+  const handlers = syscallHandlers();
+  if (handlers.size) h = h.replace(/\bsys ([A-Za-z_]\w*)/g, (m, nm) => handlers.has(nm) ? 'sys ' + handlerLink(nm, handlers.get(nm)) : m);
   return h;
+}
+/* Each syscall's handler in the program, by the name the listings show
+   (dvmSyscallShown), with its entry. The handler's note describes what
+   each argument does, so the call's name links to it. Empty with no
+   application open. */
+function syscallHandlers() {
+  const out = new Map();
+  try {
+    const st = exeSyscallTable();
+    if (st) for (const e of st.entries) {
+      const n = DVM_SYM.syscall[e.op];
+      if (n && e.at !== null) out.set(dvmSyscallShown(n), e.at);
+    }
+  } catch (e) { quiet(e, 'the syscall handlers'); }
+  return out;
+}
+function handlerLink(name, at) {
+  const r = exeRoutineAt(at);
+  return '<a class="reflink" title="' + svEsc(r ? r.name : name) + '" onclick="jumpToExeAt(' + at + ')">' + name + '</a>';
 }
 // What a link in the folded views shows on hover, since those have no room
 // for the note the raw listing prints after one.
