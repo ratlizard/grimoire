@@ -1205,6 +1205,7 @@ const DATA_FIXES = [
   // maintainer, 9 November 2026: "Opheltius position make it separate
   // patch").
   { id: 'opheltius-chair', group: 'world', stage: 'bugfix', title: 'Opheltius sits in the chair beside Thuria at one o\u2019clock, instead of on the courtyard railing',
+    played: 'fork, PowerPC, 9 November 2026, alone: a played save in Cademia with the clock set to just before 1 pm and the hero at (100,95), and thirty turns passed; Opheltius is saved in the chair at (100,93) at aspect 3, seated facing north, against (99,97) at aspect 6, standing short of the railing, on the shipped file',
     dataEdits: [dataFixMovePost('the chair', 51, 8, 99, 92, 13, 100, 93)] },
 
   /* ---- Further fixes (the stage "further"; further_fixes_patch.mjs,
@@ -2605,13 +2606,15 @@ const DATA_FIXES = [
   // the seated frame already. The bed's class (0x100E) has a Chair entry of
   // None; it is pointed at 3, south, across a bed laid east to west, as all
   // three are ("the seating direction needs to be perpendicular to the bed
-  // - south"). The chest's class (0x108D, type 141) has none; one is added
+  // - south"). The chest's class (0x108D, type 141) has none; one is put in
+  // the empty slot its hash table's lookup reaches first (dataFixSeatClass),
   // at 0, the chest's aspect, so a chest facing south seats south. No script
   // reads Chair. The program seats anyone with a four-way sprite who stands
   // on a seat, the hero too. A bed's record is its right half, and only the
   // record's square seats, so Deiphobus and Paris on the left half sit only
   // with the program change seat-pieces (js/delv-appfixes.js).
   { id: 'bed-chest-seats', group: 'design', stage: 'apart', title: 'Beds and chests are seats, so the people scheduled to sit on them sit, on a bed facing south',
+    played: 'in part, fork, PowerPC, 9 November 2026, with the program change seat-pieces. Deiphobus and Paris are saved seated facing south on the left half of their beds at 8 am, against standing on the stock program and file, and the game opens and saves with the file. Antiphus is saved seated on the stock file too (his record is the seated frame), and no chest seat was played',
     dataEdits: [dataFixSeatClass('the bed', 0x100E, 3), dataFixSeatClass('the chest', 0x108D, 0)] },
   // A thrown or shot missile's flight sound is one the archive lacks (25
   // October 2026). The ranged attack (0x3042) gives the missile a thrown
@@ -2884,29 +2887,40 @@ function dataFixMovePost(what, ch, lv, x, y, hour, nx, ny) {
 // array holding `word`, 0 to seat a person at the seat's aspect and 1 to 4
 // at north, east, south or west (TViewer::InteractProps, exeSeatRule). The
 // array goes after the table, which a class resource's first halfword
-// locates, so nothing before it moves. A Chair entry of None is pointed at
-// it (the bed's); with none the entry is added to the table's end, which
-// must be the resource's end.
+// locates, so nothing before it moves.
+//
+// THE TABLE IS A HASH TABLE, and its size cannot change. The program finds
+// a member as THeapDict::lookup does (0x0AA560): from slot key mod size,
+// stepping by (3 key + 1, the 3x+1 repeated while it is a multiple of the
+// size) mod size, until the key or an empty entry, whose value is None.
+// That is why a chest's table has keys out of order and None entries with
+// stray keys. A first version added a fourteenth entry to the chest's
+// table of thirteen: every lookup in it then probed the wrong slots, and
+// the game stopped black at start-up, after the title, in the fork
+// (9 November 2026). So the entry goes in the slot key 34's probe reaches
+// first that is empty or is key 34: the None entry the bed already has
+// for key 34 (slot 1 of 3), and the chest's None at slot 7 of 13 (34 mod
+// 13 is 8, key 8; the step is 103 mod 13, 12). A lookup that stopped at
+// that empty slot before goes on to the next empty one, and a table of a
+// prime size is probed whole.
 function dataFixSeatClass(what, resid, word) {
   return { what, resid, fn: b => {
-    const toff = u16be(b, 0), count = u16be(b, toff) & 0x0FFF;
-    if (toff + 2 + count * 6 > b.length) throw new Error('no class table at ' + toff);
-    let slot = -1;
-    for (let i = 0, p = toff + 2; i < count; i++, p += 6) {
-      if (u16be(b, p + 4) !== 34) continue;
-      if (u32be(b, p) !== 0x5000FFFF) throw new Error('0x' + resid.toString(16).toUpperCase() + ' is a seat already');
-      slot = p;
+    const toff = u16be(b, 0), size = u16be(b, toff) & 0x0FFF;
+    if (!size || toff + 2 + size * 6 > b.length) throw new Error('no class table at ' + toff);
+    let step = 3 * 34 + 1;
+    while (step % size === 0) step = 3 * step + 1;
+    step %= size;
+    let i = 34 % size, slot = -1;
+    for (let n = 0; n < size; n++, i = (i + step) % size) {
+      const p = toff + 2 + i * 6, v = u32be(b, p);
+      if (u16be(b, p + 4) === 34 && v !== 0x5000FFFF) throw new Error('0x' + resid.toString(16).toUpperCase() + ' is a seat already');
+      if (v === 0x5000FFFF) { slot = p; break; }
     }
-    const add = slot < 0;
-    if (add && toff + 2 + count * 6 !== b.length) throw new Error('the table is not the end of 0x' + resid.toString(16).toUpperCase());
-    const out = new Uint8Array(b.length + (add ? 6 : 0) + 6);
+    if (slot < 0) throw new Error('no empty slot on key 34’s probe in 0x' + resid.toString(16).toUpperCase());
+    const out = new Uint8Array(b.length + 6);
     out.set(b);
-    if (add) {
-      slot = b.length;
-      out[toff] = (u16be(b, toff) & 0xF000 | (count + 1)) >> 8; out[toff + 1] = (count + 1) & 0xFF;
-      out[slot + 4] = 0; out[slot + 5] = 34;
-    }
-    const arr = out.length - 6, ref = (0x80000000 | (resid << 16) | arr) >>> 0;
+    out[slot + 4] = 0; out[slot + 5] = 34;
+    const arr = b.length, ref = (0x80000000 | (resid << 16) | arr) >>> 0;
     out[arr] = 0x90; out[arr + 1] = 0x01;
     out[arr + 2] = (word >>> 24) & 0xFF; out[arr + 3] = (word >>> 16) & 0xFF; out[arr + 4] = (word >>> 8) & 0xFF; out[arr + 5] = word & 0xFF;
     out[slot] = ref >>> 24; out[slot + 1] = (ref >>> 16) & 0xFF; out[slot + 2] = (ref >>> 8) & 0xFF; out[slot + 3] = ref & 0xFF;

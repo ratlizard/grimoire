@@ -1197,6 +1197,7 @@ const APP_FIXES = [
      not read. Whoever it finds goes on to the tests the routine already
      makes (byte 6 clear, a four-way sprite) and the seating, at 0x06A23C. */
   { id: 'seat-pieces', kind: 'change', title: 'A person sits on any square of a seat that covers more than one, such as either half of a bed made a seat',
+    played: 'fork, PowerPC, 9 November 2026, with the data fix bed-chest-seats, from played saves in Cademia and Pnyx with the clock set to just before 8 am and the hero moved into the room. Deiphobus at (35,56) and Paris at (10,53), on the left half of a bed, are saved at aspect 11, seated facing south. With the data fix alone they are saved at aspect 5, standing, as on the stock program and file',
     sites: [{ at: 0x6A234, was: [0x7EA30735, 0x418200E0],
       asm: ['b @cave               ; was extsh. 3, 21: whoever stands on the seat’s square', 'nop'] }],
     cave: ['extsh. 6, 21', 'bne @found',
