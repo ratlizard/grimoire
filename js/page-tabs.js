@@ -391,9 +391,20 @@ function renderLinked(text, resid, raw) {
       return c < 0 ? line : line.slice(0, c) + line.slice(c).replace(/\(0x([0-9A-F]{6})\)/g, (m, hx) =>
         '(<a class="reflink" onclick="jumpToExeAt(' + parseInt(hx, 16) + ')">0x' + hx + '</a>)');
     }).join('\n');
-    // A sound, tune or landscape strip a line's comment names (dvmFoldNote)
-    // is a link to it.
-    h = h.replace(/((?:sound \d+(?:: [^;<]*?)?|tune \d+|landscape strip \d+(?:, no sky)?) \()0x((?:9[01]|84)[0-9A-F]{2})\)/g, (m, pre, hx) => {
+    // A palette color in a comment (dvmFoldArgNotes) is shown as a swatch,
+    // and a moving one as the swatches of the run it moves through.
+    const swatch = c => '<span title="' + c + ', #' + PALETTE[c] + '" style="display:inline-block;width:0.9em;height:0.9em;vertical-align:middle;border:1px solid #f0ede4;background:#' + PALETTE[c] + '"></span>';
+    h = h.replace(/palette color (\d+)(?:, moving through (\d+) to (\d+))?/g, (m, c, a, b) => {
+      const run = [];
+      if (a !== undefined) for (let k = +a; k <= +b; k++) run.push(k);
+      return m + ' ' + (run.length ? run : [+c]).map(swatch).join('');
+    });
+    // A Slideshow picture opens the Screens view, which has Cythera Data's PICTs.
+    h = h.replace(/picture PICT (\d+) of Cythera Data/g, (m, id) =>
+      'picture <a class="reflink" onclick="showCategory(\'SCREENS\')">PICT ' + id + '</a> of Cythera Data');
+    // A sound, tune, landscape strip or tile a line's comment names
+    // (dvmFoldNote) is a link to it.
+    h = h.replace(/((?:sound \d+(?:: [^;<]*?)?|tune \d+|landscape strip \d+(?:, no sky)?|(?:tile|skill) \d+(?:: [^;<(]*?)?) \()0x((?:9[01]|84|8E|1A)[0-9A-F]{2})\)/g, (m, pre, hx) => {
       const rid = parseInt(hx, 16);
       return refExists(rid) ? pre + '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>)' : m;
     });

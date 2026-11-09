@@ -429,11 +429,84 @@ function dvmFoldCallNotes(name, vals, ctx) {
     const zn = z && z.map ? dvmFoldPage(ctx, () => zoneNameFor(z.map)) : null;
     if (zn) dvmFoldNote(ctx, 'zoneport ' + vals[1] + ': ' + zn);
   }
-  const pti = name === 'Create' ? 1 : name === 'New' ? 4 : -1;
+  // A prop type: alone in New, packed with the aspect above bit 10 in
+  // Create, WhoHasItem and RemoveItem (cbwhohas, cbsubinv: "type and
+  // picture").
+  const packed = { Create: 1, WhoHasItem: 0, RemoveItem: 1 }, bare = { New: 4 };
+  const pti = name in packed ? packed[name] : name in bare ? bare[name] : -1;
   if (pti >= 0 && /^\d+$/.test(vals[pti] || '')) {
-    const v = +vals[pti], pt = name === 'Create' ? v & 0x3FF : v;
+    const v = +vals[pti], pt = name in packed ? v & 0x3FF : v;
     const nm = pt > 0 && pt <= 0x3FF ? dvmFoldPropName(ctx, pt) : null;
-    if (nm) dvmFoldNote(ctx, 'prop type ' + pt + (name === 'Create' && v >> 10 ? ', aspect ' + (v >> 10) : '') + ': ' + nm);
+    if (nm) dvmFoldNote(ctx, 'prop type ' + pt + (name in packed && v >> 10 ? ', aspect ' + (v >> 10) : '') + ': ' + nm);
+  }
+  dvmFoldArgNotes(name, vals, ctx);
+}
+/* More of what a call's numbers refer to, for the listings' comments (the
+   maintainer, 8 November 2026: a script's number should lead to what it
+   is, "how 240 is which color when used as input in SpellFX"). Each is
+   read from the program or the file. A number with no reading has no
+   comment.
+   - A character, in the arguments the program shows take one
+     (exeSyscallCharacterArgs). The Read view puts the name in the call.
+   - A quest state read with GetState, with every script that sets it
+     (dvmProseStateNote), as the Read view gives it.
+   - A character flag (SetFlag, ClearFlag, TestFlag, and StatusEffect,
+     whose cbTempAbility sets the flag as TSpellFX::AddAbility does), by
+     the program's names (dvmFlagName, dvmBitFlagName below 8).
+   - SpellFX's color: TGameViewer::ShowMagic draws the prop's outline in
+     the low byte of it, a palette index. 0xE0 to 0xFB are the palette's
+     moving colors (PALETTE_CYCLES). The note gives the run such a color
+     moves through. renderLinked draws the swatches.
+   - MissileFX's tile (its fifth argument, cbMissileFX's "picture or tile
+     number"), linked to its tile sheet, 0x8E00 plus the tile over 16, as
+     resolveTileImage reads it.
+   - Slideshow's picture: cbScrollText draws PICT n with GetPicture, and
+     Cythera Data's resource fork has the PICTs the scripts pass. */
+function dvmFoldArgNotes(name, vals, ctx) {
+  const num = k => /^-?\d+$/.test(vals[k] || '') ? +vals[k] : null;
+  const op = dvmSyscallOp(name);
+  if (ctx && !ctx.asProse) {
+    const chars = dvmFoldPage(ctx, () => exeSyscallCharacterArgs());
+    const which = chars && op !== null ? chars.get(op) : null;
+    if (which) for (const k of which) {
+      const v = num(k), nm = v !== null && v > 0 ? dvmFoldPage(ctx, () => characterName(v)) : null;
+      if (nm && nm !== 'Character ' + v) dvmFoldNote(ctx, 'character ' + v + ': ' + nm);
+    }
+    if ((name === 'GetState' || name === 'GetStateFlag') && num(0) !== null && num(0) >= 0 && ctx.arc) dvmProseStateNote(ctx, name, num(0));
+  }
+  // A skill: cbGetSkill finds the character's prop of that type
+  // (FindSkill), and a skill's type n is its class script, 0x1A00 + n, as
+  // the Skills sheet reads it (skillCatalog). The prop list's tile for 207
+  // is a land jellyfish's, so the tile's name is wrong for a skill.
+  if (name === 'GetSkill' && num(1) !== null && num(1) > 0 && num(1) < 0x100) {
+    const rid = 0x1A00 | num(1), nm = dvmFoldPage(ctx, () => selfNameFor(rid));
+    if (nm) dvmFoldNote(ctx, 'skill ' + num(1) + ': ' + nm + ' (0x' + rid.toString(16).toUpperCase() + ')');
+  }
+  if ((name === 'SetFlag' || name === 'ClearFlag' || name === 'TestFlag' || name === 'StatusEffect') && num(1) !== null && num(1) >= 0) {
+    const f = num(1), nm = f < 8 ? dvmBitFlagName(f) : dvmFlagName(f);
+    if (nm) dvmFoldNote(ctx, 'flag ' + f + ': ' + nm);
+  }
+  if (name === 'MagicAuraEffect' && num(1) !== null) {
+    const c = num(1) & 0xFF;
+    const run = PALETTE_CYCLES.find(([s, n]) => c >= s && c < s + n);
+    dvmFoldNote(ctx, 'palette color ' + c + (run ? ', moving through ' + run[0] + ' to ' + (run[0] + run[1] - 1) : ''));
+  }
+  if (name === 'ShootEffect' && num(4) !== null && num(4) > 0 && num(4) < 0x1000) {
+    const t = num(4), nm = dvmFoldPage(ctx, () => terrainNameFor(t));
+    dvmFoldNote(ctx, 'tile ' + t + (nm ? ': ' + nm : '') + ' (0x' + (0x8E00 + (t >> 4)).toString(16).toUpperCase() + ')');
+  }
+  // AddTask's task is a behavior (cbQueueAction, exeBehaviorCase): the
+  // case of TActiveMonster::DoMove it picks, or, for one with no case,
+  // the character's script method 33.
+  if (name === 'AddTask' && num(1) !== null) {
+    const b = num(1) & 0xFF, c = dvmFoldPage(ctx, () => exeBehaviorCase(b));
+    const at = c ? ' (0x' + c.at.toString(16).toUpperCase().padStart(6, '0') + ')' : '';
+    if (c && c.other) dvmFoldNote(ctx, 'behavior ' + b + ': no case in DoMove, so the character’s script method 33 runs with the task' + at);
+    else if (c) dvmFoldNote(ctx, 'behavior ' + b + (c.words ? ': ' + c.words.replace(/\.$/, '') : '') + at);
+  }
+  if (name === 'Slideshow' && num(0) !== null && num(0) > 0) {
+    const has = dvmFoldPage(ctx, () => !!(window.CYTHERA_RSRC && (CYTHERA_RSRC.resourcesByType.PICT || []).some(e => e.id === num(0))));
+    if (has) dvmFoldNote(ctx, 'picture PICT ' + num(0) + ' of Cythera Data');
   }
 }
 // A text array's entries by the index field in each, which is not their

@@ -6316,37 +6316,77 @@ function exeSyscallSelectors() {
   });
 }
 /* The code a syscall runs for number v in argument k, and the sentence of
-   the handler's note (ROUTINE_NOTES) about it: the sentence that cites that
-   code, or the nearest sentence before it in the same paragraph with the
-   number in it, without the addresses it cites. Null when the handler does
-   not pick its code by that argument. */
+   the handler's note about it (routineNoteSentence). Null when the handler
+   does not pick its code by that argument. */
 function exeSyscallCase(op, k, v) {
   const sel = exeSyscallSelectors();
   if (!sel || !sel.has(op) || !sel.get(op).has(k)) return null;
   const e = exeSyscallTable().entries.find(x => x.op === op);
   const at = exeHandlerCaseAt(exeRoutineAt(e.at), k, v);
-  if (at === null) return null;
-  const note = routineNoteAt(e.at);
-  let words = null;
-  if (note) {
-    const cites = s => [...s.matchAll(/`0x([0-9A-F]{6})`(?: to `0x([0-9A-F]{6})`)?/g)].map(m => [parseInt(m[1], 16), parseInt(m[2] || m[1], 16)]);
-    let best = null;
-    for (const para of note.text.split(/\n\s*\n/)) {
-      const ss = para.split(/(?<=\.)\s+(?=[A-Z])/);
-      ss.forEach((s, j) => {
-        for (const [lo, hi] of cites(s)) if (lo <= at && at <= hi && (!best || hi - lo < best.span)) best = { ss, j, span: hi - lo };
-      });
-    }
-    if (best) {
-      const named = new RegExp('(^|[^\\w`+])' + String(v).replace('-', '\\-') + '(?![\\w`])');
-      const has = j => named.test(best.ss[j].replace(/`[^`]*`/g, ''));
-      let j = best.j;
-      while (j > 0 && !has(j)) j--;
-      const s = has(j) ? best.ss[j] : best.ss[best.j];
-      words = s.replace(/\s*\((?:`0x[0-9A-F]{6}`(?: to `0x[0-9A-F]{6}`)?(?:, )?)+\)/g, '').replace(/`/g, '').replace(/\s+/g, ' ');
-    }
+  return at === null ? null : { at, words: routineNoteSentence(e.at, at, v) };
+}
+/* The sentence of a routine's note (ROUTINE_NOTES) about the code at `at`:
+   the sentence that cites the narrowest range holding it, without the
+   addresses it cites. With a number v, the nearest sentence before it in
+   the same paragraph with v in it comes first: cbScreenFX's "Effect 2
+   shows the magic map around the leader." comes before the sentence that
+   cites the code. Null with no note or no such sentence. */
+function routineNoteSentence(entry, at, v) {
+  const note = routineNoteAt(entry);
+  if (!note) return null;
+  const cites = s => [...s.matchAll(/`0x([0-9A-F]{6})`(?: to `0x([0-9A-F]{6})`)?/g)].map(m => [parseInt(m[1], 16), parseInt(m[2] || m[1], 16)]);
+  let best = null;
+  for (const para of note.text.split(/\n\s*\n/)) {
+    const ss = para.split(/(?<=\.)\s+(?=[A-Z])/);
+    ss.forEach((s, j) => {
+      for (const [lo, hi] of cites(s)) if (lo <= at && at <= hi && (!best || hi - lo < best.span)) best = { ss, j, span: hi - lo };
+    });
   }
-  return { at, words };
+  if (!best) return null;
+  let s = best.ss[best.j];
+  if (v !== null && v !== undefined) {
+    const named = new RegExp('(^|[^\\w`+])' + String(v).replace('-', '\\-') + '(?![\\w`])');
+    const has = j => named.test(best.ss[j].replace(/`[^`]*`/g, ''));
+    let j = best.j;
+    while (j > 0 && !has(j)) j--;
+    if (has(j)) s = best.ss[j];
+  }
+  return s.replace(/\s*\((?:`0x[0-9A-F]{6}`(?: to `0x[0-9A-F]{6}`)?(?:, )?)+\)/g, '').replace(/`/g, '').replace(/\s+/g, ' ');
+}
+/* The case of TActiveMonster::DoMove a creature's behavior picks, for
+   AddTask's second argument (cbQueueAction queues it with
+   TActiveMonster::QueueActivity as a node's kind). DoMove reads the first
+   node's kind, or byte 22 of the record with an empty queue, and picks by
+   two tables: kinds 160 to 170 through the one whose compare is 10 after
+   taking 160 off, every behavior up to 170 through the one whose compare
+   is 170. The tables are found by the compare before each jump, never by
+   address. A behavior above 170, and one the second table has no case for
+   (it sends those where the compare sends the ones above 170), goes to
+   code that runs the character's script method 33 with a queued node.
+   The note's sentence for that code reads "above 170" and leaves out the
+   second kind. AddTask's 64 to 85 are all of that kind (8 November 2026),
+   so `other` marks them and the caller words them. Null without the
+   application. */
+function exeBehaviorCase(k) {
+  const r = exeRoutineNamed('TActiveMonster::DoMove');
+  if (!r || k < 0) return null;
+  const tables = exeMemo('behaviorTables', () => {
+    const ops = exeOpsOf(r), out = {};
+    ops.forEach((o, i) => {
+      if (!o.d || o.d.mn !== 'bctr') return;
+      const t = exeSwitchTargets(r, ops, i);
+      if (t && t.length === 11) out.kinds = t;
+      if (t && t.length === 171) {
+        out.behaviors = t;
+        // The way out for a behavior above 170: the branch after the compare.
+        for (let j = i - 1; j >= Math.max(0, i - 8); j--) if (ops[j].d && exeConditional(ops[j].d) && ops[j].to !== null) { out.other = ops[j].to; break; }
+      }
+    });
+    return out;
+  });
+  const at = k > 170 ? tables.other : k >= 160 && tables.kinds ? tables.kinds[k - 160] : tables.behaviors ? tables.behaviors[k] : null;
+  if (at === null || at === undefined) return null;
+  return at === tables.other ? { at, other: true } : { at, words: routineNoteSentence(r.offset, at, null) };
 }
 
 // The flag number of a status-word bit, with where its subtrahend was read.
