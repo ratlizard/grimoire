@@ -1195,12 +1195,26 @@ const APP_FIXES = [
      north-west for 0xC0. A square is 4 quarter cells, so west is 8 bytes
      back and north 992. A square off the stage's first row or column is
      not read. Whoever it finds goes on to the tests the routine already
-     makes (byte 6 clear, a four-way sprite) and the seating, at 0x06A23C. */
-  { id: 'seat-pieces', kind: 'change', title: 'A person sits on any square of a seat that covers more than one, such as either half of a bed made a seat',
-    played: 'fork, PowerPC, 9 November 2026, with the data fix bed-chest-seats, from played saves in Cademia and Pnyx with the clock set to just before 8 am and the hero moved into the room. Deiphobus at (35,56) and Paris at (10,53), on the left half of a bed, are saved at aspect 11, seated facing south. With the data fix alone they are saved at aspect 5, standing, as on the stock program and file',
+     makes (byte 6 clear, a four-way sprite) and the seating, at 0x06A23C.
+
+     ACROSS A BED LAID NORTH TO SOUTH. A bed seats facing south (Chair 3,
+     bed-chest-seats), across a bed laid east to west. On a bed laid north
+     to south (span 0x40, the record its south half) south runs along it,
+     so a person found on its north half faces east, and one on the
+     record's square faces south as before (the maintainer, 9 November
+     2026, "East facing on top part of bed" and "south facing on bottom
+     part of bed"). The cave sets r12 to 1 for a person found on the north
+     piece of a seat of two squares laid north to south, and to 0 on every
+     other way through. The south case of the routine's seating switch
+     (0x06A2F8, `li 4, 11`, frame 11) calls `across`, which gives frame 7,
+     east, when r12 is 1. Nothing between the two reads or writes r12. */
+  { id: 'seat-pieces', kind: 'change', title: 'A person sits on any square of a seat that covers more than one, such as either half of a bed made a seat, facing east on the top half of a bed laid north to south',
+    played: 'fork, PowerPC, 9 November 2026, with the data fix bed-chest-seats, from played saves in Cademia and Pnyx with the clock set to just before 8 am and the hero moved into the room. Deiphobus at (35,56) and Paris at (10,53), on the left half of a bed laid east to west, are saved at aspect 11, seated facing south, and Niobe at (13,51), on the top half of a bed laid north to south, at aspect 7, seated facing east, before her first turn. After thirty turns she is saved as the sleeper (type 264). On the stock program and file the three are saved standing. Nobody is scheduled on the bottom half of a bed laid north to south, so south there was not played',
     sites: [{ at: 0x6A234, was: [0x7EA30735, 0x418200E0],
-      asm: ['b @cave               ; was extsh. 3, 21: whoever stands on the seat’s square', 'nop'] }],
-    cave: ['extsh. 6, 21', 'bne @found',
+      asm: ['b @cave               ; was extsh. 3, 21: whoever stands on the seat’s square', 'nop'] },
+      { at: 0x6A2F8, was: [0x3880000B], asm: ['bl @across             ; was li 4, 11, frame 11, south'] }],
+    cave: ['li 12, 0              ; not on the north half of a seat laid north to south',
+           'extsh. 6, 21', 'bne @found',
            'lhz 7, 4(31)          ; the seat’s type and aspect',
            'lwz 9, -30348(2)', 'rlwinm 8, 7, 1, 21, 30', 'lhax 8, 9, 8       ; the type’s base tile',
            'rlwinm 9, 7, 22, 27, 31', 'add 8, 8, 9            ; plus the aspect',
@@ -1213,16 +1227,19 @@ const APP_FIXES = [
            'li 10, 2               ; 0x40: north',
            'rot:', 'cmpwi 7, 0', 'beq @pieces', 'xori 10, 10, 3        ; rotated: the other way',
            'pieces:',
-           'andi. 11, 10, 1', 'beq @notw', 'cmpwi 0, 4', 'blt @notw',
-           'addi 12, 3, -8', 'lhax 21, 30, 12', 'extsh. 6, 21', 'bne @found',
+           'andi. 9, 10, 1', 'beq @notw', 'cmpwi 0, 4', 'blt @notw',
+           'addi 11, 3, -8', 'lhax 21, 30, 11', 'extsh. 6, 21', 'bne @found',
            'notw:',
-           'andi. 11, 10, 2', 'beq @notn', 'subf 12, 4, 5', 'cmpwi 12, 992', 'blt @notn',
-           'addi 12, 3, -992', 'lhax 21, 30, 12', 'extsh. 6, 21', 'bne @found',
+           'andi. 9, 10, 2', 'beq @notn', 'subf 11, 4, 5', 'cmpwi 11, 992', 'blt @notn',
+           'addi 11, 3, -992', 'lhax 21, 30, 11', 'extsh. 6, 21', 'beq @notn',
+           'cmpwi 10, 2            ; north alone, two squares laid north to south', 'bne @found',
+           'li 12, 1', 'b @found',
            'notn:',
-           'andi. 11, 10, 4', 'beq @none', 'cmpwi 0, 4', 'blt @none', 'subf 12, 4, 5', 'cmpwi 12, 992', 'blt @none',
-           'addi 12, 3, -1000', 'lhax 21, 30, 12', 'extsh. 6, 21', 'bne @found',
+           'andi. 9, 10, 4', 'beq @none', 'cmpwi 0, 4', 'blt @none', 'subf 11, 4, 5', 'cmpwi 11, 992', 'blt @none',
+           'addi 11, 3, -1000', 'lhax 21, 30, 11', 'extsh. 6, 21', 'bne @found',
            'none:', 'b @0x6A318',
-           'found:', 'b @0x6A23C'] },
+           'found:', 'b @0x6A23C',
+           'across:', 'li 4, 11              ; south', 'cmpwi 12, 0', 'beqlr', 'li 4, 7               ; east', 'blr'] },
   // A thing the story needs can be lost by setting it down. TGameSys::
   // DropCommand and SlideItemCommand both end by flagging the thing 0x20,
   // made or moved in play, unless its class's cached flags have 0x08
