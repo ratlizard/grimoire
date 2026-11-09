@@ -572,7 +572,9 @@ function readViewHtml(fns) {
     readLinkHex(svEsc(c.prompt !== undefined ? prompt(c.prompt) : c.text.charAt(0).toUpperCase() + c.text.slice(1))) + (c.kids ? list(c.kids) : '') + '</li>').join('') + '</ul>';
   return fns.map(f => {
     if (f.prose !== undefined) return '<div class="readFn"><div class="readHead">' + svEsc(f.name) + '</div><div class="readProse">' + svEsc(f.prose) + '</div></div>';
-    const head = '<div class="readHead">' + svEsc(f.name) + '(' + (f.args || []).join(', ') + ')</div>';
+    // "AskAbout (a character, input 2) means:", the maintainer's wording of
+    // 9 November 2026.
+    const head = '<div class="readHead">' + svEsc(f.name) + ((f.args || []).length ? ' (' + f.args.join(', ') + ')' : '') + ' means:</div>';
     if (f.answers && !f.clauses) return '<div class="readFn">' + head + '<div class="readProse">Answers ' + f.answers + ' prompt' + (f.answers === 1 ? '' : 's') +
       '. The Text view lays them out.</div></div>';
     const sum = f.summary ? '<div class="readSum">' + svEsc(f.summary.charAt(0).toUpperCase() + f.summary.slice(1)) + '.</div>' : '';

@@ -213,7 +213,13 @@ function dvmFoldFrame(nodes, ctx) {
 
 function dvmFoldValue(n, ctx) {
   const bare = dvmBareOperand(n.arg);
-  if (ctx && ctx.asProse && n.mn === 'global') return dvmProseName(dvmPlainName(bare));
+  // A global that is a thing reads with "the": "the player character", "the
+  // current zone". One that is a yes or no ("is player turn") and one with
+  // no noun at its end ("karma", "registered") read as their names.
+  if (ctx && ctx.asProse && n.mn === 'global') {
+    const g = dvmProseName(dvmPlainName(bare));
+    return /(?:character|characters|zone|room|hour|time|day|level|response|name)$/.test(g) && !/^is /.test(g) ? 'the ' + g : g;
+  }
   if (ctx && ctx.asProse && ctx.subst && (n.mn === 'arg' || n.mn === 'local') && ctx.subst.has(bare)) return ctx.subst.get(bare);
   if (ctx && ctx.asProse && ctx.self && n.mn === 'arg' && bare === ctx.self) return 'it';
   if (ctx && ctx.asProse && ctx.target && n.mn === 'arg' && bare === ctx.target) return ctx.targetName || 'the target';
@@ -1945,6 +1951,13 @@ function dvmProseOperator(n, args, ctx) {
     if (infix === '|') { const m = /^\(1 << (\w+)\)$/.exec(args[1]); if (m) return args[0] + ' with bit ' + m[1]; }
     if ((infix === '!=' || infix === '==') && args[1] === '0' && / has bit \w+(?: \(\w+\))?$/.test(args[0]))
       return infix === '!=' ? args[0] : args[0].replace(/ has bit /, ' does not have bit ');
+    if (infix === '==' || infix === '!=') {
+      // Both sides cast to the same kind compare as the values themselves.
+      const c0 = / as ([a-z ]+)$/.exec(args[0]), c1 = / as ([a-z ]+)$/.exec(args[1]);
+      if (c0 && c1 && c0[1] === c1[1]) args = [args[0].slice(0, -c0[0].length), args[1].slice(0, -c1[0].length)];
+      // None is the interpreter's "no value" (the word at data+0x77374).
+      if (args[1] === 'None') return args[0] + (infix === '==' ? ' is not set' : ' is set');
+    }
     const w = DVM_PROSE_INFIX[infix];
     const rhs = (infix === '==' || infix === '!=') && /\bbehavior$/.test(args[0]) ? dvmProseBehavior('behavior', args[1], ctx) : args[1];
     if (w) return args[0] + ' ' + w + ' ' + rhs;
@@ -1964,7 +1977,10 @@ function dvmProseOperator(n, args, ctx) {
   switch (n.op) {
     case 0x46: return args[0] + '[' + args[1] + ']';
     case 0x5F: return 'the length of ' + args[0];
-    case 0x60: return args[0] + ' has ' + dvmProseName(bare);
+    // A class member by its name in quotation marks, in title case, so it
+    // reads as a name and not as words of the sentence: "has a "Melee
+    // Weapon" entry".
+    case 0x60: { const q = dvmProseMember(bare); return args[0] + ' has ' + (/^"[AEIOU]/.test(q) ? 'an ' : 'a ') + q + ' entry'; }
     case 0x61: {
       const m = /^0x([0-9A-F]{2})([0-9A-F]{2})$/i.exec(bare);
       const k = m && String(parseInt(m[1], 16));
@@ -1976,7 +1992,7 @@ function dvmProseOperator(n, args, ctx) {
       const kindOf = j => dvmFoldPage(ctx, () => classMemberWordKind(+k, j));
       const wk = key ? kindOf(w) : null;
       const twin = wk && [0, 1, 2, 3, 4, 5].some(j => j !== w && kindOf(j) === wk);
-      return dvmProseOwner(args[0]) + (key ? dvmProseName(key) + ' ' + (wk ? wk + (twin ? ' ' + w : '') : w) : bare);
+      return dvmProseOwner(args[0]) + (key ? dvmProseMember(key) + ' ' + (wk ? wk + (twin ? ' ' + w : '') : 'value ' + w) : bare);
     }
     case 0x62: return dvmProseOwner(args[0]) + dvmProseName(bare);
     case 0x63: {
@@ -1987,9 +2003,14 @@ function dvmProseOperator(n, args, ctx) {
       }
       return args[0] + ' as ' + dvmProseName(bare);
     }
-    case 0x64: return args[0] + ' is ' + dvmProseName(bare);
+    case 0x64: { const t = dvmProseName(bare); return args[0] + ' is ' + (/^[aeiou]/.test(t) ? 'an ' : 'a ') + t; }
     default: return dvmProseName(n.mn) + ' ' + args.join(', ');
   }
+}
+// A class member's name as the Read view writes it: "MeleeWeapon" is
+// "Melee Weapon", in quotation marks.
+function dvmProseMember(name) {
+  return '"' + dvmProseName(name).split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + '"';
 }
 // A value without the one pair of brackets around the whole of it, for a
 // value that stands alone (a call's argument): "(100 + 10)" is "100 + 10".
@@ -2008,7 +2029,7 @@ function dvmProseUnbracket(s) {
 function dvmProseOwner(x) {
   // A cast changes what the engine checks, not whose field it is.
   const y = String(x).replace(/ as [a-z ]+$/, '');
-  return y === 'it' ? 'its ' : /^\w+$|^the (target|signal|wearer)$|^the (?:(?:first|second|third|fourth|fifth|sixth) )?(?:character|prop)$|^[A-Z][\w' -]* \(\d+\)$/.test(y) ? y + '’s ' : '(' + y + ')’s ';
+  return y === 'it' ? 'its ' : /^\w+$|^the (target|signal|wearer|item)$|^the (?:(?:first|second|third|fourth|fifth|sixth) )?input (?:character|prop)$|^input \d+$|^the [a-z]+(?: [a-z]+)?$|^[A-Z][\w' -]* \(\d+\)$/.test(y) ? y + '’s ' : '(' + y + ')’s ';
 }
 /* A helper that is only a few settings of its locals and one return --
    `Var00 = Character(Arg00); return (Var00.bit_flags & 64)` -- is written as
@@ -2391,7 +2412,10 @@ function dvmProseStatement(n, ctx) {
 }
 function dvmProseCond(s, ctx, taken) {
   const leaf = p => dvmFoldFrame(p.node.groups[0] || [], ctx);
-  const j = s.parts ? s.parts.map(p => dvmProseGroup(leaf(p))).join(s.negated ? ' or ' : ' and ') : leaf(s);
+  // The parts take brackets only where one of them contains an "and" or an "or".
+  const ls = s.parts ? s.parts.map(leaf) : null;
+  const mixed = ls && ls.some(x => / (and|or) /.test(x));
+  const j = s.parts ? ls.map(x => mixed ? dvmProseGroup(x) : x).join(s.negated ? ' or ' : ' and ') : leaf(s);
   const positive = taken ? s.negated : !s.negated;
   if (positive) return j;
   // Not of a not is the thing itself.
@@ -2446,7 +2470,15 @@ function dvmProseTree(tree, ctx, loops) {
     out.push(Object.assign({ text: text + (notes.length ? ' (' + notes.join('; ') + ')' : ''), kids: kids || null, at: at === undefined ? null : at }, meta || {}));
   };
   let prints = null, printAt = null;
-  const flush = () => { if (prints) { push('print ' + prints.join(', '), null, printAt, { verb: 'print' }); prints = null; } };
+  // A value printed between two prints of a quotation mark is printed "in
+  // quotation marks", as AskAbout (0xEB6) prints an answer.
+  const QUOTE = '"\\""';
+  const flush = () => {
+    if (!prints) return;
+    const quoted = prints.length === 3 && prints[0] === QUOTE && prints[2] === QUOTE;
+    push('print ' + (quoted ? prints[1] + ' in quotation marks' : prints.join(', ')), null, printAt, { verb: 'print' });
+    prints = null;
+  };
   // A heading reads the notes its condition gathered before its block is
   // written.
   const head = text => { const nt = ctx.notes.splice(0); return text + (nt.length ? ' (' + nt.join('; ') + ')' : ''); };
@@ -2472,10 +2504,10 @@ function dvmProseTree(tree, ctx, loops) {
         else push(dvmProseStatement(s.node, ctx), null, s.abs, dvmProseMeta(s.node, ctx));
         break;
       }
-      case 'if': { const t = head('if ' + dvmProseCond(n.cond, ctx, false) + ':'); push(t, dvmProseTree(n.then, ctx, loops), n.cond.abs, { test: true }); break; }
+      case 'if': { const t = head('if ' + dvmProseCond(n.cond, ctx, false) + ', then:'); push(t, dvmProseTree(n.then, ctx, loops), n.cond.abs, { test: true }); break; }
       case 'ifelse': {
-        if (!n.then.length) { const t = head('if ' + dvmProseCond(n.cond, ctx, true) + ':'); push(t, dvmProseTree(n.els, ctx, loops), n.cond.abs, { test: true }); break; }
-        const t = head('if ' + dvmProseCond(n.cond, ctx, false) + ':');
+        if (!n.then.length) { const t = head('if ' + dvmProseCond(n.cond, ctx, true) + ', then:'); push(t, dvmProseTree(n.els, ctx, loops), n.cond.abs, { test: true }); break; }
+        const t = head('if ' + dvmProseCond(n.cond, ctx, false) + ', then:');
         push(t, dvmProseTree(n.then, ctx, loops), n.cond.abs, { test: true });
         push('otherwise:', dvmProseTree(n.els, ctx, loops));
         break;
@@ -2484,8 +2516,18 @@ function dvmProseTree(tree, ctx, loops) {
         const f = fors.get(n);
         if (f) {
           for (const t of f.notes || []) dvmFoldNote(ctx, t);
-          const t = head('for each ' + f.variable + ' in ' + dvmProseName(dvmSyscallShown(f.name)) + (f.args.length ? ' of ' + f.args.join(', ') : '') + ':');
-          push(t, dvmProseTree(n.body.slice(0, -1), ctx, loops), f.start.abs, { verb: 'go through ' + dvmProseName(dvmSyscallShown(f.name)) });
+          /* A walk through an array (ArrayIterator, the program's EachIter)
+             reads as going through a list, with its variable "the item"
+             inside, where no outer walk has the name already. */
+          const list = f.name === 'ArrayIterator' && f.args.length === 1;
+          const subst = ctx.subst || (ctx.subst = new Map());
+          const item = list && ![...subst.values()].includes('the item');
+          if (item) subst.set(f.variable, 'the item');
+          const t = head(list ? 'for each ' + (item ? 'item' : f.variable) + ' in ' + f.args[0] + ':'
+                              : 'for each ' + f.variable + ' in ' + dvmProseName(dvmSyscallShown(f.name)) + (f.args.length ? ' of ' + f.args.join(', ') : '') + ':');
+          const kids = dvmProseTree(n.body.slice(0, -1), ctx, loops);
+          if (item) subst.delete(f.variable);
+          push(t, kids, f.start.abs, { verb: list ? 'go through a list' : 'go through ' + dvmProseName(dvmSyscallShown(f.name)) });
         } else {
           const t = head('while ' + dvmProseCond(n.cond, ctx, false) + ':');
           push(t, dvmProseTree(n.body, ctx, loops), n.cond.abs, { test: true });
@@ -2555,9 +2597,11 @@ function dvmProseConversation(stmts, ctx) {
      compared with PlayerCharacter or CurrentCharacter;
    - a prop when its obj_type, data1, data2, data3 or quantity is read or
      set.
-   An argument with signs of both, or of neither, is printed by its slot
-   name. Two of a kind are "the first character" and "the second
-   character", in their order. Map of slot (Arg00) to name. */
+   The name is "the input character" or "the input prop", and two of a kind
+   are "the first input character" and "the second input character", in
+   their order. An argument with signs of both, or of neither, is "input
+   2" by its place, counted from 1 (dvmReadRender). Map of slot (Arg00) to
+   name. */
 function dvmProseArgNames(forest, slots, ctx) {
   const kinds = new Map(slots.map(s => [s, new Set()]));
   const mark = (it, kind) => { if (it && it.arg && kinds.has(it.arg)) kinds.get(it.arg).add(kind); };
@@ -2580,8 +2624,10 @@ function dvmProseArgNames(forest, slots, ctx) {
       }
       if (!pops) { st.push({ arg: n.mn === 'arg' ? dvmBareOperand(n.arg) : null, global: n.mn === 'global' ? plain(n) : null }); continue; }
       const ops = st.splice(Math.max(0, st.length - pops), pops);
-      if ((n.op === 0x63 || n.op === 0x64) && /^Character$/i.test(plain(n))) mark(ops[0], 'character');
-      if (n.op === 0x64 && /^Prop$/i.test(plain(n))) mark(ops[0], 'prop');
+      // A cast, and not an `is` test. The test checks what the argument is,
+      // so a name taken from it reads as circular: "if the prop is a prop"
+      // in 0xEB6 (the maintainer, 9 November 2026).
+      if (n.op === 0x63 && /^Character$/i.test(plain(n))) mark(ops[0], 'character');
       if (n.op === 0x62 && PROP_FIELDS.has(plain(n))) mark(ops[0], 'prop');
       const infix = DVM_INFIX[n.op];
       if ((infix === '==' || infix === '!=') && ops.length === 2)
@@ -2599,7 +2645,7 @@ function dvmProseArgNames(forest, slots, ctx) {
     if (k.size !== 1) continue;
     const kind = [...k][0], i = seen[kind] = (seen[kind] || 0) + 1;
     if (count[kind] > ORD.length) continue;
-    out.set(s, 'the ' + (count[kind] > 1 ? ORD[i - 1] + ' ' : '') + kind);
+    out.set(s, 'the ' + (count[kind] > 1 ? ORD[i - 1] + ' ' : '') + 'input ' + kind);
   }
   return out;
 }
@@ -2661,6 +2707,8 @@ function dvmReadRender(arc, b, resid, opts) {
     const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], asProse: true, self, target, targetName: target ? ARG2[methodNo] : null }, extra);
     const forest = dvmForest(r.ops);
     const named = dvmProseArgNames(forest, args.filter(a => a !== self && a !== target), ctx);
+    // An argument with no name from its uses is "input 2", by its place.
+    args.forEach((a, k) => { if (a !== self && a !== target && !named.has(a)) named.set(a, 'input ' + (k + 1)); });
     if (named.size) ctx.subst = named;
     const stmts = dvmStatementList(forest, st);
     const rec = dvmRecoverStructure(stmts);
@@ -2680,7 +2728,9 @@ function dvmReadRender(arc, b, resid, opts) {
         if (prev.returns !== undefined && !prev.kids && c.returns !== undefined && !c.kids && !jumped.has(c.at)) { clauses.splice(i, 1); i--; }
       }
     }
-    const proseText = args.map((a, k) => a === self ? 'it' : a === target ? ctx.targetName : named.get(a) || a);
+    // The heading gives a named argument as what it is, "a character", and
+    // the sentences as "the input character".
+    const proseText = args.map((a, k) => a === self ? 'it' : a === target ? ctx.targetName : (named.get(a) || a).replace(/^the input /, 'a '));
     out.push({ at: st, name, args: proseText, clauses, summary: dvmProseSummary(clauses),
                self: !!self, bad: r.bad || 0, tree: rec.tree, ops: r.ops });
   }

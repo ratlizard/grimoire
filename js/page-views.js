@@ -4239,7 +4239,8 @@ function convReadConds(resid) {
   try {
     const raw = getResourceBytes(ARCHIVE, resid);
     const fns = raw ? dvmReadRender(ARCHIVE, smartDecrypt(raw, resid).data, resid) : [];
-    const cond = t => { const m = /^(?:otherwise )?if (.*?):(?: (.*))?$/.exec(t); if (m && m[2]) out.notes.set(m[1], m[2]); return m ? m[1] : null; };
+    // A heading reads "if X, then:" since 9 November 2026; the ", then" is no part of X.
+    const cond = t => { const m = /^(?:otherwise )?if (.*?)(?:, then)?:(?: (.*))?$/.exec(t); if (m && m[2]) out.notes.set(m[1], m[2]); return m ? m[1] : null; };
     // Every clause under a prompt, with the conditions it sits under there:
     // those of the if itself, and "not (...)" of the if before an "otherwise".
     const inside = (kids, chain, into, lines) => {

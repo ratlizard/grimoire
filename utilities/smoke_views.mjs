@@ -1058,7 +1058,8 @@ try {
   // A method's first argument is the thing it belongs to, written "it"; a
   // behaviour the game's Look text names is written with that word; and
   // each function heads with what it does.
-  else if (!/UseOn\(it, the target\)/.test(read) || !/145 \(sleeping\)/.test(read) || !/readSum">Cast spell FX, play sound, remove ability/i.test(read))
+  // A function heads "UseOn (it, the target) means:" since 9 November 2026.
+  else if (!/UseOn \(it, the target\) means:/.test(read) || !/145 \(sleeping\)/.test(read) || !/readSum">Cast spell FX, play sound, remove ability/i.test(read))
     fail('read view', 'Awaken is not read with "it", the behaviour\'s word or its summary: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 300));
   else if (/readList/.test(back) || !/function UseOn/.test(back)) fail('read view', 'Structured did not bring the listing back');
   // Opcode 0x82 with an operand of 0x30 up stores an argument
@@ -1085,11 +1086,11 @@ try {
   // The resource ids in the Read view's words are links (readLinkHex), so
   // the words are matched with the links taken out, and the helper's id
   // must be one.
-  else if (!/Halos \(62\)\u2019s bit flags has bit 3: \([^)]*0xF02\)/.test(h.replace(/<[^>]+>/g, '')) || !/Set bit 7 of its bit flags \(SetCharacterFlag\)/.test(h) ||
+  else if (!/Halos \(62\)\u2019s bit flags has bit 3(?:, then)?: \([^)]*0xF02\)/.test(h.replace(/<[^>]+>/g, '')) || !/Set bit 7 of its bit flags \(SetCharacterFlag\)/.test(h) ||
            !/Berossus\u2019 conversation[^;]* sets? (?:it|state 3) to 2/.test(h) || !/Halos\u2019 conversation, asked about [A-Z][^;]*? sets bit 3 of Halos\u2019 bit flags/.test(h))
     fail('read view', 'Aethon\'s helpers, Halos or state 3 are not read through: ' + h.replace(/<[^>]+>/g, ' ').slice(0, 400));
   else if (!/onclick="jumpToResource\(3842\)">0xF02<\/a>/.test(h)) fail('read view', 'the helper 0xF02 in the Read view is not a link to it');
-  else if (!/UseOn\(it, the target\)/.test(f) || !/the target as character/.test(f)) fail('read view', 'a UseOn\'s second argument is not the target');
+  else if (!/UseOn \(it, the target\) means:/.test(f) || !/the target as character/.test(f)) fail('read view', 'a UseOn\'s second argument is not the target');
   else console.log('  read view: Aethon\'s conversation read in full under its prompts, and a UseOn\'s second argument is the target');
   {
     /* Naxos's conversation (0x180B, the maintainer's list of 28 October
@@ -1104,7 +1105,7 @@ try {
     const lie = ctx.convCondHtml(0x180B, 'Var00').replace(/<[^>]+>/g, '');
     if ((ctx.convIntendedFor('glau') || [])[0] !== 'Glaucus') fail('read view', 'Naxos’s "glau" reads ' + JSON.stringify(ctx.convIntendedFor('glau')) + ', not Glaucus');
     else if (!/Welcome again, hero\(ine\)\.  To what/.test(greet)) fail('read view', 'Naxos’s greeting does not read "hero(ine)": ' + greet.slice(0, 200));
-    else if (!/Var00 \(set to (?:test flag|has ability) player character, 29\)/.test(lie)) fail('read view', 'Naxos’s Var00 has no value beside it (' + lie + ')');
+    else if (!/Var00 \(set to (?:test flag|has ability) (?:the )?player character, 29\)/.test(lie)) fail('read view', 'Naxos’s Var00 has no value beside it (' + lie + ')');
     else console.log('  read view: Naxos’s GLAUCUS, "hero(ine)" and Var00 with its value');
   }
 } catch (e) { fail('read view', e); }

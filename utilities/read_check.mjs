@@ -116,7 +116,11 @@ const stats = ev(`(() => {
           let name = null;
           if (/^sys /.test(mn)) name = dvmSyscallShown(mn.slice(4));
           else if (mn === 'method') name = dvmPlainName(dvmBareOperand(o[3]));
-          if (name) { out.calls++; if (text.indexOf(dvmProseName(name)) < 0) out.fails.calls.push(where + ': ' + name); }
+          // A walk through a list reads "for each item in ..." with no
+          // iterator's name since 9 November 2026, so an iterator is written
+          // where a "for each" clause is.
+          const iter = /^sys \\w*Iterator$/.test(mn) && /(^|\\n)for each /.test(text);
+          if (name) { out.calls++; if (!iter && text.indexOf(dvmProseName(name)) < 0) out.fails.calls.push(where + ': ' + name); }
           if (mn === 'call_resource') {
             const id = /0x([0-9A-F]{2,4})\\b/i.exec(String(o[3] || ''));
             const rid = id ? parseInt(id[1], 16) : null;
@@ -125,7 +129,8 @@ const stats = ev(`(() => {
               if (text.indexOf(dvmFoldResourceName(rid)) < 0) out.fails.helpers.push(where + ': ' + dvmFoldResourceName(rid));
             }
           }
-          if (mn === 'string' || mn === 'string(implicit)') { out.strings++; const lit = dvmBareOperand(o[3]); if (text.indexOf(lit) < 0) out.fails.strings.push(where + ': ' + lit.slice(0, 40)); }
+          // A quotation mark printed either side of a value reads "in quotation marks".
+          if (mn === 'string' || mn === 'string(implicit)') { out.strings++; const lit = dvmBareOperand(o[3]); if (text.indexOf(lit) < 0 && !(lit === '"\\\\""' && / in quotation marks/.test(text))) out.fails.strings.push(where + ': ' + lit.slice(0, 40)); }
         }
         if (f.tree) {
           const expected = tests(f.tree), have = heads(f.clauses);
