@@ -1171,6 +1171,57 @@ const APP_FIXES = [
   { id: 'level-keep-made', kind: 'change', title: 'Entering a level leaves in place what play made or left there, corpses among them, instead of removing what the level did not begin with',
     played: 'fork, PowerPC, 1 October 2026: jumping into Land King Hall, a rock made in play stays where the stock program removes it; the patched program sets the door and the slid chair back, as the stock one does',
     sites: [{ at: 0x788C, was: [0x41820038], asm: ['b @0x78C4             ; never delete what play made or moved'] }] },
+  /* A seat of two or four squares seats a person on any of them (the
+     maintainer, 9 November 2026, for Deiphobus and Paris, whose schedules
+     sit them on the left half of a bed at 8 am, with the seats-on-beds data
+     fix that makes the bed a seat).
+
+     TViewer::InteractProps seats a person from the seat's side: for each
+     prop whose type has a Chair value (the byte table at toc -29636), it
+     reads the stage of the living at the seat RECORD's square, the first
+     quarter cell of it (the halfword table at r30 + 0x10000 + 24564, 248
+     bytes a row of quarter cells, 0x06A1C0 to 0x06A230), and seats whoever
+     stands there. A bed's record is its right half (span 0x80, the left
+     half its piece, multiTilePieces), so the left half seats nobody. Of the
+     shipped seats only two records cover more than one square.
+
+     Here, when nobody stands on the record's square, the cave reads the
+     seat's tile (the type's base tile, the halfword table at toc -30348,
+     plus the aspect, bits 10 to 14 of the record's +4) and that tile's
+     span (bits 0xC0 of the word at toc -30316, tile times 4, as
+     TViewer::SetStage reads it). It then reads the stage at the squares the
+     pieces cover: west for span 0x80, north for 0x40, each the other way
+     when the record is rotated (bit 15 of +4), and west, north and
+     north-west for 0xC0. A square is 4 quarter cells, so west is 8 bytes
+     back and north 992. A square off the stage's first row or column is
+     not read. Whoever it finds goes on to the tests the routine already
+     makes (byte 6 clear, a four-way sprite) and the seating, at 0x06A23C. */
+  { id: 'seat-pieces', kind: 'change', title: 'A person sits on any square of a seat that covers more than one, such as either half of a bed made a seat',
+    sites: [{ at: 0x6A234, was: [0x7EA30735, 0x418200E0],
+      asm: ['b @cave               ; was extsh. 3, 21: whoever stands on the seat’s square', 'nop'] }],
+    cave: ['extsh. 6, 21', 'bne @found',
+           'lhz 7, 4(31)          ; the seat’s type and aspect',
+           'lwz 9, -30348(2)', 'rlwinm 8, 7, 1, 21, 30', 'lhax 8, 9, 8       ; the type’s base tile',
+           'rlwinm 9, 7, 22, 27, 31', 'add 8, 8, 9            ; plus the aspect',
+           'lwz 9, -30316(2)', 'slwi 8, 8, 2', 'lwzx 8, 9, 8', 'andi. 8, 8, 192       ; the span',
+           'beq @none',
+           'rlwinm 7, 7, 17, 31, 31  ; rotated',
+           'li 10, 7               ; 0xC0: west, north and north-west',
+           'cmpwi 8, 192', 'beq @pieces',
+           'li 10, 1               ; 0x80: west', 'cmpwi 8, 128', 'beq @rot',
+           'li 10, 2               ; 0x40: north',
+           'rot:', 'cmpwi 7, 0', 'beq @pieces', 'xori 10, 10, 3        ; rotated: the other way',
+           'pieces:',
+           'andi. 11, 10, 1', 'beq @notw', 'cmpwi 0, 4', 'blt @notw',
+           'addi 12, 3, -8', 'lhax 21, 30, 12', 'extsh. 6, 21', 'bne @found',
+           'notw:',
+           'andi. 11, 10, 2', 'beq @notn', 'subf 12, 4, 5', 'cmpwi 12, 992', 'blt @notn',
+           'addi 12, 3, -992', 'lhax 21, 30, 12', 'extsh. 6, 21', 'bne @found',
+           'notn:',
+           'andi. 11, 10, 4', 'beq @none', 'cmpwi 0, 4', 'blt @none', 'subf 12, 4, 5', 'cmpwi 12, 992', 'blt @none',
+           'addi 12, 3, -1000', 'lhax 21, 30, 12', 'extsh. 6, 21', 'bne @found',
+           'none:', 'b @0x6A318',
+           'found:', 'b @0x6A23C'] },
   // A thing the story needs can be lost by setting it down. TGameSys::
   // DropCommand and SlideItemCommand both end by flagging the thing 0x20,
   // made or moved in play, unless its class's cached flags have 0x08

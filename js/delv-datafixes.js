@@ -1195,6 +1195,17 @@ const DATA_FIXES = [
           return 'Sardis\u2019s two posts at (22,16) moved to (23,15)';
       } },
     ] },
+  // Opheltius's chair (0xF00B). His 13:00 post, behavior 146 ("sitting"),
+  // is at (99,92) on level 8, a square of the courtyard's railing (prop
+  // type 389, "post", two records a square), with the two chairs of type
+  // 220 below it at (99,93) and (100,93). Thuria sits at (99,93) from
+  // 10:00 to 19:00, so the post moves to (100,93), the chair beside her,
+  // which no schedule uses; the chairs face north, over the pool. His
+  // 10:00 and 17:00 posts on the railing, behaviors 143 and 139, stay (the
+  // maintainer, 9 November 2026: "Opheltius position make it separate
+  // patch").
+  { id: 'opheltius-chair', group: 'world', stage: 'bugfix', title: 'Opheltius sits in the chair beside Thuria at one o\u2019clock, instead of on the courtyard railing',
+    dataEdits: [dataFixMovePost('the chair', 51, 8, 99, 92, 13, 100, 93)] },
 
   /* ---- Further fixes (the stage "further"; further_fixes_patch.mjs,
      "Cythera Further Fixes") ------------------------------------------------
@@ -2586,6 +2597,22 @@ const DATA_FIXES = [
   // workbench doc/bugs.md, *Found tracing the missile sounds*.
   { id: 'door-close-sound', group: 'design', stage: 'apart', title: 'A door now makes a closing sound when it closes, instead of its opening sound',
     plan: (s) => ({ edits: [[0x1003, 1], [0x1007, 1], [0x100B, 1], [0x1114, 2]].flatMap(([resid, n]) => dataFixDoorSounds(s, resid, n)) }) },
+  // Beds and chests made seats (the maintainer, 9 November 2026). Five of
+  // the 94 schedule posts at behavior 146 ("sitting") are on things that are
+  // not seats, and the program draws such a sitter standing: Deiphobus and
+  // Paris on a bed at 8:00, Antiphus on a bed at midnight, Opheltius on the
+  // railing (opheltius-chair) and Jhiaxus on a boulder, whose record is in
+  // the seated frame already. The bed's class (0x100E) has a Chair entry of
+  // None; it is pointed at 3, south, across a bed laid east to west, as all
+  // three are ("the seating direction needs to be perpendicular to the bed
+  // - south"). The chest's class (0x108D, type 141) has none; one is added
+  // at 0, the chest's aspect, so a chest facing south seats south. No script
+  // reads Chair. The program seats anyone with a four-way sprite who stands
+  // on a seat, the hero too. A bed's record is its right half, and only the
+  // record's square seats, so Deiphobus and Paris on the left half sit only
+  // with the program change seat-pieces (js/delv-appfixes.js).
+  { id: 'bed-chest-seats', group: 'design', stage: 'apart', title: 'Beds and chests are seats, so the people scheduled to sit on them sit, on a bed facing south',
+    dataEdits: [dataFixSeatClass('the bed', 0x100E, 3), dataFixSeatClass('the chest', 0x108D, 0)] },
   // A thrown or shot missile's flight sound is one the archive lacks (25
   // October 2026). The ranged attack (0x3042) gives the missile a thrown
   // weapon's Thrown element 3 or the ammunition's Ammunition element 1 as
@@ -2832,6 +2859,59 @@ function dataFixDoorSounds(s, resid, n) {
   }
   if (out.length !== n) throw new Error(what + ' plays its sound ' + out.length + ' times, not ' + n);
   return out.sort((a, b) => b.at - a.at);
+}
+// One schedule post of character `ch` moved (0xF00B): the entry at level
+// `lv`, square (x, y) and `hour`, to (nx, ny). Bytes 5 to 7 of an entry are
+// x << 12 | y. Exactly one such entry, or the build stops.
+function dataFixMovePost(what, ch, lv, x, y, hour, nx, ny) {
+  return { what, resid: 0xF00B, fn: b => {
+    let p = 512, found = [];
+    for (let i = 0; i < 256; i++) {
+      const len = u16be(b, i * 2);
+      for (let k = 0; k < len; k++, p += 8) {
+        if (i !== ch) continue;
+        const xy = (b[p + 5] << 16) | (b[p + 6] << 8) | b[p + 7];
+        if (b[p] === hour && b[p + 4] === lv && (xy >> 12) === x && (xy & 0xFFF) === y) found.push(p);
+      }
+    }
+    if (found.length !== 1) throw new Error('character ' + ch + ' has ' + found.length + ' posts at ' + hour + ':00 on (' + x + ',' + y + '), not 1');
+    const v = (nx << 12) | ny, q = found[0];
+    b[q + 5] = (v >> 16) & 0xFF; b[q + 6] = (v >> 8) & 0xFF; b[q + 7] = v & 0xFF;
+    return 'character ' + ch + '’s ' + hour + ':00 post moved from (' + x + ',' + y + ') to (' + nx + ',' + ny + ')';
+  } };
+}
+// A class made a seat: its Chair entry (key 34, 0x22) points at a one-word
+// array holding `word`, 0 to seat a person at the seat's aspect and 1 to 4
+// at north, east, south or west (TViewer::InteractProps, exeSeatRule). The
+// array goes after the table, which a class resource's first halfword
+// locates, so nothing before it moves. A Chair entry of None is pointed at
+// it (the bed's); with none the entry is added to the table's end, which
+// must be the resource's end.
+function dataFixSeatClass(what, resid, word) {
+  return { what, resid, fn: b => {
+    const toff = u16be(b, 0), count = u16be(b, toff) & 0x0FFF;
+    if (toff + 2 + count * 6 > b.length) throw new Error('no class table at ' + toff);
+    let slot = -1;
+    for (let i = 0, p = toff + 2; i < count; i++, p += 6) {
+      if (u16be(b, p + 4) !== 34) continue;
+      if (u32be(b, p) !== 0x5000FFFF) throw new Error('0x' + resid.toString(16).toUpperCase() + ' is a seat already');
+      slot = p;
+    }
+    const add = slot < 0;
+    if (add && toff + 2 + count * 6 !== b.length) throw new Error('the table is not the end of 0x' + resid.toString(16).toUpperCase());
+    const out = new Uint8Array(b.length + (add ? 6 : 0) + 6);
+    out.set(b);
+    if (add) {
+      slot = b.length;
+      out[toff] = (u16be(b, toff) & 0xF000 | (count + 1)) >> 8; out[toff + 1] = (count + 1) & 0xFF;
+      out[slot + 4] = 0; out[slot + 5] = 34;
+    }
+    const arr = out.length - 6, ref = (0x80000000 | (resid << 16) | arr) >>> 0;
+    out[arr] = 0x90; out[arr + 1] = 0x01;
+    out[arr + 2] = (word >>> 24) & 0xFF; out[arr + 3] = (word >>> 16) & 0xFF; out[arr + 4] = (word >>> 8) & 0xFF; out[arr + 5] = word & 0xFF;
+    out[slot] = ref >>> 24; out[slot + 1] = (ref >>> 16) & 0xFF; out[slot + 2] = (ref >>> 8) & 0xFF; out[slot + 3] = ref & 0xFF;
+    return out;
+  } };
 }
 // Element `el` of a class's data array under `key`, `was` before and `to`
 // after, found through the class's table (dvmDiscover) in the bytes as the
