@@ -761,7 +761,9 @@ try {
      continue` became a block since 25 September 2026, when a block was
      allowed to leave for its loop's exits: `if (c) { ...; break }`. */
   const t987 = ctx.document.getElementById('textContent').innerHTML;
-  if (!/\n    001A  for Var01 in Worn\(Arg01\) \{\n/.test(t987) ||
+  // A syscall's name is a link to its handler since v1.380.0 (handlerLink),
+  // so the patterns below take the name with or without the link around it.
+  if (!/\n    001A  for Var01 in (<a [^>]*>)?Worn(<\/a>)?\(Arg01\) \{\n/.test(t987) ||
       !/\n    0034      if \(Arg01 has MeleeWeapon\) \{\n/.test(t987) || !/\n    003F          (<a [^>]*>)?break(<\/a>)?\n/.test(t987))
     fail('script page', '0x987 does not read as a for loop with an if holding a break');
   // The break is a link to where it goes, the statement after the loop.
@@ -778,17 +780,17 @@ try {
      negative number it is, as the raw listing's note shows. */
   ctx.jumpToResource(0x1A00);
   const t1A00 = ctx.document.getElementById('textContent').innerHTML;
-  if (!/PlaySound\(48, [^\n]*\/\/ sound 48[^\n]*jumpToResource\(37168\)/.test(t1A00))
+  if (!/PlaySound(<\/a>)?\(48, [^\n]*\/\/ sound 48[^\n]*jumpToResource\(37168\)/.test(t1A00))
     fail('script page', 'the sound in 0x1A00 is not named in a comment with a link to 0x9130');
   // The wiki's label for 0x9130 and the board's name for status flag 9 are
   // tables typed into the page, and must not reach these comments.
   // A zoneport by the title its zone's entry script sets, a prop type by the
   // file's name for its base tile (0xF004).
   ctx.jumpToResource(0x1001);
-  if (!/teleport\(13, 141, 0\)   \/\/ zoneport 141: Cythera/.test(ctx.document.getElementById('textContent').innerHTML))
+  if (!/teleport(<\/a>)?\(13, 141, 0\)   \/\/ zoneport 141: Cythera/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the zoneport 0x1001 changes to is not named from the file');
   ctx.jumpToResource(0xD09);
-  if (!/addinv\(Arg00, 130, [^\n]*\/\/ prop type 130: obol/.test(ctx.document.getElementById('textContent').innerHTML))
+  if (!/addinv(<\/a>)?\(Arg00, 130, [^\n]*\/\/ prop type 130: obol/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the prop type 0xD09 creates is not named from the file');
   ctx.setBuiltinLabels(true);
   for (const rid of [0x1A00, 0xA04]) {
@@ -797,7 +799,7 @@ try {
     if (/\/\/[^\n]*(poison|Directed Nexus)/.test(t)) fail('script page', 'a hand-typed name reached a comment in 0x' + rid.toString(16));
   }
   ctx.jumpToResource(0x1820);
-  if (!/AddToDo\(10, [^\n]*\/\/ To Do 10: (&quot;|")Ask Thuria about Iron Mine/.test(ctx.document.getElementById('textContent').innerHTML))
+  if (!/AddToDo(<\/a>)?\(10, [^\n]*\/\/ To Do 10: (&quot;|")Ask Thuria about Iron Mine/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'the To Do line Ake (0x1820) adds is not named');
   /* A member read is named (`class_member 0x3400` is Lockable's first word),
      a resource that is one function is headed with the name its callers use,
@@ -815,7 +817,7 @@ try {
   if (!/jumpToResource\(3859\)[^>]*>0xF13</.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', '0x98C does not call 0xF13 by its id, as a link');
   ctx.jumpToResource(0x1403);
-  if (!/SetAmbientLight\(-128\)/.test(ctx.document.getElementById('textContent').innerHTML))
+  if (!/SetAmbientLight(<\/a>)?\(-128\)/.test(ctx.document.getElementById('textContent').innerHTML))
     fail('script page', 'a negative byte in 0x1403 is not printed as a negative number');
   /* A goto that is left is a link to its label, and the label is printed.
      0x812's L0488 over an if was the example until 25 September 2026, when
@@ -1051,7 +1053,8 @@ try {
   ctx.setScriptFold('structured');
   const back = REGISTRY.get('textContent').innerHTML;
   if (!on || !/readList/.test(read)) fail('read view', 'the Read view did not show on a script');
-  else if (!/Remove ability the target, 22/i.test(read) || !/is awoken/.test(read)) fail('read view', 'Awaken\'s UseOn is not written: ' + read.replace(/<[^>]+>/g, ' ').slice(0, 200));
+  // Flag 22 by the program's name for it since v1.382.0, "Sleep (flag 22)".
+  else if (!/Remove ability the target, (\w[\w ]* \(flag 22\)|22)/i.test(read) || !/is awoken/.test(read)) fail('read view', 'Awaken\'s UseOn is not written, and the view reads ' + read.replace(/<[^>]+>/g, ' ').slice(0, 200));
   // A method's first argument is the thing it belongs to, written "it"; a
   // behaviour the game's Look text names is written with that word; and
   // each function heads with what it does.

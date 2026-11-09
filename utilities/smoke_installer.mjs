@@ -445,7 +445,8 @@ if (visePath && existsSync(visePath) && !onlyCat) {
       const folded = REGISTRY.get('textContent').innerHTML;
       if (!pn || !pn.syscalls || !syscallNames.size) fail('program names', 'the handler table was not read');
       else if ([...syscallNames].some(([op, n]) => pn.syscalls.get(op) !== n)) fail('program names', 'programNames and the handler table differ');
-      else if (!/sys nearby/.test(raw) || /sys IsInParty/.test(raw) || !/\bnearby\(/.test(folded)) fail('program names', 'the listing does not print the program\u2019s names');
+      // The name is a link to its handler since v1.380.0 (handlerLink).
+      else if (!/sys (<a [^>]*>)?nearby/.test(raw) || /sys (<a [^>]*>)?IsInParty/.test(raw) || !/\bnearby(<\/a>)?\(/.test(folded)) fail('program names', 'the listing does not print the program\u2019s names');
       else if (ctx.dvmFlagName(9) !== 'Poisoned' || ctx.dvmFlagName(18) !== 'Night Vision' || ctx.dvmFlagName(0) !== null || ctx.dvmFlagName(24) !== null)
         fail('program names', 'the flags are misnamed: ' + [9, 18, 0, 24].map(ctx.dvmFlagName).join(', '));
       else if (ctx.dvmBitFlagName(6) !== 'InParty' || ctx.dvmBitFlagName(7) !== 'BeenMet') fail('program names', 'the byte-8 bits are misnamed');
