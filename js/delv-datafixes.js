@@ -1207,6 +1207,99 @@ const DATA_FIXES = [
   { id: 'opheltius-chair', group: 'world', stage: 'bugfix', title: 'Opheltius sits in the chair beside Thuria at one o\u2019clock, instead of on the courtyard railing',
     played: 'fork, PowerPC, 9 November 2026, alone: a played save in Cademia with the clock set to just before 1 pm and the hero at (100,95), and thirty turns passed; Opheltius is saved in the chair at (100,93) at aspect 3, seated facing north, against (99,97) at aspect 6, standing short of the railing, on the shipped file',
     dataEdits: [dataFixMovePost('the chair', 51, 8, 99, 92, 13, 100, 93)] },
+  /* The Seldane asleep (the maintainer, 10 November 2026). Unhayt (122,
+     type 85), Seqedher (123) and Uset (124, both type 86) each have one
+     sleeping post (behavior 145) on level 9, at 10:00, 6:00 and 15:00, on
+     a pallet (type 176, "palette" [sic]): aspect 3 at (86,25) and (90,41),
+     laid north to south with its north half a piece, aspect 1 at (97,35),
+     laid east to west with its west half a piece. The sleep script 0x3020
+     swaps a sleeper for type 264, "person sleeping", only beside a bed
+     (type 14), so the three stand on their pallets. Type 209, "sleeping
+     seldane", is eight tiles (base 1416) of the pallet's frame with a
+     Seldane under a sheet, and no script names it: aspects 0 to 3 a man
+     with short hair, 4 to 7 a woman with her hair spread (Unhayt's portrait
+     is a man's, Seqedher's and Uset's women's), each four the head half and
+     the sheet half of a pallet laid north to south, then east to west
+     (tile_match against tiles 788 to 791).
+
+     The Seldane stand on the pallet's record square, its sheet half, so the
+     sheet tiles (1417, 1419, 1421, 1423) are given the pallet's spans in
+     the tile attributes (0xF002), 0x40 and 0x80, and the head tile before
+     each is drawn as its piece, as tiles 790 and 788 are for the pallet. In
+     0x3020, when no bed was found, a pallet on the sleeper's square at
+     aspect 3 gives aspect 1, at aspect 1 aspect 3, plus 4 for type 86, and
+     the swap writes type 209 (a seventh local, Var06, that is 264 for a
+     bed). The tests of type 264, for the snoring and for the waking,
+     accept 209 as well.
+
+     Type 209 has no unit in 0xF008, as 264 had none (sleeping-units), and
+     a Seldane saved asleep and loaded is rebuilt on its map record's type,
+     209, which the program fix sleeper-unit does not look past (it tests
+     for 264). So the table's first free slot is made a unit for 209, a
+     copy of type 86's: a woman's body and the Seldane's flags, which leaves
+     Unhayt a woman's body if he is killed in that case. The edits to
+     0x3020 are `late`, so eat-to-heal's edit of a later stage, at a number
+     read off the shipped file, is carried past them. */
+  { id: 'seldane-asleep', group: 'world', stage: 'bugfix', title: 'The Seldane are drawn asleep on their pallets, instead of standing on them',
+    played: 'in part, fork, PowerPC, 10 November 2026, alone. In Pnyx, a pallet laid north to south with an egg on its south half hatching a Seldane woman (type 86) asleep, and one laid east to west with an egg on its east half hatching a man (type 85) asleep, the hero beside them, thirty turns passed. With the fix both are drawn under a sheet covering the whole pallet, the woman with her hair spread at the north end and the man at the west end, against standing on the bare pallets on the shipped file. The same save given an awake behavior wakes both, standing again and walking off. Unhayt, Seqedher and Uset in their cave were not played, since their eggs did not hatch for a hero put there by an edit',
+    plan: (s) => {
+      const R = 0x3020, ptype = 176, stype = 209;
+      const word = (a, t) => dataFixHex((a << 10) | t);
+      return {
+        dataEdits: [
+          dataFixLocals(s, 'a local for the sleeping type', R, 0x0028, 6, 7),
+          { what: 'the sheet halves drawn with the head halves as pieces', resid: 0xF002, fn: b => {
+            const out = [];
+            for (const [tile, span] of [[1417, 0x40], [1419, 0x80], [1421, 0x40], [1423, 0x80]]) {
+              const p = tile * 4 + 3;
+              if (p >= b.length || (b[p] & 0xC0)) throw new Error('tile ' + tile + ' has a span already, or no attribute word');
+              b[p] |= span; out.push(tile + ' 0x' + span.toString(16));
+            }
+            return 'spans ' + out.join(', ');
+          } },
+          { what: 'a unit for the sleeping Seldane', resid: 0xF008, fn: b => {
+            const key = i => (b[i * 16 + 12] << 8) | b[i * 16 + 13];
+            let n = 0; while (n < 128 && key(n)) n++;
+            const at = t => { for (let i = 0; i < n; i++) if (key(i) === t) return i; return -1; };
+            const woman = at(86);
+            if (at(stype) >= 0) throw new Error(stype + ' has a unit already');
+            if (woman < 0 || ((b[woman * 16 + 14] << 8) | b[woman * 16 + 15]) !== 0x344E) throw new Error('type 86’s unit is not where the page read it');
+            if ((n + 1) * 16 > b.length || b.slice(n * 16, (n + 1) * 16).some(v => v)) throw new Error('slot ' + n + ' is not empty');
+            b.copyWithin(n * 16, woman * 16, woman * 16 + 16); b[n * 16 + 12] = stype >> 8; b[n * 16 + 13] = stype & 0xFF;
+            return 'unit ' + n + ' (' + stype + ', as type 86)';
+          } },
+        ],
+        // Highest offsets first, each place found in the shipped listing.
+        edits: [
+          dataFixInsert(s, 'waking from type 209 too', R, ['get_field obj_type (0x4)', 'short 0x0108', 'eq', 'then ->'], 3,
+            'arg Arg00\nget_field obj_type (0x4)\nshort ' + dataFixHex(stype) + '\neq\nor'),
+          dataFixReplaceOp(s, 'the swap writes the sleeping type to the record', R,
+            ['set_field aspect_and_proptype (0x5)', 'arg Arg00', 'end', 'local Var01', 'byte 0x0A', 'left_shift', 'short 0x0108'], 6, 'local Var06'),
+          dataFixReplaceOp(s, 'the swap writes the sleeping type to field 0x24', R,
+            ['set_field 0x24', 'arg Arg00', 'end', 'local Var01', 'byte 0x0A', 'left_shift', 'short 0x0108'], 6, 'local Var06'),
+          dataFixInsert(s, 'a pallet on the sleeper’s square', R, ['if_not', 'local Var01', 'word None', 'ne', 'then ->'], 0, [
+            'if_not', 'local Var01', 'word None', 'eq', 'then -> pdone',
+            'set_local 0x00', 'sys LocationIterator', 'word &Var1', 'byte 0x00', 'arg Arg00', 'get_field x (0x1)', 'arg Arg00', 'get_field y (0x2)', 'end', 'end',
+            'ploop:',
+            'if', 'sys LocationIterator', 'word &Var1', 'byte 0x01', 'end', 'then -> pdone',
+            'if_not', 'local Var00', 'get_field aspect_and_proptype (0x5)', 'short ' + word(3, ptype), 'eq', 'then -> pwest',
+            'set_local 0x01', 'byte 0x01', 'end', 'branch pfound',
+            'pwest:',
+            'if_not', 'local Var00', 'get_field aspect_and_proptype (0x5)', 'short ' + word(1, ptype), 'eq', 'then -> pnext',
+            'set_local 0x01', 'byte 0x03', 'end', 'branch pfound',
+            'pnext:',
+            'set_local 0x00', 'sys LocationIterator', 'word &Var1', 'byte 0x02', 'end', 'end', 'branch ploop',
+            'pfound:',
+            'set_local 0x06', 'short ' + dataFixHex(stype), 'end',
+            'if_not', 'arg Arg00', 'get_field obj_type (0x4)', 'short 0x0056', 'eq', 'then -> pdone',
+            'set_local 0x01', 'local Var01', 'byte 0x04', 'add', 'end',
+            'pdone:'].join('\n')),
+          dataFixInsert(s, 'a bed swaps to type 264', R, ['set_local 0x01', 'word None', 'end'], 0, 'set_local 0x06\nshort 0x0108\nend'),
+          dataFixInsert(s, 'snoring for type 209 too', R, ['get_field obj_type (0x4)', 'short 0x0108', 'ne', 'then ->'], 3,
+            'arg Arg00\nget_field obj_type (0x4)\nshort ' + dataFixHex(stype) + '\nne\nand'),
+        ].map(e => Object.assign(e, { late: true })),
+      };
+    } },
 
   /* ---- Further fixes (the stage "further"; further_fixes_patch.mjs,
      "Cythera Further Fixes") ------------------------------------------------

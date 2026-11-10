@@ -2966,7 +2966,15 @@ function seatsOnMap(resid, m) {
    behavior (145), each LocationIterator's offset from the character's
    square with the packed word it compares and the aspect it sets, and the
    type of the swap (264, "person sleeping"). Null when the shape is not
-   there. */
+   there.
+
+   The seldane-asleep fix adds a second shape, which this reads too, so a
+   patched file's map shows its sleepers: the swap's type is a local (264
+   before the beds, 209 before the pallet's search), and the pallet's
+   search is written with jumps rather than a for-each: an iterator begun
+   on the sleeper's square, a compare and an aspect for each way the
+   pallet lies, and a sum that adds 4 for one type of sleeper (86, the
+   women). Each place to sleep has a type and that sum. */
 function sleepRule() {
   if (DERIVED.SLEEP_RULE !== undefined) return DERIVED.SLEEP_RULE;
   let rule = null;
@@ -2974,20 +2982,48 @@ function sleepRule() {
     const raw = getResourceBytes(ARCHIVE, 0x3020);
     const text = raw ? dvmStructureRender(ARCHIVE, smartDecrypt(raw, 0x3020).data, 0x3020) || '' : '';
     const lines = text.split('\n');
-    const beh = /\.behavior == (\d+)\)/.exec(text), swap = /\.aspect_and_proptype = \(\(\w+ << 10\) \| (\d+)\)/.exec(text);
+    const beh = /\.behavior == (\d+)\)/.exec(text), swap = /\.aspect_and_proptype = \(\(\w+ << 10\) \| (\d+|Var\d+)\)/.exec(text);
+    // The first line from `from` on that sets the local `name` to a number.
+    const setAt = (name, from) => {
+      for (let k = from; k < lines.length; k++) {
+        const m = /^\s+[0-9A-F]{4}\s+(\w+) = (\d+)$/.exec(lines[k]);
+        if (m && m[1] === name) return +m[2];
+      }
+      return null;
+    };
+    const byLocal = swap && !/^\d+$/.test(swap[1]);
+    const type = !swap ? null : byLocal ? setAt(swap[1], 0) : +swap[1];
+    // `Arg00.x, (Arg00.y + 1)`: the offset is whatever is added to each.
+    const off = s => { const m = /\+ (\d+)\)?$/.exec(s || ''); return m ? +m[1] : 0; };
     const beds = [];
     for (let i = 0; i + 2 < lines.length; i++) {
       const it = /for \w+ in LocationIterator\((.*)\) \{$/.exec(lines[i]);
       const cmp = it && /\.aspect_and_proptype == (\d+)\)/.exec(lines[i + 1]);
       const set = cmp && /^\s+[0-9A-F]{4}\s+\w+ = (\d+)$/.exec(lines[i + 2]);
       if (!set) continue;
-      // `Arg00.x, (Arg00.y + 1)`: the offset is whatever is added to each.
       const [ax, ay] = it[1].split(/, (?![^(]*\))/);
-      const off = s => { const m = /\+ (\d+)\)?$/.exec(s || ''); return m ? +m[1] : 0; };
       const w = +cmp[1];
-      beds.push({ dx: off(ax), dy: off(ay), proptype: w & 0x3FF, aspect: w >> 10, sleepAspect: +set[1] });
+      beds.push({ dx: off(ax), dy: off(ay), proptype: w & 0x3FF, aspect: w >> 10, sleepAspect: +set[1], type, plus: null });
     }
-    if (beh && swap && beds.length) rule = { behavior: +beh[1], type: +swap[1], beds };
+    for (let i = 0; i < lines.length; i++) {
+      const it = /\w+ = LocationIterator\(&\w+, 0, (.*)\)$/.exec(lines[i]);
+      if (!it) continue;
+      const [ax, ay] = it[1].split(/, (?![^(]*\))/), found = [];
+      let k = i + 1;
+      for (; k + 1 < lines.length && !/ = LocationIterator\(&\w+, 2\)$/.test(lines[k]); k++) {
+        const cmp = /\.aspect_and_proptype == (\d+)\)\)\) goto/.exec(lines[k]);
+        const set = cmp && /^\s+[0-9A-F]{4}\s+\w+ = (\d+)$/.exec(lines[k + 1]);
+        if (set) found.push({ w: +cmp[1], sleepAspect: +set[1] });
+      }
+      let plus = null;
+      for (let j = k; j + 1 < lines.length && !/\.aspect_and_proptype = /.test(lines[j]); j++) {
+        const who = /\.obj_type == (\d+)\)/.exec(lines[j]), add = who && /= \(\w+ \+ (\d+)\)$/.exec(lines[j + 1]);
+        if (add) { plus = { type: +who[1], add: +add[1] }; break; }
+      }
+      const t = byLocal ? setAt(swap[1], k) : type;
+      for (const f of found) beds.push({ dx: off(ax), dy: off(ay), proptype: f.w & 0x3FF, aspect: f.w >> 10, sleepAspect: f.sleepAspect, type: t, plus });
+    }
+    if (beh && type !== null && beds.length) rule = { behavior: +beh[1], type, beds };
   } catch (e) { quiet(e, 'the sleep rule in 0x3020'); }
   return (DERIVED.SLEEP_RULE = rule);
 }
@@ -3006,14 +3042,16 @@ function bedsOnMap(resid) {
   DERIVED.MAP_BEDS = { resid, map: out };
   return out;
 }
-// The sleeping aspect for a character at (x, y) on this map, or null:
-// the first bed of the rule's order that is there, as 0x3020 tries them.
-function sleepAspectAt(resid, x, y) {
+// The sleeping type and aspect for a character of type `ptype` at (x, y)
+// on this map, or null: the first place of the rule's order that is
+// there, as 0x3020 tries them.
+function sleepAt(resid, x, y, ptype) {
   const rule = sleepRule();
   if (!rule) return null;
   const beds = bedsOnMap(resid);
   for (const b of rule.beds)
-    if (beds.get((x + b.dx) + ',' + (y + b.dy)) === ((b.aspect << 10) | b.proptype)) return b.sleepAspect;
+    if (beds.get((x + b.dx) + ',' + (y + b.dy)) === ((b.aspect << 10) | b.proptype))
+      return { type: b.type, aspect: b.sleepAspect + (b.plus && b.plus.type === ptype ? b.plus.add : 0) };
   return null;
 }
 
@@ -3038,10 +3076,10 @@ function charactersOnLevel(level, hour) {
     const rule = sleepRule();
     // The bed is looked up on the level's map, 0x8000 plus the level, since
     // the World tab draws levels other than the open zone.
-    const sa = rule && !w.walking && e.mode === rule.behavior ? sleepAspectAt(0x8000 + level, w.x, w.y) : null;
-    if (sa !== null && props[rule.type] !== undefined) {
+    const sa = rule && !w.walking && e.mode === rule.behavior ? sleepAt(0x8000 + level, w.x, w.y, c.proptype) : null;
+    if (sa && props[sa.type] !== undefined) {
       // In bed: the sleeping type at the bed's aspect, on the sleeper's square.
-      base0 = props[rule.type]; aspect = sa; asleep = true;
+      base0 = props[sa.type]; aspect = sa.aspect; asleep = true;
     } else if (w.walking && w.dir !== undefined) {
       // Column layout: 0=left-foot-forward, 1=standing, 2=right-foot-forward,
       // 3=sitting (not used while walking). Confirmed by the saved game quoted
@@ -3061,7 +3099,7 @@ function charactersOnLevel(level, hour) {
                walking: !!w.walking, dir: w.dir, sitting: !!sitting, asleep,
                standingAsleep: !asleep && !w.walking && !!rule && e.mode === rule.behavior,
                seat: sitting || null, path: w.path || null, pi: w.i,
-               proptype: asleep ? rule.type : c.proptype, aspect, base: base0, tile: base0 + aspect });
+               proptype: asleep ? sa.type : c.proptype, aspect, base: base0, tile: base0 + aspect });
   }
   keepApart(out);
   return out;
