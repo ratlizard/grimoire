@@ -793,17 +793,23 @@ const APP_FIXES = [
   // was never affected: HatchEgg builds it on a record of the template's
   // type, and the swap comes later. The stream constructor restores the
   // character record, stats and all, from the save, so a sleeper's stats
-  // never came from the unit on that path.
+  // never came from the unit on that path. The data fix seldane-asleep
+  // swaps a Seldane on a pallet to type 209, "sleeping seldane", in the
+  // same way, so 209 is looked past as 264 is, and Unhayt (type 85) has a
+  // man's body where the one unit that fix gives 209 is a woman's (the
+  // maintainer, 10 November 2026).
   { id: 'sleeper-unit', kind: 'fix', title: 'A character made while asleep has the right unit, so they leave their body, not a man’s or a random thing',
-    played: 'fork, PowerPC, 30 September 2026: a sleeping guard and Lindus asleep, loaded from saves and killed, leave their bodies, where the unpatched game left none',
+    played: 'fork, PowerPC, 30 September 2026, a sleeping guard and Lindus asleep, loaded from saves and killed, leave their bodies, where the unpatched game left none. The sleeping Seldane (type 209, added 10 November 2026) not played on either program',
     bug: 'NPCs killed in one hit or asleep turn into other objects',
     sites: [
       { at: 0x44C00, was: [0x4BFFFE61], asm: ['bl @named             ; was bl ObjToMonst'] },
       { at: 0x46090, was: [0x4BFFE9D1], asm: ['bl @loaded            ; was bl ObjToMonst'] }],
-    cave: ['named:', 'cmpwi 3, 264', 'bne @lookup', 'extsh 4, 26            ; the character', 'cmpwi 4, 256', 'bge @lookup',
+    cave: ['named:', 'cmpwi 3, 264', 'beq @named1', 'cmpwi 3, 209          ; the sleeping Seldane (seldane-asleep)', 'bne @lookup',
+           'named1:', 'extsh 4, 26            ; the character', 'cmpwi 4, 256', 'bge @lookup',
            'lwz 5, -30352(2)', 'slwi 4, 4, 5', 'add 5, 5, 4', 'lhz 3, 20(5)          ; field 0x25, which sleep leaves alone', 'clrlwi 3, 3, 22',
            'lookup:', 'b @ObjToMonst__Fs',
-           'loaded:', 'cmpwi 3, 264', 'bne @lookup', 'lha 5, 144(31)         ; the template, read from the save', 'cmpwi 5, 256', 'blt @own',
+           'loaded:', 'cmpwi 3, 264', 'beq @loaded1', 'cmpwi 3, 209', 'bne @lookup',
+           'loaded1:', 'lha 5, 144(31)         ; the template, read from the save', 'cmpwi 5, 256', 'blt @own',
            'lwz 6, 0(22)', 'slwi 5, 5, 4', 'add 5, 6, 5', 'lhz 3, 4(5)', 'clrlwi 3, 3, 22        ; the template’s type', 'b @ObjToMonst__Fs',
            'own:', 'lha 4, 8(28)           ; no template: the creature’s number', 'cmpwi 4, 256', 'bge @lookup',
            'lwz 5, -30352(2)', 'slwi 4, 4, 5', 'add 5, 5, 4', 'lhz 3, 20(5)          ; a named character’s type', 'clrlwi 3, 3, 22', 'b @ObjToMonst__Fs'] },

@@ -484,7 +484,10 @@ const APP_FIXES_68K = {
     { fixes: ['sleeper-unit', 'unit-guard'], seg: 7, site: 0x124, was: '3f0161fffffffee4226e000823480004', bodies: {
       'sleeper-unit': [
         '0c410108',                                  // cmpi.w #$108, d1
+        'b67 asleep',
+        '0c4100d1',                                  // cmpi.w #$d1, d1
         'b66 lookup',
+        ':asleep',
         '0c450100',                                  // cmpi.w #$100, d5
         'b6c lookup',
         '3005',                                      // move.w d5, d0
@@ -521,7 +524,10 @@ const APP_FIXES_68K = {
       ],
       'sleeper-unit+unit-guard': [
         '0c410108',                                  // cmpi.w #$108, d1
+        'b67 asleep',
+        '0c4100d1',                                  // cmpi.w #$d1, d1
         'b66 lookup',
+        ':asleep',
         '0c450100',                                  // cmpi.w #$100, d5
         'b6c lookup',
         '3005',                                      // move.w d5, d0
@@ -552,7 +558,10 @@ const APP_FIXES_68K = {
     { fixes: ['sleeper-unit', 'unit-guard'], seg: 7, site: 0x1242, was: '3f0161ffffffedc6226e000823480004', bodies: {
       'sleeper-unit': [
         '0c410108',                                  // cmpi.w #$108, d1
+        'b67 asleep',
+        '0c4100d1',                                  // cmpi.w #$d1, d1
         'b66 lookup',
+        ':asleep',
         '302effc6',                                  // move.w -$3a(a6), d0
         '0c400100',                                  // cmpi.w #$100, d0
         'b6d own',
@@ -594,7 +603,10 @@ const APP_FIXES_68K = {
       ],
       'sleeper-unit+unit-guard': [
         '0c410108',                                  // cmpi.w #$108, d1
+        'b67 asleep',
+        '0c4100d1',                                  // cmpi.w #$d1, d1
         'b66 lookup',
+        ':asleep',
         '302effc6',                                  // move.w -$3a(a6), d0
         '0c400100',                                  // cmpi.w #$100, d0
         'b6d own',
@@ -701,7 +713,7 @@ const APP_FIXES_68K = {
     'right-click': '0ea255ae9bbd6a6245a40cadc2c088d99adb7a6bf4a9abdbe2e985296a2994a6',
     'roster-pose': '1fd70d8d33466cceba59699538e7db789064f06c903d55d1fefdf4c5b502fc0a',
     'sleep-hidden': 'b69b37f742be25cc87c88d5981117fee40767a995763fdd8e5c83eb27ff5b7d1',
-    'sleeper-unit': '2e0eb0000a1f94533d056a050d7e72bf6863eb1fd8d2b17a90b04c9bcc871dd6',
+    'sleeper-unit': '82725019e4367d411ad0840d4c1cb0894dcd42be8d78cbe84831a1b0c0b4fe3d',
     'speech-clear': 'a7b91ddb66d51c5d86f21da10870af5878909ef0da2d0f97b7916bece17b285b',
     'spell-glow': '65733e09cc4bc606b1fbe63aef755b7851da0c05978df73a04a41117315b40d3',
     'spot-tune': 'f4282e54cf9fed23384f888e205776324efba377f6c45d50c367dc7ef9340670',
@@ -718,6 +730,6 @@ const APP_FIXES_68K = {
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
     'window-leak': 'dafe456d790ddd4a39e181449b5724a0e0e3c2c8a8d1e33e032659968fcfa214',
-    '': 'e128221f849f31440106347ceb556b1ecaca2bc2b12d5bc80a43333146919c6b',   // every fix
+    '': '334b3dfa1c0235b3aeaf2b93c67988d86d542709c87cdba6e4750e10618004ad',   // every fix
   },
 };

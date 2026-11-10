@@ -1234,10 +1234,12 @@ const DATA_FIXES = [
 
      Type 209 has no unit in 0xF008, as 264 had none (sleeping-units), and
      a Seldane saved asleep and loaded is rebuilt on its map record's type,
-     209, which the program fix sleeper-unit does not look past (it tests
-     for 264). So the table's first free slot is made a unit for 209, a
-     copy of type 86's: a woman's body and the Seldane's flags, which leaves
-     Unhayt a woman's body if he is killed in that case. The edits to
+     209. The program fix sleeper-unit looks past 209 to the sleeper's
+     real type, as it does past 264, so with it Unhayt leaves a man's body.
+     For a program without it, the table's first free slot is made a unit
+     for 209, a copy of type 86's: a woman's body and the Seldane's flags,
+     which leaves Unhayt a woman's body if he is killed in that case. The
+     edits to
      0x3020 are `late`, so eat-to-heal's edit of a later stage, at a number
      read off the shipped file, is carried past them. */
   { id: 'seldane-asleep', group: 'world', stage: 'bugfix', title: 'The Seldane are drawn asleep on their pallets, instead of standing on them',
@@ -2706,9 +2708,18 @@ const DATA_FIXES = [
   // on a seat, the hero too. A bed's record is its right half, and only the
   // record's square seats, so Deiphobus and Paris on the left half sit only
   // with the program change seat-pieces (js/delv-appfixes.js).
-  { id: 'bed-chest-seats', group: 'design', stage: 'apart', title: 'Beds and chests are seats, so the people scheduled to sit on them sit, on a bed facing south',
-    played: 'in part, fork, PowerPC, 9 November 2026, with the program change seat-pieces. Deiphobus and Paris are saved seated facing south on the left half of their beds at 8 am, against standing on the stock program and file, and the game opens and saves with the file. Antiphus is saved seated on the stock file too (his record is the seated frame), and no chest seat was played',
-    dataEdits: [dataFixSeatClass('the bed', 0x100E, 3), dataFixSeatClass('the chest', 0x108D, 0)] },
+  // The pallet (type 176, class 0x10B0) is a seat in the same way as the
+  // bed, at 3, south (the maintainer, 10 November 2026: "make pallets
+  // sittable in the same way as beds"). It lies as a bed does, a record
+  // with a piece to the west (aspect 1) or to the north (aspect 3), so
+  // seat-pieces seats a person on either half, facing east on the north
+  // half of one laid north to south. Its table has three slots, and key
+  // 34's probe reaches slot 1, which is empty. No schedule seats anyone on
+  // a pallet. A Seldane asleep on one is type 209 (seldane-asleep), which
+  // has no class and so no four-way sprite. So a sleeper is never seated.
+  { id: 'bed-chest-seats', group: 'design', stage: 'apart', title: 'Beds, pallets and chests are seats, so the people scheduled to sit on them sit, on a bed or a pallet facing south',
+    played: 'in part, fork, PowerPC, 9 November 2026, with the program change seat-pieces. Deiphobus and Paris are saved seated facing south on the left half of their beds at 8 am, against standing on the stock program and file, and the game opens and saves with the file. Antiphus is saved seated on the stock file too (his record is the seated frame), and no chest seat was played. Pallets, 10 November 2026, the same program, with two pallets put in Pnyx by an edit, the hero moved onto each half of each and one turn passed. On one laid north to south the hero is saved at aspect 11 (south) on the south half and 7 (east) on the north half, and on one laid east to west at 11 on both, against aspect 5, standing, on all four on the stock program and file. Deiphobus and the north half were played again with the seat entries laid out before each class table',
+    dataEdits: [dataFixSeatClass('the bed', 0x100E, 3), dataFixSeatClass('the pallet', 0x10B0, 3), dataFixSeatClass('the chest', 0x108D, 0)] },
   // A thrown or shot missile's flight sound is one the archive lacks (25
   // October 2026). The ranged attack (0x3042) gives the missile a thrown
   // weapon's Thrown element 3 or the ammunition's Ammunition element 1 as
@@ -3010,12 +3021,17 @@ function dataFixSeatClass(what, resid, word) {
       if (v === 0x5000FFFF) { slot = p; break; }
     }
     if (slot < 0) throw new Error('no empty slot on key 34’s probe in 0x' + resid.toString(16).toUpperCase());
-    const out = new Uint8Array(b.length + 6);
-    out.set(b);
+    // The one-word array goes just before the table, which stays last, as
+    // the shipped classes have it: after the table, the page's reader of a
+    // resource's parts (dvmExtents) took the table for code, and a text
+    // edit of the pallet's class (0x10B0, the spelling fixes) then failed
+    // to read back (10 November 2026). The splice moves the header's
+    // pointer to the table with it (shiftAt).
+    const arr = toff, ref = (0x80000000 | (resid << 16) | arr) >>> 0;
+    const out = dvmRelink(b, resid, toff, 0, [0x90, 0x01, (word >>> 24) & 0xFF, (word >>> 16) & 0xFF, (word >>> 8) & 0xFF, word & 0xFF], { shiftAt: true }).bytes;
+    if (u16be(out, 0) !== toff + 6) throw new Error('the header does not point at the moved table');
+    slot += 6;
     out[slot + 4] = 0; out[slot + 5] = 34;
-    const arr = b.length, ref = (0x80000000 | (resid << 16) | arr) >>> 0;
-    out[arr] = 0x90; out[arr + 1] = 0x01;
-    out[arr + 2] = (word >>> 24) & 0xFF; out[arr + 3] = (word >>> 16) & 0xFF; out[arr + 4] = (word >>> 8) & 0xFF; out[arr + 5] = word & 0xFF;
     out[slot] = ref >>> 24; out[slot + 1] = (ref >>> 16) & 0xFF; out[slot + 2] = (ref >>> 8) & 0xFF; out[slot + 3] = ref & 0xFF;
     return out;
   } };
