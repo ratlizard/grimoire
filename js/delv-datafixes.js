@@ -290,6 +290,23 @@ const DATA_FIXES = [
       { what: 'sleep’s magic cap', resid: 0xE93, at: 0x0248, replaceOp: true, expect: { 0x0248: 'get_field full_health', 0x024E: 'set_field magic' }, code: 'get_field full_magic (0x1F)' },
       { what: 'sleep’s magic guard', resid: 0xE93, at: 0x0219, replaceOp: true, expect: { 0x0216: 'get_field magic', 0x0219: 'get_field full_health', 0x021B: 'lt' }, code: 'get_field full_magic (0x1F)' },
     ] },
+  // The first lesson in a skill (0xEAF): the training helper makes the new
+  // skill record with `sys New`, whose reference is a plain prop's, and
+  // calls `method __init__` on it uncast, so the call misses the skill's
+  // class. Mana (0x1AC2) is the one skill with an __init__, which sets
+  // full magic to mind plus the rank (0xE83), so a character's first Mana
+  // lesson leaves full magic at 0, and the level-up (0xE86) never
+  // recomputes a full magic of 0. A known skill's lesson calls __init__ on
+  // GetSkill's answer, a Skill, and works. Both of New's results are now
+  // cast to Skill, as 0xEA3 and the scroll (0x104B) cast theirs.
+  // The higher edit goes first, and its two bytes move the branch at 0x00CC
+  // on to 0x00E2, which is what the second edit then finds.
+  { id: 'first-mana', group: 'rules', stage: 'found', title: 'A first lesson in Mana now gives full magic of mind plus one, instead of none until a second lesson',
+    played: 'fork, 68K, 10 November 2026, alone and on “All Fixes”. A Fighter of mind 12 with no Mana took Lindus’s Yes and Mana once and had full magic 13 of 13, against 0 of 0 unpatched. A second Mana lesson gave 14 of 14 either way. Not played on Mac OS',
+    edits: [
+      { what: 'the new skill record, untrained', resid: 0xEAF, at: 0x00DF, expect: { 0x00D1: 'sys New', 0x00DE: 'end', 0x00DF: 'end', 0x00E0: 'method 0x00' }, code: 'cast Skill (0x50)' },
+      { what: 'the new skill record, trained', resid: 0xEAF, at: 0x00CB, expect: { 0x00BD: 'sys New', 0x00CA: 'end', 0x00CB: 'end', 0x00CC: 'branch 0x00E2' }, code: 'cast Skill (0x50)' },
+    ] },
   // The bartenders' rumours (0x813): the choice between the town's
   // rumours and the general ones rolled Random(0, 1), which is always 0; it
   // rolls Random(0, 2), so both are heard.
