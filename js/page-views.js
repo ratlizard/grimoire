@@ -728,14 +728,32 @@ function exeFlow(r, forCount, shapeOnly) {
   // A call whose count is unknown (through an address) reads all eight
   // argument registers, so no value it might be handed is dropped; for the
   // count it reads none, since its arguments are set beside it.
-  const callReads = n => n === null ? (forCount ? 0 : 8) : n;
+  /* A call whose count is unknown, through an address (`bctrl`) or the
+     glue that calls through a pointer (`bl` to 0xC50E8), reads what its
+     site sets from r3 up: the registers from r3 on, without a gap, that
+     something writes after the last branch or call before it. That is what
+     the pseudo-code prints as its arguments, and until 11 November 2026 it
+     was taken to read all eight, which kept every register line before such
+     a call whether the call read it or not (`grimoire/listing-hl26zm`). */
+  const siteReads = o => {
+    let mask = 0;
+    for (let j = idx(o.at) - 1; j >= 0; j--) {
+      const p = ops[j].d;
+      if (!p || p.branch) break;
+      for (const q of exeRegUse(p).w) mask |= 1 << q;
+    }
+    let n = 0;
+    while (n < 8 && (mask >>> (3 + n) & 1)) n++;
+    return n;
+  };
+  const callReads = (n, o) => n === null ? (forCount ? 0 : o ? siteReads(o) : 8) : n;
   const ud = o => {
     const d = o.d;
     if (!d) return { u: [], w: [] };
     if (!d.branch) return exeRegUse(d);
     const u = [], w = [];
     if (d.lk) {
-      const n = callReads(exeCalleeArgs(o));
+      const n = callReads(exeCalleeArgs(o), o);
       for (let i = 3; i <= 2 + n; i++) u.push(i);
       w.push(0, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
     }
@@ -1511,6 +1529,15 @@ function exePseudoBlocksAs(r, useTrees) {
     if (t === null) return { abs: k, node, kind: f.kind === 'jump' ? 'end' : 'plain', targets: [], negated: false };
     return { abs: k, node, kind: f.kind, targets: [t], negated: f.kind === 'cond' };
   });
+  /* A jump to the statement that comes next anyway does nothing, and is a
+     plain statement with no line. Once register lines that nothing reads
+     left the pseudo-code (11 November 2026), TDelverApp::DoSaveAs had
+     `if (c) { goto +0x78 }` with +0x78 the next line, where the lines
+     between had hidden that the jump goes nowhere. */
+  stmts.forEach((s, i) => {
+    if (s.kind === 'jump' && i + 1 < stmts.length && s.targets[0] === stmts[i + 1].abs)
+      stmts[i] = { abs: s.abs, node: s.node, kind: 'plain', targets: [], negated: false, noop: true };
+  });
   /* A switch compiled as a tree of compares (the handoff's
      `grimoire/listing-hl26zm`, 10 November 2026). CodeWarrior writes a
      sparse switch as a binary search: `cmpwi r0,189; beq case; bge upper`
@@ -1816,6 +1843,7 @@ function exePseudoBlocksAs(r, useTrees) {
           }
           let word = loops.exits.get(s);
           const where = s.targets.length === 1 ? (n.goes !== undefined ? n.goes : s.targets[0]) : null;
+          if (s.noop) break;
           if (!word && sw !== null && where === sw && (s.kind === 'jump' || s.kind === 'cond')) { word = SWITCH_BREAK; switchBreaks++; }
           if (s.kind === 'cond') line(atOf(s), depth, 'if (' + textOf(s, 'taken') + ') ' + (word || 'goto \u0001'), word ? null : goTo(where));
           else if (s.kind === 'jump') line(atOf(s), depth, word || 'goto \u0001', word ? null : goTo(where));

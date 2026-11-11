@@ -501,7 +501,11 @@ function run(control) {
               while (loop !== root && !stops(loop)) loop = loop.kind === 'else' ? loop.of.parent : loop.parent;
               if (loop === root) { bad.exits.push(where + ': ' + word + ' outside a loop'); continue; }
               dest = word === 'break' ? contOf(loop) : loop.kind === 'while' ? loop.line.at : loop.kind === 'do' ? loop.close.at : firstOf(loop);
-              const s = succ.get(k), jumpsTo = s && s[0] !== undefined && s[0] !== null ? L[s[0]].at : null;
+              // A joined condition goes where its last test jumps (E), which
+              // (6) checks against the parts' jumps; its first test can jump
+              // to T instead (TViewer::SetStage, +0x15b0).
+              const sj = listAt.get(k), s = sj && sj.joined ? [sj.targets[0]] : succ.get(k);
+              const jumpsTo = s && s[0] !== undefined && s[0] !== null ? L[s[0]].at : null;
               if (jumpsTo !== dest) bad.exits.push(where + ': ' + word + ' at +0x' + (c.stmt.at - r.offset).toString(16) + ' goes to ' + (jumpsTo === null ? 'nothing' : '+0x' + (jumpsTo - r.offset).toString(16)) + ', not ' + (dest === null ? 'the end' : '+0x' + (dest - r.offset).toString(16)));
             }
             if (m[1] && dest !== null && ![ANY, m[1]].includes(senseText(k, dest))) bad.sense.push(where + ': +0x' + (c.stmt.at - r.offset).toString(16) + ' jumps on ' + m[1]);

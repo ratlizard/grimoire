@@ -538,7 +538,7 @@ const CHECKS = [
      counts every import at eight, which the rule must catch. */
   {page: 'viewer', name: 'pseudo-code', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_check.mjs', 'index.html', APP_DATA], grep: /PSEUDO [^\n]*/,
-   expect: 'PSEUDO 1664 checked, 0 over, 67684 lines, 18274 register lines, 39 at eight'},
+   expect: 'PSEUDO 1664 checked, 0 over, 66917 lines, 17507 register lines, 39 at eight'},
   {page: 'viewer', name: 'pseudo-code control', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_check.mjs', 'index.html', APP_DATA, '--control'], grep: /PSEUDO control: [^\n]*/,
    expect: 'PSEUDO control: 69 routines over with every import at eight'},
@@ -547,7 +547,7 @@ const CHECKS = [
      controls, each required to fail the assertion named for it. */
   {page: 'viewer', name: 'pseudo-code blocks', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_blocks_check.mjs', 'index.html', APP_DATA], grep: /BLOCKS \d[^\n]*/,
-   expect: 'BLOCKS 1390 routines with jumps, 971 with no goto left, 2240 gotos left, 7889 blocks, 715 joined tests, 539 whiles with the test at the end, 129 trees of compares as switches with 598 places'},
+   expect: 'BLOCKS 1390 routines with jumps, 973 with no goto left, 2229 gotos left, 7884 blocks, 719 joined tests, 540 whiles with the test at the end, 129 trees of compares as switches with 598 places'},
   {page: 'viewer', name: 'pseudo-code blocks controls', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_blocks_check.mjs', 'index.html', APP_DATA, '--controls'], grep: /BLOCKS controls: [^\n]*/,
    expect: 'BLOCKS controls: all 8 fail their assertion'},
@@ -556,7 +556,7 @@ const CHECKS = [
      and lines pinned in three routines; three controls. */
   {page: 'viewer', name: 'pseudo-code fields', requiredInputs: [APP_DATA, DELV],
    cmd: ['utilities/pseudo_fields_check.mjs', 'index.html', APP_DATA, DELV], grep: /FIELDS \d[^\n]*/,
-   expect: 'FIELDS 30 fields in 4 tables, 2 record types, 785 of 67684 lines name a field'},
+   expect: 'FIELDS 30 fields in 4 tables, 2 record types, 781 of 66917 lines name a field'},
   {page: 'viewer', name: 'pseudo-code fields controls', requiredInputs: [APP_DATA, DELV],
    cmd: ['utilities/pseudo_fields_check.mjs', 'index.html', APP_DATA, DELV, '--controls'], grep: /FIELDS controls: [^\n]*/,
    expect: 'FIELDS controls: all 3 fail their assertion'},
