@@ -1056,7 +1056,7 @@ try {
     const pane = rid => { ctx.jumpToResource(rid); return REGISTRY.get('textContent').innerHTML; };
     const plain = h => h.replace(/<[^>]+>/g, '');
     const line = (h, re) => (re.exec(plain(h)) || ['no line'])[0];
-    const kosha = pane(0x1417), lever = pane(0x10C1), task = pane(0xC86), burst = pane(0x1A16), cd = pane(0x1174);
+    const kosha = pane(0x1417), lever = pane(0x10C1), task = pane(0xC86), burst = pane(0x1A16), cd = pane(0x1174), cry = pane(0xD06);
     if (!/signal 130 is tested in the GetMessage of 0x180A/.test(plain(kosha)) || !/onclick="jumpToResource\(6154\)">0x180A<\/a>/.test(kosha))
       fail('call comments', 'Kosha Grotto\'s signal 130 does not lead to the GetMessage of 0x180A, and the line reads ' + line(kosha, /[^\n]*SendSignal\(130\)[^\n]*/));
     else if (!/signal 34 reaches the portcullis at 15,41 in zone 25/.test(plain(lever)) || !/atlasOpenSquare\(32793,15,41\)/.test(lever))
@@ -1065,6 +1065,10 @@ try {
       fail('call comments', 'behavior 78 does not lead to 0x0C4E through 0x3021, and the line reads ' + line(task, /[^\n]*behavior 78[^\n]*/));
     else if (!/bits 0x28: missile kind 0 \(TGameViewer::DoMissile\), no line walk, burst type 2 \(TGameViewer::DoBurst\)/.test(plain(burst)) || !/jumpToExeAt\(\d+\)">TGameViewer::DoBurst<\/a>/.test(burst))
       fail('call comments', 'MissileFX\'s bits 40 are not split with links, and the line reads ' + line(burst, /[^\n]*MissileFX[^\n]*/));
+    // Signal 320 reaches no prop and no GetMessage compares it; the default
+    // GetMessage, 0x3015, passes it on to 0xD07, which does (11 November 2026).
+    else if (!/signal 320 is tested in [^\n]*0x0D07 from the GetMessage of 0x3015/.test(plain(cry)) || !/onclick="jumpToResource\(3335\)">0x0D07<\/a>/.test(cry))
+      fail('call comments', 'signal 320 does not lead to 0xD07 through the default GetMessage, and the line reads ' + line(cry, /[^\n]*SendSignal\(320\)[^\n]*/));
     else if (!/CD_Tool\(10, None\)\s+\/\/ Command 10 ejects the disc/.test(plain(cd)))
       fail('call comments', 'CD_Tool(10) is not read as ejecting the disc, and the line reads ' + line(cd, /[^\n]*CD_Tool\(10[^\n]*/));
     else console.log('  call comments: signals to their receivers, behavior 78 through 0x3021 to 0x0C4E, MissileFX\'s bits, CD_Tool\'s commands');

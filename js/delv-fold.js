@@ -542,7 +542,12 @@ function dvmFoldArgNotes(name, vals, ctx) {
       const hex = r => '0x' + r.toString(16).toUpperCase().padStart(4, '0');
       const parts = [];
       if (where.length) parts.push('reaches the ' + where.join(', the ').replace(/, the and /, ', and '));
-      if (scripts.length) parts.push('is tested in the GetMessage of ' + scripts.map(hex).join(', '));
+      // A GetMessage that compares the signal itself, then the scripts a
+      // GetMessage hands it to, by the GetMessage (signalReceivers' `via`).
+      const own = scripts.filter(x => x.via === null).map(x => hex(x.rid));
+      if (own.length) parts.push('is tested in the GetMessage of ' + own.join(', '));
+      const vias = [...new Set(scripts.filter(x => x.via !== null).map(x => x.via))];
+      for (const g of vias) parts.push('is tested in ' + scripts.filter(x => x.via === g).map(x => hex(x.rid)).join(', ') + ' from the GetMessage of ' + hex(g));
       if (parts.length) dvmFoldNote(ctx, 'signal ' + v + ' ' + parts.join(' and '));
     }
   }

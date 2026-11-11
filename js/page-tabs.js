@@ -416,8 +416,8 @@ function renderLinked(text, resid, raw) {
     // map there, and each script whose GetMessage tests it opens the script.
     h = h.replace(/ at (\d+),(\d+) in zone (\d+)/g, (m, x, y, z) =>
       ' <a class="reflink" title="' + svEsc(zoneDisplayName(+z)) + '" onclick="atlasOpenSquare(' + (0x8000 + +z) + ',' + x + ',' + y + ')">at ' + x + ',' + y + ' in zone ' + z + '</a>');
-    h = h.replace(/GetMessage of ((?:0x[0-9A-F]{4}(?:, )?)+)/g, (m, list) =>
-      'GetMessage of ' + list.replace(/0x([0-9A-F]{4})/g, (mm, hx) => {
+    h = h.replace(/(GetMessage of |tested in )((?:0x[0-9A-F]{4}(?:, )?)+)/g, (m, pre, list) =>
+      pre + list.replace(/0x([0-9A-F]{4})/g, (mm, hx) => {
         const rid = parseInt(hx, 16);
         return refExists(rid) ? '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>' : mm;
       }));

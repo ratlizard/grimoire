@@ -4406,16 +4406,58 @@ function leverRules() {
      with the number (`arg Arg01`, the number, `eq` or `ne`, in postfix).
      A class that compares the signal with its prop's Data1 (0x1033,
      0x10FD) is the first kind and is not listed here.
-   Neither scan finds a script that tests the signal in another shape. The
-   AI scripts 0xD06 and 0xD07, which answer 320 and 321 (the data fix
-   `love-bellerophon`), have no function named GetMessage, so neither scan
-   finds them. Built once per archive. */
+   The second also follows the signal into the scripts a GetMessage passes
+   it to, which is how the AI scripts 0xD06 and 0xD07 are found, which
+   answer 320 and 321 (the data fix `love-bellerophon`) for the default
+   GetMessage. Neither scan finds a script that tests the signal in another
+   shape. Built once per archive. */
 function signalReceivers() {
   // Kept apart with and without the program, which opens after the archive.
   const sig = signalRules();
   return derivedTable(ARCHIVE, 'signalReceivers' + (sig ? ' with the program' : ''), () => {
     const props = new Map(), scripts = new Map();
     const push = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+    /* The scripts that test a signal: each GetMessage, and the scripts a
+       GetMessage hands the signal to (11 November 2026, signals 320 and
+       321). A character with no GetMessage runs the default one, 0x3000
+       plus the method (TInterp::DoInterp, as exeBehaviorMethod's note has
+       it), and 0x3015 passes the signal to the AI scripts 0xD06 and 0xD07,
+       which compare it with 256, 320 and 321. So a call that passes the
+       signal on is followed (dvmArgKindTable's calls, up to four calls
+       deep), and in the callee the input the signal was passed in is the
+       one compared. Each entry is { rid, via }: the script that compares,
+       and for a script reached through a call, the GetMessage that calls
+       it. */
+    const T = o => o[2] + (o[3] ? ' ' + o[3] : '');
+    const numsOf = (ops, slot) => {
+      const out = new Set(), want = 'arg ' + slot;
+      for (let i = 2; i < ops.length; i++) {
+        if (ops[i][2] !== 'eq' && ops[i][2] !== 'ne') continue;
+        const a = T(ops[i - 2]), c = T(ops[i - 1]);
+        const m = /^(?:byte|word|dword) (0x[0-9A-F]+|\d+)$/i.exec(a === want ? c : c === want ? a : '');
+        if (m) out.add(/^0x/i.test(m[1]) ? parseInt(m[1], 16) : +m[1]);
+      }
+      return out;
+    };
+    const opsAt = (resid, st) => {
+      try {
+        const b = smartDecrypt(getResourceBytes(ARCHIVE, resid), resid).data;
+        const ex = dvmExtents(b, resid).find(o => o[0] === st && o[2] === 'function');
+        return ex ? dvmDisassemble(b.subarray(st, Math.min(ex[1], b.length)), 3).ops : null;
+      } catch (e) { quiet(e, 'the function at ' + st + ' of 0x' + resid.toString(16)); return null; }
+    };
+    const calls = dvmArgKindTable(ARCHIVE);
+    const follow = (resid, st, slot, via, depth, seen) => {
+      if (depth > 4 || seen.has(resid + ':' + st + ':' + slot)) return;
+      seen.add(resid + ':' + st + ':' + slot);
+      const ops = opsAt(resid, st);
+      if (!ops) return;
+      for (const v of numsOf(ops, slot)) if (!(scripts.get(v) || []).some(x => x.rid === resid && x.via === via)) push(scripts, v, { rid: resid, via });
+      const f = calls.get(resid + ':' + st);
+      if (f) for (const c of f.calls) c.vals.forEach((x, k) => {
+        if (x && x.arg === slot) follow(c.rid, 0, 'Arg' + k.toString(16).padStart(2, '0').toUpperCase(), via === null ? resid : via, depth + 1, seen);
+      });
+    };
     for (let subn = 0; subn < 256; subn++) {
       const mi = ARCHIVE.index[subn];
       if (!mi || !mi[0]) continue;
@@ -4427,23 +4469,11 @@ function signalReceivers() {
           if (!raw || !raw.length) continue;
           b = smartDecrypt(raw, resid).data; slots = dvmSlotNames(b, resid); objs = dvmExtents(b, resid);
         } catch (e) { continue; }
-        for (const [st, en, kind] of objs) {
-          if (kind !== 'function' || slots.get(st) !== 'GetMessage') continue;
-          let ops;
-          try { ops = dvmDisassemble(b.subarray(st, Math.min(en, b.length)), 3).ops; } catch (e) { quiet(e, 'a GetMessage of 0x' + resid.toString(16)); continue; }
-          const T = o => o[2] + (o[3] ? ' ' + o[3] : '');
-          const seen = new Set();
-          for (let i = 2; i < ops.length; i++) {
-            if (ops[i][2] !== 'eq' && ops[i][2] !== 'ne') continue;
-            const a = T(ops[i - 2]), c = T(ops[i - 1]);
-            const m = /^(?:byte|word|dword) (0x[0-9A-F]+|\d+)$/i.exec(a === 'arg Arg01' ? c : c === 'arg Arg01' ? a : '');
-            if (!m) continue;
-            const v = /^0x/i.test(m[1]) ? parseInt(m[1], 16) : +m[1];
-            if (!seen.has(v)) { seen.add(v); push(scripts, v, resid); }
-          }
-        }
+        for (const [st, en, kind] of objs) if (kind === 'function' && slots.get(st) === 'GetMessage') follow(resid, st, 'Arg01', null, 0, new Set());
       }
     }
+    const getMessage = Object.keys(DVM_SYM.method || {}).find(k => DVM_SYM.method[k] === 'GetMessage');
+    if (getMessage !== undefined && refExists(0x3000 + +getMessage)) follow(0x3000 + +getMessage, 0, 'Arg01', null, 0, new Set());
     if (sig && sig.under && sig.mask) {
       const under = sig.under.v, mask = sig.mask.v;
       for (let z = 0, count = subindexCount(ARCHIVE, 128); z < count; z++) {
