@@ -2683,22 +2683,16 @@ function dvmProseConversation(stmts, ctx) {
   };
   return build(stmts);
 }
-/* Names for a function's arguments, by what the function does with each
-   (the maintainer, 8 November 2026: "Why does it have to be Arg00? That
-   strikes me as not very readable"). The file gives an argument no name,
-   so the name is the kind of thing the code treats it as:
-   - a character when it goes into an argument the program reads as a
-     character (exeSyscallCharacterArgs), is cast to Character, or is
-     compared with PlayerCharacter or CurrentCharacter;
-   - a prop when its obj_type, data1, data2, data3 or quantity is read or
-     set.
-   The name is "the input character" or "the input prop", and two of a kind
-   are "the first input character" and "the second input character", in
-   their order. An argument with signs of both, or of neither, is "input
-   2" by its place, counted from 1 (dvmReadRender). Map of slot (Arg00) to
-   name. */
-function dvmProseArgNames(forest, slots, ctx) {
+/* What the code of a function shows of each argument's kind, and what it
+   passes to the helpers it calls. kinds maps a slot to the set of kinds
+   its uses show (dvmProseArgNames has the signs). calls lists each
+   `call_resource` with its callee and, for each argument position, what
+   is passed: an argument of this function ({ arg }), or a value whose kind
+   shows on its face ({ kind }), a cast to Character or Prop, or
+   PlayerCharacter or CurrentCharacter. */
+function dvmArgKinds(forest, slots, ctx) {
   const kinds = new Map(slots.map(s => [s, new Set()]));
+  const calls = [];
   const mark = (it, kind) => { if (it && it.arg && kinds.has(it.arg)) kinds.get(it.arg).add(kind); };
   const chars = dvmFoldPage(ctx, () => exeSyscallCharacterArgs());
   const PROP_FIELDS = new Set(['obj_type', 'data1', 'data2', 'data3', 'quantity']);
@@ -2713,16 +2707,25 @@ function dvmProseArgNames(forest, slots, ctx) {
           const which = chars && chars.get(n.op);
           if (which) (gs[0] || []).forEach((it, k) => { if (which.has(k)) mark(it, 'character'); });
         }
+        if (n.mn === 'call_resource') {
+          const m = /0x([0-9A-F]+)\)?$/i.exec(String(n.arg || ''));
+          if (m) calls.push({ rid: parseInt(m[1], 16), vals: (gs[0] || []).map(it => it && it.arg ? { arg: it.arg } : it && it.kind ? { kind: it.kind } : null) });
+        }
         if (n.mn === 'set_field' && PROP_FIELDS.has(plain(n))) (gs[0] || []).forEach(it => mark(it, 'prop'));
         if (n.expect > 0) st.push({});
         continue;
       }
-      if (!pops) { st.push({ arg: n.mn === 'arg' ? dvmBareOperand(n.arg) : null, global: n.mn === 'global' ? plain(n) : null }); continue; }
+      if (!pops) {
+        const g = n.mn === 'global' ? plain(n) : null;
+        st.push({ arg: n.mn === 'arg' ? dvmBareOperand(n.arg) : null, global: g, kind: /^(PlayerCharacter|CurrentCharacter)$/.test(g || '') ? 'character' : null });
+        continue;
+      }
       const ops = st.splice(Math.max(0, st.length - pops), pops);
       // A cast, and not an `is` test. The test checks what the argument is,
       // so a name taken from it reads as circular: "if the prop is a prop"
       // in 0xEB6 (the maintainer, 9 November 2026).
-      if (n.op === 0x63 && /^Character$/i.test(plain(n))) mark(ops[0], 'character');
+      if (n.op === 0x63 && /^Character$/i.test(plain(n))) { mark(ops[0], 'character'); st.push({ kind: 'character' }); continue; }
+      if (n.op === 0x63 && /^Prop$/i.test(plain(n))) { st.push({ kind: 'prop' }); continue; }
       if (n.op === 0x62 && PROP_FIELDS.has(plain(n))) mark(ops[0], 'prop');
       const infix = DVM_INFIX[n.op];
       if ((infix === '==' || infix === '!=') && ops.length === 2)
@@ -2733,6 +2736,108 @@ function dvmProseArgNames(forest, slots, ctx) {
     return st;
   };
   reduce(forest);
+  return { kinds, calls };
+}
+/* Every function's argument kinds, carried along the file's calls until
+   nothing changes. A function is keyed "resid:offset", and a helper that
+   `call_resource` reaches is the function at offset 0 of its resource.
+   - Into the callee: an argument passed to a helper's input of one kind
+     is of that kind too.
+   - Back from the callers: a helper's input is of a kind when every call
+     in the file passes something of that one kind. One call that passes a
+     number, or something of no shown kind, leaves the input unnamed, so a
+     helper called with a character and with a count is named for neither.
+   The kinds are only added, so an input with signs of two kinds stays
+   unnamed, as dvmProseArgNames has it. With the program open the table
+   also has its character arguments, so a table built with the program
+   and one built without it are kept apart. Built once per archive. */
+function dvmArgKindTable(arc) {
+  const chars = typeof exeSyscallCharacterArgs === 'function' ? (function () { try { return exeSyscallCharacterArgs(); } catch (e) { quiet(e); return null; } })() : null;
+  return derivedTable(arc, 'argKinds' + (chars ? ' with the program' : ''), () => {
+    const fns = new Map();
+    const ctx = { arc };
+    for (let subn = 0; subn < 256; subn++) {
+      if (!arc.index[subn] || !arc.index[subn][0] || (typeof SCRIPT_SUBN !== 'undefined' && !SCRIPT_SUBN.has(subn))) continue;
+      for (let i = 0, n = subindexCount(arc, subn); i < n; i++) {
+        const resid = ((subn + 1) << 8) | i;
+        let b, objs, named;
+        try { const raw = getResourceBytes(arc, resid); if (!raw || !raw.length) continue; b = smartDecrypt(raw, resid).data; objs = dvmExtents(b, resid); named = dvmSlotNames(b, resid); } catch (e) { continue; }
+        /* A method's first argument is what it belongs to (dvmReadRender's
+           "it"), so its kind is the class's and not its uses'. A character's
+           script reads the fields of the character's prop record, and a
+           character passed on from there was named a prop (0xC81, a task,
+           from 0x1829). The classes of prop type n are 0x1000 + n, and a
+           character's script is 0x1800 + its number. Any other method's
+           first argument has no kind. */
+        const self = resid >= 0x1000 && resid < 0x1400 ? 'prop' : resid >= 0x1800 && resid < 0x1900 ? 'character' : null;
+        for (const [st, en, kind] of objs) {
+          if (kind !== 'function') continue;
+          const seg = b.subarray(st, Math.min(en, b.length));
+          if (seg.length < 3) continue;
+          const slots = [];
+          for (let k = 0; k < seg[1]; k++) slots.push('Arg' + k.toString(16).padStart(2, '0').toUpperCase());
+          let f;
+          try { f = Object.assign({ slots }, dvmArgKinds(dvmForest(dvmDisassembleFolded(seg, st).ops), slots, ctx)); }
+          catch (e) { quiet(e, 'the argument kinds of 0x' + resid.toString(16)); continue; }
+          if (named.has(st) && slots.length) { f.kinds.set('Arg00', new Set(self ? [self] : [])); f.fixed = 'Arg00'; }
+          fns.set(resid + ':' + st, f);
+        }
+      }
+    }
+    const one = set => set && set.size === 1 ? [...set][0] : null;
+    const callers = new Map();
+    for (const f of fns.values()) for (const c of f.calls) (callers.get(c.rid) || callers.set(c.rid, []).get(c.rid)).push({ f, c });
+    for (let round = 0; round < 12; round++) {
+      let changed = false;
+      const add = (f, slot, kind) => { const s = f.kinds.get(slot); if (s && kind && slot !== f.fixed && !s.has(kind)) { s.add(kind); changed = true; } };
+      for (const f of fns.values()) for (const c of f.calls) {
+        const h = fns.get(c.rid + ':0');
+        if (h) c.vals.forEach((v, k) => { if (v && v.arg) add(f, v.arg, one(h.kinds.get(h.slots[k]))); });
+      }
+      for (const [rid, sites] of callers) {
+        const h = fns.get(rid + ':0');
+        if (!h) continue;
+        h.slots.forEach((slot, k) => {
+          let kind = null, ok = sites.length > 0;
+          for (const { f, c } of sites) {
+            const v = c.vals[k], kk = !v ? null : v.kind || one(f.kinds.get(v.arg));
+            if (!kk || (kind && kk !== kind)) { ok = false; break; }
+            kind = kk;
+          }
+          if (ok) add(h, slot, kind);
+        });
+      }
+      if (!changed) break;
+    }
+    return fns;
+  });
+}
+/* Names for a function's arguments, by what the function does with each
+   (the maintainer, 8 November 2026: "Why does it have to be Arg00? That
+   strikes me as not very readable"). The file gives an argument no name,
+   so the name is the kind of thing the code treats it as:
+   - a character when it goes into an argument the program reads as a
+     character (exeSyscallCharacterArgs), is cast to Character, or is
+     compared with PlayerCharacter or CurrentCharacter;
+   - a prop when its obj_type, data1, data2, data3 or quantity is read or
+     set.
+   The name is "the input character" or "the input prop", and two of a kind
+   are "the first input character" and "the second input character", in
+   their order. An argument with signs of both, or of neither, is "input
+   2" by its place, counted from 1 (dvmReadRender).
+
+   A helper's input often has no use in the helper that shows its kind. It
+   is passed on to another helper, or only the helper's callers show it
+   (the handoff's `grimoire/script-views-38nbht`, 10 November 2026). So
+   the kinds are also carried along calls through the whole file
+   (dvmArgKindTable), and the uses in the function are joined with what
+   the table has for it (ctx.resid and ctx.fnAt). Map of slot (Arg00) to
+   name. */
+function dvmProseArgNames(forest, slots, ctx) {
+  const kinds = dvmArgKinds(forest, slots, ctx).kinds;
+  const tab = ctx && typeof ctx.resid === 'number' && typeof ctx.fnAt === 'number'
+    ? dvmFoldPage(ctx, () => dvmArgKindTable(ctx.arc).get(ctx.resid + ':' + ctx.fnAt)) : null;
+  if (tab) for (const s of slots) for (const k of tab.kinds.get(s) || []) kinds.get(s).add(k);
   const out = new Map(), count = {}, seen = {};
   for (const [s, k] of kinds) if (k.size === 1) { const kind = [...k][0]; count[kind] = (count[kind] || 0) + 1; }
   const ORD = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
@@ -2799,7 +2904,7 @@ function dvmReadRender(arc, b, resid, opts) {
     const ARG2 = { 10: 'the target', 21: 'the signal', 13: 'the wearer', 14: 'the wearer' };
     const methodNo = Object.keys(ARG2).find(k => DVM_SYM.method[k] === name);
     const target = self && methodNo !== undefined && args.length > 1 ? 'Arg01' : null;
-    const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], asProse: true, self, target, targetName: target ? ARG2[methodNo] : null }, extra);
+    const ctx = Object.assign({ label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [], asProse: true, self, target, targetName: target ? ARG2[methodNo] : null, fnAt: st }, extra);
     const forest = dvmForest(r.ops);
     const named = dvmProseArgNames(forest, args.filter(a => a !== self && a !== target), ctx);
     // An argument with no name from its uses is "input 2", by its place.

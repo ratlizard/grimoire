@@ -1071,6 +1071,24 @@ try {
   }
 } catch (e) { fail('call comments', e); }
 
+/* A helper's inputs named along the file's calls (dvmArgKindTable,
+   `grimoire/script-views-38nbht`, 10 November 2026). The task 0xC81 does
+   nothing with its first input that shows its kind, and every call passes
+   the character a character's script belongs to, so it is a character.
+   The combat helper 0xE88 passes its first two inputs on to helpers that
+   read them as characters, and its third to 0xE87's weapon. Before the
+   table both read "input 1", which is this block's negative control. */
+try {
+  ctx.setScriptFold('structured');
+  const head = rid => { ctx.jumpToResource(rid); ctx.setScriptPane('read'); const h = REGISTRY.get('textContent').innerHTML.replace(/<[^>]+>/g, ''); ctx.setScriptFold('structured'); return h; };
+  const task = head(0xC81), hit = head(0xE88);
+  if (!/\(a character, input 2\) means:/.test(task))
+    fail('read view inputs', 'the task 0xC81 does not read its first input as a character, and reads ' + (/[^\n]*means:/.exec(task) || ['no heading'])[0]);
+  else if (!/\(the first input character, the second input character, a prop, input 4\) means:/.test(hit))
+    fail('read view inputs', 'the combat helper 0xE88 reads ' + (/[^\n]*means:/.exec(hit) || ['no heading'])[0] + ', without two characters and a prop for its first three inputs');
+  else console.log('  read view inputs: 0xC81\'s first input a character from its callers, 0xE88\'s from the helpers it calls');
+} catch (e) { fail('read view inputs', e); }
+
 /* The Read view (dvmReadRender, readViewHtml): a script's functions as
    sentences in the script page's pane, and the listings back when
    Structured is chosen. Awaken (0x1A13) clears flag 22 on its target and
