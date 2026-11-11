@@ -566,13 +566,16 @@ function paintDecodedPane() {
    ("0x1401 sets state 3 to 1"), the resource a far word is in ("word 0x10
    of 0x0500"). Anything else in hex there is short (an offset, "word 0x10")
    or follows "tile"; a number of three or four digits naming no resource
-   stays plain. Quoted game text is left alone. */
+   stays plain. Quoted game text is left alone. A square a signal reaches
+   ("the portcullis at 15,41 in zone 25", dvmFoldArgNotes) opens the map
+   there, as it does in the listings (renderLinked). */
 function readLinkHex(html) {
   return html.split(/(&quot;.*?&quot;|"[^"]*")/).map((part, i) => i % 2 ? part : part.replace(/(^|[^\w.])0x([0-9A-Fa-f]{3,4})\b(?!\w)/g, (m, pre, hx, at, all) => {
     if (/\btile $/.test(all.slice(Math.max(0, at - 5), at + pre.length))) return m;
     const rid = parseInt(hx, 16);
     return refExists(rid) ? pre + '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>' : m;
-  })).join('');
+  }).replace(/ at (\d+),(\d+) in zone (\d+)/g, (m, x, y, z) =>
+    ' <a class="reflink" title="' + svEsc(zoneDisplayName(+z)) + '" onclick="atlasOpenSquare(' + (0x8000 + +z) + ',' + x + ',' + y + ')">at ' + x + ',' + y + ' in zone ' + z + '</a>')).join('');
 }
 
 /* The Read view's HTML: each function's name and arguments, then its
