@@ -55,7 +55,8 @@
 //   (8) EXITS. A `break` goes to the statement after its innermost loop, and
 //       a `continue` to where that loop goes round, read from the printed
 //       nesting: a `while`'s test, a `do`'s closing test, a `loop`'s first
-//       statement.
+//       statement. A `break` inside a `switch (x) {` block with no loop
+//       nearer goes to the statement after the block.
 //   (9) LABELS. Every goto's label is printed, before the statement the
 //       jump lands on.
 //   (10) RETURNS. A jump printed as a return is a `b` to a place whose line
@@ -81,7 +82,8 @@
 //   exits   every `break` printed as `continue` and every `continue` as `break`;
 //   labels  no label printed;
 //   flow    a jump inside the routine read as an end;
-//   switches  every case label printed one value higher.
+//   switches  every case label printed one value higher;
+//   breaks  every `break` out of a switch block printed as `continue`.
 import { readFileSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 import { pageSource } from './page_scripts.mjs';
@@ -105,6 +107,7 @@ const CONTROLS = {
       for (const [k, v] of r.exits) r.exits.set(k, v === 'break' ? 'continue' : 'break'); return r; }; })();` },
   labels: { mustFail: 'labels', code: 'dvmRemainingLabels = function () { return new Set(); };' },
   flow: { mustFail: 'flow', patch: src => src.split("inside(o.to) ? { kind: 'jump' } : { kind: 'end' }").join("{ kind: 'end' }") },
+  breaks: { mustFail: 'exits', patch: src => src.split("const SWITCH_BREAK = 'break';").join("const SWITCH_BREAK = 'continue';") },
   switches: { mustFail: 'switches', patch: src => src.split('u.lo === u.hi ? String(val(u.lo))').join('u.lo === u.hi ? String(val(u.lo) + 1)') },
 };
 
@@ -251,6 +254,19 @@ function run(control) {
         (want.get(u.end) || want.set(u.end, []).get(u.end)).push(u.lo === u.hi ? String(val(u.lo)) : val(u.lo) + ' to ' + val(u.hi));
       (want.get(def) || want.set(def, []).get(def)).push('default');
       for (const [k, cs] of want) { stats.cases++; wantAll.set(k, (wantAll.get(k) || []).concat(cs)); }
+      /* Printed as a block whose exit is the default place (a switch with
+         no default case), the place after the closing brace is where the
+         switch goes on and its label has no `default`. The block is read
+         from the printed lines: the switch line with an opening brace, its
+         closing brace at the same depth, and the first statement that
+         follows the brace. */
+      const P0 = b.lines, open = P0.findIndex(l => l.at === L[tr.root].at && /^switch \(.*\) \{$/.test(l.text));
+      if (open >= 0) {
+        let close = open + 1;
+        while (close < P0.length && !(P0[close].depth === P0[open].depth && P0[close].text === '}')) close++;
+        const after = P0.slice(close + 1).find(l => l.at !== null && l.text !== '\u0002');
+        if (after && firstAt(after.at) === def) { const cs = wantAll.get(def), d = cs.lastIndexOf('default'); if (d >= 0) cs.splice(d, 1); }
+      }
       // (2) and (4): the tree is its root, which goes to the places.
       for (const e of [...expected]) { const [from, to] = e.split('>').map(Number); if (M.has(from)) expected.delete(e); else if (M.has(to) && to !== tr.root) bad.edges.push(where + ': a jump into the middle of the switch at ' + tr.root); }
       for (const k of want.keys()) expected.add(tr.root + '>' + k);
@@ -390,7 +406,7 @@ function run(control) {
         continue;
       }
       if (/\{$/.test(t)) {
-        const kind = /^while /.test(t) ? 'while' : t === 'do {' ? 'do' : t === 'loop {' ? 'loop' : 'if';
+        const kind = /^while /.test(t) ? 'while' : t === 'do {' ? 'do' : t === 'loop {' ? 'loop' : /^switch \(/.test(t) ? 'switch' : 'if';
         const node = { kind, line: l, i, kids: [], parent: stack[stack.length - 1] };
         stack[stack.length - 1].kids.push(node); stack.push(node);
         continue;
@@ -401,7 +417,7 @@ function run(control) {
     const firstOf = n => {
       if (n.stmt) return n.stmt.at;
       if (n.label) return null;
-      if (n.kind === 'if' || n.kind === 'while') return n.line.at;
+      if (n.kind === 'if' || n.kind === 'while' || n.kind === 'switch') return n.line.at;
       for (const c of n.kids) { const a = firstOf(c); if (a !== null) return a; }
       return null;
     };
@@ -477,8 +493,12 @@ function run(control) {
                 if (!after || after.at !== dest) bad.labels.push(where + ': label +0x' + (c.stmt.to - r.offset).toString(16) + ' is not before the statement the jump lands on');
               }
             } else {
+              // A `break` leaves the innermost loop or switch, and a
+              // `continue` goes around the innermost loop (switch blocks,
+              // 11 November 2026).
               let loop = c.parent;
-              while (loop !== root && !isLoop(loop)) loop = loop.kind === 'else' ? loop.of.parent : loop.parent;
+              const stops = n => isLoop(n) || (word === 'break' && n.kind === 'switch');
+              while (loop !== root && !stops(loop)) loop = loop.kind === 'else' ? loop.of.parent : loop.parent;
               if (loop === root) { bad.exits.push(where + ': ' + word + ' outside a loop'); continue; }
               dest = word === 'break' ? contOf(loop) : loop.kind === 'while' ? loop.line.at : loop.kind === 'do' ? loop.close.at : firstOf(loop);
               const s = succ.get(k), jumpsTo = s && s[0] !== undefined && s[0] !== null ? L[s[0]].at : null;

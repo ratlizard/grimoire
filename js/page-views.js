@@ -1714,16 +1714,109 @@ function exePseudoBlocksAs(r, useTrees) {
   const goTo = k => labelOf.has(k) ? labelOf.get(k) : L[k].at;
   const label = (k, depth) => {
     if (k === null || !labels.has(k)) return;
-    out.push({ at: goTo(k), depth, text: '\u0002', to: null, cases: caseOf.get(k) || null });
+    let cases = caseOf.get(k) || null;
+    if (cases && exitDefaults.has(k)) { const at = cases.indexOf('default'); cases = cases.filter((c, n) => n !== at); if (!cases.length) cases = null; }
+    if (!cases && quietLabels.has(k)) return;
+    out.push({ at: goTo(k), depth, text: '\u0002', to: null, cases });
   };
-  const render = (list, depth) => {
-    for (const n of list) {
+  /* A switch printed as a block (the handoff's `grimoire/listing-hl26zm`,
+     11 November 2026). A switch's cases each ended in a goto to the place
+     after the last case, which a reader of C writes as `break`, and those
+     were most of the gotos left. The blocks are the recovery's, and a
+     switch has none there, so the block is drawn here: the statements after
+     the switch, up to the first one some case jumps to past the last place
+     (the exit), print inside `switch (x) { ... }`, and a jump to the exit
+     from inside, but from no loop inside, prints as `break`. A switch is
+     drawn so only where every place is inside the block, nothing outside
+     jumps into it but the switch to its places (dvmStructureEdges), and no
+     `break` of a loop around the switch is inside it, since inside the
+     braces that `break` would read as leaving the switch.
+     utilities/pseudo_blocks_check.mjs reads the braces back and sends a
+     `break` to the statement after its innermost loop or switch. */
+  const flowEdges = dvmStructureEdges(rec.tree, null);
+  const absIn = nodes => {
+    const out = new Set();
+    (function walk(list) { for (const n of list) { if (n.kind === 'stmt') out.add(n.stmt.abs); if (n.cond) out.add(n.cond.abs); for (const q of ['then', 'els', 'body']) if (n[q]) walk(n[q]); } })(nodes);
+    return out;
+  };
+  const SWITCH_BREAK = 'break';
+  let switchBreaks = 0, switchBlocks = 0;
+  const exitDefaults = new Set(), quietLabels = new Set();
+  const switchBlock = (list, i) => {
+    const s = list[i].stmt;
+    if (!s || s.kind !== 'switch' || !/^switch \(/.test(s.node.text || L[s.node.k].text)) return null;
+    const places = new Set(s.targets);
+    /* A switch with no default case compiles with its default going to
+       the code after the switch, where the cases' breaks go too
+       (ObjIDToSegmentID). So the place labeled `default` alone may be the
+       exit, and every other place is inside. */
+    const onlyDefault = p => { const c = caseOf.get(p); return !!c && c.length === 1 && c[0] === 'default'; };
+    let last = -1;
+    for (let j = i + 1; j < list.length; j++) { const ins = absIn([list[j]]); for (const p of places) if (ins.has(p) && !onlyDefault(p)) last = j; }
+    if (last < 0) return null;
+    const inside = absIn(list.slice(i + 1, last + 1));
+    for (const p of places) if (!inside.has(p) && !onlyDefault(p)) return null;
+    for (let j = last + 1; j < list.length; j++) {
+      const E = dvmFirstAbs(list[j]), R = absIn(list.slice(i + 1, j));
+      if ([...places].some(p => !R.has(p) && p !== E)) continue;
+      let hits = 0, loopBreak = false;
+      (function walk(nodes, inLoop) {
+        for (const n of nodes) {
+          if (n.kind === 'stmt') {
+            const w = loops.exits.get(n.stmt), where = n.stmt.targets.length === 1 ? (n.goes !== undefined ? n.goes : n.stmt.targets[0]) : null;
+            if (w === 'break' && !inLoop) loopBreak = true;
+            if (!w && !inLoop && where === E && (n.stmt.kind === 'jump' || n.stmt.kind === 'cond')) hits++;
+          }
+          const loopy = n.kind === 'while' || n.kind === 'dowhile' || n.kind === 'loop';
+          for (const q of ['then', 'els', 'body']) if (n[q]) walk(n[q], inLoop || loopy);
+        }
+      })(list.slice(i + 1, j), false);
+      if (loopBreak) return null;
+      if (!hits) continue;
+      const first = dvmFirstAbs(list[i + 1]);
+      for (const e of flowEdges) {
+        const [f, t] = e.split('>').map(Number);
+        if (R.has(t) && !R.has(f) && !(f === s.abs && (places.has(t) || t === first))) return null;
+      }
+      // A goto from outside the block to the exit needs the exit's label.
+      let outside = 0;
+      (function walk(nodes) {
+        for (const n of nodes) {
+          if (n.kind === 'stmt' && !R.has(n.stmt.abs) && n.stmt.abs !== s.abs && !loops.exits.get(n.stmt) && (n.stmt.kind === 'jump' || n.stmt.kind === 'cond')) {
+            const where = n.stmt.targets.length === 1 ? (n.goes !== undefined ? n.goes : n.stmt.targets[0]) : null;
+            if (where === E) outside++;
+          }
+          for (const q of ['then', 'els', 'body']) if (n[q]) walk(n[q]);
+        }
+      })(rec.tree);
+      return { end: j, exit: E, exitIsDefault: places.has(E), quiet: outside === 0 };
+    }
+    return null;
+  };
+  const render = (list, depth, sw = null) => {
+    for (let i = 0; i < list.length; i++) {
+      const n = list[i];
       if (rotated.has(n) && n.kind === 'stmt') continue;
       if (n.kind !== 'dowhile' && n.kind !== 'loop') label(dvmFirstAbs(n), depth);
       switch (n.kind) {
         case 'stmt': {
-          const s = n.stmt, word = loops.exits.get(s);
+          const s = n.stmt;
+          const blk = s.kind === 'switch' ? switchBlock(list, i) : null;
+          if (blk) {
+            line(atOf(s), depth, (s.node.text || L[s.node.k].text) + ' {');
+            render(list.slice(i + 1, blk.end), depth + 1, blk.exit);
+            line(null, depth, '}');
+            // The exit after the braces is where the switch goes on, not a
+            // case, so its label drops the word `default` there.
+            if (blk.exitIsDefault) exitDefaults.add(blk.exit);
+            if (blk.quiet) quietLabels.add(blk.exit);
+            switchBlocks++;
+            i = blk.end - 1;
+            break;
+          }
+          let word = loops.exits.get(s);
           const where = s.targets.length === 1 ? (n.goes !== undefined ? n.goes : s.targets[0]) : null;
+          if (!word && sw !== null && where === sw && (s.kind === 'jump' || s.kind === 'cond')) { word = SWITCH_BREAK; switchBreaks++; }
           if (s.kind === 'cond') line(atOf(s), depth, 'if (' + textOf(s, 'taken') + ') ' + (word || 'goto \u0001'), word ? null : goTo(where));
           else if (s.kind === 'jump') line(atOf(s), depth, word || 'goto \u0001', word ? null : goTo(where));
           else { const t = L[s.node.k]; line(atOf(s), depth, s.node.text || t.text, s.node.text ? null : t.to); }
@@ -1731,20 +1824,20 @@ function exePseudoBlocksAs(r, useTrees) {
         }
         case 'if':
           line(atOf(n.cond), depth, 'if (' + textOf(n.cond, 'fall') + ') {');
-          render(n.then, depth + 1);
+          render(n.then, depth + 1, sw);
           line(null, depth, '}');
           break;
         case 'ifelse':
           if (!n.then.length) {
             line(atOf(n.cond), depth, 'if (' + textOf(n.cond, 'taken') + ') {');
-            render(n.els, depth + 1);
+            render(n.els, depth + 1, sw);
             line(null, depth, '}');
             break;
           }
           line(atOf(n.cond), depth, 'if (' + textOf(n.cond, 'fall') + ') {');
-          render(n.then, depth + 1);
+          render(n.then, depth + 1, sw);
           line(null, depth, '} else {');
-          render(n.els, depth + 1);
+          render(n.els, depth + 1, sw);
           line(null, depth, '}');
           break;
         case 'while':
@@ -1781,7 +1874,7 @@ function exePseudoBlocksAs(r, useTrees) {
   const stmtOf = new Int32Array(ops.length).fill(-1);
   let j = 0;
   for (let i = 0; i < ops.length; i++) { while (j < byAt.length - 1 && out[byAt[j]].at < ops[i].at) j++; stmtOf[i] = byAt.length ? byAt[j] : -1; }
-  return ({ lines: out, stmtOf, stmts, list, joined, trees, rec, loops, labels, rotated, gotos: rec.gotos - loops.exits.size - rotated.size / 2 });
+  return ({ lines: out, stmtOf, stmts, list, joined, trees, rec, loops, labels, rotated, gotos: rec.gotos - loops.exits.size - rotated.size / 2 - switchBreaks, switchBlocks, switchBreaks });
 }
 /* A run of tests as one condition (exePseudoBlocks): `toE[i]` is whether
    test i jumps to E, the place the last one jumps to, rather than to T,

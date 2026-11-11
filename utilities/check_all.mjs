@@ -543,14 +543,14 @@ const CHECKS = [
    cmd: ['utilities/pseudo_check.mjs', 'index.html', APP_DATA, '--control'], grep: /PSEUDO control: [^\n]*/,
    expect: 'PSEUDO control: 69 routines over with every import at eight'},
   /* The pseudo-code's blocks against the routine's jumps: eleven assertions
-     read from the instructions and from the printed lines, and seven
+     read from the instructions and from the printed lines, and eight
      controls, each required to fail the assertion named for it. */
   {page: 'viewer', name: 'pseudo-code blocks', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_blocks_check.mjs', 'index.html', APP_DATA], grep: /BLOCKS \d[^\n]*/,
-   expect: 'BLOCKS 1390 routines with jumps, 971 with no goto left, 2414 gotos left, 7913 blocks, 727 joined tests, 539 whiles with the test at the end, 122 trees of compares as switches with 573 places'},
+   expect: 'BLOCKS 1390 routines with jumps, 971 with no goto left, 2240 gotos left, 7889 blocks, 715 joined tests, 539 whiles with the test at the end, 129 trees of compares as switches with 598 places'},
   {page: 'viewer', name: 'pseudo-code blocks controls', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_blocks_check.mjs', 'index.html', APP_DATA, '--controls'], grep: /BLOCKS controls: [^\n]*/,
-   expect: 'BLOCKS controls: all 7 fail their assertion'},
+   expect: 'BLOCKS controls: all 8 fail their assertion'},
   /* The pseudo-code's field names: the layouts GetField gives against
      delvmod's prop-list reader and the save editor's character records,
      and lines pinned in three routines; three controls. */
