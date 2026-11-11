@@ -1682,7 +1682,7 @@ function exeJoinPart(s, op) {
 function exeTargetHTML(r, to) {
   const nm = exeTargetName(to);
   const inside = to >= r.offset && to < r.offset + r.length;
-  return exeRoutineAt(to) ? svLink(inside ? '+0x' + (to - r.offset).toString(16).toUpperCase() : nm, 'jumpToExeAt(' + to + ')') : '<span class="refnote">' + svEsc(nm) + '</span>';
+  return exeRoutineAt(to) ? codeLink(inside ? '+0x' + (to - r.offset).toString(16).toUpperCase() : nm, 'jumpToExeAt(' + to + ')') : '<span class="refnote">' + svEsc(nm) + '</span>';
 }
 function exePseudoHTML(r, ringAt, why) {
   const ps = exePseudoBlocks(r), ops = exeOpsOf(r);
@@ -1714,7 +1714,7 @@ function exeListingHTML(r, ringAt, why) {
     if (o.to !== null) {
       const nm = exeTargetName(o.to);
       const inside = o.to >= r.offset && o.to < r.offset + r.length;
-      where = exeRoutineAt(o.to) ? svLink(inside ? '+0x' + (o.to - r.offset).toString(16).toUpperCase() : nm, 'jumpToExeAt(' + o.to + ')') : '<span class="refnote">' + svEsc(nm) + '</span>';
+      where = exeRoutineAt(o.to) ? codeLink(inside ? '+0x' + (o.to - r.offset).toString(16).toUpperCase() : nm, 'jumpToExeAt(' + o.to + ')') : '<span class="refnote">' + svEsc(nm) + '</span>';
       t += '   ' + where;
     }
     if (d && d.ra === 2 && img.toc) {
@@ -1757,8 +1757,8 @@ function routineNoteAt(offset) {
 function routineNoteHTML(text) {
   const inline = line => line.split('`').map((part, k) => {
     if (k % 2 === 0) return svEsc(part).replace(/\*([^*]+)\*/g, '<i>$1</i>');
-    if (/^0x[0-9A-F]{6}$/.test(part)) return svLink(part, 'jumpToExeAt(' + parseInt(part, 16) + ')');
-    if (/^[A-Za-z_]\w*::~?\w+$/.test(part) && exeRoutineNamed(part)) return svLink(part, 'openPefRoutine(\'' + part + '\')');
+    if (/^0x[0-9A-F]{6}$/.test(part)) return codeLink(part, 'jumpToExeAt(' + parseInt(part, 16) + ')');
+    if (/^[A-Za-z_]\w*::~?\w+$/.test(part) && exeRoutineNamed(part)) return codeLink(part, 'openPefRoutine(\'' + part + '\')');
     return '<code>' + svEsc(part) + '</code>';
   }).join('');
   return text.split(/\n\s*\n/).map(block => {
@@ -1775,7 +1775,7 @@ function routineCallersHTML(r) {
   const seen = new Map();
   for (const at of exeCallSitesOf(r.offset)) { const c = exeRoutineAt(at); if (c && !seen.has(c.offset)) seen.set(c.offset, { c, at }); }
   if (!seen.size) return '<p class="mechLede">No call in the program reaches it directly. A routine called through a table of addresses (as a virtual routine is) has no direct call.</p>';
-  return '<p class="mechLede">' + [...seen.values()].map(x => svLink(x.c.name, 'jumpToExeAt(' + x.at + ')')).join(', ') + '.</p>';
+  return '<p class="mechLede">' + [...seen.values()].map(x => codeLink(x.c.name, 'jumpToExeAt(' + x.at + ')')).join(', ') + '.</p>';
 }
 function renderAppPefSheet() {
   stopAllViewActivity();
@@ -1795,9 +1795,9 @@ function renderAppPefSheet() {
     box.innerHTML = '<div class="foldAll" style="justify-content:flex-start">' + svLink('All routines', 'pefBackToList()') + ' ' +
       [['pseudo', 'Pseudo-code'], ['words', 'Plain Words'], ['code', 'Code']].map(v => window.EXE_VIEW === v[0]
         ? '<span class="inspDim">' + v[1] + '</span>' : svLink(v[1], 'exeSetView(\'' + v[0] + '\')')).join(' ') + '</div>' +
-      '<div class="changesHead">' + svEsc(view.name) + '</div>' +
-      '<p class="mechLede">At ' + hexv(view.offset) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
-      (view.mangled !== view.name ? ' <span class="inspDim">(' + svEsc(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes. A slot in the program’s table of addresses shows what the game stores there when it starts.</p>' +
+      '<div class="changesHead">' + codeWord(view.name) + '</div>' +
+      '<p class="mechLede">At ' + codeWord(hexv(view.offset)) + ' in the code section, ' + view.length.toLocaleString() + ' bytes, ' + (view.length / 4) + ' instructions' +
+      (view.mangled !== view.name ? ' <span class="inspDim">(' + codeWord(view.mangled) + ')</span>' : '') + '. A jump or a call links to where it goes. A slot in the program’s table of addresses shows what the game stores there when it starts.</p>' +
       (note ? '<div class="mechSub">Description</div>' + routineNoteHTML(note.text) : '') +
       '<div class="mechSub">Callers</div>' + routineCallersHTML(view) +
       '<div class="mechSub">Instructions</div>' +
@@ -1819,9 +1819,9 @@ function renderAppPefSheet() {
     pef.sections.map(x => '<tr>' + num(x.index) + '<td>' + svEsc(x.kindName) + (x.name ? ' ' + svEsc(x.name) : '') + '</td>' + num(x.unpackedSize.toLocaleString()) + num(x.packedSize.toLocaleString()) + num(hex(x.containerOffset)) + '</tr>').join('') + '</tbody></table></div>';
   if (ld) {
     h += '<div class="mechSub">Imported libraries</div>';
-    h += ld.libraries.map(L => '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(L.name) + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + L.importedSymbolCount + '</b> symbol' + (L.importedSymbolCount === 1 ? '' : 's') + '</span>' + (L.weak ? '<span class="mechStat">weak</span>' : '') + '</span></summary>' +
-      '<div class="mechBody"><div class="partsStrip">' + L.symbols.map(y => '<span class="navChip" style="cursor:default">' + svEsc(y.name) + '</span>').join('') + '</div></div></details>').join('');
-    if (ld.exports.length) h += '<div class="mechSub">Exports</div><div class="partsStrip">' + ld.exports.map(e => '<span class="navChip" style="cursor:default" title="' + svEsc(e.className) + ', section ' + e.sectionIndex + ' at ' + hex(e.value) + '">' + svEsc(e.name) + '</span>').join('') + '</div>';
+    h += ld.libraries.map(L => '<details class="mechSec"><summary class="mechHead"><h3>' + codeWord(L.name) + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + L.importedSymbolCount + '</b> symbol' + (L.importedSymbolCount === 1 ? '' : 's') + '</span>' + (L.weak ? '<span class="mechStat">weak</span>' : '') + '</span></summary>' +
+      '<div class="mechBody"><div class="partsStrip">' + L.symbols.map(y => '<span class="navChip" style="cursor:default">' + codeWord(y.name) + '</span>').join('') + '</div></div></details>').join('');
+    if (ld.exports.length) h += '<div class="mechSub">Exports</div><div class="partsStrip">' + ld.exports.map(e => '<span class="navChip" style="cursor:default" title="' + svEsc(e.className) + ', section ' + e.sectionIndex + ' at ' + hex(e.value) + '">' + codeWord(e.name) + '</span>').join('') + '</div>';
   }
   const q = (window.PEF_FILTER || '').trim().toLowerCase();
   h += '<div class="mechSub">Routines</div>' +
@@ -1829,13 +1829,13 @@ function renderAppPefSheet() {
   const rs = pef.routines.filter(r => !q || r.name.toLowerCase().includes(q) || r.mangled.toLowerCase().includes(q));
   const byClass = new Map();
   for (const r of rs) { const c = r.name.includes('::') ? r.name.slice(0, r.name.lastIndexOf('::', r.name.indexOf('(') < 0 ? undefined : r.name.indexOf('('))) : ''; (byClass.get(c) || byClass.set(c, []).get(c)).push(r); }
-  const row = r => '<tr>' + num(hex(r.offset)) + num(r.length.toLocaleString()) + '<td title="' + svEsc(r.mangled) + '">' + svLink(r.name, 'jumpToExeAt(' + r.offset + ')') + '</td></tr>';
+  const row = r => '<tr>' + num(hex(r.offset)) + num(r.length.toLocaleString()) + '<td title="' + svEsc(r.mangled) + '">' + codeLink(r.name, 'jumpToExeAt(' + r.offset + ')') + '</td></tr>';
   const table = list => '<div class="tableScroll"><table class="vocabTable barkTable mechTable"><thead><tr><th class="num">at</th><th class="num">bytes</th><th>routine</th></tr></thead><tbody>' + list.map(row).join('') + '</tbody></table></div>';
   if (q) h += rs.length ? table(rs) : '<div class="changesNote">No routine matches.</div>';
   else h += [...byClass.entries()].sort((a, b) => (a[0] || '~').localeCompare(b[0] || '~')).map(([c, list]) => {
     const words = typeof ROUTINE_NOTES !== 'undefined' && ROUTINE_NOTES[c];
     const told = list.filter(r => routineNoteAt(r.offset)).length;
-    return '<details class="mechSec"><summary class="mechHead"><h3>' + svEsc(c || 'functions outside a class') + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + list.length + '</b></span>' +
+    return '<details class="mechSec"><summary class="mechHead"><h3>' + (c ? codeWord(c) : 'functions outside a class') + '</h3><span class="mechStats" style="margin:0"><span class="mechStat"><b>' + list.length + '</b></span>' +
       (told ? '<span class="mechStat"><b>' + told + '</b> described</span>' : '') + '</span></summary><div class="mechBody">' + (words ? routineNoteHTML(words.opening) : '') + table(list) + '</div></details>';
   }).join('');
   h += '<p class="mechLede" style="margin-top:10px">The page decodes each name from the compiler’s shorthand. It leaves a name it cannot decode as written.</p>';
@@ -2389,6 +2389,16 @@ function recordChip(label, resid, index, stride) {
 // A link in text: see .svLink.
 function svLink(label, js, note) {
   return '<button class="svLink" onclick="' + js + '">' + svEsc(label) + (note ? ' <i>' + svEsc(note) + '</i>' : '') + '</button>';
+}
+/* Code in the code face, never Argos (the maintainer, 10 November 2026:
+   "Code like this should NEVER be Argos", of a routine's name heading its
+   page). A routine's name, a mangled name, an address and an import are
+   code. codeWord sets one in a sentence or a heading, codeLink as a link.
+   The button rule sets Argos on every button, so the face goes on a span
+   inside it. .aiWord is the code face at 0.9 of the text around it. */
+function codeWord(s) { return '<span class="aiWord">' + svEsc(s) + '</span>'; }
+function codeLink(label, js) {
+  return '<button class="svLink" onclick="' + js + '"><span class="aiWord">' + svEsc(label) + '</span></button>';
 }
 
 function actionChip(label, js, note) {
