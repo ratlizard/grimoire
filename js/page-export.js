@@ -942,6 +942,25 @@ function showRollLegend(colors, info) {
   legend.style.display = colors.size ? '' : 'none';
 }
 
+/* The level a tune plays at in the game as shipped. The game hands its
+   Music preference times 8,192 to QuickTime's TuneSetVolume, where 65,536
+   is full, and a new install reads 2 from the application's Pref 129: a
+   quarter. Captured from the game on Mac OS 8.5 in SheepShaver, before the
+   Mac's volume, each of the eleven tunes sits 24.09 dB under qtmaRender's
+   sum at QuickTime's mixing gain (QT_OUTPUT_GAIN), none of them more than
+   0.2 dB from that. A quarter squared is 24.08 dB. Against the same
+   captures, the tunes scaled each to a peak of 0.95, as the page played
+   them before, spread 2.8 dB from tune to tune.
+
+   So a tune plays at QT_OUTPUT_GAIN times a sixteenth: as quiet as the game
+   plays it, and as loud against the other tunes. At full volume six of the
+   tunes pass full scale, 0x9008 by 6.1 dB, and here the loudest peak is
+   18 dB under it. The render is taken raw (unscaled) and scaled here, since
+   quicktimeLevel clips at full before any scale after it could apply. The
+   measurement is workbench tools/qtma-fit/level.py; the maintainer chose
+   the shipped level over a louder one on 10 November 2026. */
+const CYTHERA_MUSIC_GAIN = QT_OUTPUT_GAIN / 16;
+
 async function playCurrentTune() {
   const resid = currentResid, raw = window.CUR_RAW_BYTES;
   const pick = document.getElementById('qtPickBtn');
@@ -964,7 +983,8 @@ async function playCurrentTune() {
   await new Promise(r => setTimeout(r, 30));   // let the status paint before the render blocks the page
   try {
     const info = qtmaToMidi(raw);
-    const r = qtmaRender(info.events, info.tones, QT_LIB, {unitsPerSecond: QTMA_UNITS_PER_SECOND});
+    const r = qtmaRender(info.events, info.tones, QT_LIB, {unitsPerSecond: QTMA_UNITS_PER_SECOND, raw: true});
+    for (const ch of [r.left, r.right]) for (let i = 0; i < ch.length; i++) ch[i] = Math.max(-1, Math.min(1, ch[i] * CYTHERA_MUSIC_GAIN));
     const wav = qtmaWav(r);
     currentWavBlob = new Blob([wav], {type: 'audio/wav'});
     currentSoundResid = resid;
