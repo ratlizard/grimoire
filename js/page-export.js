@@ -954,8 +954,10 @@ function showRollLegend(colors, info) {
 
    So a tune plays at QT_OUTPUT_GAIN times a sixteenth: as quiet as the game
    plays it, and as loud against the other tunes. At full volume six of the
-   tunes pass full scale, 0x9008 by 6.1 dB, and here the loudest peak is
-   18 dB under it. The render is taken raw (unscaled) and scaled here, since
+   tunes pass full scale, 0x9008 by 6.1 dB, and the game clips them: a
+   capture of 0x9008 at Music 8 matches the render at QT_OUTPUT_GAIN within
+   0.2 dB and has about as many samples at the 16-bit limit as the render
+   has past full. Here the loudest peak is 18 dB under full. The render is taken raw (unscaled) and scaled here, since
    quicktimeLevel clips at full before any scale after it could apply. The
    measurement is workbench tools/qtma-fit/level.py; the maintainer chose
    the shipped level over a louder one on 10 November 2026. */
