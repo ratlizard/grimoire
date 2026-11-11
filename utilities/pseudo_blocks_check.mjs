@@ -60,6 +60,18 @@
 //       jump lands on.
 //   (10) RETURNS. A jump printed as a return is a `b` to a place whose line
 //       is an end, and prints that line.
+//   (11) SWITCHES. A tree of compares printed as one switch (exePseudoBlocks'
+//       `trees`, 10 November 2026) is run here from its instructions alone:
+//       from the root's compare, each cmpwi or cmplwi sets its field from
+//       the value, a copy (mr) puts the value in another register too, and
+//       each branch whose line is in the tree follows its field. The run
+//       ends at the first instruction outside that, and the place is the
+//       first line at or after where that straight run began. Every value
+//       at which a compare in the tree can change its answer is run, and
+//       the case labels printed at each place must be those values, in the
+//       page's form ("49 to 56", "default" for the place with most values).
+//       The tree's edges in (2) are the root's edges to those places, and
+//       its other tests and jumps count as folded into the root in (4).
 //
 // THE CONTROLS, with --controls, each in a fresh page and each required to
 // fail the assertion named for it:
@@ -68,7 +80,8 @@
 //   sense   every block's condition printed in the jump's sense;
 //   exits   every `break` printed as `continue` and every `continue` as `break`;
 //   labels  no label printed;
-//   flow    a jump inside the routine read as an end.
+//   flow    a jump inside the routine read as an end;
+//   switches  every case label printed one value higher.
 import { readFileSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 import { pageSource } from './page_scripts.mjs';
@@ -92,6 +105,7 @@ const CONTROLS = {
       for (const [k, v] of r.exits) r.exits.set(k, v === 'break' ? 'continue' : 'break'); return r; }; })();` },
   labels: { mustFail: 'labels', code: 'dvmRemainingLabels = function () { return new Set(); };' },
   flow: { mustFail: 'flow', patch: src => src.split("inside(o.to) ? { kind: 'jump' } : { kind: 'end' }").join("{ kind: 'end' }") },
+  switches: { mustFail: 'switches', patch: src => src.split('u.lo === u.hi ? String(val(u.lo))').join('u.lo === u.hi ? String(val(u.lo) + 1)') },
 };
 
 function run(control) {
@@ -103,8 +117,8 @@ function run(control) {
   ctx.APP_DATA = appBytes;
   const pef = ctx.appPef();
   if (!pef || !pef.routines || !pef.routines.length) return { fatal: 'the application has no routines' };
-  const bad = { flow: [], edges: [], regions: [], statements: [], operators: [], joined: [], sense: [], exits: [], labels: [], returns: [] };
-  const stats = { routines: 0, withJumps: 0, whole: 0, gotos: 0, blocks: 0, joined: 0, rotated: 0 };
+  const bad = { flow: [], edges: [], regions: [], statements: [], operators: [], joined: [], sense: [], exits: [], labels: [], returns: [], switches: [] };
+  const stats = { routines: 0, withJumps: 0, whole: 0, gotos: 0, blocks: 0, joined: 0, rotated: 0, switches: 0, cases: 0 };
   const OPS = ['<', '>', '==']; const NOT = { '<': '>=', '>': '<=', '==': '!=', '>=': '<', '<=': '>', '!=': '==' };
   // The comparison at the top level of a test's text, outside every bracket.
   const topOp = t => {
@@ -161,6 +175,99 @@ function run(control) {
     stats.gotos += b.gotos; stats.blocks += rec.structured; stats.rotated += b.rotated.size / 2;
     let expected = new Set();
     for (const k of keep) for (const t of succ.get(k)) if (t !== null) expected.add(k + '>' + t);
+    // ---- (11) switches, each tree run from its instructions ----
+    const folded = new Set(), wantAll = new Map();
+    for (const tr of b.trees || []) {
+      stats.switches++;
+      const M = new Set(tr.members), at0 = opAt.get(L[tr.root].at);
+      // The straight run of instructions the root's branch ends: back to the
+      // last branch, or to an instruction a jump lands on.
+      const landed = new Set(); for (const o of ops) if (o.d && o.d.branch && !o.d.lk && o.to !== null && o.to !== undefined) landed.add(o.to);
+      // The run starts at the compare the root's branch reads, the last
+      // into its field, with the value in that compare's register and in
+      // any register a copy in the same straight run joins to it.
+      let start = at0;
+      while (start > 0 && at0 - start < 8 && !(ops[start - 1].d && ops[start - 1].d.branch) && !landed.has(ops[start].at)) start--;
+      let cmpAt = -1;
+      for (let i = at0 - 1; i >= start; i--) { const d = ops[i].d; if (d && (d.mn === 'cmpwi' || d.mn === 'cmplwi') && d.crf === ops[at0].d.bi >> 2) { cmpAt = i; break; } }
+      if (cmpAt < 0) { bad.switches.push(where + ': the tree at +0x' + (L[tr.root].at - r.offset).toString(16) + ' has no compare before its first branch'); continue; }
+      const seed = new Set([ops[cmpAt].d.ra]);
+      for (let i = start; i < at0; i++) { const d = ops[i].d; if (d && d.mn === 'mr' && (seed.has(d.rs) || seed.has(d.ra))) { seed.add(d.rs); seed.add(d.ra); } }
+      start = cmpAt;
+      const memberAt = a => { const k = flowLines.get(a); return k !== undefined && M.has(k); };
+      const consts = new Set([0, 0x80000000]);
+      const hiAt = Math.max(...tr.members.map(k => L[k].at));
+      for (let i = start; i < ops.length && ops[i].at <= hiAt; i++) {
+        const d = ops[i].d;
+        if (d && (d.mn === 'cmpwi' || d.mn === 'cmplwi')) { consts.add(d.imm >>> 0); consts.add((d.imm + 1) >>> 0); }
+      }
+      const runFor = v => {
+        let i = start, runStart = ops[start].at, regs = null, entered = false;
+        const cr = [];
+        for (let g = 0; g < 4096; g++) {
+          const o = ops[i], d = o && o.d;
+          if (!d) return null;
+          if (d.mn === 'cmpwi' || d.mn === 'cmplwi') {
+            if (regs === null) regs = new Set(seed);
+            if (!regs.has(d.ra)) return firstAt(runStart);
+            const a = d.mn === 'cmplwi' ? v >>> 0 : v | 0, c = d.mn === 'cmplwi' ? d.imm >>> 0 : d.imm | 0;
+            cr[d.crf] = [a < c, a > c, a === c];
+            i++; continue;
+          }
+          if (regs !== null && (d.mn === 'mr' || (d.mn === 'or' && d.rs === d.rb)) && regs.has(d.rs)) { regs.add(d.ra); i++; continue; }
+          if (d.branch && !d.lk && regs !== null) {
+            if (!memberAt(o.at)) return firstAt(runStart);
+            entered = true;
+            if (/^b[tf]$/.test(d.mn)) {
+              const f = cr[d.bi >> 2];
+              if (!f) return null;
+              if (f[d.bi & 3] === (d.mn === 'bt')) { i = opAt.get(o.to); runStart = o.to; } else { i++; runStart = ops[i].at; }
+            } else if (!d.conditional && !d.indirect) { i = opAt.get(o.to); runStart = o.to; }
+            else return null;
+            if (i === undefined) return null;
+            continue;
+          }
+          // Before the root's branch, a store or the frame's set-up between
+          // the compare and the branch is passed over unless it writes the
+          // value's register.
+          if (!entered) { const w = d.rd !== undefined ? d.rd : d.rt; if (w !== undefined && regs && regs.has(w)) return null; i++; continue; }
+          return firstAt(runStart);
+        }
+        return null;
+      };
+      const P = [...consts].sort((x, y) => x - y), runs = [];
+      let lost = false;
+      for (let q = 0; q < P.length; q++) {
+        const lo = P[q], hi = q + 1 < P.length ? P[q + 1] - 1 : 0xFFFFFFFF, end = runFor(lo);
+        if (end === null) { lost = true; break; }
+        if (runs.length && runs[runs.length - 1].end === end) runs[runs.length - 1].hi = hi; else runs.push({ lo, hi, end });
+      }
+      if (lost) { bad.switches.push(where + ': the tree at +0x' + (L[tr.root].at - r.offset).toString(16) + ' could not be run from its instructions'); continue; }
+      const size = new Map(); for (const u of runs) size.set(u.end, (size.get(u.end) || 0) + (u.hi - u.lo + 1));
+      const def = [...size.entries()].sort((x, y) => y[1] - x[1])[0][0];
+      const val = v => tr.unsigned ? v >>> 0 : v | 0;
+      const want = new Map();
+      for (const u of runs.filter(u => u.end !== def).sort((x, y) => val(x.lo) - val(y.lo)))
+        (want.get(u.end) || want.set(u.end, []).get(u.end)).push(u.lo === u.hi ? String(val(u.lo)) : val(u.lo) + ' to ' + val(u.hi));
+      (want.get(def) || want.set(def, []).get(def)).push('default');
+      for (const [k, cs] of want) { stats.cases++; wantAll.set(k, (wantAll.get(k) || []).concat(cs)); }
+      // (2) and (4): the tree is its root, which goes to the places.
+      for (const e of [...expected]) { const [from, to] = e.split('>').map(Number); if (M.has(from)) expected.delete(e); else if (M.has(to) && to !== tr.root) bad.edges.push(where + ': a jump into the middle of the switch at ' + tr.root); }
+      for (const k of want.keys()) expected.add(tr.root + '>' + k);
+      for (const k of M) if (k !== tr.root) folded.add(k);
+    }
+    // The labels the reader sees, by the place each lands on: a jump
+    // table's cases first, as the switch line through it gives them, then
+    // each tree's in the order of the trees.
+    if (wantAll.size) {
+      const printed = new Map(), table = new Map();
+      for (const l of b.lines) if (l.text === '\u0002' && l.cases) { const k = firstAt(l.at); printed.set(k, (printed.get(k) || []).concat(l.cases)); }
+      for (const k of keep) { const f = L[k].flow; if (f && f.kind === 'switch') for (const [a, cs] of f.cases) { const t = firstAt(a); table.set(t, (table.get(t) || []).concat(cs.map(String))); } }
+      for (const [k, cs] of wantAll) {
+        const got = (printed.get(k) || []).join(', '), exp = (table.get(k) || []).concat(cs).join(', ');
+        if (got !== exp) { bad.switches.push(where + ': the place +0x' + (L[k].at - r.offset).toString(16) + ' is printed case ' + (got || 'nothing') + ', and the instructions reach it for ' + exp); break; }
+      }
+    }
     // ---- (2) the folds contracted out, then the edges compared ----
     // A test joined into a condition, in any round of the join, counts as
     // the condition's first test. A jump between two tests of one condition
@@ -228,7 +335,7 @@ function run(control) {
         for (const q of ['then', 'els', 'body']) if (n[q]) walk(n[q]);
       }
     })(rec.tree);
-    const want4 = keep.filter(k => !rec.absorbed.has(k)).join(','), got4 = seen.slice().sort((x, y) => x - y).join(',');
+    const want4 = keep.filter(k => !rec.absorbed.has(k) && !folded.has(k)).join(','), got4 = seen.slice().sort((x, y) => x - y).join(',');
     if (want4 !== got4) bad.statements.push(where + ': ' + keep.length + ' statements in, ' + seen.length + ' out');
     // ---- (5) operators ----
     for (const k of keep) {
@@ -406,5 +513,5 @@ for (const [what, list] of Object.entries(res.bad)) {
   else console.log(`  ok   ${what}`);
 }
 const s = res.stats;
-console.log(failures ? `FAIL — ${failures} assertion(s)` : `BLOCKS ${s.withJumps} routines with jumps, ${s.whole} with no goto left, ${s.gotos} gotos left, ${s.blocks} blocks, ${s.joined} joined tests, ${s.rotated} whiles with the test at the end`);
+console.log(failures ? `FAIL — ${failures} assertion(s)` : `BLOCKS ${s.withJumps} routines with jumps, ${s.whole} with no goto left, ${s.gotos} gotos left, ${s.blocks} blocks, ${s.joined} joined tests, ${s.rotated} whiles with the test at the end, ${s.switches} trees of compares as switches with ${s.cases} places`);
 process.exit(failures ? 1 : 0);

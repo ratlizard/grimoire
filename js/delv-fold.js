@@ -1125,7 +1125,10 @@ function dvmStatementList(forest, segStart) {
    well as branching; a `jump` only branches; an `end` goes nowhere. An edge off the
    end of the function is dropped and counted, since there is nothing to point
    at -- compiler output does not do it, and a function that does is left
-   unstructured rather than explained. */
+   unstructured rather than explained. A switch marked `exhaustive` has every
+   place it goes among its targets and does not fall through: the program's
+   trees of compares made into switches (exePseudoBlocks), whose default is
+   one of the targets. */
 function dvmFlatEdges(stmts) {
   const edges = new Set();
   let offEnd = 0;
@@ -1133,7 +1136,7 @@ function dvmFlatEdges(stmts) {
     const s = stmts[i];
     const next = (i + 1 < stmts.length) ? stmts[i + 1].abs : null;
     for (const t of s.targets) edges.add(s.abs + '>' + t);
-    if (s.kind === 'end' || s.kind === 'jump') continue;
+    if (s.kind === 'end' || s.kind === 'jump' || s.exhaustive) continue;
     if (next === null) { offEnd++; continue; }
     edges.add(s.abs + '>' + next);
   }
@@ -1539,7 +1542,7 @@ function dvmStructureEdges(tree, follow) {
         case 'stmt': {
           const s = n.stmt;
           for (const t of s.targets) edges.add(s.abs + '>' + (n.goes !== undefined ? n.goes : t));
-          if (s.kind !== 'end' && s.kind !== 'jump' && after !== null)
+          if (s.kind !== 'end' && s.kind !== 'jump' && !s.exhaustive && after !== null)
             edges.add(s.abs + '>' + after);
           break;
         }

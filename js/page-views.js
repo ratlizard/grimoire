@@ -1467,8 +1467,20 @@ function exePseudoLines(r, RF) {
    over the whole program: the same edges, every block a region, every
    statement once, each printed test's operator against its branch's, each
    break and continue against its loop, and a label for every goto. */
+/* A routine's blocks with its trees of compares as switches, and without
+   them, and the one with fewer gotos left, the switches on a tie. A small
+   tree whose places each go on to one exit reads as nested ifs with no
+   goto, where a switch leaves a goto at the end of each case
+   (TMapWindow::MoveKeyTarget, six of them), so a switch is printed only
+   where it leaves no more than the tests do. */
 function exePseudoBlocks(r) {
   if (r.pseudoBlocks) return r.pseudoBlocks;
+  const a = exePseudoBlocksAs(r, true);
+  if (!a.trees.length) return (r.pseudoBlocks = a);
+  const b = exePseudoBlocksAs(r, false);
+  return (r.pseudoBlocks = a.gotos <= b.gotos ? a : b);
+}
+function exePseudoBlocksAs(r, useTrees) {
   const ps = exePseudo(r), L = ps.lines;
   const keep = [];
   for (let k = 0; k < L.length; k++) if (L[k].text !== '\u0002') keep.push(k);
@@ -1499,6 +1511,131 @@ function exePseudoBlocks(r) {
     if (t === null) return { abs: k, node, kind: f.kind === 'jump' ? 'end' : 'plain', targets: [], negated: false };
     return { abs: k, node, kind: f.kind, targets: [t], negated: f.kind === 'cond' };
   });
+  /* A switch compiled as a tree of compares (the handoff's
+     `grimoire/listing-hl26zm`, 10 November 2026). CodeWarrior writes a
+     sparse switch as a binary search: `cmpwi r0,189; beq case; bge upper`
+     and so on down to each case, so KeyRoutine's key was 50 lines of tests
+     and gotos before any case, and such trees were most of the gotos left.
+     A tree here is a test of one register against a constant, and every
+     test and plain jump it leads to that does the same, entered from
+     nothing outside the tree. The register is the one in the compare
+     (cmpwi or cmplwi, read back from the branch, with no jump landing
+     between the two), or the register copied into it just before the tree
+     ("r0 = r27"). The tree is run for every value at which a test can
+     change its answer, which gives each place it ends at a set of runs of
+     values. The place with the most values is `default`, every other place
+     must have at most 4,096, and a tree with fewer than three tests or
+     three places stays as it is. The tree becomes one switch statement
+     whose targets are its places, each labeled with its values (caseOf),
+     and its other tests and jumps leave the list. `trees` has each one for
+     utilities/pseudo_blocks_check.mjs, which runs the instructions
+     themselves for the same values. */
+  const trees = [];
+  let flat = stmts;
+  if (useTrees) {
+    const ops = exeOpsOf(r), opAt = new Map(ops.map((o, i) => [o.at, i]));
+    const landed = new Set();
+    for (const o of ops) if (o.d && o.d.branch && !o.d.lk && o.to !== null && o.to !== undefined) landed.add(o.to);
+    const cmpOf = k => {
+      const i = opAt.get(L[k].at), o = i === undefined ? null : ops[i];
+      if (!o || !o.d || !/^b[tf]$/.test(o.d.mn)) return null;
+      const crf = o.d.bi >> 2;
+      for (let j = i - 1; j >= 0 && j >= i - 8; j--) {
+        if (landed.has(ops[j + 1].at)) return null;
+        const p = ops[j].d;
+        if (!p) return null;
+        if ((p.mn === 'cmpwi' || p.mn === 'cmplwi') && p.crf === crf)
+          return { reg: p.ra, k: p.imm, unsigned: p.mn === 'cmplwi', bit: o.d.bi & 3, yes: o.d.mn === 'bt' };
+        if (/^cmp/.test(p.mn) || (crf === 0 && /\.$/.test(p.mn)) || /^m[tc]crf|^mcrf|^cr/.test(p.mn)) return null;
+        if (p.branch && !p.conditional) return null;
+      }
+      return null;
+    };
+    const holds = (t, v) => {
+      const a = t.unsigned ? v >>> 0 : v | 0, b = t.unsigned ? t.k >>> 0 : t.k | 0;
+      return [a < b, a > b, a === b][t.bit] === t.yes;
+    };
+    const idx = new Map(stmts.map((s, i) => [s.abs, i]));
+    const falls = s => s.kind === 'plain' || s.kind === 'cond';
+    const outs = j => { const s = stmts[j]; return s.targets.map(t => idx.get(t)).concat(falls(s) && j + 1 < stmts.length ? [j + 1] : []).filter(x => x !== undefined); };
+    const preds = new Map();
+    stmts.forEach((s, j) => { for (const o of outs(j)) (preds.get(o) || preds.set(o, []).get(o)).push(j); });
+    /* A test or jump past the first is in a tree only when its straight run
+       of instructions is compares and the branch alone: a run that loads
+       the value again (`lha 0, 286(31)` before each test of
+       T7LabelWidget::DrawRoutine) is an if-else chain, which reads as
+       nested ifs already, and the value it tests is not shown to be the
+       first one. */
+    const bare = j => {
+      let i = opAt.get(L[stmts[j].node.k].at);
+      if (i === undefined) return false;
+      for (i--; i >= 0 && ops[i].d && (ops[i].d.mn === 'cmpwi' || ops[i].d.mn === 'cmplwi') && !landed.has(ops[i + 1].at); i--);
+      return i < 0 || landed.has(ops[i + 1].at) || !!(ops[i].d && ops[i].d.branch && !ops[i].d.lk);
+    };
+    const test = new Map(), used = new Set(), drop = new Set(), replace = new Map();
+    const testAt = j => { if (!test.has(j)) test.set(j, stmts[j].kind === 'cond' ? cmpOf(stmts[j].node.k) : null); return test.get(j); };
+    for (let i = 0; i < stmts.length; i++) {
+      if (used.has(i) || stmts[i].kind !== 'cond' || !testAt(i)) continue;
+      const regs = new Set([testAt(i).reg]);
+      const copy = i > 0 && stmts[i - 1].kind === 'plain' ? /^r(\d+) = r(\d+)$/.exec(L[stmts[i - 1].node.k].text || '') : null;
+      if (copy && (regs.has(+copy[1]) || regs.has(+copy[2]))) { regs.add(+copy[1]); regs.add(+copy[2]); }
+      const isNode = j => !used.has(j) && bare(j) && (stmts[j].kind === 'jump' || (stmts[j].kind === 'cond' && testAt(j) && regs.has(testAt(j).reg)));
+      let M = null;
+      for (let pass = 0; pass < 32; pass++) {
+        const reach = new Set([i]), q = [i];
+        while (q.length) for (const o of outs(q.pop())) if (!reach.has(o) && isNode(o) && (!M || M.has(o))) { reach.add(o); q.push(o); }
+        const next = new Set([...reach].filter(j => j === i || (preds.get(j) || []).every(p => reach.has(p))));
+        const same = M && next.size === M.size;
+        M = next;
+        if (same) break;
+      }
+      const conds = [...M].filter(j => stmts[j].kind === 'cond');
+      if (conds.length < 3) continue;
+      const pts = new Set([0, 0x80000000]);
+      for (const j of conds) { const t = testAt(j); pts.add(t.k >>> 0); pts.add((t.k + 1) >>> 0); }
+      const P = [...pts].sort((a, b) => a - b);
+      const endOf = v => {
+        let j = i;
+        for (let g = 0; M.has(j) && g < 512; g++) {
+          const s = stmts[j];
+          j = s.kind === 'jump' || holds(testAt(j), v) ? idx.get(s.targets[0]) : j + 1;
+          if (j === undefined) return null;
+        }
+        return M.has(j) ? null : j;
+      };
+      const runs = [];
+      let ok = true;
+      for (let q = 0; q < P.length; q++) {
+        const lo = P[q], hi = q + 1 < P.length ? P[q + 1] - 1 : 0xFFFFFFFF, end = endOf(lo);
+        if (end === null) { ok = false; break; }
+        if (runs.length && runs[runs.length - 1].end === end) runs[runs.length - 1].hi = hi; else runs.push({ lo, hi, end });
+      }
+      if (!ok) continue;
+      const size = new Map();
+      for (const u of runs) size.set(u.end, (size.get(u.end) || 0) + (u.hi - u.lo + 1));
+      // A place at or before the tree is a jump back into a loop. The
+      // recovery reads one from a test (`continue`) and not from a switch.
+      if (size.size < 3 || [...size.keys()].some(e => e <= i)) continue;
+      const def = [...size.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      if ([...size.entries()].some(([e, n]) => e !== def && n > 4096)) continue;
+      const unsigned = conds.every(j => testAt(j).unsigned);
+      const val = v => unsigned ? v >>> 0 : v | 0;
+      const placed = runs.filter(u => u.end !== def).sort((a, b) => val(a.lo) - val(b.lo));
+      const order = [...new Set(placed.map(u => u.end))].concat([def]);
+      for (const e of order) {
+        const labels = e === def ? ['default'] : placed.filter(u => u.end === e).map(u => u.lo === u.hi ? String(val(u.lo)) : val(u.lo) + ' to ' + val(u.hi));
+        const k = stmts[e].abs;
+        caseOf.set(k, (caseOf.get(k) || []).concat(labels));
+      }
+      const m = /^(.*) (?:==|!=|>=|<=|<|>) \S+$/.exec(L[stmts[i].node.k].flow.taken.replace(/^earlier: /, ''));
+      replace.set(i, { abs: stmts[i].abs, node: { mn: 'ppc', k: stmts[i].node.k, text: 'switch (' + (m ? m[1] : 'r' + testAt(i).reg) + ')' },
+                       kind: 'switch', targets: order.map(e => stmts[e].abs), negated: false, exhaustive: true });
+      for (const j of M) { used.add(j); if (j !== i) drop.add(j); }
+      trees.push({ root: stmts[i].abs, members: [...M].map(j => stmts[j].abs), unsigned,
+                   runs: runs.map(u => ({ lo: u.lo, hi: u.hi, end: stmts[u.end].abs })), def: stmts[def].abs });
+    }
+    if (trees.length) flat = stmts.map((s, i) => replace.get(i) || s).filter((s, i) => !drop.has(i));
+  }
   /* Tests in a row, each jumping to one of two places, are one condition.
      C's `if (A || B) { X } Y` compiles to `if (A) goto X; if (!B) goto Y;
      X: ...`: the first test jumps past the second to where the block
@@ -1518,7 +1655,7 @@ function exePseudoBlocks(r) {
      utilities/pseudo_blocks_check.mjs. */
   const joined = new Map();
   const testText = (s, toward) => s.joined ? (toward ? s.node.taken : s.node.fall) : (toward ? L[s.node.k].flow.taken : L[s.node.k].flow.fall);
-  let list = stmts;
+  let list = flat;
   for (let round = 0; round < 8; round++) {
     const jumpedTo = new Set();
     for (const s of list) for (const t of s.targets) jumpedTo.add(t);
@@ -1589,7 +1726,7 @@ function exePseudoBlocks(r) {
           const where = s.targets.length === 1 ? (n.goes !== undefined ? n.goes : s.targets[0]) : null;
           if (s.kind === 'cond') line(atOf(s), depth, 'if (' + textOf(s, 'taken') + ') ' + (word || 'goto \u0001'), word ? null : goTo(where));
           else if (s.kind === 'jump') line(atOf(s), depth, word || 'goto \u0001', word ? null : goTo(where));
-          else { const t = L[s.node.k]; line(atOf(s), depth, t.text, t.to); }
+          else { const t = L[s.node.k]; line(atOf(s), depth, s.node.text || t.text, s.node.text ? null : t.to); }
           break;
         }
         case 'if':
@@ -1644,7 +1781,7 @@ function exePseudoBlocks(r) {
   const stmtOf = new Int32Array(ops.length).fill(-1);
   let j = 0;
   for (let i = 0; i < ops.length; i++) { while (j < byAt.length - 1 && out[byAt[j]].at < ops[i].at) j++; stmtOf[i] = byAt.length ? byAt[j] : -1; }
-  return (r.pseudoBlocks = { lines: out, stmtOf, stmts, list, joined, rec, loops, labels, rotated, gotos: rec.gotos - loops.exits.size - rotated.size / 2 });
+  return ({ lines: out, stmtOf, stmts, list, joined, trees, rec, loops, labels, rotated, gotos: rec.gotos - loops.exits.size - rotated.size / 2 });
 }
 /* A run of tests as one condition (exePseudoBlocks): `toE[i]` is whether
    test i jumps to E, the place the last one jumps to, rather than to T,
@@ -1692,7 +1829,7 @@ function exePseudoHTML(r, ringAt, why) {
     let line;
     const pad = '    '.repeat(l.depth);
     // A switch's case is the label of the line it jumps to, with its numbers.
-    if (l.text === '\u0002') line = '<span class="refnote">' + off(l.at).trim() + ':' + (l.cases ? ' case ' + l.cases.join(', ') : '') + '</span>';
+    if (l.text === '\u0002') line = '<span class="refnote">' + off(l.at).trim() + ':' + (l.cases ? ' ' + [l.cases.filter(c => c !== 'default').join(', ')].filter(x => x).map(x => 'case ' + x).concat(l.cases.includes('default') ? ['default'] : []).join(', ') : '') + '</span>';
     else if (l.text[0] === '\u0003') line = off(l.at) + '  ' + pad + '<span class="refnote">' + svEsc(l.text.slice(1)).replace('\u0001', l.to !== null ? exeTargetHTML(r, l.to) : '') + '</span>';
     else line = off(l.at) + '  ' + pad + svEsc(l.text).replace('\u0001', l.to !== null ? exeTargetHTML(r, l.to) : '');
     if (i !== ringLine) return line;
