@@ -402,6 +402,30 @@ function renderLinked(text, resid, raw) {
     // A Slideshow picture opens the Screens view, which has Cythera Data's PICTs.
     h = h.replace(/picture PICT (\d+) of Cythera Data/g, (m, id) =>
       'picture <a class="reflink" onclick="showCategory(\'SCREENS\')">PICT ' + id + '</a> of Cythera Data');
+    // A routine of the program a comment names (MissileFX's bits name
+    // TGameViewer::DoMissile), a link to its listing and note. First of the
+    // comment's links, so no title another link puts in the line is matched.
+    h = h.split('\n').map(line => {
+      const c = line.indexOf('   // ');
+      return c < 0 ? line : line.slice(0, c) + line.slice(c).replace(/\b(T[A-Za-z]+::[A-Za-z]\w*)(?![\w:])/g, (m, nm) => {
+        const r = exeRoutineNamed(nm);
+        return r ? '<a class="reflink" onclick="jumpToExeAt(' + r.offset + ')">' + nm + '</a>' : m;
+      });
+    }).join('\n');
+    // What answers a signal (EmitSignal's comment): each square opens the
+    // map there, and each script whose GetMessage tests it opens the script.
+    h = h.replace(/ at (\d+),(\d+) in zone (\d+)/g, (m, x, y, z) =>
+      ' <a class="reflink" title="' + svEsc(zoneDisplayName(+z)) + '" onclick="atlasOpenSquare(' + (0x8000 + +z) + ',' + x + ',' + y + ')">at ' + x + ',' + y + ' in zone ' + z + '</a>');
+    h = h.replace(/GetMessage of ((?:0x[0-9A-F]{4}(?:, )?)+)/g, (m, list) =>
+      'GetMessage of ' + list.replace(/0x([0-9A-F]{4})/g, (mm, hx) => {
+        const rid = parseInt(hx, 16);
+        return refExists(rid) ? '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>' : mm;
+      }));
+    // The scripts a behavior with no case runs (dvmBehaviorNote).
+    h = h.replace(/(by default script |which calls script )0x([0-9A-F]{4})\b/g, (m, pre, hx) => {
+      const rid = parseInt(hx, 16);
+      return refExists(rid) ? pre + '<a class="reflink" title="' + svEsc(refTitle(rid)) + '" onclick="jumpToResource(' + rid + ')">0x' + hx + '</a>' : m;
+    });
     // A sound, tune, landscape strip or tile a line's comment names
     // (dvmFoldNote) is a link to it.
     h = h.replace(/((?:sound \d+(?:: [^;<]*?)?|tune \d+|landscape strip \d+(?:, no sky)?|(?:tile|skill) \d+(?:: [^;<(]*?)?) \()0x((?:9[01]|84|8E|1A)[0-9A-F]{2})\)/g, (m, pre, hx) => {

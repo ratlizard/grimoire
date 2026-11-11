@@ -1041,6 +1041,36 @@ try {
                    [...new Set(lettered.map(x => ctx.itemLetter(x.rec)))].sort().join(''));
 } catch (e) { fail('key letters', e); }
 
+/* What a call's numbers are, in the structured listing's comments
+   (`grimoire/numbers-n1gd10`, 10 November 2026): EmitSignal's receivers on
+   the maps and in GetMessage, a behavior with no case in DoMove run through
+   the default script, MissileFX's bits, and the CD_Tool commands in the
+   handler's note. Each comment needs the program, and each is matched with
+   its link, so a comment written without its link fails too. The code
+   before these comments printed none of them, which is this block's
+   negative control. */
+try {
+  if (!ctx.APP_DATA) console.log('  call comments: skipped, no application beside the archive');
+  else {
+    ctx.setScriptFold('structured');
+    const pane = rid => { ctx.jumpToResource(rid); return REGISTRY.get('textContent').innerHTML; };
+    const plain = h => h.replace(/<[^>]+>/g, '');
+    const line = (h, re) => (re.exec(plain(h)) || ['no line'])[0];
+    const kosha = pane(0x1417), lever = pane(0x10C1), task = pane(0xC86), burst = pane(0x1A16), cd = pane(0x1174);
+    if (!/signal 130 is tested in the GetMessage of 0x180A/.test(plain(kosha)) || !/onclick="jumpToResource\(6154\)">0x180A<\/a>/.test(kosha))
+      fail('call comments', 'Kosha Grotto\'s signal 130 does not lead to the GetMessage of 0x180A, and the line reads ' + line(kosha, /[^\n]*SendSignal\(130\)[^\n]*/));
+    else if (!/signal 34 reaches the portcullis at 15,41 in zone 25/.test(plain(lever)) || !/atlasOpenSquare\(32793,15,41\)/.test(lever))
+      fail('call comments', 'the lever\'s signal 34 does not lead to its portcullis, and the line reads ' + line(lever, /[^\n]*SendSignal\(34\)[^\n]*/));
+    else if (!/behavior 78: no case in DoMove, so method 33 runs[^;\n]*default script 0x3021, which calls script 0x0C4E/.test(plain(task)) || !/onclick="jumpToResource\(3150\)">0x0C4E<\/a>/.test(task))
+      fail('call comments', 'behavior 78 does not lead to 0x0C4E through 0x3021, and the line reads ' + line(task, /[^\n]*behavior 78[^\n]*/));
+    else if (!/bits 0x28: missile kind 0 \(TGameViewer::DoMissile\), no line walk, burst type 2 \(TGameViewer::DoBurst\)/.test(plain(burst)) || !/jumpToExeAt\(\d+\)">TGameViewer::DoBurst<\/a>/.test(burst))
+      fail('call comments', 'MissileFX\'s bits 40 are not split with links, and the line reads ' + line(burst, /[^\n]*MissileFX[^\n]*/));
+    else if (!/CD_Tool\(10, None\)\s+\/\/ Command 10 ejects the disc/.test(plain(cd)))
+      fail('call comments', 'CD_Tool(10) is not read as ejecting the disc, and the line reads ' + line(cd, /[^\n]*CD_Tool\(10[^\n]*/));
+    else console.log('  call comments: signals to their receivers, behavior 78 through 0x3021 to 0x0C4E, MissileFX\'s bits, CD_Tool\'s commands');
+  }
+} catch (e) { fail('call comments', e); }
+
 /* The Read view (dvmReadRender, readViewHtml): a script's functions as
    sentences in the script page's pane, and the listings back when
    Structured is chosen. Awaken (0x1A13) clears flag 22 on its target and

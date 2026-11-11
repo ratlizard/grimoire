@@ -501,19 +501,111 @@ function dvmFoldArgNotes(name, vals, ctx) {
     const t = num(4), nm = dvmFoldPage(ctx, () => terrainNameFor(t));
     dvmFoldNote(ctx, 'tile ' + t + (nm ? ': ' + nm : '') + ' (0x' + (0x8E00 + (t >> 4)).toString(16).toUpperCase() + ')');
   }
-  // AddTask's task is a behavior (cbQueueAction, exeBehaviorCase): the
-  // case of TActiveMonster::DoMove it picks, or, for one with no case,
-  // the character's script method 33.
-  if (name === 'AddTask' && num(1) !== null) {
-    const b = num(1) & 0xFF, c = dvmFoldPage(ctx, () => exeBehaviorCase(b));
-    const at = c ? ' (0x' + c.at.toString(16).toUpperCase().padStart(6, '0') + ')' : '';
-    if (c && c.other) dvmFoldNote(ctx, 'behavior ' + b + ': no case in DoMove, so the character’s script method 33 runs with the task' + at);
-    else if (c) dvmFoldNote(ctx, 'behavior ' + b + (c.words ? ': ' + c.words.replace(/\.$/, '') : '') + at);
+  /* MissileFX's bits, its sixth argument, split as cbMissileFX reads them.
+     Low four bits of 15 draw no missile and walk no line. Otherwise the low
+     three are TGameViewer::DoMissile's kind, and bit 0x8 skips the walk of
+     the line that marks the characters on it. The bits above the low four
+     are TGameViewer::DoBurst's type, drawn when the seventh argument, the
+     radius, is not 0. What each kind and type draws is in those routines'
+     notes, which renderLinked links. */
+  if (name === 'ShootEffect' && num(5) !== null && num(5) >= 0) {
+    const v = num(5), parts = [];
+    if ((v & 15) === 15) parts.push('no missile and no line walk');
+    else parts.push('missile kind ' + (v & 7) + ' (TGameViewer::DoMissile)' + (v & 8 ? ', no line walk' : ''));
+    if (num(6) !== 0) parts.push('burst type ' + (v >> 4) + ' (TGameViewer::DoBurst)');
+    dvmFoldNote(ctx, 'bits 0x' + v.toString(16).toUpperCase() + ': ' + parts.join(', '));
+  }
+  /* SetBackgroundColor's color. cbSetBackgroundColor passes the word to
+     TViewer::SetEraseColor, which stores its low byte at +185.
+     With +184 not 0, TViewer::Render fills the frame's rows with that byte
+     (`memset`) before it draws the sprites and tiles, so the byte is a pixel
+     of the frame, a palette index. renderLinked draws the swatch. */
+  if (name === 'SetBackgroundColor' && num(0) !== null && num(0) >= 0)
+    dvmFoldNote(ctx, 'background palette color ' + (num(0) & 0xFF));
+  // AddTask's task is a behavior (cbQueueAction, exeBehaviorCase).
+  if (name === 'AddTask' && num(1) !== null) dvmBehaviorNote(ctx, num(1) & 0xFF);
+  /* EmitSignal's signal: what answers it (signalReceivers). A zone's script,
+     0x1400 plus the zone, runs with the hero in that zone, and SendSignal
+     reaches the props of the level the leader is on, so its signal reaches
+     that zone's props alone. Any other script can run anywhere, and the
+     props of every zone are listed with their zone. renderLinked links each
+     square and each script. */
+  if (name === 'EmitSignal' && num(0) !== null && num(0) > 0) {
+    const v = num(0), rx = dvmFoldPage(ctx, () => signalReceivers());
+    if (rx) {
+      const home = ctx && typeof ctx.resid === 'number' && (ctx.resid >> 8) === 0x14 ? ctx.resid & 0xFF : null;
+      const props = (rx.props.get(v) || []).filter(p => home === null || p.zone === home);
+      const scripts = rx.scripts.get(v) || [];
+      const MAX = 12;
+      const where = props.slice(0, MAX).map(p => (dvmFoldPropName(ctx, p.pt) || 'prop type ' + p.pt) + ' at ' + p.x + ',' + p.y + ' in zone ' + p.zone);
+      if (props.length > MAX) where.push('and ' + (props.length - MAX) + ' more');
+      const hex = r => '0x' + r.toString(16).toUpperCase().padStart(4, '0');
+      const parts = [];
+      if (where.length) parts.push('reaches the ' + where.join(', the ').replace(/, the and /, ', and '));
+      if (scripts.length) parts.push('is tested in the GetMessage of ' + scripts.map(hex).join(', '));
+      if (parts.length) dvmFoldNote(ctx, 'signal ' + v + ' ' + parts.join(' and '));
+    }
   }
   if (name === 'Slideshow' && num(0) !== null && num(0) > 0) {
     const has = dvmFoldPage(ctx, () => !!(window.CYTHERA_RSRC && (CYTHERA_RSRC.resourcesByType.PICT || []).some(e => e.id === num(0))));
     if (has) dvmFoldNote(ctx, 'picture PICT ' + num(0) + ' of Cythera Data');
   }
+}
+/* A behavior, queued by AddTask or written into the `behavior` field (byte
+   22, which TActiveMonster::DoMove reads with an empty queue): the case of
+   DoMove it picks (exeBehaviorCase), with the program's note for that code.
+   A behavior with no case runs the method the program names there
+   (exeBehaviorMethod, 33), which no class in the shipped file defines, so
+   the default script runs, 0x3000 plus the method (TInterp::DoInterp,
+   0x082C4C). 0x3021 calls the script at a base plus its second argument,
+   the queued kind, and the base is read from its first `call_index` with
+   `arg Arg01` after it (0x0C00). renderLinked links both scripts. */
+function dvmBehaviorNote(ctx, b) {
+  const c = dvmFoldPage(ctx, () => exeBehaviorCase(b));
+  if (!c) return;
+  const at = ' (0x' + c.at.toString(16).toUpperCase().padStart(6, '0') + ')';
+  if (!c.other) { dvmFoldNote(ctx, 'behavior ' + b + (c.words ? ': ' + c.words.replace(/\.$/, '') : '') + at); return; }
+  const m = c.method;
+  if (!m) { dvmFoldNote(ctx, 'behavior ' + b + ': no case in DoMove' + at); return; }
+  const hex = r => '0x' + r.toString(16).toUpperCase().padStart(4, '0');
+  const def = 0x3000 + m.v;
+  const task = dvmFoldPage(ctx, () => {
+    if (!refExists(def) || dvmMethodDefiners(ctx.arc, m.v).length) return null;
+    const ops = dvmOpsOf(dvmScriptEntry(def));
+    const k = ops.findIndex((o, i) => o.mn === 'call_index' && ops[i + 1] && ops[i + 1].text === 'arg Arg01');
+    const base = k >= 0 ? parseInt(ops[k].text.replace(/^call_index /, ''), 16) : NaN;
+    return Number.isFinite(base) && refExists(base + b) ? base + b : null;
+  });
+  dvmFoldNote(ctx, 'behavior ' + b + ': no case in DoMove, so method ' + m.v + ' runs' + at +
+    (task !== null ? ', by default script ' + hex(def) + ', which calls script ' + hex(task) : ''));
+}
+// The scripts whose dispatch table has a function under a method's key, as
+// dvmSlotNames reads the table. Outside the default scripts (0x30xx).
+function dvmMethodDefiners(arc, key) {
+  return derivedTable(arc, 'methodDefiners' + key, () => {
+    const out = [];
+    for (let subn = 0; subn < 256; subn++) {
+      if (!arc.index[subn] || !arc.index[subn][0] || subn === 0x2F || (typeof SCRIPT_SUBN !== 'undefined' && !SCRIPT_SUBN.has(subn))) continue;
+      for (let i = 0, n = subindexCount(arc, subn); i < n; i++) {
+        const resid = ((subn + 1) << 8) | i;
+        let b;
+        try { const raw = getResourceBytes(arc, resid); if (!raw || raw.length < 4) continue; b = smartDecrypt(raw, resid).data; } catch (e) { continue; }
+        const head = b[0];
+        if (b.length < 4 || head === 0x81 || (head & 0xF0) === 0x90 || (head & 0xF0) === 0xA0) continue;
+        const toff = u16be(b, 0);
+        if (toff < 2 || toff + 2 > b.length) continue;
+        let objs;
+        try { objs = dvmExtents(b, resid); } catch (e) { continue; }
+        const count = u16be(b, toff) & 0x0FFF;
+        for (let k = 0, p = toff + 2; k < count && p + 6 <= b.length; k++, p += 6) {
+          const value = u32be(b, p);
+          if (u16be(b, p + 4) !== key || !(value & 0x80000000) || ((value & 0x7FFF0000) >>> 16) !== resid) continue;
+          if (objs.some(o => o[0] === (value & 0xFFFF) && o[2] === 'function')) { out.push(resid); break; }
+        }
+      }
+    }
+    return out;
+  });
 }
 // A text array's entries by the index field in each, which is not their
 // position beyond entry 37 of 0x021A (todoRules notes the same).
@@ -618,7 +710,10 @@ function dvmFoldStatement(n, ctx) {
       return (lhs || 'set_local ' + bare) + ' = ' + (g[0] || '');
     }
     case 'set_global': return dvmPlainName(bare) + ' = ' + (g[0] || '');
-    case 'set_field': return (g[0] || '') + '.' + bare + ' = ' + (g[1] || '');
+    case 'set_field':
+      // A behavior written as a number (dvmBehaviorNote), as AddTask's is.
+      if (bare === 'behavior' && /^\d+$/.test(g[1] || '')) dvmBehaviorNote(ctx, +g[1]);
+      return (g[0] || '') + '.' + bare + ' = ' + (g[1] || '');
     case 'set_index': return (g[0] || '') + '[' + (g[1] || '') + '] = ' + (g[2] || '');
     case 'write_near_word': return 'word@' + bare + ' = ' + (g[0] || '');
     case 'write_far_word': return 'word@' + bare + ' = ' + (g[0] || '');
@@ -677,7 +772,7 @@ function dvmFoldRender(arc, b, resid) {
          below is absolute: the gutter, the labels and the object names then all
          mean the same thing, and it is the thing Edit Bytes shows. */
       const targets = dvmBranchTargets(r.ops);
-      const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [] };
+      const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, resid, notes: [] };
       const args = [];
       for (let i = 0; i < seg[1]; i++) args.push('Arg' + i.toString(16).padStart(2, '0').toUpperCase());
       const locals = seg[2] ? '   // ' + seg[2] + ' local' + (seg[2] === 1 ? '' : 's') : '';
@@ -1811,7 +1906,7 @@ function dvmStructureRender(arc, b, resid, out) {
     const ph = dvmProseHead(seg.subarray(3));
     if (ph && ph.bare) { lines.push('', name + ' = ' + JSON.stringify(str(ph.head))); continue; }
     const r = dvmDisassembleFolded(seg, st);
-    const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, notes: [] };
+    const ctx = { label: t => 'L' + String(t).replace(/^0x/i, '').toUpperCase().padStart(4, '0'), arc, resid, notes: [] };
     const args = [];
     for (let i = 0; i < seg[1]; i++) args.push('Arg' + i.toString(16).padStart(2, '0').toUpperCase());
     const locals = seg[2] ? '   // ' + seg[2] + ' local' + (seg[2] === 1 ? '' : 's') : '';

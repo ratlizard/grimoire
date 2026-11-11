@@ -4392,6 +4392,73 @@ function leverRules() {
   return { sends, levers: out };
 }
 
+/* What answers a signal, for EmitSignal's comment in the listings (the
+   maintainer, 8 November 2026: a number a script passes should lead to what
+   it is). TGameSys::SendSignal (signalRules) runs method 21, GetMessage, on
+   the zone, the room, every character on the level and the gremlins, and,
+   for a signal below its limit, on each plain placed prop whose Data1 is the
+   signal. So two kinds of receiver can be read from the file:
+   - the props on the maps, by the test leverRules makes (a plain prop on
+     the map, Data1 equal to the signal, a class with a GetMessage). The
+     limit and the flags mask are read from the program, so with no
+     application open this half is empty;
+   - the scripts whose GetMessage compares its signal, the second argument,
+     with the number (`arg Arg01`, the number, `eq` or `ne`, in postfix).
+     A class that compares the signal with its prop's Data1 (0x1033,
+     0x10FD) is the first kind and is not listed here.
+   Neither scan finds a script that tests the signal in another shape. The
+   AI scripts 0xD06 and 0xD07, which answer 320 and 321 (the data fix
+   `love-bellerophon`), have no function named GetMessage, so neither scan
+   finds them. Built once per archive. */
+function signalReceivers() {
+  // Kept apart with and without the program, which opens after the archive.
+  const sig = signalRules();
+  return derivedTable(ARCHIVE, 'signalReceivers' + (sig ? ' with the program' : ''), () => {
+    const props = new Map(), scripts = new Map();
+    const push = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+    for (let subn = 0; subn < 256; subn++) {
+      const mi = ARCHIVE.index[subn];
+      if (!mi || !mi[0]) continue;
+      for (let ri = 0, n = subindexCount(ARCHIVE, subn); ri < n; ri++) {
+        const resid = ((subn + 1) << 8) | ri;
+        let b, slots, objs;
+        try {
+          const raw = getResourceBytes(ARCHIVE, resid);
+          if (!raw || !raw.length) continue;
+          b = smartDecrypt(raw, resid).data; slots = dvmSlotNames(b, resid); objs = dvmExtents(b, resid);
+        } catch (e) { continue; }
+        for (const [st, en, kind] of objs) {
+          if (kind !== 'function' || slots.get(st) !== 'GetMessage') continue;
+          let ops;
+          try { ops = dvmDisassemble(b.subarray(st, Math.min(en, b.length)), 3).ops; } catch (e) { quiet(e, 'a GetMessage of 0x' + resid.toString(16)); continue; }
+          const T = o => o[2] + (o[3] ? ' ' + o[3] : '');
+          const seen = new Set();
+          for (let i = 2; i < ops.length; i++) {
+            if (ops[i][2] !== 'eq' && ops[i][2] !== 'ne') continue;
+            const a = T(ops[i - 2]), c = T(ops[i - 1]);
+            const m = /^(?:byte|word|dword) (0x[0-9A-F]+|\d+)$/i.exec(a === 'arg Arg01' ? c : c === 'arg Arg01' ? a : '');
+            if (!m) continue;
+            const v = /^0x/i.test(m[1]) ? parseInt(m[1], 16) : +m[1];
+            if (!seen.has(v)) { seen.add(v); push(scripts, v, resid); }
+          }
+        }
+      }
+    }
+    if (sig && sig.under && sig.mask) {
+      const under = sig.under.v, mask = sig.mask.v;
+      for (let z = 0, count = subindexCount(ARCHIVE, 128); z < count; z++) {
+        let recs = null;
+        try { const raw = getResourceBytes(ARCHIVE, 0x8100 + z); if (raw) recs = parseDelverPropList(smartDecrypt(raw, 0x8100 + z).data); } catch (e) { quiet(e); }
+        if (!recs) continue;
+        for (const o of recs)
+          if (o.flags !== 0xFF && o.onMap && (o.flags & mask) <= 1 && o.d1 > 0 && o.d1 < under && classAnswersSignal(o.proptype))
+            push(props, o.d1, { zone: z, pt: o.proptype, x: o.x, y: o.y });
+      }
+    }
+    return { props, scripts };
+  });
+}
+
 /* Who hands a prop over. sys Create is (recipient, aspect<<10|proptype,
    data1, data2), a signature delv-script.js records from the board and
    confirms against call sites -- Ennomus's tomb key is Create(you, 3<<10|66,
@@ -6386,7 +6453,24 @@ function exeBehaviorCase(k) {
   });
   const at = k > 170 ? tables.other : k >= 160 && tables.kinds ? tables.kinds[k - 160] : tables.behaviors ? tables.behaviors[k] : null;
   if (at === null || at === undefined) return null;
-  return at === tables.other ? { at, other: true } : { at, words: routineNoteSentence(r.offset, at, null) };
+  return at === tables.other ? { at, other: true, method: exeBehaviorMethod(r, at) } : { at, words: routineNoteSentence(r.offset, at, null) };
+}
+/* The method that code runs: the number loaded into r4, the method
+   argument, last before the first call to TInterp::DoInterp after the way
+   out (`li 4, 33` at 0x04D538). Null when the shape is not there. */
+function exeBehaviorMethod(r, at) {
+  return exeMemo('behaviorMethod', () => {
+    const ops = exeOpsOf(r), i = ops.findIndex(o => o.at === at);
+    if (i < 0) return null;
+    let li = null;
+    for (let j = i; j < Math.min(ops.length, i + 80); j++) {
+      const o = ops[j];
+      if (o.d && o.d.mn === 'li' && o.d.rd === 4 && typeof o.d.imm === 'number') li = o;
+      if (o.d && o.d.mn === 'bl' && o.to !== null && o.to !== undefined && /DoInterp\b/.test(exeTargetName(o.to)))
+        return li ? exeVal(li, li.d.imm) : null;
+    }
+    return null;
+  });
 }
 
 // The flag number of a status-word bit, with where its subtrahend was read.
