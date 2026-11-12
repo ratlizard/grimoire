@@ -4312,6 +4312,9 @@ function convJumpWord(resid, word) {
   const conv = conversationFor(resid);
   if (conv) {
     const hit = convFindEntry(conv.entries, word);
+    // Another character's card, from a test of their bit, is on their
+    // view, which opens first.
+    if (hit && !document.getElementById('conv-' + resid + '-' + hit.at)) { window.PENDING_CONV_WORD = word; return jumpToResource(resid); }
     if (hit) return convScrollTo(resid, hit.at);
     for (const gid of conv.groups) {
       const g = conversationFor(gid);
@@ -4496,6 +4499,21 @@ function convNameWords() {
   }
   return names;
 }
+// The character a note's "Mantinea’s" names, by number, or null when no
+// character or more than one has that name (the Gate Guards).
+function convSpeakerIndex(poss) {
+  if (!DERIVED.CONV_SPEAKERS) {
+    const m = new Map();
+    for (let i = 1; i < 256; i++) {
+      const nm = typeof characterName === 'function' ? characterName(i) : null;
+      if (!nm) continue;
+      const k = dvmProsePossessive(nm);
+      m.set(k, m.has(k) ? 0 : i);
+    }
+    DERIVED.CONV_SPEAKERS = m;
+  }
+  return DERIVED.CONV_SPEAKERS.get(poss) || null;
+}
 // True for a four-letter stub that matches no @word and no name.
 function convStubUnmatched(k) {
   if (!/^[a-z]{4}$/i.test(k)) return false;
@@ -4640,7 +4658,10 @@ function convLocalShown(resid, c) {
    set character flag it, 3", which `halos-kidnapping` fixes), and a
    group's answer. The words of the card are CONV_ASK, on one line. */
 const CONV_ASK = { on: 'asked about ', before: ' before', not: 'not yet asked about ' };
-const CONV_NEARBY = 'True when the character is awake and in sight inside the view on the current character’s level.';
+// The view cbnearby tests is the square of squares the map window shows.
+// TMapWindow::ResizeRoutine sets its size from the window's (an odd count
+// across, at most 15), so a smaller window reaches fewer characters.
+const CONV_NEARBY = 'True when the character is awake and in sight among the squares the map window shows on the current character’s level. A smaller map window shows fewer squares.';
 function convCondHtml(resid, c, seen) {
   const notes = convReadConds(resid).notes;
   const neg = /^not \((.*)\)$/.exec(c), k = neg ? neg[1] : c;
@@ -4678,19 +4699,89 @@ function convCondHtml(resid, c, seen) {
     }
     rest.push(...run.map(r => r.piece));
   } else rest.push(...pieces);
-  // The prompts stand in the text as ⟦WORD⟧ until it is escaped.
+  // Another character's bit that their prompts set, as Mantinea's bit 1 on
+  // Halos's kidnapping card, which her COMPANY prompt sets. The note reads
+  // as the character's bits do, a run of prompts and then the one that
+  // "sets" or "set" the bit, and the speaker of each can be someone else
+  // again, as Hector's JOIN sets Hadrian's bit 1. The test "Mantinea (61)’s
+  // bit flags has bit 1" becomes those prompts put to their speakers, each
+  // word a link to its card. A bit that a greeting, a script or anything but
+  // a prompt sets stays as it was, since no prompt alone stands for it.
+  const theirs = new Map();
+  let lead = [];
+  for (const p of pieces) {
+    const other = /sets? bit (\d+) of (.+) bit flags$/.exec(p);
+    const bare = !other && !/ (?:sets?|clears?) /.test(p) && /^(.+) conversation(?:,\s\w+ about (.+))?$/.exec(p);
+    if (bare) { lead.push({ speaker: bare[1], words: bare[2] || null, piece: p }); continue; }
+    // On Hadrian's cards the test of his bit has his name in place of
+    // "its", so every bit's setters are read here. A run of prompts belongs
+    // to the bit when the verb after it is "set". After "sets" the setter
+    // is that one prompt alone.
+    if (other) {
+      const s = /^(.+) conversation,\s\w+ about (.+?) (sets?) bit \d+ of .+ bit flags$/.exec(p);
+      const key = other[2] + '|' + other[1];
+      const t = theirs.get(key) || { asks: [], pieces: [], ok: true };
+      const run = s && s[3] === 'set' ? lead : [];
+      const group = run.concat(s ? [{ speaker: s[1], words: s[2], piece: p }] : []);
+      if (!s || group.some(g => !g.words || !convSpeakerIndex(g.speaker))) t.ok = false;
+      else t.asks.push(...group);
+      t.pieces.push(...run.map(g => g.piece), p);
+      theirs.set(key, t);
+    }
+    lead = [];
+  }
+  // The prompts stand in the text as ⟦WORD⟧, or ⟦WORD@resid⟧ for another
+  // character's, until it is escaped.
   const L = '⟦', R = '⟧';
   const words = b => bits.get(b).map(w => L + w + R).join(' or ');
   let txt = convLocalShown(resid, c)
     .replace(/\bits bit flags has bit (\d+)(?: \(\w+\))?/g, (m, b) => bits.has(b) ? CONV_ASK.on + words(b) + CONV_ASK.before : m)
     .replace(/\bits bit flags does not have bit (\d+)(?: \(\w+\))?/g, (m, b) => bits.has(b) ? CONV_ASK.not + words(b) : m);
+  const used = new Set();
+  for (const n of new Set([...txt.matchAll(/\((\d+)\)’s bit flags/g)].map(m => +m[1]))) {
+    const nm = typeof characterName === 'function' ? characterName(n) : null;
+    if (!nm) continue;
+    const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const test = new RegExp(esc(dvmProsePossessive(nm + ' (' + n + ')')) + ' bit flags (has|does not have) bit (\\d+)(?:\\s\\(\\w+\\))?', 'g');
+    txt = txt.replace(test, (m, has, b) => {
+      const t = theirs.get(dvmProsePossessive(nm) + '|' + b);
+      if (!t || !t.ok || !t.asks.length) return m;
+      used.add(t);
+      // One phrase for each speaker, in the order the note has them.
+      const by = new Map();
+      for (const a of t.asks) {
+        if (!by.has(a.speaker)) by.set(a.speaker, []);
+        by.get(a.speaker).push(...a.words.split(' or '));
+      }
+      // A prompt of the card's character is written without their name,
+      // as the bits above are.
+      const asks = [...by].map(([sp, ws]) => {
+        const i = convSpeakerIndex(sp);
+        const to = i === resid - 0x1800 ? '' : characterName(i) + ' ';
+        return { about: to + 'about', list: ws.map(w => L + w + (to ? '@' + (0x1800 + i) : '') + R).join(' or ') };
+      });
+      if (asks.length === 1) return has === 'has'
+        ? CONV_ASK.on.replace('about', asks[0].about) + asks[0].list + CONV_ASK.before
+        : CONV_ASK.not.replace('about', asks[0].about) + asks[0].list;
+      const any = asks.map(a => CONV_ASK.on.replace('about', a.about) + a.list + CONV_ASK.before).join(' or ');
+      return (has === 'has' ? '' : 'not ') + '(' + any + ')';
+    });
+  }
+  // Where the Read view put the test in brackets, one pair of them stays.
+  // A pair around the whole stays too, since a card's lines join their
+  // tests with "and".
+  txt = txt.replace(new RegExp('\\(\\((' + CONV_ASK.on.split(' ')[0] + ' [^()]*)\\)\\)', 'g'), '($1)');
+  for (const t of used) for (const p of t.pieces) { const i = rest.indexOf(p); if (i >= 0) rest.splice(i, 1); }
   // Two such tests joined by "or" are one list, and brackets around one alone go.
   const list = '((?:' + L + '[^' + R + ']+' + R + '(?: or )?)+)';
   const pair = new RegExp(CONV_ASK.on + list + CONV_ASK.before + ' or ' + CONV_ASK.on + list + CONV_ASK.before);
   while (pair.test(txt)) txt = txt.replace(pair, CONV_ASK.on + '$1 or $2' + CONV_ASK.before);
-  const one = new RegExp('^not \\(' + CONV_ASK.on + '([^()]*)' + CONV_ASK.before + '\\)$');
-  txt = txt.replace(one, CONV_ASK.not + '$1')
-    .replace(new RegExp('\\((' + CONV_ASK.on + '[^()]*' + CONV_ASK.before + ')\\)', 'g'), '$1')
+  // The same for a test of another character's prompts, with their name
+  // before "about", unless the brackets hold two such tests.
+  const one = new RegExp('^not \\(' + CONV_ASK.on.replace('about', '([^()⟦]*?)about') + '([^()]*)' + CONV_ASK.before + '\\)$');
+  txt = txt.replace(one, (m, who, ws) => ws.includes(CONV_ASK.before) ? m : CONV_ASK.not.replace('about', who + 'about') + ws)
+    .replace(new RegExp('\\((' + CONV_ASK.on.replace('about', '[^()⟦]*?about') + '[^()]*' + CONV_ASK.before + ')\\)', 'g'),
+      (m, inner) => inner.includes(CONV_ASK.before + ' or ') ? m : inner)
     .replace(new RegExp('(' + L + '[^' + R + ']+' + R + ')((?: or ' + L + '[^' + R + ']+' + R + ')+)', 'g'), (m, first, more) => {
       const ws = [first].concat(more.split(' or ').filter(Boolean));
       return ws.length > 2 ? ws.slice(0, -1).join(', ') + ' or ' + ws[ws.length - 1] : ws.join(' or ');
@@ -4699,8 +4790,8 @@ function convCondHtml(resid, c, seen) {
   // (cbnearby). Its meaning on Ake's card was the maintainer's question of
   // 12 November 2026, and the hover gives what its handler tests
   // (GRIMOIRE-NOTES, *What the disputed syscalls do*).
-  const html = readLinkHex(svEsc(txt)).replace(new RegExp(L + '([^' + R + ']+)' + R, 'g'), (m, w) =>
-    '<span class="convLink" onclick="convJumpWord(' + resid + ',\'' + svEsc(w.toLowerCase().replace(/'/g, '')) + '\')">' + w + '</span>')
+  const html = readLinkHex(svEsc(txt)).replace(new RegExp(L + '([^' + R + '@]+)(?:@(\\d+))?' + R, 'g'), (m, w, to) =>
+    '<span class="convLink" onclick="convJumpWord(' + (to || resid) + ',\'' + svEsc(w.toLowerCase().replace(/'/g, '')) + '\')">' + w + '</span>')
     .replace(/\bnearby\b/g, '<span class="convOpt" title="' + svEsc(CONV_NEARBY) + '">nearby</span>');
   const shownNote = rest.length && !(seen && seen.has(k)) ? '(' + rest.join('; ') + ')' : '';
   if (seen) seen.add(k);

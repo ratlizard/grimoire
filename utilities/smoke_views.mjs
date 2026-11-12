@@ -1179,7 +1179,21 @@ try {
     else if (bali !== 'Balius' || andr !== 'Andromache') fail('read view', 'Aethon’s "bali" reads ' + bali + ' and House Strymon’s "andr" ' + andr);
     else if (!/more than 0 and asked about AKE, PROPONTIS, DEBT or NOTE before/.test(card)) fail('read view', 'Halos’s kidnapping card (' + card.slice(0, 300) + ')');
     else if (/0xF02/.test(card) || (card.match(/Eudoxus/g) || []).length !== 1) fail('read view', 'Halos’s kidnapping card repeats its note or has 0xF02 in it (' + card.slice(0, 300) + ')');
-    else console.log('  read view: the rude words as stored, BALIUS and ANDROMACHE, and Halos’s kidnapping card');
+    else if (!/if asked Mantinea about COMPANY before/.test(card) || !/convJumpWord\(6205,'company'\)/.test(kidn ? ctx.convCardHtml(0x183E, kidn, 0) : ''))
+      fail('read view', 'Halos’s kidnapping card does not read Mantinea’s bit 1 as her COMPANY, linked to her card (' + card.slice(0, 400) + ')');
+    else {
+      // Hadrian's bit 0 is set by his SON or HECTOR and by his son's JOIN
+      // or COME, both prompts in one test. Ake's bit 1 on Halos's NAME card
+      // is set by her greeting as well as her MORE, so it stays a bit.
+      const hadrian = ctx.conversationFor(0x1804);
+      const sonCard = hadrian ? hadrian.entries.filter(e => String(e.kw).split(',').includes('son'))
+        .map(e => ctx.convCardHtml(0x1804, e, 0)).join('').replace(/<[^>]+>/g, '') : '';
+      const nameCard = halos ? halos.entries.filter(e => String(e.kw).split(',').includes('name'))
+        .map(e => ctx.convCardHtml(0x183E, e, 0)).join('').replace(/<[^>]+>/g, '') : '';
+      if (!/and \(asked about SON or HECTOR before or asked Hector about JOIN or COME before\)/.test(sonCard)) fail('read view', 'Hadrian’s SON card (' + sonCard.slice(0, 400) + ')');
+      else if (/asked Ake about MORE/.test(nameCard) || !/Ake \(32\)’s bit flags has bit 1/.test(nameCard)) fail('read view', 'Halos’s NAME card reads Ake’s bit 1 as her MORE alone (' + nameCard.slice(0, 400) + ')');
+      else console.log('  read view: the rude words as stored, BALIUS and ANDROMACHE, and the prompts behind Halos’s and Hadrian’s bit tests');
+    }
   }
 } catch (e) { fail('read view', e); }
 
