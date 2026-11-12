@@ -3447,6 +3447,11 @@ const DATA_FIX_TEXT = [
   dataFixT('Ake, "the there"', 0x1820, 'that the there is', 'that there is', 1),
   dataFixT('Ake, "in Cademia"', 0x1820, 'House Strymon in Cademia"', 'House Strymon in Cademia."', 2),
   dataFixT('Ake, "say anymore"', 0x1820, "I can't say anymore", "I can't say any more", 2),
+  // Two adjectives that each describe her take a comma, as Hebe's "slight,
+  // mousey" (0x1823) has. A scan of every "You see a..." line on
+  // 12 November 2026 found no other pair like it; the rest build on each
+  // other ("a beautiful young woman", "a wiry older man").
+  dataFixT('Ake, "slight nervous woman"', 0x1820, 'a slight nervous woman', 'a slight, nervous woman', 1),
   dataFixT('Neoptolemus, "what your"', 0x1821, 'what your, dense', 'what are you, dense', 1),
   dataFixT('Meleager, "teach an"', 0x1822, 'Let me teach an important', 'Let me teach you an important', 1),
   dataFixT('Meleager, "with him"', 0x1822, 'anything to do with him"', 'anything to do with him."', 1),
