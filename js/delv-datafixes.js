@@ -3535,6 +3535,10 @@ const DATA_FIX_TEXT = [
   dataFixT('Alcestris, "your were born"', 0x1855, 'before your were born', 'before you were born', 1),
   dataFixT('Helen, "forgettable meal"', 0x1858, 'serves you forgettable', 'serves you a forgettable', 1),
   dataFixT('Joppa, "very nice person"', 0x185B, 'and very nice person', 'and a very nice person', 1),
+  // "wide faced, narrow eyed middle aged man": three adjectives that each
+  // describe him, so the comma goes after the second as well. Matched on
+  // "eyed middle" so that it finds the line with the hyphen option on or off.
+  dataFixT('Joppa, "narrow eyed middle aged"', 0x185B, 'eyed middle', 'eyed, middle', 1),
   // "lovely ma'am" goes on from the spaces before "May", so both have it.
   dataFixT('Eumelus, "kind sir  May"', 0x185D, '  May the @plague never catch you.', '.  May the @plague never catch you.', 1),
   dataFixT('Eumelus, "Hey You"', 0x185D, "'Hey You'\"", "'Hey You'.\"", 1),
@@ -3607,6 +3611,24 @@ const DATA_FIX_TEXT = [
   // Four more compounds for the hyphens.
   ...[[0x104E, 'one sided', 'one-sided'], [0x1B0F, 'recent cave in', 'recent cave-in'], [0x1B5D, 'low ceilinged', 'low-ceilinged'], [0x1B7B, 'well kept', 'well-kept']]
     .map(([r, a, b]) => Object.assign(dataFixT('"' + a + '"', r, a, b, 1), { opt: 'text-hyphens' })),
+  // The compounds a scan of 12 November 2026 found still open: LanguageTool's
+  // tagger over every line of the file with every fix applied, each run of an
+  // adjective or a noun, then an adjective or a participle, then a noun, read
+  // by hand. Joppa's line had been hyphenated at "narrow-eyed" and left at
+  // "wide faced" and "middle aged" beside it. Left as they are: the
+  // predicative "sort of man shaped" (0x1817), "Barrel shaped?" (0x1847) and
+  // "very tidy and organized looking" (0x1845), the adverbs "oddly shaped"
+  // and "recently baked", and the shop name "Fine Crafted Clothing".
+  ...[[0x185B, 'wide faced'], [0x185B, 'middle aged'], [0x184D, 'middle aged'], [0x1842, 'pleasant looking'],
+      [0x1865, 'kindly looking'], [0x1119, 'one handed'], [0x111B, 'one sided'], [0x183C, 'full time'],
+      [0x0808, 'long lasting'], [0x1878, 'fast moving'], [0x021D, 'six legged'], [0x021D, 'single horned'],
+      [0x021D, 'sickly colored'], [0x021D, 'dead colored'], [0x1861, 'six legged'], [0x1BA4, 'well groomed'],
+      [0x1BA4, 'well manicured'], [0x1BA7, 'medium sized'], [0x1B66, 'fresh cooked'], [0x1B98, 'marble floored'],
+      [0x1C39, 'soot filled'], [0x1C39, 'well kept'], [0x021B, 'Time related'], [0x184F, 'Sea based'],
+      [0x184F, 'Timeflux based'], [0x1841, 'fresh baked']]
+    .map(([r, a]) => Object.assign(dataFixT('"' + a + '"', r, a, a.replace(' ', '-'), 1), { opt: 'text-hyphens' })),
+  // The bakery's menu title and its bark, "Fresh Baked Bread".
+  Object.assign(dataFixT('"Fresh Baked"', 0x1841, 'Fresh Baked', 'Fresh-Baked', 2), { opt: 'text-hyphens' }),
   // The Sapphire Books, either way (DATA_FIX_CHOICES). "Book of Wisdom",
   // the second volume, and Selinus's keyword for it, "wisd", stay.
   ...[[0x021A, 'Books of Wisdom', 'Books of Knowledge', 22], [0x1849, 'Sapphire Books of Wisdom', 'Sapphire Books of Knowledge', 1], [0x1849, 'sapp,wisd', 'sapp,know', 1],
