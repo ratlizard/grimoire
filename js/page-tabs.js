@@ -548,7 +548,7 @@ function paintDecodedPane() {
   if (which === 'read') {
     pane.classList.remove('scriptCode');
     pane.classList.add('scriptRead');
-    pane.innerHTML = readViewHtml(d.read);
+    pane.innerHTML = readViewHtml(d.read, d.resid);
     return;
   }
   pane.classList.remove('scriptRead');
@@ -581,12 +581,12 @@ function readLinkHex(html) {
 /* The Read view's HTML: each function's name and arguments, then its
    sentences as nested lists. A prose object is written as what it
    contains. */
-function readViewHtml(fns) {
+function readViewHtml(fns, resid) {
   const hex4 = v => v.toString(16).toUpperCase().padStart(4, '0');
   // A prompt as the player types it and as the game stores it, as the
   // conversation view words it (convIntendedFor).
   const prompt = kw => kw === '*' ? 'When asked about anything else:' : 'When asked about ' + String(kw).split(',').map(k => {
-    const w = typeof convIntendedFor === 'function' ? convIntendedFor(k) : [];
+    const w = typeof convIntendedFor === 'function' ? convIntendedFor(k, { resid, kw }) : [];
     return (w[0] || k).toUpperCase() + ' (' + k + ')';
   }).join(', ') + ':';
   /* A sentence's offset is shown only where a "go to L0042" points, as that

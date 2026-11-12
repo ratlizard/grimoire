@@ -4359,14 +4359,15 @@ function convBadgeFor(a) {
   return label;
 }
 
-function convTextHtml(resid, e) {
+function convTextHtml(resid, e, seen) {
   let html = '';
   // Which conditions pick each line: the Read clause at or before the
   // string's offset, within this prompt (convReadConds). Shown when it
   // changes from the line before, so a run of lines under one test names it
-  // only at the start.
+  // only at the start, and a line under the tests of the line before plus
+  // more names only the more ("and if Mantinea ...").
   const lines = e.kw && e.kw !== '*' ? (convReadConds(resid).lines.get(e.at) || []) : [];
-  let prev = '';
+  let prev = '', prevChain = [], pending = '';
   const words = s => escHtml(s).replace(/@([A-Za-z][A-Za-z'-]*)/g,
     '<span class="convLink" onclick="convJumpWord(' + resid + ',\'$1\')">$1</span>');
   const edit = t => window.DLG_EDIT ? ' <button class="linkbtn dlgEdit" onclick="editStringAt(' + resid + ',' + t.off + ')">edit</button>' : '';
@@ -4388,9 +4389,22 @@ function convTextHtml(resid, e) {
     let chain = [];
     for (const l of lines) { if (l.at > t.off) break; chain = l.chain; }
     const shownText = chain.join(' and ');
-    const lead = shownText && shownText !== prev ? '<span class="inspDim">' + chain.map(c => convCondHtml(resid, c)).join(' and ').replace(/ and if /g, ' and ') + ':</span> ' : '';
-    prev = shownText;
-    paras.push({ str: t.str, html: lead + words(t.str) + edit(t) });
+    let lead = '';
+    if (shownText && shownText !== prev) {
+      const more = prevChain.length && prevChain.length < chain.length && prevChain.every((c, i) => chain[i] === c) ? chain.slice(prevChain.length) : null;
+      lead = '<span class="inspDim">' + (more ? 'and ' : '') + (more || chain).map(c => convCondHtml(resid, c, seen)).join(' and ').replace(/ and if /g, ' and ') + ':</span> ';
+    }
+    prev = shownText; prevChain = chain;
+    /* A "*" in the game's text is a page break, where the player clicks for
+       the next part, and each part is a paragraph here. Until 12 November
+       2026 a string such as Halos's account of the kidnapping, five parts,
+       was one paragraph with the asterisks in it. A string of page breaks
+       alone (Halos's Mantinea branch opens with one) passes its lead on to
+       the next part. */
+    const parts = String(t.str).split('*').filter(s => s.trim());
+    if (!parts.length) { pending = lead || pending; continue; }
+    parts.forEach((s, i) => paras.push({ str: s, html: (i ? '' : (lead || pending)) + words(s) + (i === parts.length - 1 ? edit(t) : '') }));
+    pending = '';
   }
   for (const p of paras) html += '<p class="dlgLine">' + p.html + '</p>';
   return html;
@@ -4423,7 +4437,27 @@ function convIntendedWords() {
   }
   return (DERIVED.CONV_WORDS = words);
 }
-function convIntendedFor(stub) {
+/* `where`, when the caller has it, is the prompt the stub is stored in:
+   { resid, kw }, the conversation and the prompt's whole keyword string.
+   The last two steps below use it.
+
+   Until 12 November 2026 the last step was any word any conversation
+   prints, and the maintainer found the Human group's rude-word prompt
+   (fuck, shit, ... damn, ... pric, dick, bitc) reading DAMNED and PRICE:
+   the game prints none of those words, so "damn" and "pric" took the
+   commonest printed words that start with their letters, Ignae's price
+   and a damned from elsewhere. Two rules were measured on every stub that
+   step fills (work/curse-words/stub-rules.mjs in the workspace). The
+   words of the conversation that stores the prompt are the better match
+   where it has one (House Strymon's "andr" is Andromache there and Andra
+   in general, Cademia's "pass" password and not passed), so they come
+   first. And a prompt of four or more stubs, most of which match nothing
+   at all, is a list of words the player is expected to type and the game
+   never prints: the rude words, and the weapon skills a trainer lists.
+   The whole-game words are not taken for such a prompt. Shorter prompts
+   keep that step, since Aethon's "aeth,bali,poda" needs it for Balius and
+   Podargus. */
+function convIntendedFor(stub, where) {
   // Only a stub of exactly four letters is a word cut short; a shorter one
   // ("job", "bye", the "y" and "n" of a question) is the whole word, and a
   // longer one ("very easy") is spelt out already.
@@ -4436,19 +4470,44 @@ function convIntendedFor(stub) {
   const marked = pick(convIntendedWords());
   if (marked.length) return marked;
   // No response marks the word: Naxos's "glau" is Glaucus, a name the
-  // game prints plain. The character names come next, then any word the
-  // responses print plain, most used first.
-  const names = new Map(), t = nameTable() || [];
-  for (const nm of t) {
+  // game prints plain. The character names come next, then the words the
+  // prompt's conversation prints plain, then any word the responses print
+  // plain, most used first.
+  const named = pick(convNameWords());
+  if (named.length) return named;
+  if (where && where.resid != null) {
+    const near = pick(convPlainWords(where.resid));
+    if (near.length) return near;
+  }
+  if (where && where.kw != null) {
+    const stubs = String(where.kw).split(',');
+    if (stubs.length >= 4 && stubs.filter(convStubUnmatched).length * 2 > stubs.length) return [];
+  }
+  return pick(convPlainWords());
+}
+// The character names as words, for convIntendedFor. Built on each call, as
+// it was inside convIntendedFor, since the name table is not fixed once a
+// file opens.
+function convNameWords() {
+  const names = new Map();
+  for (const nm of nameTable() || []) {
     const w = String(nm || '').trim();
     if (/^[A-Za-z][A-Za-z'-]*$/.test(w) && w !== 'x') names.set(w.toLowerCase(), { text: w, n: 1 });
   }
-  const named = pick(names);
-  return named.length ? named : pick(convPlainWords());
+  return names;
 }
-// Every word the conversations print, @-marked or not, by how often.
-function convPlainWords() {
-  if (DERIVED.CONV_PLAIN) return DERIVED.CONV_PLAIN;
+// True for a four-letter stub that matches no @word and no name.
+function convStubUnmatched(k) {
+  if (!/^[a-z]{4}$/i.test(k)) return false;
+  for (const words of [convIntendedWords(), convNameWords()]) for (const w of words.keys()) if (convKwMatches(k, w)) return false;
+  return true;
+}
+// Every word the conversations print, @-marked or not, by how often; with a
+// resource number, the words of that conversation alone.
+function convPlainWords(resid) {
+  if (!DERIVED.CONV_PLAIN) DERIVED.CONV_PLAIN = new Map();
+  const key = resid == null ? 'all' : resid;
+  if (DERIVED.CONV_PLAIN.has(key)) return DERIVED.CONV_PLAIN.get(key);
   const words = new Map();
   const walk = es => { for (const e of es || []) {
     for (const t of e.text || []) for (const m of String(t.str).matchAll(/[A-Za-z][A-Za-z'-]{3,}/g)) {
@@ -4457,20 +4516,20 @@ function convPlainWords() {
     }
     walk(e.sub);
   } };
-  for (const [subn, base] of [[23, 0x1800], [7, 0x800]]) {
+  const add = rid => { const c = conversationFor(rid); if (c) { walk(c.entries); if (c.preamble) walk([c.preamble]); } };
+  if (resid != null) add(resid);
+  else for (const [subn, base] of [[23, 0x1800], [7, 0x800]]) {
     const count = subindexCount(ARCHIVE, subn);
-    for (let i = 0; i < count; i++) {
-      const c = conversationFor(base + i);
-      if (c) { walk(c.entries); if (c.preamble) walk([c.preamble]); }
-    }
+    for (let i = 0; i < count; i++) add(base + i);
   }
-  return (DERIVED.CONV_PLAIN = words);
+  DERIVED.CONV_PLAIN.set(key, words);
+  return words;
 }
 // A prompt as the player types it, and as the code stores it.
-function convPromptHtml(e) {
+function convPromptHtml(e, resid) {
   if (e.kw === '*') return '<span class="convKw">anything else</span>';
   return String(e.kw).split(',').map(k => {
-    const w = convIntendedFor(k);
+    const w = convIntendedFor(k, { resid, kw: e.kw });
     return '<span class="convAsk">' + svEsc((w[0] || k).toUpperCase()) + '</span>' +
       (w.length > 1 ? '<span class="convAlso">or ' + w.slice(1, 3).map(x => svEsc(x.toUpperCase())).join(', ') + '</span>' : '') +
       '<span class="convKw" title="what the game matches">' + svEsc(k) + '</span>';
@@ -4565,29 +4624,96 @@ function convLocalShown(resid, c) {
    that topic asked about before, the word a link to it (the maintainer,
    17 October 2026: "201 if its bit flags has bit 2 ... There's no way to
    tell what this means, no link even"). Any other note follows the test;
-   a test with none is written as the Read view writes it. */
-function convCondHtml(resid, c) {
+   a test with none is written as the Read view writes it.
+
+   Since 12 November 2026 the same is true of a flag test inside a longer
+   condition. The maintainer wanted Halos's kidnapping card to read
+   better. Its condition was "get state 1 is more than 0 and its bit flags
+   has bit 1 or its bit flags has bit 2 or its bit flags has bit 4", with
+   every test's note run together after it, "0xF02;" and all, four times
+   over. Now each bit of the character's that one of their prompts sets
+   reads as that prompt, all of them as one list ("AKE, PROPONTIS, DEBT or
+   NOTE before"). The note retains only what is left, without a helper's
+   bare number, and `seen`, one per card, prints a condition's note the
+   first time only. Two calls the Read view writes as calls read as what
+   they do: the setter a guard calls in place of the test (Halos's "not
+   set character flag it, 3", which `halos-kidnapping` fixes), and a
+   group's answer. The words of the card are CONV_ASK, on one line. */
+const CONV_ASK = { on: 'asked about ', before: ' before', not: 'not yet asked about ' };
+const CONV_NEARBY = 'True when the character is awake and in sight inside the view on the current character’s level.';
+function convCondHtml(resid, c, seen) {
   const notes = convReadConds(resid).notes;
   const neg = /^not \((.*)\)$/.exec(c), k = neg ? neg[1] : c;
   const note = notes.get(k) || notes.get(c) || '';
   const character = (typeof characterName === 'function' && resid >= 0x1800 && resid < 0x1900) ? characterName(resid - 0x1800) : null;
-  const m = /^\((.+?)’s conversation, asked about ([A-Z,]+) sets bit (\d+) of (.+?)’s bit flags/.exec(note);
-  const own = /^its bit flags has bit (\d+)/.exec(k);
-  if (m && own && own[1] === m[3] && character && m[1] === character && m[4] === character) {
-    const w = m[2].toLowerCase().split(',')[0];
-    const link = '<span class="convLink" onclick="convJumpWord(' + resid + ',\'' + w + '\')">' + svEsc(w) + '</span>';
-    return 'if ' + (neg ? 'not yet asked about ' + link : 'asked about ' + link + ' before');
-  }
-  // A note that is only the helper's number, "(0xF13)", adds nothing the
-  // test has not shown.
-  const shownText = /^\(0x[0-9A-F]+\)$/.test(note) ? '' : note;
-  return 'if ' + readLinkHex(svEsc(convLocalShown(resid, c))) + (shownText ? ' <span class="inspDim">' + readLinkHex(svEsc(shownText)) + '</span>' : '');
+  // SetCharacterFlag (0xF00) answers 0 whatever it did, so "not" of it
+  // passes every time; the setting is what it does.
+  const setter = /^not set character flag it, (\d+)$/.exec(c);
+  if (setter) return 'sets bit ' + setter[1] + ' of its bit flags (a test that always passes)';
+  const group = /^(not )?run (0x8[0-9A-F]{2}) it$/.exec(c);
+  if (group) return 'if ' + readLinkHex(group[2]) + (group[1] ? ' has no answer' : ' answers');
+  // The note's parts, as the Read view joins them with "; ".
+  const pieces = note.replace(/^\(([\s\S]*)\)$/, '$1').split('; ').filter(p => p && !/^\(?0x[0-9A-F]+\)?$/.test(p));
+  // The prompts of this character that set each bit of theirs: one prompt
+  // and "sets bit 1 of Halos’ bit flags", or a run of prompts and then
+  // "set bit 2 of Halos’ bit flags" after the last. A run that ends in
+  // anything else goes back into the note as it was, and so does a bit the
+  // greeting sets too ("Ake’s conversation; ... MORE set bit 1 of Ake’s bit
+  // flags"), since no prompt alone stands for it.
+  const bits = new Map(), rest = [];
+  let run = [];
+  const whose = character ? dvmProsePossessive(character) : null;
+  if (whose) {
+    const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const head = '^' + esc(whose) + ' conversation,\\s\\w+ about ';
+    const sets = new RegExp(head + '(.+?) sets? bit (\\d+) of ' + esc(whose) + ' bit flags$');
+    const bare = new RegExp(head + '(.+)$');
+    for (const p of pieces) {
+      const s = sets.exec(p), a = !s && bare.exec(p);
+      if (s && run.every(r => r.word)) bits.set(s[2], run.map(r => r.word).concat(s[1]).flatMap(w => w.split(' or ')));
+      else if (s) rest.push(...run.map(r => r.piece), p);
+      else if (a || p === whose + ' conversation') { run.push({ word: a ? a[1] : null, piece: p }); continue; }
+      else rest.push(...run.map(r => r.piece), p);
+      run = [];
+    }
+    rest.push(...run.map(r => r.piece));
+  } else rest.push(...pieces);
+  // The prompts stand in the text as ⟦WORD⟧ until it is escaped.
+  const L = '⟦', R = '⟧';
+  const words = b => bits.get(b).map(w => L + w + R).join(' or ');
+  let txt = convLocalShown(resid, c)
+    .replace(/\bits bit flags has bit (\d+)(?: \(\w+\))?/g, (m, b) => bits.has(b) ? CONV_ASK.on + words(b) + CONV_ASK.before : m)
+    .replace(/\bits bit flags does not have bit (\d+)(?: \(\w+\))?/g, (m, b) => bits.has(b) ? CONV_ASK.not + words(b) : m);
+  // Two such tests joined by "or" are one list, and brackets around one alone go.
+  const list = '((?:' + L + '[^' + R + ']+' + R + '(?: or )?)+)';
+  const pair = new RegExp(CONV_ASK.on + list + CONV_ASK.before + ' or ' + CONV_ASK.on + list + CONV_ASK.before);
+  while (pair.test(txt)) txt = txt.replace(pair, CONV_ASK.on + '$1 or $2' + CONV_ASK.before);
+  const one = new RegExp('^not \\(' + CONV_ASK.on + '([^()]*)' + CONV_ASK.before + '\\)$');
+  txt = txt.replace(one, CONV_ASK.not + '$1')
+    .replace(new RegExp('\\((' + CONV_ASK.on + '[^()]*' + CONV_ASK.before + ')\\)', 'g'), '$1')
+    .replace(new RegExp('(' + L + '[^' + R + ']+' + R + ')((?: or ' + L + '[^' + R + ']+' + R + ')+)', 'g'), (m, first, more) => {
+      const ws = [first].concat(more.split(' or ').filter(Boolean));
+      return ws.length > 2 ? ws.slice(0, -1).join(', ') + ' or ' + ws[ws.length - 1] : ws.join(' or ');
+    });
+  // "nearby" is the program's name for the test delvmod calls IsInParty
+  // (cbnearby). Its meaning on Ake's card was the maintainer's question of
+  // 12 November 2026, and the hover gives what its handler tests
+  // (GRIMOIRE-NOTES, *What the disputed syscalls do*).
+  const html = readLinkHex(svEsc(txt)).replace(new RegExp(L + '([^' + R + ']+)' + R, 'g'), (m, w) =>
+    '<span class="convLink" onclick="convJumpWord(' + resid + ',\'' + svEsc(w.toLowerCase().replace(/'/g, '')) + '\')">' + w + '</span>')
+    .replace(/\bnearby\b/g, '<span class="convOpt" title="' + svEsc(CONV_NEARBY) + '">nearby</span>');
+  const shownNote = rest.length && !(seen && seen.has(k)) ? '(' + rest.join('; ') + ')' : '';
+  if (seen) seen.add(k);
+  return 'if ' + html + (shownNote ? ' <span class="inspDim">' + readLinkHex(svEsc(shownNote)) + '</span>' : '');
 }
 function convCardHtml(resid, e, depth) {
-  const kws = convPromptHtml(e);
+  const kws = convPromptHtml(e, resid);
   const badges = [];
   const shownText = e.kw === '*' ? null : convReadConds(resid).get(e.at);
-  const condBadges = shownText ? shownText.slice(0, 3).map(c => convCondHtml(resid, c)) : [];
+  // A condition's note goes in the card once, in its badge, and not again
+  // before each line under that condition.
+  const seen = new Set();
+  const condBadges = shownText ? shownText.slice(0, 3).map(c => convCondHtml(resid, c, seen)) : [];
   if (!shownText && e.conds.length) badges.push('depends on: ' + e.conds.map(dvmSyscallShown).join(', '));
   // A character helper (0xF00 up) the condition already reads through is
   // not repeated as a call.
@@ -4598,7 +4724,7 @@ function convCardHtml(resid, e, depth) {
   let html = '<div class="convCard' + (depth ? ' convSub' : '') + '" id="conv-' + resid + '-' + e.at + '">' +
     kws + condBadges.map(b => '<span class="convBadge">' + b + '</span>').join('') +
     badges.map(b => '<span class="convBadge">' + svEsc(b) + '</span>').join('') +
-    convTextHtml(resid, e);
+    convTextHtml(resid, e, seen);
   for (const s of e.sub) html += convCardHtml(resid, s, depth + 1);
   return html + '</div>';
 }

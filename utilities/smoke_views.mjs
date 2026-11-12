@@ -1159,6 +1159,27 @@ try {
     else if (!/Welcome again, hero\(ine\)\.  To what/.test(greet)) fail('read view', 'Naxos’s greeting does not read "hero(ine)": ' + greet.slice(0, 200));
     else if (!/Var00 \(set to (?:test flag|has ability) (?:the )?player character, 29\)/.test(lie)) fail('read view', 'Naxos’s Var00 has no value beside it (' + lie + ')');
     else console.log('  read view: Naxos’s GLAUCUS, "hero(ine)" and Var00 with its value');
+    /* The Dialogue view of 12 November 2026. The Human group's rude-word
+       prompt shows its stubs as stored: before that day "pric" read PRICE
+       and "damn" DAMNED, words other conversations print. Aethon's horses
+       still read in full (a prompt that short retains the whole-game words),
+       and House Strymon's "andr" is the Andromache that group prints.
+       Halos's kidnapping card reads its bit tests as the prompts that set
+       them, bracketed by the Read view since the same day, without the
+       "0xF02" in its note and with the note once; each fails on the page
+       before that day. */
+    const rude = 'fuck,suck,shit,cock,cunt,piss,damn,kiss,bite,pric,dick,bitc';
+    const pric = ctx.convIntendedFor('pric', { resid: 0x801, kw: rude }), damn = ctx.convIntendedFor('damn', { resid: 0x801, kw: rude });
+    const bali = ctx.convIntendedFor('bali', { resid: 0x1861, kw: 'aeth,bali,poda' })[0];
+    const andr = ctx.convIntendedFor('andr', { resid: 0x807, kw: 'andr' })[0];
+    const halos = ctx.conversationFor(0x183E);
+    const kidn = halos && halos.entries.find(e => String(e.kw).split(',').includes('kidn'));
+    const card = kidn ? ctx.convCardHtml(0x183E, kidn, 0).replace(/<[^>]+>/g, '') : '';
+    if (pric.length || damn.length) fail('read view', 'the rude-word prompt reads "pric" as ' + JSON.stringify(pric) + ' and "damn" as ' + JSON.stringify(damn));
+    else if (bali !== 'Balius' || andr !== 'Andromache') fail('read view', 'Aethon’s "bali" reads ' + bali + ' and House Strymon’s "andr" ' + andr);
+    else if (!/more than 0 and asked about AKE, PROPONTIS, DEBT or NOTE before/.test(card)) fail('read view', 'Halos’s kidnapping card (' + card.slice(0, 300) + ')');
+    else if (/0xF02/.test(card) || (card.match(/Eudoxus/g) || []).length !== 1) fail('read view', 'Halos’s kidnapping card repeats its note or has 0xF02 in it (' + card.slice(0, 300) + ')');
+    else console.log('  read view: the rude words as stored, BALIUS and ANDROMACHE, and Halos’s kidnapping card');
   }
 } catch (e) { fail('read view', e); }
 

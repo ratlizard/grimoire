@@ -2061,6 +2061,16 @@ function dvmProseOperator(n, args, ctx) {
       // None is the interpreter's "no value" (the word at data+0x77374).
       if (args[1] === 'None') return args[0] + (infix === '==' ? ' is not set' : ' is set');
     }
+    /* An "or" inside an "and", or an "and" inside an "or", is bracketed.
+       Until 12 November 2026 neither was, and Halos's kidnapping test,
+       GetState(1) > 0 and (bit 1 or bit 2 or bit 4), read "get state 1 is
+       more than 0 and its bit flags has bit 1 or ... has bit 4", which is a
+       different test. A run of the same word needs no brackets. */
+    if (infix === 'and' || infix === 'or') {
+      const other = infix === 'and' ? ' or ' : ' and ';
+      const g = a => dvmProseTopLevel(a, other) ? '(' + a + ')' : a;
+      return g(args[0]) + ' ' + infix + ' ' + g(args[1]);
+    }
     const w = DVM_PROSE_INFIX[infix];
     const rhs = (infix === '==' || infix === '!=') && /\bbehavior$/.test(args[0]) ? dvmProseBehavior('behavior', args[1], ctx) : args[1];
     if (w) return args[0] + ' ' + w + ' ' + rhs;
@@ -2221,7 +2231,7 @@ function dvmProseBitNote(ctx, owner, bit) {
   // A conversation by whose it is, and the prompt the setting answers.
   const name = x => { const nm = (x.resid >> 8) === 0x18 ? dvmFoldPage(ctx, () => characterName(x.resid - 0x1800)) : null;
     return (nm ? dvmProsePossessive(nm) + ' conversation' : dvmFoldResourceName(x.resid)) + (x.topicKeyword && x.topicKeyword !== '*' ? ', asked about ' + x.topicKeyword.split(',').map(k => {
-      const w = dvmFoldPage(ctx, () => typeof convIntendedFor === 'function' ? convIntendedFor(k) : null);
+      const w = dvmFoldPage(ctx, () => typeof convIntendedFor === 'function' ? convIntendedFor(k, { resid: x.resid, kw: x.topicKeyword }) : null);
       return (w && w[0] ? w[0] : k).toUpperCase();
     }).join(' or ') : ''); };
   const set = row.filter(x => x.how === 'set').map(name), clr = row.filter(x => x.how === 'clear').map(name);
@@ -2396,6 +2406,17 @@ function dvmBehaviorWords(arc) {
   });
 }
 // A phrase that needs no brackets when it follows "not".
+// True when `word` (" and " or " or ") is in `t` outside every bracket.
+function dvmProseTopLevel(t, word) {
+  let d = 0;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+    if (ch === '(') d++;
+    else if (ch === ')') d--;
+    else if (d === 0 && t.startsWith(word, i)) return true;
+  }
+  return false;
+}
 function dvmProseGroup(e) { return / (is|and|or|has) /.test(e) ? '(' + e + ')' : e; }
 function dvmProseCall(n, ctx) {
   const bare = dvmPlainName(dvmBareOperand(n.arg));
