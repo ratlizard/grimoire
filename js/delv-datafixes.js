@@ -3448,10 +3448,15 @@ const DATA_FIX_TEXT = [
   dataFixT('Ake, "in Cademia"', 0x1820, 'House Strymon in Cademia"', 'House Strymon in Cademia."', 2),
   dataFixT('Ake, "say anymore"', 0x1820, "I can't say anymore", "I can't say any more", 2),
   // Two adjectives that each describe her take a comma, as Hebe's "slight,
-  // mousey" (0x1823) has. A scan of every "You see a..." line on
-  // 12 November 2026 found no other pair like it; the rest build on each
-  // other ("a beautiful young woman", "a wiry older man").
+  // mousey" (0x1823) has. A scan of 12 November 2026 (LanguageTool's tagger
+  // over every line, each pair of adjectives before a noun read by hand)
+  // found one more, Dryas's below; the rest build on each other ("a
+  // beautiful young woman", "a wiry older man"). Three it found are
+  // acceptable as they are, at the maintainer's word the same day: the
+  // spear's "nice simple weapons" (0x1064), the mace's "heavy blunt blows"
+  // (0x105E) and Fetch's "a small distant object" (0x1A28).
   dataFixT('Ake, "slight nervous woman"', 0x1820, 'a slight nervous woman', 'a slight, nervous woman', 1),
+  dataFixT('Dryas, "small grubby boy"', 0x1862, 'a small grubby boy', 'a small, grubby boy', 1),
   dataFixT('Neoptolemus, "what your"', 0x1821, 'what your, dense', 'what are you, dense', 1),
   dataFixT('Meleager, "teach an"', 0x1822, 'Let me teach an important', 'Let me teach you an important', 1),
   dataFixT('Meleager, "with him"', 0x1822, 'anything to do with him"', 'anything to do with him."', 1),
