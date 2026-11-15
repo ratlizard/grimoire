@@ -1177,8 +1177,10 @@ function heroSpriteClasses() {
     own = Math.min(own, 16 - start);
     if (!own) continue;
     try { for (let f = 0; f < own; f++) if (multiTilePieces(base + f, false)) multi = true; } catch (e) { quiet(e); }
+    let layout = null;
+    try { layout = classFieldNumber(parseItemClass(k.pt), 55, 0); } catch (e) { quiet(e, 'class property 55'); }
     out.push({ pt: k.pt, name: k.name, kind: k.kind, base, sheet: 0x8E00 + (base >> 4), start, frames: own,
-               multi, still: !!(info && info.isStatic) });
+               multi, still: !!(info && info.isStatic), layout });
   }
   const seen = {};
   for (const k of out) seen[k.name] = (seen[k.name] || 0) + 1;
@@ -1191,13 +1193,44 @@ function heroSpriteClasses() {
    maintainer had it taken out on 3 October 2026, untested and not wanted.
    heroShadeDef and the families work on any indexed picture still. */
 
-/* What the hero or the heroine can wear: a person's sixteen frames, which
-   are laid out as theirs are, or a monster's eight or four, which
-   heroWearFrames spreads over their poses. Not a sixteen-frame monster, not
-   a sprite built of several tiles, and not a still one such as the corpse. */
+/* How many of a class's frames the hero or the heroine wears, 0 for none.
+   A sprite's frame is set by TActiveMonster::AdjustAspect(phase, facing),
+   which switches on element 0 of the class's property 55 (`layout` in
+   heroSpriteClasses) through a jump table of thirteen. Read on 15 November
+   2026 (workbench GRIMOIRE-NOTES, grimoire/patches-qnj7dn), with f the
+   facing and p the phase:
+     4          4f + (p & 3), with 3 drawn as 1: the people's layout, four
+                poses a facing. Every person has it, the hero and the heroine
+                among them, and so does one monster, the lich.
+     0, 1, 10   2f + (p & 1), two strides a facing. The eight-frame monsters
+                have 0 or 1. The gator and the unicorn have 10 and sixteen
+                frames, because f runs to 7 for them: frames 0 to 7 face up,
+                right, down and left as a person's 0 to 3 do, and 8 to 15 are
+                the diagonals. The hero's sheet has no diagonal frames.
+     3          f, one frame a facing (the chicken, the gecko, a crab).
+     7          8f + 3 + 4(p & 1), a sprite of several tiles (the titan).
+     9          2f, unused by any class here.
+     others     the frame is left at 0 (the ooze, whose sixteen frames are
+                shapes rather than facings, and the bird and the polyps).
+   So a sixteen-frame class is worn whole with layout 4 and by its first
+   eight frames, the four straight facings, with 0, 1 or 10; any other
+   sixteen-frame class is not offered. The four- and eight-frame bodies are
+   offered as they were before the property was read: an eight-frame body has
+   0 or 1 in this file, and a four-frame one is shown a frame a facing, which
+   is the game's layout for 3 alone. */
+function heroBodyFrames(k) {
+  if (k.frames === 4 || k.frames === 8) return k.frames;
+  if (k.frames !== 16) return 0;
+  if (k.layout === 4) return 16;
+  return k.layout === 0 || k.layout === 1 || k.layout === 10 ? 8 : 0;
+}
+
+/* What the hero or the heroine can wear: a class laid out as they are, or
+   one with fewer frames a facing, which heroWearFrames spreads over their
+   poses. heroBodyFrames picks the classes and the frames worn. Not a sprite
+   built of several tiles, and not a still one such as the corpse. */
 function heroBodies(pt) {
-  return heroSpriteClasses().filter(k => k.pt !== pt && !k.multi && !k.still &&
-    (k.frames === 4 || k.frames === 8 || (k.frames === 16 && (k.kind === 'person' || k.pt === 32 || k.pt === 33))));
+  return heroSpriteClasses().filter(k => k.pt !== pt && !k.multi && !k.still && heroBodyFrames(k) > 0);
 }
 
 /* One figure, read: the sheet and frames it is drawn from, the art as it is
@@ -1219,7 +1252,8 @@ function heroFigure(key) {
   if (def && cls.frames === 16 && st.body) {
     body = heroBodies(pt).find(k => k.pt === st.body) || null;
     const bodySheet = body && heroSheetImage(body.sheet);
-    const worn = bodySheet && heroWearFrames(bodySheet.subarray(body.start * 1024, (body.start + body.frames) * 1024), body.frames / 4);
+    const n = body ? heroBodyFrames(body) : 0;
+    const worn = bodySheet && heroWearFrames(bodySheet.subarray(body.start * 1024, (body.start + n) * 1024), n / 4);
     if (worn) image = worn; else body = null;
   }
   const H = cls.frames * 32;
@@ -1495,7 +1529,8 @@ function renderHeroSprite() {
       for (const k of bodies) {
         const o = document.createElement('option');
         o.value = String(k.pt);
-        o.textContent = k.label + (k.frames < 16 ? ', ' + k.frames + ' frames' : '');
+        const n = heroBodyFrames(k);
+        o.textContent = k.label + (n < 16 ? ', ' + n + ' frames' : '');
         if (fig.body && fig.body.pt === k.pt) o.selected = true;
         sel.appendChild(o);
       }
@@ -1542,11 +1577,13 @@ function renderHeroSprite() {
   }
   host.appendChild(strip);
   const facts = [];
-  if (fig.body) facts.push(fig.body.frames === 16
+  const bodyN = fig.body ? heroBodyFrames(fig.body) : 0;
+  if (fig.body) facts.push(bodyN === 16
     ? 'The ' + svEsc(fig.body.label) + '’s frames have the same layout as the ' + svEsc(fig.name) + '’s. The patch uses them as they are.'
-    : 'The ' + svEsc(fig.body.label) + ' has ' + fig.body.frames / 4 + (fig.body.frames === 8 ? ' strides' : ' frame') +
+    : 'The ' + svEsc(fig.body.label) + ' has ' + bodyN / 4 + (bodyN === 8 ? ' strides' : ' frame') +
       ' a facing where the ' + svEsc(fig.name) + ' has four poses. So ' +
-      (fig.body.frames === 8 ? 'the patch uses the first walking frame for standing and sitting too.' : 'the patch uses that frame for all four.'));
+      (bodyN === 8 ? 'the patch uses the first walking frame for standing and sitting too.' : 'the patch uses that frame for all four.') +
+      (fig.body.frames > bodyN ? ' The ' + svEsc(fig.name) + ' has no diagonal facings. The patch uses the ' + svEsc(fig.body.label) + '’s four straight facings only.' : ''));
   facts.push(fig.others.length
     ? svEsc(fig.others.map(k => k.label).join(', ')) + ' also ' + (fig.others.length === 1 ? 'draws' : 'draw') + ' from these frames and would change with them.'
     : fig.start || fig.frames < 16

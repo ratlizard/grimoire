@@ -997,17 +997,36 @@ if (take()) try {
   ctx.patchesForget();
 
   /* Bodies. The list is read, so what is pinned is the rule: the people and
-     the four- and eight-frame monsters are in, a sixteen-frame monster, a
-     sprite of several tiles and a still one are out. Then the demon, worn:
-     its facing 1, second stride, must be the hero's facing 1, right foot. */
+     the four- and eight-frame monsters are in; of the sixteen-frame
+     monsters, by their class's property 55 (heroBodyFrames), the lich is in
+     whole and the gator by its first eight frames, and the ooze, whose
+     frames are not facings, is out; a sprite of several tiles and a still
+     one are out. Then the demon, worn: its facing 1, second stride, must be
+     the hero's facing 1, right foot. The gator, worn, must give the same
+     from its first eight frames. */
   const bodies = peek(`heroBodies(32).map(k => k.pt)`);
   const byName = n => peek(`(heroSpriteClasses().find(k => k.name === ${JSON.stringify(n)}) || {}).pt`);
   const demon = byName('demon'), golem = byName('golem'), gator = byName('gator'), titan = byName('titan'), noble = byName('nobleman'), corpse = byName('corpse');
-  if (!demon || !golem || !noble) fail('hero bodies', 'the demon, the golem or the nobleman is not among the sprite classes');
-  else if (!bodies.includes(demon) || !bodies.includes(noble) || !bodies.includes(33))
-    fail('hero bodies', 'the demon, the nobleman or the heroine cannot be worn');
-  else if ([gator, titan, corpse, 32].some(p => p && bodies.includes(p)))
-    fail('hero bodies', 'a sixteen-frame monster, the titan, the corpse or the hero himself is offered as a body');
+  const lich = byName('lich'), ooze = byName('ooze');
+  const gatorWorn = (() => {
+    if (!gator) return null;
+    peek(`window.HERO_SPRITE_STATE = { which: 'hero', choices: {} }`);
+    ctx.heroSpriteBody(String(gator));
+    return peek(`(() => {
+      const f = heroFigure('hero'), d = heroSpriteClasses().find(k => k.pt === ${gator});
+      const src = heroSheetImage(d.sheet);
+      let same = true;
+      for (let i = 0; i < 1024; i++) if (f.image[(1 * 4 + 2) * 1024 + i] !== src[(d.start + 1 * 2 + 1) * 1024 + i]) same = false;
+      return { body: f.body && f.body.pt, same };
+    })()`);
+  })();
+  if (!demon || !golem || !noble || !gator || !lich || !ooze) fail('hero bodies', 'the demon, the golem, the nobleman, the gator, the lich or the ooze is not among the sprite classes');
+  else if (!bodies.includes(demon) || !bodies.includes(noble) || !bodies.includes(33) || !bodies.includes(lich) || !bodies.includes(gator))
+    fail('hero bodies', 'the demon, the nobleman, the heroine, the lich or the gator cannot be worn');
+  else if ([ooze, titan, corpse, 32].some(p => p && bodies.includes(p)))
+    fail('hero bodies', 'the ooze, the titan, the corpse or the hero himself is offered as a body');
+  else if (!gatorWorn || gatorWorn.body !== gator || !gatorWorn.same)
+    fail('hero bodies', "the gator, worn, does not give the hero's facing 1, right foot from its facing 1, second stride");
   else {
     peek(`window.HERO_SPRITE_STATE = { which: 'hero', choices: {} }`);
     ctx.heroSpriteBody(String(demon));
@@ -1029,7 +1048,7 @@ if (take()) try {
       if (!wp || wp.resids.length !== 1 || wp.resids[0] !== cover[0].sheet || !wp.checkValueValid)
         fail('hero bodies', 'the worn body did not write a verifying patch of the hero\'s sheet alone');
       else if (!/hero, as the demon, \d+ colors? changed/.test(wp.description)) fail('hero bodies', 'the description is ' + JSON.stringify(wp.description));
-      else console.log(`  hero bodies: ${bodies.length} bodies offered, the gator, the titan and the corpse left out; the demon worn stride for facing, turned yellow in ${worn.shades.length} families, and written as one resource`);
+      else console.log(`  hero bodies: ${bodies.length} bodies offered with the lich and the gator. The ooze, the titan and the corpse are out. The gator is worn by its straight facings. The demon is worn stride for facing, turned yellow in ${worn.shades.length} families, and written as one resource`);
     }
   }
 
