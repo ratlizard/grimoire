@@ -1434,8 +1434,10 @@ function dvmRecoverStructure(flat) {
             i = tIdx; continue;
           }
 
-          // do { body } while (C):  Lhead: body / if C -> Lhead
-          if (tIdx < i && tIdx >= lo && closed(tIdx, i, [s.abs, s.targets[0]])) {
+          // do { body } while (C):  Lhead: body / if C -> Lhead. The body
+          // may leave for the statement after the test, a `break`, as the
+          // loop below may (15 November 2026).
+          if (tIdx < i && tIdx >= lo && closed(tIdx, i, [s.abs, s.targets[0]].concat(i + 1 < stmts.length ? [stmts[i + 1].abs] : []))) {
             /* The body is what has just been emitted for [tIdx, i). Take those
                nodes back off `out` rather than building them again: building
                twice is what made this not finish, and it also risked counting
@@ -1450,11 +1452,19 @@ function dvmRecoverStructure(flat) {
         }
       }
 
-      // loop { body }:  Lhead: body / goto Lhead, with no condition at all
+      /* loop { body }:  Lhead: body / goto Lhead, with no condition at all.
+         The body may leave for the statement after the closing goto, which
+         dvmLoopExits prints as `break` (15 November 2026, the handoff's
+         `grimoire/listing-hl26zm`): GetTileName reads a table with
+         `L: ...; if (c) goto out; ...; goto L; out:`, and with the jump to
+         `out` counted as leaving the region, the region test failed and
+         the loop printed as two gotos. `while` allows its exit the same
+         way. */
       if (s.kind === 'jump' && s.targets.length === 1) {
         const tIdx = index.get(s.targets[0]);
+        const exit = i + 1 < stmts.length ? [stmts[i + 1].abs] : [];
         if (tIdx !== undefined && tIdx <= i && tIdx >= lo &&
-            absorbableFrom(i, tIdx) && closed(tIdx, i + 1, [s.abs])) {
+            absorbableFrom(i, tIdx) && closed(tIdx, i + 1, [s.abs].concat(exit))) {
           const body = dvmTakeBack(out, stmts[tIdx].abs);
           if (body) {
             retarget(body, s.abs, s.targets[0]);

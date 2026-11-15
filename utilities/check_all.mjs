@@ -547,7 +547,7 @@ const CHECKS = [
      controls, each required to fail the assertion named for it. */
   {page: 'viewer', name: 'pseudo-code blocks', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_blocks_check.mjs', 'index.html', APP_DATA], grep: /BLOCKS \d[^\n]*/,
-   expect: 'BLOCKS 1390 routines with jumps, 1024 with no goto left, 2005 gotos left, 7884 blocks, 719 joined tests, 540 whiles with the test at the end, 112 loops entered at the test, 129 trees of compares as switches with 598 places'},
+   expect: 'BLOCKS 1390 routines with jumps, 1035 with no goto left, 1696 gotos left, 7958 blocks, 719 joined tests, 590 whiles with the test at the end, 112 loops entered at the test, 129 trees of compares as switches with 598 places'},
   {page: 'viewer', name: 'pseudo-code blocks controls', requiredInputs: [APP_DATA],
    cmd: ['utilities/pseudo_blocks_check.mjs', 'index.html', APP_DATA, '--controls'], grep: /BLOCKS controls: [^\n]*/,
    expect: 'BLOCKS controls: all 9 fail their assertion'},
