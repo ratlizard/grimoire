@@ -1769,7 +1769,11 @@ function exePseudoBlocksAs(r, useTrees) {
   const SWITCH_BREAK = 'break';
   let switchBreaks = 0, switchBlocks = 0;
   const exitDefaults = new Set(), quietLabels = new Set();
-  const switchBlock = (list, i) => {
+  /* `follow` is where control goes when `list` runs out. A switch at the
+     end of an if's block has its exit there, past the list (TWindow::Hide,
+     15 November 2026), and its cases' jumps to it printed as gotos; the
+     search for the exit below tries it after every statement of the list. */
+  const switchBlock = (list, i, follow) => {
     const s = list[i].stmt;
     if (!s || s.kind !== 'switch' || !/^switch \(/.test(s.node.text || L[s.node.k].text)) return null;
     const places = new Set(s.targets);
@@ -1783,8 +1787,9 @@ function exePseudoBlocksAs(r, useTrees) {
     if (last < 0) return null;
     const inside = absIn(list.slice(i + 1, last + 1));
     for (const p of places) if (!inside.has(p) && !onlyDefault(p)) return null;
-    for (let j = last + 1; j < list.length; j++) {
-      const E = dvmFirstAbs(list[j]), R = absIn(list.slice(i + 1, j));
+    for (let j = last + 1; j <= list.length; j++) {
+      const E = j < list.length ? dvmFirstAbs(list[j]) : follow, R = absIn(list.slice(i + 1, j));
+      if (E === null || E === undefined) continue;
       if ([...places].some(p => !R.has(p) && p !== E)) continue;
       let hits = 0, loopBreak = false;
       (function walk(nodes, inLoop) {
@@ -1872,9 +1877,11 @@ function exePseudoBlocksAs(r, useTrees) {
     return { body: list.slice(i + 1, t), head: list.slice(t, c), test: list[c].stmt, end: c, T, L: Labs };
   };
   const skipLabel = new Set();
-  const render = (list, depth, sw = null) => {
+  // `follow` is where control goes when `list` runs out, for switchBlock.
+  const render = (list, depth, sw = null, follow = null) => {
     for (let i = 0; i < list.length; i++) {
       const n = list[i];
+      const nf = i + 1 < list.length ? dvmFirstAbs(list[i + 1]) : follow;
       if (rotated.has(n) && n.kind === 'stmt') continue;
       const mid = n.kind === 'stmt' ? midLoop(list, i, sw) : null;
       if (mid) {
@@ -1893,10 +1900,10 @@ function exePseudoBlocksAs(r, useTrees) {
       switch (n.kind) {
         case 'stmt': {
           const s = n.stmt;
-          const blk = s.kind === 'switch' ? switchBlock(list, i) : null;
+          const blk = s.kind === 'switch' ? switchBlock(list, i, follow) : null;
           if (blk) {
             line(atOf(s), depth, (s.node.text || L[s.node.k].text) + ' {');
-            render(list.slice(i + 1, blk.end), depth + 1, blk.exit);
+            render(list.slice(i + 1, blk.end), depth + 1, blk.exit, blk.exit);
             line(null, depth, '}');
             // The exit after the braces is where the switch goes on, not a
             // case, so its label drops the word `default` there.
@@ -1917,20 +1924,20 @@ function exePseudoBlocksAs(r, useTrees) {
         }
         case 'if':
           line(atOf(n.cond), depth, 'if (' + textOf(n.cond, 'fall') + ') {');
-          render(n.then, depth + 1, sw);
+          render(n.then, depth + 1, sw, nf);
           line(null, depth, '}');
           break;
         case 'ifelse':
           if (!n.then.length) {
             line(atOf(n.cond), depth, 'if (' + textOf(n.cond, 'taken') + ') {');
-            render(n.els, depth + 1, sw);
+            render(n.els, depth + 1, sw, nf);
             line(null, depth, '}');
             break;
           }
           line(atOf(n.cond), depth, 'if (' + textOf(n.cond, 'fall') + ') {');
-          render(n.then, depth + 1, sw);
+          render(n.then, depth + 1, sw, nf);
           line(null, depth, '} else {');
-          render(n.els, depth + 1, sw);
+          render(n.els, depth + 1, sw, nf);
           line(null, depth, '}');
           break;
         case 'while':

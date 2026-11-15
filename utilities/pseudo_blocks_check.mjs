@@ -270,7 +270,15 @@ function run(control) {
       if (open >= 0) {
         let close = open + 1;
         while (close < P0.length && !(P0[close].depth === P0[open].depth && P0[close].text === '}')) close++;
-        const after = P0.slice(close + 1).find(l => l.at !== null && l.text !== '\u0002');
+        /* A switch that ends an if's then-block goes on past the else
+           (TViewer::Render, 15 November 2026), so the check skips an
+           `} else {` met on the way to the else's closing brace. */
+        let after = null;
+        for (let q = close + 1; q < P0.length; q++) {
+          const l = P0[q];
+          if (l.text === '} else {') { const d = l.depth; q++; while (q < P0.length && !(P0[q].depth === d && P0[q].text === '}')) q++; continue; }
+          if (l.at !== null && l.text !== '\u0002') { after = l; break; }
+        }
         if (after && firstAt(after.at) === def) { const cs = wantAll.get(def), d = cs.lastIndexOf('default'); if (d >= 0) cs.splice(d, 1); }
       }
       // (2) and (4): the tree is its root, which goes to the places.
