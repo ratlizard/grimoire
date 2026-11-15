@@ -38,6 +38,15 @@ try {
     const held = list.reduce((a, i) => a + ((ctx.buildItemIndex()[i.pt] || {}).carried || 0), 0);
     if (!held) fail('items', 'nothing is carried by anyone — the prop location word is being read as coordinates again');
     else console.log(`  items: ${held} carried by characters`);
+    // The item test is the game's: a class with a Weight member (36), as
+    // IsTakable reads it. The table (24), pan (161) and haystack (199) have
+    // none and draw "You can't take" on Mac OS 8.5, though copies of them
+    // are placed with the not-theft bit or held by a character; the unlit
+    // torch (38) has a weight and goes into the pack. The control: the old
+    // test, which also counted placed copies, listed the first three.
+    const names = new Set(list.map(i => i.pt));
+    if (names.has(24) || names.has(161) || names.has(199) || !names.has(38))
+      fail('items', 'a class with no Weight member is on the item list, or the unlit torch is missing (table ' + names.has(24) + ', pan ' + names.has(161) + ', haystack ' + names.has(199) + ', unlit torch ' + names.has(38) + ')');
     // The aspect rule, v1.31.0: art no class owns is read off the file --
     // named, drawn, no class's base, no class's state, in no prop list --
     // and the flail is the one the maintainer found by hand (mace at

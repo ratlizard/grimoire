@@ -1942,9 +1942,22 @@ function propWordRender() {
   st.meaning.innerHTML = m;
 }
 
-// A prop type counts as an item if the archive treats it as one: it has a
-// weight in its class, or instances of it are carried, contained or marked
-// takeable. Nothing here is a hand-written list of item names.
+// A prop type counts as an item when its class has a Weight member (36),
+// the test the game itself makes. FillIntfCache sets bit 0x100000 of a
+// type's interface-cache long from member 36 alone, and TGameSys::IsTakable
+// returns 1 only for a type with that bit, so TakeCommand prints "You can't
+// take" for every other class. Nothing here is a hand-written list of item
+// names.
+// The test once also took a class whose placed copies were carried,
+// contained or had bit 0x01 of the record's flags. That bit is not "can be
+// taken": it is "taking it is not theft" (TakeCommand runs the class's Take,
+// the steal prompt, only for flags 0 or 8). It filed 18 classes the game
+// will not let the hero take under Carried Goods: the table, haystack,
+// brazier, lit wall torch, pan, bowl, a guard, the two traps hidden in
+// trapped boxes and others. On Mac OS 8.5 in SheepShaver, on 15 November
+// 2026, G on a pan, a table, a lit wall torch and a brazier each printed
+// "You can't take a ...!", and an unlit torch, which has a weight, went
+// into the pack (grimoire/carried-furniture-68xnrx).
 // A class with a record in the unit table (0xF008) is a creature, not an
 // item: 25 of them, the undead and the harpy among them, were filed under
 // carried goods because the scenario places them inside something, which
@@ -1953,9 +1966,7 @@ function propWordRender() {
 function isInventoryItem(pt) {
   if (livingPropTypes().has(pt)) return false;
   try { if (parseMonsterStats().some(m => !m.blank && m.proptype === pt)) return false; } catch (e) { quiet(e); }
-  if (itemWeight(pt) !== null) return true;
-  const e = buildItemIndex()[pt];
-  return !!(e && (e.carried || e.equipped || e.contained || e.takeable));
+  return classHasMember(pt, 0x24);
 }
 
 function itemGroup(pt) {
