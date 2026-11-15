@@ -1385,7 +1385,14 @@ function dvmRecoverStructure(flat) {
           if (tIdx > i + 1 && tIdx <= hi) {
             const beforeElse = stmts[tIdx - 1];
             if (beforeElse.kind === 'jump') {
-              const endIdx = index.get(beforeElse.targets[0]);
+              /* A then-branch whose closing jump goes to where the block
+                 around this if-else goes on (`follow`): the else runs to the
+                 end of the range. C's `if (a) { if (b) x; else y; } else z`
+                 compiles the inner then's jump straight to the end of the
+                 whole thing (DrawInventoryIcon, 15 November 2026), past
+                 `hi`, and the if-else below does not see it. */
+              let endIdx = index.get(beforeElse.targets[0]);
+              if (follow !== null && beforeElse.targets[0] === follow && endIdx !== undefined && endIdx > hi && tIdx < hi) endIdx = hi;
               // A then-branch that is only the goto is an if-else with an
               // empty then, which is `if (!C) { else }`: the renderers print
               // the condition in its taken sense over the else alone.
