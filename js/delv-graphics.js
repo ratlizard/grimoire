@@ -1899,12 +1899,11 @@ function heroRecolour(image, labels, tables) {
    monster's frames are spread over the hero's four poses by HERO_WEAR_POSE
    (a stride on each foot, the first stride standing and seated, since such
    a body has no frame for either) and a four-frame one shows its one frame
-   for all four. Which of a sixteen-frame monster's frames are worn, and
-   whether any are, is decided by the class's property 55, which
-   heroBodyFrames (js/page-mechanics.js) reads: the lich is laid out as a
-   person, the gator and the unicorn wear their first eight frames, and the
-   ooze is not worn. */
-const HERO_WEAR_POSE = { 1: [0, 0, 0, 0], 2: [0, 0, 1, 0], 4: [0, 1, 2, 3] };
+   for all four. A perFacing of 0 is a body the game draws at frame 0
+   whichever way it faces, and frame 0 fills every pose. How many frames a
+   class has for the hero, and so which of these it is, comes from the
+   class's property 55, which heroBodyFrames (js/page-mechanics.js) reads. */
+const HERO_WEAR_POSE = { 0: [0, 0, 0, 0], 1: [0, 0, 0, 0], 2: [0, 0, 1, 0], 4: [0, 1, 2, 3] };
 function heroWearFrames(body, perFacing) {
   const map = HERO_WEAR_POSE[perFacing];
   if (!map) return null;

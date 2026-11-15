@@ -996,37 +996,46 @@ if (take()) try {
   } catch (e) { fail('portrait colours', e); }
   ctx.patchesForget();
 
-  /* Bodies. The list is read, so what is pinned is the rule: the people and
-     the four- and eight-frame monsters are in; of the sixteen-frame
-     monsters, by their class's property 55 (heroBodyFrames), the lich is in
-     whole and the gator by its first eight frames, and the ooze, whose
-     frames are not facings, is out; a sprite of several tiles and a still
-     one are out. Then the demon, worn: its facing 1, second stride, must be
-     the hero's facing 1, right foot. The gator, worn, must give the same
-     from its first eight frames. */
+  /* Bodies. The list is read, so what is pinned is the rule, which is the
+     class's property 55 (heroBodyFrames): the people and the lich are worn
+     whole; the eight-frame monsters, the gator by its first eight frames and
+     the ghost by eight though the class list counts four, as two strides a
+     facing; the bird and the ooze, which the game draws at frame 0 whichever
+     way they face, by frame 0 in every pose; a sprite of several tiles and
+     a still one are out. Then each worn and read back. The demon's, the
+     gator's and the ghost's facing f, second stride must be the hero's
+     facing f, right foot (f 1, 1 and 2: the ghost's frame 5 lies past the
+     four the class list counts); every one of the bird's sixteen must be its
+     frame 0. */
   const bodies = peek(`heroBodies(32).map(k => k.pt)`);
   const byName = n => peek(`(heroSpriteClasses().find(k => k.name === ${JSON.stringify(n)}) || {}).pt`);
   const demon = byName('demon'), golem = byName('golem'), gator = byName('gator'), titan = byName('titan'), noble = byName('nobleman'), corpse = byName('corpse');
-  const lich = byName('lich'), ooze = byName('ooze');
-  const gatorWorn = (() => {
-    if (!gator) return null;
+  const lich = byName('lich'), ooze = byName('ooze'), ghost = byName('ghost'), bird = byName('bird');
+  const wornAs = (pt, check) => {
+    if (!pt) return null;
     peek(`window.HERO_SPRITE_STATE = { which: 'hero', choices: {} }`);
-    ctx.heroSpriteBody(String(gator));
+    ctx.heroSpriteBody(String(pt));
     return peek(`(() => {
-      const f = heroFigure('hero'), d = heroSpriteClasses().find(k => k.pt === ${gator});
+      const f = heroFigure('hero'), d = heroSpriteClasses().find(k => k.pt === ${pt});
       const src = heroSheetImage(d.sheet);
-      let same = true;
-      for (let i = 0; i < 1024; i++) if (f.image[(1 * 4 + 2) * 1024 + i] !== src[(d.start + 1 * 2 + 1) * 1024 + i]) same = false;
-      return { body: f.body && f.body.pt, same };
+      const same = (heroFrame, bodyFrame) => { for (let i = 0; i < 1024; i++) if (f.image[heroFrame * 1024 + i] !== src[(d.start + bodyFrame) * 1024 + i]) return false; return true; };
+      return { body: f.body && f.body.pt, same: (${check})(same) };
     })()`);
-  })();
-  if (!demon || !golem || !noble || !gator || !lich || !ooze) fail('hero bodies', 'the demon, the golem, the nobleman, the gator, the lich or the ooze is not among the sprite classes');
-  else if (!bodies.includes(demon) || !bodies.includes(noble) || !bodies.includes(33) || !bodies.includes(lich) || !bodies.includes(gator))
-    fail('hero bodies', 'the demon, the nobleman, the heroine, the lich or the gator cannot be worn');
-  else if ([ooze, titan, corpse, 32].some(p => p && bodies.includes(p)))
-    fail('hero bodies', 'the ooze, the titan, the corpse or the hero himself is offered as a body');
+  };
+  const stride = facing => `same => same(${facing} * 4 + 2, ${facing} * 2 + 1)`;
+  const gatorWorn = wornAs(gator, stride(1)), ghostWorn = wornAs(ghost, stride(2));
+  const birdWorn = wornAs(bird, `same => { for (let h = 0; h < 16; h++) if (!same(h, 0)) return false; return true; }`);
+  if (!demon || !golem || !noble || !gator || !lich || !ooze || !ghost || !bird) fail('hero bodies', 'the demon, the golem, the nobleman, the gator, the lich, the ooze, the ghost or the bird is not among the sprite classes');
+  else if ([demon, noble, 33, lich, gator, ghost, bird, ooze].some(p => !bodies.includes(p)))
+    fail('hero bodies', 'the demon, the nobleman, the heroine, the lich, the gator, the ghost, the bird or the ooze cannot be worn');
+  else if ([titan, corpse, 32].some(p => p && bodies.includes(p)))
+    fail('hero bodies', 'the titan, the corpse or the hero himself is offered as a body');
   else if (!gatorWorn || gatorWorn.body !== gator || !gatorWorn.same)
     fail('hero bodies', "the gator, worn, does not give the hero's facing 1, right foot from its facing 1, second stride");
+  else if (!ghostWorn || ghostWorn.body !== ghost || !ghostWorn.same)
+    fail('hero bodies', "the ghost, worn, does not give the hero's facing 2, right foot from its facing 2, second stride");
+  else if (!birdWorn || birdWorn.body !== bird || !birdWorn.same)
+    fail('hero bodies', 'the bird, worn, is not its frame 0 in every pose');
   else {
     peek(`window.HERO_SPRITE_STATE = { which: 'hero', choices: {} }`);
     ctx.heroSpriteBody(String(demon));
@@ -1048,7 +1057,7 @@ if (take()) try {
       if (!wp || wp.resids.length !== 1 || wp.resids[0] !== cover[0].sheet || !wp.checkValueValid)
         fail('hero bodies', 'the worn body did not write a verifying patch of the hero\'s sheet alone');
       else if (!/hero, as the demon, \d+ colors? changed/.test(wp.description)) fail('hero bodies', 'the description is ' + JSON.stringify(wp.description));
-      else console.log(`  hero bodies: ${bodies.length} bodies offered with the lich and the gator. The ooze, the titan and the corpse are out. The gator is worn by its straight facings. The demon is worn stride for facing, turned yellow in ${worn.shades.length} families, and written as one resource`);
+      else console.log(`  hero bodies: ${bodies.length} bodies offered with the lich, the gator, the ghost and the bird. The titan and the corpse are out. The gator is worn by its straight facings, the ghost by eight frames and the bird by its frame 0. The demon is worn stride for facing, turned yellow in ${worn.shades.length} families, and written as one resource`);
     }
   }
 

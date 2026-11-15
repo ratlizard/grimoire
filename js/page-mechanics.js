@@ -1207,23 +1207,29 @@ function heroSpriteClasses() {
                 frames, because f runs to 7 for them: frames 0 to 7 face up,
                 right, down and left as a person's 0 to 3 do, and 8 to 15 are
                 the diagonals. The hero's sheet has no diagonal frames.
+                The ghost and the fire spirit have 0 and eight frames, four
+                facings of two strides, though heroSpriteClasses counts four
+                (its count ends where the tiles' names change).
      3          f, one frame a facing (the chicken, the gecko, a crab).
      7          8f + 3 + 4(p & 1), a sprite of several tiles (the titan).
      9          2f, unused by any class here.
-     others     the frame is left at 0 (the ooze, whose sixteen frames are
-                shapes rather than facings, and the bird and the polyps).
-   So a sixteen-frame class is worn whole with layout 4 and by its first
-   eight frames, the four straight facings, with 0, 1 or 10; any other
-   sixteen-frame class is not offered. The four- and eight-frame bodies are
-   offered as they were before the property was read: an eight-frame body has
-   0 or 1 in this file, and a four-frame one is shown a frame a facing, which
-   is the game's layout for 3 alone. */
+     others     the frame is left at 0: the bird, the tentacle, the land
+                jellyfish, the polyps, the sylph, and the ooze, whose sixteen
+                frames are shapes rather than facings. Nothing else animates
+                a sprite (tileAnimTable has why), so the game shows these at
+                frame 0 whichever way they face.
+   So the hero wears 16 frames with layout 4, 8 with 0, 1 or 10, 4 with 3,
+   and 1, frame 0 in every pose, with a layout that leaves the frame at 0.
+   The frames are counted from the class's first tile and must lie on its
+   sheet. Layouts 7 and 9 are not offered. */
 function heroBodyFrames(k) {
-  if (k.frames === 4 || k.frames === 8) return k.frames;
-  if (k.frames !== 16) return 0;
-  if (k.layout === 4) return 16;
-  return k.layout === 0 || k.layout === 1 || k.layout === 10 ? 8 : 0;
+  const L = k.layout;
+  const n = L === 4 ? 16 : L === 0 || L === 1 || L === 10 ? 8 : L === 3 ? 4 : L === 7 || L === 9 || L === null ? 0 : 1;
+  return n && k.start + n <= 16 ? n : 0;
 }
+// heroWearFrames' frames a facing for a body of n frames. A body of one
+// frame has 0, and heroWearFrames shows that frame in every pose.
+function heroBodyPerFacing(n) { return n >= 4 ? n / 4 : 0; }
 
 /* What the hero or the heroine can wear: a class laid out as they are, or
    one with fewer frames a facing, which heroWearFrames spreads over their
@@ -1253,7 +1259,7 @@ function heroFigure(key) {
     body = heroBodies(pt).find(k => k.pt === st.body) || null;
     const bodySheet = body && heroSheetImage(body.sheet);
     const n = body ? heroBodyFrames(body) : 0;
-    const worn = bodySheet && heroWearFrames(bodySheet.subarray(body.start * 1024, (body.start + n) * 1024), n / 4);
+    const worn = bodySheet && heroWearFrames(bodySheet.subarray(body.start * 1024, (body.start + n) * 1024), heroBodyPerFacing(n));
     if (worn) image = worn; else body = null;
   }
   const H = cls.frames * 32;
@@ -1530,7 +1536,7 @@ function renderHeroSprite() {
         const o = document.createElement('option');
         o.value = String(k.pt);
         const n = heroBodyFrames(k);
-        o.textContent = k.label + (n < 16 ? ', ' + n + ' frames' : '');
+        o.textContent = k.label + (n === 1 ? ', 1 frame' : n < 16 ? ', ' + n + ' frames' : '');
         if (fig.body && fig.body.pt === k.pt) o.selected = true;
         sel.appendChild(o);
       }
@@ -1580,6 +1586,8 @@ function renderHeroSprite() {
   const bodyN = fig.body ? heroBodyFrames(fig.body) : 0;
   if (fig.body) facts.push(bodyN === 16
     ? 'The ' + svEsc(fig.body.label) + '’s frames have the same layout as the ' + svEsc(fig.name) + '’s. The patch uses them as they are.'
+    : bodyN === 1
+    ? 'The game draws the ' + svEsc(fig.body.label) + ' in its first frame whichever way it faces. The patch uses that frame for every pose.'
     : 'The ' + svEsc(fig.body.label) + ' has ' + bodyN / 4 + (bodyN === 8 ? ' strides' : ' frame') +
       ' a facing where the ' + svEsc(fig.name) + ' has four poses. So ' +
       (bodyN === 8 ? 'the patch uses the first walking frame for standing and sitting too.' : 'the patch uses that frame for all four.') +
