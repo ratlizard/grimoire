@@ -90,7 +90,9 @@
 //   switches  every case label printed one value higher;
 //   breaks  every `break` out of a switch block printed as `continue`;
 //   midloop  the `break` of each loop entered at its test printed with the
-//           test's jump condition, not its fall's.
+//           test's jump condition, not its fall's;
+//   built   a constant built by lis and addi for a register compare read
+//           one higher, so a tree that tests it labels a case wrongly.
 import { readFileSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 import { pageSource } from './page_scripts.mjs';
@@ -117,6 +119,7 @@ const CONTROLS = {
   breaks: { mustFail: 'exits', patch: src => src.split("const SWITCH_BREAK = 'break';").join("const SWITCH_BREAK = 'continue';") },
   midloop: { mustFail: 'sense', patch: src => src.split("textOf(mid.test, 'fall') + ') break'").join("textOf(mid.test, 'taken') + ') break'") },
   switches: { mustFail: 'switches', patch: src => src.split('u.lo === u.hi ? String(val(u.lo))').join('u.lo === u.hi ? String(val(u.lo) + 1)') },
+  built: { mustFail: 'switches', patch: src => src.split("return p.mn === 'addi' ? (src + p.imm) | 0").join("return p.mn === 'addi' ? (src + p.imm + 1) | 0") },
 };
 
 function run(control) {
