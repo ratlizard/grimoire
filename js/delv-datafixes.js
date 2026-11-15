@@ -2890,13 +2890,22 @@ const DATA_FIXES = [
   // before it sets state flag 0. A stack weighs its count times the type's
   // Weight (1), and a character past their limit can take nothing more, so
   // the type's Weight becomes 0 with them, and the hero can still pick things
-  // up; this changes the weight of every oboloi in the game.
+  // up; this changes the weight of every oboloi in the game. A Weight of 0
+  // still counts as a Weight. FillIntfCache gives a type the take bit when
+  // its class has member 36 at all, and IsTakable tests only that bit.
+  // The hero starts with 20,000 and not 32,767, at the maintainer's word of
+  // 15 November 2026, so that oboloi picked up later join a stack with room
+  // for them. ConjoinProp merges a pickup or a payment into the stack while
+  // the sum stays under 65,536, but GetItemCount reads the count as a signed
+  // halfword, so past 32,767 the count reads negative. The world has about
+  // 3,600 oboloi lying in it and about 550 in gems Atreus buys, and 20,000
+  // leaves room for all of it. Ruffians and the flax trade pay without
+  // limit, so a long enough game can still pass the limit.
   { id: 'richie-rich', group: 'mods', stage: 'mods', name: 'Richie rich',
-    played: 'in part, fork, PowerPC, 31 October 2026, a new game saved at once has the stack of 32,767 oboloi in the hero’s pack. Picking things up with it, and picking up more oboloi, are unplayed',
-    title: 'A new game now starts with 32,767 oboloi, which weigh nothing, instead of none',
+    title: 'A new game now starts with 20,000 oboloi, which weigh nothing, instead of none',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'the starting oboloi', 0x1802, ['sys SetStateFlag', 'byte 0x00', 'word True', 'end', 'set_local 0x04', 'word True'], 0,
-        ['sys Create', 'short 0x0001', 'short 0x0082', 'byte 0x00', 'short 0x7FFF', 'end'].join('\n')),
+        ['sys Create', 'short 0x0001', 'short 0x0082', 'byte 0x00', 'short 0x4E20', 'end'].join('\n')),
     ], dataEdits: [dataFixClassElement('the oboloi’s weight', 0x1082, 0x24, 0, 1, 0)] }) },
 
   // The Halloween mod, at the maintainer's request of 28 to 31 October 2026
