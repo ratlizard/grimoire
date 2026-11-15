@@ -1427,6 +1427,20 @@ function dvmRecoverStructure(flat) {
             structured++;
             i = tIdx; continue;
           }
+          /* if (C) { rest }: a test that jumps to where the block it is in
+             goes on (`follow`), past the block's last statement. C's
+             `if (a) { x; if (b) { y } } else { z }` compiles the inner test
+             to jump straight to the end of the whole if-else, where the
+             then-branch's closing jump goes too, and the test above (target
+             at or before `hi`) does not see it, since the target is outside
+             the range. AdvanceDisplacementFilters had one (15 November 2026,
+             the handoff's `grimoire/listing-hl26zm`). */
+          if (follow !== null && s.targets[0] === follow && tIdx > hi && i + 1 < hi &&
+              closed(i + 1, hi, [follow].concat(loops))) {
+            out.push({ kind: 'if', cond: s, then: build(i + 1, hi, follow, loops) });
+            structured++;
+            i = hi; continue;
+          }
           // if (C) { then }:  if_not C -> Lafter / then / Lafter:
           if (tIdx > i + 1 && tIdx <= hi && closed(i + 1, tIdx, [s.targets[0]].concat(loops))) {
             out.push({ kind: 'if', cond: s, then: build(i + 1, tIdx, s.targets[0], loops) });
