@@ -56,7 +56,10 @@
 //       a `continue` to where that loop goes round, read from the printed
 //       nesting: a `while`'s test, a `do`'s closing test, a `loop`'s first
 //       statement. A `break` inside a `switch (x) {` block with no loop
-//       nearer goes to the statement after the block.
+//       nearer goes to the statement after the block. A `break` on a test
+//       may go the test's other way, its fall (a loop entered at its test,
+//       15 November 2026), and (7) then requires its condition to be the
+//       fall's.
 //   (9) LABELS. Every goto's label is printed, before the statement the
 //       jump lands on.
 //   (10) RETURNS. A jump printed as a return is a `b` to a place whose line
@@ -83,7 +86,9 @@
 //   labels  no label printed;
 //   flow    a jump inside the routine read as an end;
 //   switches  every case label printed one value higher;
-//   breaks  every `break` out of a switch block printed as `continue`.
+//   breaks  every `break` out of a switch block printed as `continue`;
+//   midloop  the `break` of each loop entered at its test printed with the
+//           test's jump condition, not its fall's.
 import { readFileSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 import { pageSource } from './page_scripts.mjs';
@@ -108,6 +113,7 @@ const CONTROLS = {
   labels: { mustFail: 'labels', code: 'dvmRemainingLabels = function () { return new Set(); };' },
   flow: { mustFail: 'flow', patch: src => src.split("inside(o.to) ? { kind: 'jump' } : { kind: 'end' }").join("{ kind: 'end' }") },
   breaks: { mustFail: 'exits', patch: src => src.split("const SWITCH_BREAK = 'break';").join("const SWITCH_BREAK = 'continue';") },
+  midloop: { mustFail: 'sense', patch: src => src.split("textOf(mid.test, 'fall') + ') break'").join("textOf(mid.test, 'taken') + ') break'") },
   switches: { mustFail: 'switches', patch: src => src.split('u.lo === u.hi ? String(val(u.lo))').join('u.lo === u.hi ? String(val(u.lo) + 1)') },
 };
 
@@ -121,7 +127,7 @@ function run(control) {
   const pef = ctx.appPef();
   if (!pef || !pef.routines || !pef.routines.length) return { fatal: 'the application has no routines' };
   const bad = { flow: [], edges: [], regions: [], statements: [], operators: [], joined: [], sense: [], exits: [], labels: [], returns: [], switches: [] };
-  const stats = { routines: 0, withJumps: 0, whole: 0, gotos: 0, blocks: 0, joined: 0, rotated: 0, switches: 0, cases: 0 };
+  const stats = { routines: 0, withJumps: 0, whole: 0, gotos: 0, blocks: 0, joined: 0, rotated: 0, midLoops: 0, switches: 0, cases: 0 };
   const OPS = ['<', '>', '==']; const NOT = { '<': '>=', '>': '<=', '==': '!=', '>=': '<', '<=': '>', '!=': '==' };
   // The comparison at the top level of a test's text, outside every bracket.
   const topOp = t => {
@@ -175,7 +181,7 @@ function run(control) {
     }
     const hasJumps = keep.some(k => kindOf.get(k) !== 'plain' && kindOf.get(k) !== 'end');
     if (hasJumps) { stats.withJumps++; if (!b.gotos) stats.whole++; }
-    stats.gotos += b.gotos; stats.blocks += rec.structured; stats.rotated += b.rotated.size / 2;
+    stats.gotos += b.gotos; stats.blocks += rec.structured; stats.rotated += b.rotated.size / 2; stats.midLoops += b.midLoops.size;
     let expected = new Set();
     for (const k of keep) for (const t of succ.get(k)) if (t !== null) expected.add(k + '>' + t);
     // ---- (11) switches, each tree run from its instructions ----
@@ -506,7 +512,18 @@ function run(control) {
               // to T instead (TViewer::SetStage, +0x15b0).
               const sj = listAt.get(k), s = sj && sj.joined ? [sj.targets[0]] : succ.get(k);
               const jumpsTo = s && s[0] !== undefined && s[0] !== null ? L[s[0]].at : null;
-              if (jumpsTo !== dest) bad.exits.push(where + ': ' + word + ' at +0x' + (c.stmt.at - r.offset).toString(16) + ' goes to ' + (jumpsTo === null ? 'nothing' : '+0x' + (jumpsTo - r.offset).toString(16)) + ', not ' + (dest === null ? 'the end' : '+0x' + (dest - r.offset).toString(16)));
+              /* A loop entered at its test prints `if (X) break` on the
+                 test's other way, its fall to the statement after the
+                 loop (exePseudoBlocksAs, `midLoop`, 15 November 2026).
+                 The sense assertion below then requires X to be the
+                 fall's condition, so a `break` printed on the wrong way
+                 fails there. */
+              // A fall to a plain jump goes where the jump goes (the jump
+              // over an `else` in TGameSys::LookCommand).
+              const fallsTo = [];
+              if (!(sj && sj.joined) && m[1] && word === 'break' && s && s[1] !== undefined && s[1] !== null)
+                for (let x = s[1], g = 0; g < 8; g++) { fallsTo.push(L[x].at); if (kindOf.get(x) !== 'jump') break; x = succ.get(x)[0]; }
+              if (jumpsTo !== dest && !fallsTo.includes(dest)) bad.exits.push(where + ': ' + word + ' at +0x' + (c.stmt.at - r.offset).toString(16) + ' goes to ' + (jumpsTo === null ? 'nothing' : '+0x' + (jumpsTo - r.offset).toString(16)) + ', not ' + (dest === null ? 'the end' : '+0x' + (dest - r.offset).toString(16)));
             }
             if (m[1] && dest !== null && ![ANY, m[1]].includes(senseText(k, dest))) bad.sense.push(where + ': +0x' + (c.stmt.at - r.offset).toString(16) + ' jumps on ' + m[1]);
           }
@@ -537,5 +554,5 @@ for (const [what, list] of Object.entries(res.bad)) {
   else console.log(`  ok   ${what}`);
 }
 const s = res.stats;
-console.log(failures ? `FAIL — ${failures} assertion(s)` : `BLOCKS ${s.withJumps} routines with jumps, ${s.whole} with no goto left, ${s.gotos} gotos left, ${s.blocks} blocks, ${s.joined} joined tests, ${s.rotated} whiles with the test at the end, ${s.switches} trees of compares as switches with ${s.cases} places`);
+console.log(failures ? `FAIL — ${failures} assertion(s)` : `BLOCKS ${s.withJumps} routines with jumps, ${s.whole} with no goto left, ${s.gotos} gotos left, ${s.blocks} blocks, ${s.joined} joined tests, ${s.rotated} whiles with the test at the end, ${s.midLoops} loops entered at the test, ${s.switches} trees of compares as switches with ${s.cases} places`);
 process.exit(failures ? 1 : 0);

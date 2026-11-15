@@ -1740,7 +1740,7 @@ function exePseudoBlocksAs(r, useTrees) {
   const atOf = s => L[s.abs].at;
   const goTo = k => labelOf.has(k) ? labelOf.get(k) : L[k].at;
   const label = (k, depth) => {
-    if (k === null || !labels.has(k)) return;
+    if (k === null || !labels.has(k) || skipLabel.has(k)) return;
     let cases = caseOf.get(k) || null;
     if (cases && exitDefaults.has(k)) { const at = cases.indexOf('default'); cases = cases.filter((c, n) => n !== at); if (!cases.length) cases = null; }
     if (!cases && quietLabels.has(k)) return;
@@ -1820,10 +1820,75 @@ function exePseudoBlocksAs(r, useTrees) {
     }
     return null;
   };
+  /* A loop entered at its test, with statements before the test (the
+     handoff's `grimoire/listing-hl26zm`, 15 November 2026). CodeWarrior
+     compiles `while (--n) body` and its kin as
+
+         goto T; L: body; T: n = n - 1; if (n != 0) goto L; N: ...
+
+     and the recovery cannot make a block of L to the test, since it has two
+     ways in, L from the test and T from the jump. So every such loop was two
+     gotos, and they were most of what LZUnpack printed. It prints as
+
+         loop { n = n - 1; if (n == 0) break; body }
+
+     which runs the same statements in the same order, with the `break` on
+     the test's other way, to N. Only the printing changes: the recovery's
+     tree still has the two jumps, so dvmStructureEdges and the check's
+     edges do not change. The run must be in one list of the tree: J, a jump
+     to T with nothing else jumping to T; L, the statement after J, with
+     only the test jumping to it; T further on; the test after T, jumping to
+     L, and nothing jumping to the test. No `break` or `continue` of a loop
+     around it, and no jump to an enclosing switch's exit, may be inside,
+     where it would read as leaving the new loop. */
+  const midLoops = new Set();
+  const midLoop = (list, i, sw) => {
+    const J = list[i];
+    if (J.kind !== 'stmt' || J.goes !== undefined || J.stmt.kind !== 'jump' || loops.exits.has(J.stmt) || rotated.has(J)) return null;
+    const T = J.stmt.targets[0], Labs = nextOf.get(J.stmt.abs);
+    if (i + 1 >= list.length || dvmFirstAbs(list[i + 1]) !== Labs || sources.get(T) !== 1 || sources.get(Labs) !== 1) return null;
+    let t = -1;
+    for (let j = i + 2; j < list.length; j++) if (dvmFirstAbs(list[j]) === T) { t = j; break; }
+    if (t < 0) return null;
+    let c = -1;
+    for (let j = t; j < list.length; j++) {
+      const n = list[j];
+      if (n.kind === 'stmt' && n.stmt.kind === 'cond' && n.goes === undefined && !loops.exits.has(n.stmt) && n.stmt.targets[0] === Labs) { c = j; break; }
+    }
+    if (c < 0 || sources.get(list[c].stmt.abs)) return null;
+    let leaves = false;
+    (function walk(nodes, inLoop) {
+      for (const n of nodes) {
+        if (n.kind === 'stmt') {
+          if (!inLoop && loops.exits.has(n.stmt)) leaves = true;
+          const where = n.stmt.targets.length === 1 ? (n.goes !== undefined ? n.goes : n.stmt.targets[0]) : null;
+          if (sw !== null && where === sw) leaves = true;
+        }
+        const loopy = n.kind === 'while' || n.kind === 'dowhile' || n.kind === 'loop';
+        for (const q of ['then', 'els', 'body']) if (n[q]) walk(n[q], inLoop || loopy);
+      }
+    })(list.slice(i + 1, c), false);
+    if (leaves) return null;
+    return { body: list.slice(i + 1, t), head: list.slice(t, c), test: list[c].stmt, end: c, T, L: Labs };
+  };
+  const skipLabel = new Set();
   const render = (list, depth, sw = null) => {
     for (let i = 0; i < list.length; i++) {
       const n = list[i];
       if (rotated.has(n) && n.kind === 'stmt') continue;
+      const mid = n.kind === 'stmt' ? midLoop(list, i, sw) : null;
+      if (mid) {
+        label(dvmFirstAbs(n), depth);
+        skipLabel.add(mid.T); skipLabel.add(mid.L);
+        line(null, depth, 'loop {');
+        render(mid.head, depth + 1);
+        line(atOf(mid.test), depth + 1, 'if (' + textOf(mid.test, 'fall') + ') break');
+        render(mid.body, depth + 1);
+        line(null, depth, '}');
+        midLoops.add(mid.test);
+        i = mid.end;
+        continue;
+      }
       if (n.kind !== 'dowhile' && n.kind !== 'loop') label(dvmFirstAbs(n), depth);
       switch (n.kind) {
         case 'stmt': {
@@ -1902,7 +1967,7 @@ function exePseudoBlocksAs(r, useTrees) {
   const stmtOf = new Int32Array(ops.length).fill(-1);
   let j = 0;
   for (let i = 0; i < ops.length; i++) { while (j < byAt.length - 1 && out[byAt[j]].at < ops[i].at) j++; stmtOf[i] = byAt.length ? byAt[j] : -1; }
-  return ({ lines: out, stmtOf, stmts, list, joined, trees, rec, loops, labels, rotated, gotos: rec.gotos - loops.exits.size - rotated.size / 2 - switchBreaks, switchBlocks, switchBreaks });
+  return ({ lines: out, stmtOf, stmts, list, joined, trees, rec, loops, labels, rotated, midLoops, gotos: rec.gotos - loops.exits.size - rotated.size / 2 - switchBreaks - 2 * midLoops.size, switchBlocks, switchBreaks });
 }
 /* A run of tests as one condition (exePseudoBlocks): `toE[i]` is whether
    test i jumps to E, the place the last one jumps to, rather than to T,
