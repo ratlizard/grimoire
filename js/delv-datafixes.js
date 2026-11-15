@@ -302,7 +302,7 @@ const DATA_FIXES = [
   // The higher edit goes first, and its two bytes move the branch at 0x00CC
   // on to 0x00E2, which is what the second edit then finds.
   { id: 'first-mana', group: 'rules', stage: 'found', title: 'A first lesson in Mana now gives full magic of mind plus one, instead of none until a second lesson',
-    played: 'fork, 68K, 10 November 2026, alone and on “All Fixes”. A Fighter of mind 12 with no Mana took Lindus’s Yes and Mana once and had full magic 13 of 13, against 0 of 0 unpatched. A second Mana lesson gave 14 of 14 either way. Not played on Mac OS',
+    played: 'fork, 68K, 10 November 2026, alone and on “All Fixes”. A Fighter of mind 12 with no Mana took Lindus’s Yes and Mana once and had full magic 13 of 13, against 0 of 0 unpatched. A second Mana lesson gave 14 of 14 either way. Mac OS 8.5, 14 November 2026, alone, with the patched Cythera Data on the disk. The same Fighter’s first Mana lesson from Lindus gave Magic 13/13, against 0/0 on the shipped disk',
     edits: [
       { what: 'the new skill record, untrained', resid: 0xEAF, at: 0x00DF, expect: { 0x00D1: 'sys New', 0x00DE: 'end', 0x00DF: 'end', 0x00E0: 'method 0x00' }, code: 'cast Skill (0x50)' },
       { what: 'the new skill record, trained', resid: 0xEAF, at: 0x00CB, expect: { 0x00BD: 'sys New', 0x00CA: 'end', 0x00CB: 'end', 0x00CC: 'branch 0x00E2' }, code: 'cast Skill (0x50)' },
