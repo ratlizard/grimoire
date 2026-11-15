@@ -67,7 +67,9 @@
 //   (11) SWITCHES. A tree of compares printed as one switch (exePseudoBlocks'
 //       `trees`, 10 November 2026) is run here from its instructions alone:
 //       from the root's compare, each cmpwi or cmplwi sets its field from
-//       the value, a copy (mr) puts the value in another register too, and
+//       the value, as does a cmpw or cmplw against a constant built just
+//       before it by li, lis, addi, addis or ori (15 November 2026), a
+//       copy (mr) puts the value in another register too, and
 //       each branch whose line is in the tree follows its field. The run
 //       ends at the first instruction outside that, and the place is the
 //       first line at or after where that straight run began. Every value
@@ -198,7 +200,8 @@ function run(control) {
       let start = at0;
       while (start > 0 && at0 - start < 8 && !(ops[start - 1].d && ops[start - 1].d.branch) && !landed.has(ops[start].at)) start--;
       let cmpAt = -1;
-      for (let i = at0 - 1; i >= start; i--) { const d = ops[i].d; if (d && (d.mn === 'cmpwi' || d.mn === 'cmplwi') && d.crf === ops[at0].d.bi >> 2) { cmpAt = i; break; } }
+      for (let i = at0 - 1; i >= start; i--) { const d = ops[i].d; if (d && /^cmpl?wi?$/.test(d.mn) && d.crf === ops[at0].d.bi >> 2) { cmpAt = i; break; } }
+      const runFrom = start;
       if (cmpAt < 0) { bad.switches.push(where + ': the tree at +0x' + (L[tr.root].at - r.offset).toString(16) + ' has no compare before its first branch'); continue; }
       const seed = new Set([ops[cmpAt].d.ra]);
       for (let i = start; i < at0; i++) { const d = ops[i].d; if (d && d.mn === 'mr' && (seed.has(d.rs) || seed.has(d.ra))) { seed.add(d.rs); seed.add(d.ra); } }
@@ -206,16 +209,46 @@ function run(control) {
       const memberAt = a => { const k = flowLines.get(a); return k !== undefined && M.has(k); };
       const consts = new Set([0, 0x80000000]);
       const hiAt = Math.max(...tr.members.map(k => L[k].at));
+      // A constant too wide for a compare is built first, `lis 4,1; addi
+      // 4,4,-4096; cmpw 0,4` (TileFlagsToColor). `built` gives the register
+      // an li, lis, addi, addis or ori writes and its value, from the
+      // values in `kr` so far, and null for any other instruction.
+      const built = (d, kr) => {
+        if (d.mn === 'li') return [d.rd, d.imm | 0];
+        if (d.mn === 'lis') return [d.rd, (d.imm << 16) | 0];
+        if ((d.mn === 'addi' || d.mn === 'addis') && kr.has(d.ra)) return [d.rd, (kr.get(d.ra) + (d.mn === 'addis' ? d.imm << 16 : d.imm)) | 0];
+        if (d.mn === 'ori' && kr.has(d.rs)) return [d.ra, (kr.get(d.rs) | d.imm) | 0];
+        return null;
+      };
+      // A root that compares two registers reads a constant built before
+      // its compare, in the same straight run.
+      const kr0 = new Map();
+      for (let i = runFrom; i < cmpAt; i++) { const b = ops[i].d && built(ops[i].d, kr0); if (b && !seed.has(b[0])) kr0.set(b[0], b[1]); }
+      const pre = new Map(kr0);
       for (let i = start; i < ops.length && ops[i].at <= hiAt; i++) {
         const d = ops[i].d;
-        if (d && (d.mn === 'cmpwi' || d.mn === 'cmplwi')) { consts.add(d.imm >>> 0); consts.add((d.imm + 1) >>> 0); }
+        if (!d) continue;
+        if (d.mn === 'cmpwi' || d.mn === 'cmplwi') { consts.add(d.imm >>> 0); consts.add((d.imm + 1) >>> 0); }
+        const b = built(d, pre);
+        if (b) pre.set(b[0], b[1]);
+        if ((d.mn === 'cmpw' || d.mn === 'cmplw') && pre.has(d.rb)) { consts.add(pre.get(d.rb) >>> 0); consts.add((pre.get(d.rb) + 1) >>> 0); }
       }
       const runFor = v => {
         let i = start, runStart = ops[start].at, regs = null, entered = false;
-        const cr = [];
+        const cr = [], kr = new Map(kr0);
         for (let g = 0; g < 4096; g++) {
           const o = ops[i], d = o && o.d;
           if (!d) return null;
+          // A built constant goes to a register other than the value's; the
+          // place a run ends at is unchanged by passing over it.
+          const b = regs !== null ? built(d, kr) : null;
+          if (b && !regs.has(b[0])) { kr.set(b[0], b[1]); i++; continue; }
+          if ((d.mn === 'cmpw' || d.mn === 'cmplw') && (regs || seed).has(d.ra) && kr.has(d.rb)) {
+            if (regs === null) regs = new Set(seed);
+            const a = d.mn === 'cmplw' ? v >>> 0 : v | 0, c = d.mn === 'cmplw' ? kr.get(d.rb) >>> 0 : kr.get(d.rb) | 0;
+            cr[d.crf] = [a < c, a > c, a === c];
+            i++; continue;
+          }
           if (d.mn === 'cmpwi' || d.mn === 'cmplwi') {
             if (regs === null) regs = new Set(seed);
             if (!regs.has(d.ra)) return firstAt(runStart);

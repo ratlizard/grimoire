@@ -1563,6 +1563,31 @@ function exePseudoBlocksAs(r, useTrees) {
     const ops = exeOpsOf(r), opAt = new Map(ops.map((o, i) => [o.at, i]));
     const landed = new Set();
     for (const o of ops) if (o.d && o.d.branch && !o.d.lk && o.to !== null && o.to !== undefined) landed.add(o.to);
+    /* A constant too wide for a compare's 16 bits is built in a register
+       first and compared register to register: TileFlagsToColor tests
+       `flags & 0xF000` against 61440 with `lis 4,1; addi 4,4,-4096;
+       cmpw 0,4`, and the tree stopped at that test and was printed only in
+       part (the handoff's `grimoire/listing-hl26zm`, 15 November 2026).
+       konstIn is the value of `reg` before instruction j where the straight
+       run back to `lo` builds it from li, lis, addi, addis and ori alone. */
+    const BUILDS = new Set(['li', 'lis', 'addi', 'addis', 'ori']);
+    const konstIn = (j, reg, lo) => {
+      for (let q = j - 1; q >= lo; q--) {
+        if (landed.has(ops[q + 1].at)) return null;
+        const p = ops[q].d;
+        if (!p) return null;
+        const dest = p.mn === 'ori' ? p.ra : p.rd;
+        if (BUILDS.has(p.mn) && dest === reg) {
+          if (p.mn === 'li') return p.imm | 0;
+          if (p.mn === 'lis') return (p.imm << 16) | 0;
+          const src = konstIn(q, p.mn === 'ori' ? p.rs : p.ra, lo);
+          if (src === null) return null;
+          return p.mn === 'addi' ? (src + p.imm) | 0 : p.mn === 'addis' ? (src + (p.imm << 16)) | 0 : (src | p.imm) | 0;
+        }
+        if (exeRegUse(p).w.includes(reg) || (p.branch && !p.conditional)) return null;
+      }
+      return null;
+    };
     const cmpOf = k => {
       const i = opAt.get(L[k].at), o = i === undefined ? null : ops[i];
       if (!o || !o.d || !/^b[tf]$/.test(o.d.mn)) return null;
@@ -1573,6 +1598,10 @@ function exePseudoBlocksAs(r, useTrees) {
         if (!p) return null;
         if ((p.mn === 'cmpwi' || p.mn === 'cmplwi') && p.crf === crf)
           return { reg: p.ra, k: p.imm, unsigned: p.mn === 'cmplwi', bit: o.d.bi & 3, yes: o.d.mn === 'bt' };
+        if ((p.mn === 'cmpw' || p.mn === 'cmplw') && p.crf === crf) {
+          const c = konstIn(j, p.rb, Math.max(0, i - 8));
+          return c === null || p.ra === p.rb ? null : { reg: p.ra, k: c, unsigned: p.mn === 'cmplw', bit: o.d.bi & 3, yes: o.d.mn === 'bt', built: p.rb };
+        }
         if (/^cmp/.test(p.mn) || (crf === 0 && /\.$/.test(p.mn)) || /^m[tc]crf|^mcrf|^cr/.test(p.mn)) return null;
         if (p.branch && !p.conditional) return null;
       }
@@ -1593,10 +1622,16 @@ function exePseudoBlocksAs(r, useTrees) {
        T7LabelWidget::DrawRoutine) is an if-else chain, which reads as
        nested ifs already, and the value it tests is not shown to be the
        first one. */
+    // The constant a register compare reads is built in the same run, so
+    // the run may hold its li, lis, addi, addis and ori, writing that
+    // register and no other.
     const bare = j => {
       let i = opAt.get(L[stmts[j].node.k].at);
       if (i === undefined) return false;
-      for (i--; i >= 0 && ops[i].d && (ops[i].d.mn === 'cmpwi' || ops[i].d.mn === 'cmplwi') && !landed.has(ops[i + 1].at); i--);
+      const built = stmts[j].kind === 'cond' && testAt(j) ? testAt(j).built : undefined;
+      const passes = d => d.mn === 'cmpwi' || d.mn === 'cmplwi' || (built !== undefined && ((d.mn === 'cmpw' || d.mn === 'cmplw') ||
+        (BUILDS.has(d.mn) && (d.mn === 'ori' ? d.ra : d.rd) === built)));
+      for (i--; i >= 0 && ops[i].d && passes(ops[i].d) && !landed.has(ops[i + 1].at); i--);
       return i < 0 || landed.has(ops[i + 1].at) || !!(ops[i].d && ops[i].d.branch && !ops[i].d.lk);
     };
     const test = new Map(), used = new Set(), drop = new Set(), replace = new Map();
@@ -1655,7 +1690,15 @@ function exePseudoBlocksAs(r, useTrees) {
         caseOf.set(k, (caseOf.get(k) || []).concat(labels));
       }
       const m = /^(.*) (?:==|!=|>=|<=|<|>) \S+$/.exec(L[stmts[i].node.k].flow.taken.replace(/^earlier: /, ''));
-      replace.set(i, { abs: stmts[i].abs, node: { mn: 'ppc', k: stmts[i].node.k, text: 'switch (' + (m ? m[1] : 'r' + testAt(i).reg) + ')' },
+      // The test's left side comes bracketed where it is an expression, and
+      // the brackets of `switch ( )` would double them: `switch ((r3 & 0xF000))`.
+      const unwrap = s => {
+        if (s[0] !== '(' || s[s.length - 1] !== ')') return s;
+        let depth = 0;
+        for (let q = 0; q < s.length - 1; q++) { depth += s[q] === '(' ? 1 : s[q] === ')' ? -1 : 0; if (depth === 0) return s; }
+        return s.slice(1, -1);
+      };
+      replace.set(i, { abs: stmts[i].abs, node: { mn: 'ppc', k: stmts[i].node.k, text: 'switch (' + (m ? unwrap(m[1]) : 'r' + testAt(i).reg) + ')' },
                        kind: 'switch', targets: order.map(e => stmts[e].abs), negated: false, exhaustive: true });
       for (const j of M) { used.add(j); if (j !== i) drop.add(j); }
       trees.push({ root: stmts[i].abs, members: [...M].map(j => stmts[j].abs), unsigned,
@@ -1974,7 +2017,19 @@ function exePseudoBlocksAs(r, useTrees) {
   const stmtOf = new Int32Array(ops.length).fill(-1);
   let j = 0;
   for (let i = 0; i < ops.length; i++) { while (j < byAt.length - 1 && out[byAt[j]].at < ops[i].at) j++; stmtOf[i] = byAt.length ? byAt[j] : -1; }
-  return ({ lines: out, stmtOf, stmts, list, joined, trees, rec, loops, labels, rotated, midLoops, gotos: rec.gotos - loops.exits.size - rotated.size / 2 - switchBreaks - 2 * midLoops.size, switchBlocks, switchBreaks });
+  /* The recovery counts every statement left with a target as a goto, and
+     a switch is one, though it prints as `switch (x)` and no goto. 116
+     routines with a tree of compares counted one more goto per switch than
+     they print (15 November 2026), which made exePseudoBlocks weigh a tree
+     a goto heavier than the nested ifs it replaces. */
+  let switches = 0;
+  (function count(list) {
+    for (const n of list) {
+      if (n.kind === 'stmt' && n.stmt.kind === 'switch') switches++;
+      for (const v of Object.values(n)) if (Array.isArray(v) && v.length && v[0] && typeof v[0].kind === 'string') count(v);
+    }
+  })(rec.tree);
+  return ({ lines: out, stmtOf, stmts, list, joined, trees, rec, loops, labels, rotated, midLoops, gotos: rec.gotos - loops.exits.size - rotated.size / 2 - switchBreaks - 2 * midLoops.size - switches, switchBlocks, switchBreaks });
 }
 /* A run of tests as one condition (exePseudoBlocks): `toE[i]` is whether
    test i jumps to E, the place the last one jumps to, rather than to T,
