@@ -108,6 +108,26 @@ const APP_FIXES = [
       { at: 0x54258, was: [0x28000000, 0x41820010, 0x881E0000, 0x28000008, 0x40820094],
         asm: ['andi. 0, 0, 223       ; the moved bit aside', 'beq @0x5426C', 'cmplwi 0, 8', 'bne @0x542FC', 'nop'] }] },
 
+  // TGameSys::DropCommand ends by sending method 25 to the thing dropped
+  // when the record at the top of its chain of holders stands more than a
+  // square from the current character (dx*dx + dy*dy over 2, 0x55128 to
+  // 0x55198). The default method 25 (0x3019) deletes a thing whose
+  // ClassFlags have 0x10: the plate, the glass and the bell, the four bells
+  // of the Tyrant's Tomb puzzle among them. From the hero's pack the two
+  // points are one square, so the test never passes. From a companion's
+  // pack it measures the companion, and the thing vanishes wherever it
+  // lands, silently. Played on 16 November 2026 (grimoire/puzzles-kzwaiu):
+  // Hector's plate dropped from three squares off was deleted, his glass
+  // dropped from beside the hero stayed. The three classes have no method
+  // 25 but the default and no broken picture, and the game's breakages
+  // (the mirrors, a crate) go through TakeDamage with a message, so this
+  // is taken for a check that misfires, not a design: the branch past the
+  // call is made unconditional, and nothing a drop moves is sent method 25.
+  { id: 'drop-vanish', kind: 'fix', title: 'A plate, glass or bell dropped from a companion’s pack lands where it is dropped, instead of vanishing when the companion stands more than a square from the hero',
+    bug: 'A plate, glass or bell dropped from a companion’s pack vanishes',
+    played: 'fork, PowerPC and 68K, 16 November 2026, alone and with every fix. Hector waited three squares from the hero in Land King Hall, and his plate was dragged to the square beside the hero. The stock program deletes it, and the patched one leaves it there. His glass dropped from beside the hero lies there on both',
+    sites: [{ at: 0x55168, was: [0x40810038], asm: ['b @0x551A0            ; was ble, method 25 to a thing dropped from afar'] }] },
+
   { id: 'weight-contents', kind: 'fix', title: 'The scale and the shops weigh only the item, not the contents of an unrelated character or thing',
     bug: 'The scale gives wrong weights',
     sites: [{ at: 0x958A4, was: [0x4BFC01B5], asm: ['li 3, 0               ; was bl GetCurInvEncumb'] }] },

@@ -66,6 +66,7 @@ const APP_FIXES_68K = {
     { fix: 'more-button', seg: 5, at: 0xD862, was: '302efff648c0322efffa48c192807020b2805c4f6f0e302efff648c07220d0813d40fffa', now: '302efff606400020b06efffa6c043d40fffa302efffa044000203d40fff65c4f4e714e71' },  // move.w -$a(a6), d0; addi.w #$20, d0; cmp.w -$6(a6), d0; bge.b $d874; move.w d0, -$6(a6); move.w -$6(a6), d0; subi.w #$20, d0; move.w d0, -$a(a6); addq.w #$6, a7; nop; nop
     { fix: 'spot-tune', seg: 1, at: 0x6A56, was: '6718', now: '6746' },  // beq.b $6a9e
     { fix: 'ai-mods', seg: 1, at: 0x1F6DA, was: '0c440004', now: '0c440005' },  // cmpi.w #$5, d4
+    { fix: 'drop-vanish', seg: 4, at: 0x9AA8, was: '6f40', now: '6040' },  // bra.b $9aea
   ],
   caves: [
     { fixes: ['walk-to'], seg: 5, site: 0x663A, was: '4aaeff486700008e', bodies: {
@@ -691,6 +692,7 @@ const APP_FIXES_68K = {
     'corner-body': '4e6ea0577d046781bffd182dcdfa86ceaa54b5fb1864f7e08eced6cd2b9ec632',
     'corpse-light': 'eabb1d64b7d89e012b003bcf6905312d674f8c067367ffc68a71382ef6be204a',
     'drag-northwest': '240a4b91522a1322be41d61876e36cedfd74373fc29e436b55cf066a2bccee0d',
+    'drop-vanish': '14e46c99975b15b7b0b3bf8ba6155dabfed28af18be6cfd4185246a18138b719',
     'empty-zone-save': '5bb5c4a4b682cff534b3b09d333a20b3ae05b3ec32349dadd83de576bc5b65de',
     'hero-square': 'ec318fa99f4d7d642ea536c9431064ee74e54dc408dbe9b732b90f7d712f72bf',
     'hood-size': '66f222eaf2f68f53d964f4f1a5ab5d18cb03d0f3abaf3704b28e957c81deb716',
@@ -730,6 +732,6 @@ const APP_FIXES_68K = {
     'weight-contents': 'ecb4aef1c7573c069295d4682ffe855ffbea0b5d637661cc1d875619c14dbb20',
     'widget-renumber': '883f64529f1ca5ba83c2f2542c879e1d3ade86c8de6bb60bac16d328bb35e7d6',
     'window-leak': 'dafe456d790ddd4a39e181449b5724a0e0e3c2c8a8d1e33e032659968fcfa214',
-    '': '334b3dfa1c0235b3aeaf2b93c67988d86d542709c87cdba6e4750e10618004ad',   // every fix
+    '': '3c93f5fd32a6049f09882e038a1f551962184410cfffa6ddc06230cc4f5e75eb',   // every fix
   },
 };

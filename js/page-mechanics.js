@@ -4726,9 +4726,15 @@ function renderMechanicsSheet(value) {
                and the bomb a shorter one. TGameSys::SlideItemCommand sets
                a slid chair's aspect from the direction of the slide.
                TGameSys::DropCommand sends method 25 to a thing dropped
-               more than a square away (dx*dx + dy*dy over 2), and the
-               default method 25 (0x3019) deletes a thing whose class has
-               0x10. 0x100 is not in the copy: DoTicks reads the word from each
+               when the top of its chain of holders stands more than a
+               square from the current character (dx*dx + dy*dy over 2),
+               and the default method 25 (0x3019) deletes a thing whose
+               class has 0x10. The drop square plays no part, and from the
+               hero's pack the distance is 0, so only a thing dropped from
+               a companion's pack vanishes: played in the fork on 16
+               November 2026 (Patches has the fix, drop-vanish). The game
+               prints no message and leaves no pieces, so the line reads
+               vanish, not break. 0x100 is not in the copy: DoTicks reads the word from each
                placed thing's class itself on the hour and sends
                message 257 to one that has it, which the lamp post
                answers by lighting or going out and the easel by changing
@@ -4736,7 +4742,7 @@ function renderMechanicsSheet(value) {
             bitText(0x20, 'is a light that burns down as time passes (the ' + eg(0x20, 'torch') + ', the ' + eg(0x20, 'lamp') + ', the ' + eg(0x20, 'candle') + ').') + ' ' +
             bitText(0x800, 'counts down the same way but faster (the ' + eg(0x800, 'hourglass') + ' and the ' + eg(0x800, 'bomb') + ').') + ' ' +
             bitText(0x40, 'turns a thing to face the way the hero pushes it (the ' + eg(0x40, 'chair') + ').') + ' ' +
-            bitText(0x10, 'breaks a thing dropped more than a square away (the ' + eg(0x10, 'plate') + ', the ' + eg(0x10, 'glass') + ', the ' + eg(0x10, 'bell') + ').') + ' ' +
+            bitText(0x10, 'makes a thing vanish when the hero drops it from a companion’s pack while the companion stands more than a square away (the ' + eg(0x10, 'plate') + ', the ' + eg(0x10, 'glass') + ', the ' + eg(0x10, 'bell') + ').') + ' ' +
             bitText(0x100, 'signals a thing each time the hour changes (the ' + eg(0x100, 'lamp post') + ', which lights at night, and the ' + eg(0x100, 'easel') + ').');
         })() : MECH_NO_APP,
         ic ? 'The last table below shows how a chair seats a character. The zone maps seat their people by it.' : ''
