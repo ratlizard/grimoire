@@ -2666,7 +2666,7 @@ const DATA_FIXES = [
       ];
     })() },
   { id: 'spell-cost-after-target', group: 'design', stage: 'cost', title: 'A targeted spell now costs its magic once the caster chooses the target, instead of before, so a canceled cast costs nothing',
-    played: 'fork, 68K, 10 October 2026, alone: Awaken, given as an ability by an edit, performed and cancelled with Escape at "Cast ‘Awaken’ on whom?"; the hero’s magic saved as 30 of 60, untouched, against 29 unpatched; cast on its target, 29 on both. One spell of the 33; Mac OS 8.5, 11 October 2026, a patch of the design changes installed by Magpie over “All Fixes”: Awaken cancelled at its question leaves 30 of 60 magic, against 29 unpatched',
+    played: 'fork, 68K, 10 October 2026, alone. Awaken was given as an ability by an edit, performed, and canceled with Escape at "Cast ‘Awaken’ on whom?". The hero’s magic saved as 30 of 60, untouched, against 29 unpatched, and cast on its target it saved as 29 on both. Mac OS 8.5, 11 October 2026, with the design changes installed by Magpie over “All Fixes”. Awaken canceled at its question left 30 of 60 magic, against 29 unpatched. Mac OS 8.5, 18 November 2026, alone. Greater Healing and Mystic Arrow canceled at their questions left 30 of 60, and the shipped file spent 6 and 4',
     plan: (s) => {
       const edits = [];
       for (let resid = 0x1A00; resid < 0x1A40; resid++) {
