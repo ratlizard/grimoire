@@ -1887,6 +1887,7 @@ const DATA_FIXES = [
   // is left as it is, since whether it was meant for the feet alone is an
   // inference and slots 8 and 9 both pass it.
   { id: 'rock-helmet', group: 'rules', stage: 'found', title: 'A helmet now softens a rock falling from a loose roof, instead of no armor counting against it',
+    played: 'in part, Mac OS 8.5, 18 November 2026, alone. A hero in a mystic helmet stepped under the five loose roofs of zone 9. The rocks took 2, 0, 12, 6 and 1 health with the fix, 21 in all, and 5, 10, 0, 13 and 10 unpatched, 38 in all. Five rolls a side lean the right way and do not settle it',
     edits: [
       { what: 'the head’s armor against a falling rock', resid: 0xE81, at: 0x005D, replaceOp: true,
         expect: { 0x0058: 'class_member 0x2600', 0x005B: 'byte 0x00', 0x005D: 'bitwise_and' }, code: 'eq' },
