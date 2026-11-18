@@ -1905,6 +1905,7 @@ const DATA_FIXES = [
   // as it is. Removing the member from the diamond would do the same, and
   // no fix edits a class's members.
   { id: 'diamond-reagent', group: 'rules', stage: 'found', title: 'A diamond put in the distiller is no longer used up to make a potion with no name and no effect',
+    played: 'in part, Mac OS 8.5, 18 November 2026, alone. A hero with Alchemy used a distiller on a diamond in Land King Hall. The shipped file printed "It worked!" and turned the diamond into a potion of aspect 7, and the fix printed "Hm, nothing seemed to happen." and left the diamond. Timon’s answer about a diamond is unplayed',
     edits: [
       { what: 'the distiller accepts only a reagent of a potion in the game', resid: 0x10EA, at: 0x05EB, shiftAt: true,
         expect: { 0x05E4: 'if_not', 0x05E5: 'arg Arg01', 0x05E6: 'has_member AlchemicalReagent (0x30)', 0x05E8: 'then -> 0x0637', 0x05EB: 'if_not' },
