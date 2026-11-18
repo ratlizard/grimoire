@@ -1857,6 +1857,7 @@ const DATA_FIXES = [
   // the highest offset down. Stage `found`, anchored by offset; `traps`
   // and `secrets-traps` find their places in 0x1AF2 by instruction later.
   { id: 'dart-wire', group: 'rules', stage: 'found', title: 'Stepping on a hidden fine wire in the Sewers now sets off the dart trap it is joined to, instead of never',
+    played: 'in part, Mac OS 8.5, 18 November 2026, alone. The hero jumped to (49,41) of the Sewers and stepped east onto the wire at (50,41). The fix printed "Click!" and "You’ve stepped on a fine wire that runs across the floor.", and the shipped file "You step carefully over a fine wire running across the floor." Deactivate Trap on a wire is unplayed',
     edits: [
       { what: 'the wire’s y branch marks each wire spent', resid: 0x1165, at: 0x00D4, shiftAt: true,
         expect: { 0x00D2: 'bitwise_and', 0x00D3: 'end', 0x00D4: 'set_local 0x00' }, code: 'set_field data2 (0x7)\nlocal Var00\nend\nbyte 0x01\nend' },
