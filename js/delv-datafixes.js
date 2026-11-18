@@ -2569,7 +2569,7 @@ const DATA_FIXES = [
   // and it reaches the level at every level. (The maintainer's word, 13
   // October 2026; bugs.md, *A level-1 spell can never fail*.)
   { id: 'spell-fail-roll', group: 'design', stage: 'apart', title: 'A spell’s failure roll now reaches the spell’s level, so a level-1 spell can fail, instead of stopping one short',
-    played: 'fork, 68K, 13 October 2026, alone: Minor Embrightenment, level 1, given as an ability by an edit with Casting at 1, performed ten times in Omen’s Test; "You failed to cast the spell." three times with the fix, never unpatched, and 20 magic spent on both. Not played on Mac OS, nor a spell of another level',
+    played: 'fork, 68K, 13 October 2026, alone. Minor Embrightenment, level 1, was given as an ability by an edit with Casting at 1 and performed ten times in Omen’s Test. "You failed to cast the spell." came three times with the fix, never unpatched, and both spent 20 magic. Mac OS 8.5, 18 November 2026, alone, the same in Land King Hall, with seven failures in ten with the fix, none unpatched, and 20 magic spent on both. A spell of another level is unplayed',
     edits: [
       { what: 'the failure roll', resid: 0xEA1, at: 0x00DB, replaceOp: true, expect: { 0x00D8: 'sys Random', 0x00D9: 'byte 0x00', 0x00DB: 'arg Arg01', 0x00DD: 'lt' }, code: 'arg Arg01\nbyte 0x01\nadd' },
     ] },
