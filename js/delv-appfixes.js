@@ -1409,7 +1409,7 @@ const APP_FIXES = [
   // argument in r3; r5 is free, and the call that follows ends r5 and cr0
   // anyway.
   { id: 'worn-at-death', kind: 'fix', title: 'A character raised by Resurrection or the Land King Amulet wears again what they wore when they died, instead of having it in the inventory',
-    played: 'fork, PowerPC, 3 November 2026, alone and with every fix. Aethon, wearing a belt and with kelp in his inventory, killed by the hero and raised with the Land King Amulet, wears the belt again and has the kelp in his inventory, where the stock program puts both in his inventory. The belt in his body has byte 1 at 255 and the kelp 0. The belt taken out of the body into the hero’s inventory has byte 1 at 0. Taken out and put back into the body, it is in Aethon’s inventory after the raise, not worn',
+    played: 'fork, PowerPC, 3 November 2026, alone and with every fix. Aethon, wearing a belt and with kelp in his inventory, killed by the hero and raised with the Land King Amulet, wears the belt again and has the kelp in his inventory, where the stock program puts both in his inventory. The belt in his body has byte 1 at 255 and the kelp 0. The belt taken out of the body into the hero’s inventory has byte 1 at 0. Taken out and put back into the body, it is in Aethon’s inventory after the raise, not worn. Mac OS 8.5, 18 November 2026, alone. Aethon wore the belt and carried kelp, died of poison and was raised with the amulet. The fix gave the belt back worn and the kelp carried, and the stock program gave both back carried',
     sites: [
       { at: 0x46C98, was: [0x981C0000], asm: ['b @death               ; was stb 0, 0(28), the kind made 9'] },
       { at: 0x54410, was: [0x5405021E], asm: ['li 5, 0                ; was rlwinm 5, 0, 0, 8, 15, byte 1 left as it was'] },
@@ -1444,7 +1444,7 @@ const APP_FIXES = [
   // writes 2 after its clear. r0 is loaded again after each site before it
   // is read (0x46B44, the call at 0x46B68, 0x46BEC).
   { id: 'party-at-death', kind: 'fix', title: 'A character’s corpse records whether they were in the party when they died, which the Resurrection fix reads to put a companion back in the party',
-    played: 'fork, PowerPC, 3 November 2026, alone and with every fix, with the Resurrection fix. Aethon killed by the hero outside the party leaves a body with Data2 1, and the Land King Amulet raises him outside the party. Aethon in the party, poisoned to death, leaves a body with Data2 2, and the amulet raises him into the party',
+    played: 'fork, PowerPC, 3 November 2026, alone and with every fix, with the Resurrection fix. Aethon killed by the hero outside the party leaves a body with Data2 1, and the Land King Amulet raises him outside the party. Aethon in the party, poisoned to death, leaves a body with Data2 2, and the amulet raises him into the party. Mac OS 8.5, 18 November 2026, alone. Aethon, in the party and poisoned, died with a body of Data2 2, where the stock program left 0',
     sites: [
       { at: 0x46B3C, was: [0x90010068], asm: ['b @start               ; was stw 0, 104(1)'] },
       { at: 0x46B64, was: [0x98030008], asm: ['b @left                ; was stb 0, 8(3), the party bit cleared'] },
