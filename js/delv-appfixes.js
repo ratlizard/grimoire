@@ -125,7 +125,7 @@ const APP_FIXES = [
   // call is made unconditional, and nothing a drop moves is sent method 25.
   { id: 'drop-vanish', kind: 'fix', title: 'A plate, glass or bell dropped from a companion’s pack lands where it is dropped, instead of vanishing when the companion stands more than a square from the hero',
     bug: 'A plate, glass or bell dropped from a companion’s pack vanishes',
-    played: 'fork, PowerPC and 68K, 16 November 2026, alone and with every fix. Hector waited three squares from the hero in Land King Hall, and his plate was dragged to the square beside the hero. The stock program deletes it, and the patched one leaves it there. His glass dropped from beside the hero lies there on both',
+    played: 'fork, PowerPC and 68K, 16 November 2026, alone and with every fix. Hector waited three squares from the hero in Land King Hall, and his plate was dragged to the square beside the hero. The stock program deletes it, and the patched one leaves it there. His glass dropped from beside the hero lies there on both. On Mac OS 8.5 on 18 November 2026, alone, the same drag left the plate on the square, and the stock program deleted it',
     sites: [{ at: 0x55168, was: [0x40810038], asm: ['b @0x551A0            ; was ble, method 25 to a thing dropped from afar'] }] },
 
   { id: 'weight-contents', kind: 'fix', title: 'The scale and the shops weigh only the item, not the contents of an unrelated character or thing',
@@ -648,6 +648,7 @@ const APP_FIXES = [
   // short of the thing; that step goes nowhere the walk could not reach.
   { id: 'walk-path', kind: 'change', title: 'A command chosen by its key and clicked on something out of reach walks the hero there one step a turn and then acts, instead of taking one step a click',
     needs: ['walk-to'],
+    played: 'in part, Mac OS 8.5, 18 November 2026, with the walk-to fix applied too. In Land King Hall, G and a click on dough three squares off walked the hero there and took it, and the stock program did nothing. The tap that stops a walk is unplayed, since a three-step walk ended before a press reached it',
     sites: [{ at: 0x2722C, was: [0x80A28B28], asm: ['b @cave               ; was lwz 5, -29912(2)'] },
             { at: 0x55418, was: [0x48000014], asm: ['b @tooFar             ; was b 0x5542C'] },
             { at: 0x5542C, was: [0x800100A8], asm: ['b @attackEnd          ; was lwz 0, 168(1)'] }],
