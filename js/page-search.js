@@ -250,7 +250,7 @@ function searchPersonAt(i) {
   if (!d) return null;
   return d.homeZone ? d.name + ' in ' + d.homeZone : d.name;
 }
-// "a Sword ... for 45 oboloi", or "3 Arrows ... for 5 oboloi", the plural the
+// "a Sword ... for 77 oboloi", or "3 Arrows ... for 5 oboloi", the plural the
 // game's text uses.
 function searchShopSentences(sh) {
   const out = [], seen = new Set();
@@ -260,7 +260,12 @@ function searchShopSentences(sh) {
       // No article before a plural or a mass noun ("Ribs", "Sandals", "Bread"),
       // which LanguageTool caught as "a Ribs" (2 November 2026).
       const noArticle = (/s$/i.test(g.name) && !/ss$/i.test(g.name)) || /^(bread|cheese|fish|flax|meat)$/i.test(g.name);
-      const line = 'The hero can buy ' + (g.count > 1 ? g.count + ' ' : noArticle ? '' : /^[aeiou]/i.test(g.name) ? 'an ' : 'a ') + g.name + (who ? ' from ' + who : '') + ' for ' + g.price + ' obol' + (g.price === 1 ? '' : 'oi') + '.';
+      // The first price on the counter, from the vendor's markup, then the
+      // listed price that haggling can bring it down to (shopRules).
+      const first = shopCounterPrice(sh, s.figure, g.price);
+      const ob = n => n + ' obol' + (n === 1 ? '' : 'oi');
+      const line = 'The hero can buy ' + (g.count > 1 ? g.count + ' ' : noArticle ? '' : /^[aeiou]/i.test(g.name) ? 'an ' : 'a ') + g.name + (who ? ' from ' + who : '') + ' for ' + ob(first !== null ? first : g.price) + '.' +
+        (first !== null && first !== g.price ? ' Haggling brings the price down to ' + ob(g.price) + '.' : '');
       if (!seen.has(line)) { seen.add(line); out.push(line); }
     }
   }

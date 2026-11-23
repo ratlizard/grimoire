@@ -2023,7 +2023,10 @@ function shopPriceRule() {
   try {
     const start = rid => { const e = dvmScriptEntry(rid), g = e ? dvmSeqFirst(dvmOpsOf(e), [/^set_local 0x32$/, DVM_NUM]) : null; return g ? dvmVal(rid, g[1]) : null; };
     const buy = start(0xEA5), sell = start(0xEA9);
-    if (buy && sell) out = { buy, sell };
+    // The markup below which 0xEA5 starts at `buy` (`if Arg02 < 9`).
+    const e = dvmScriptEntry(0xEA5), u = e ? dvmSeqFirst(dvmOpsOf(e), [/^arg Arg02$/, DVM_NUM, /^lt$/, /^then /, /^set_local 0x32$/]) : null;
+    const under = u ? dvmVal(0xEA5, u[1]) : null;
+    if (buy && sell && under) out = { buy, sell, under };
   } catch (e) { quiet(e); }
   return (DERIVED.SHOP_PRICE = out);
 }
@@ -2118,8 +2121,8 @@ const CHAR_GROUPS = [
         ['none', 'half their level', 'their level', 'twice their level'][v & 3] },
     { id: 'b23', raw: [23, 1], label: 'price', max: 0xFF,
       what: () => { const p = shopPriceRule();
-        return 'a merchant’s price in tenths of a thing’s worth' +
-               (p ? '. Prices start at ' + srcNum(p.buy, String(p.buy.v)) + ' when the hero buys and at ' + srcNum(p.sell, String(p.sell.v)) + ' when the hero sells. They stay where haggling leaves them' : ''); } },
+        return 'a merchant’s markup in tenths of a thing’s worth' +
+               (p ? '. A markup under ' + srcNum(p.under, String(p.under.v)) + ' counts as ' + srcNum(p.buy, String(p.buy.v)) + ' on a purchase. A markup of 0 counts as ' + srcNum(p.sell, String(p.sell.v)) + ' on a sale. It stays where haggling leaves it' : ''); } },
     { id: 'b31', raw: [31, 1], label: 'size', max: 0xFF,
       what: () => { const c = exeCreatureSize();
         return 'the percentage of its kind’s stats that a creature from a map’s list was ' + (c ? srcNum({ exe: c.exe }, 'made at') : 'made at') +

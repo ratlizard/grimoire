@@ -177,7 +177,7 @@ if (savePath && !onlyCat) {
         // scenario) and the size shows what it is with no link (pinned with
         // the application in the installer part's program figures).
         const plain = withoutApp(() => ctx.charEditHTML(1));
-        if (!/a merchant’s price in tenths of a thing’s worth/.test(f) || /shops start at/.test(f))
+        if (!/a merchant’s markup in tenths of a thing’s worth/.test(f) || /counts as/.test(f))
           fail('record form', 'byte 23 is not the price, or states starting values a save cannot have');
         else if (!/list was made at\. Named characters/.test(plain) || /jumpToExeAt/.test(plain))
           fail('record form', 'byte 31 is not the size, or links to the program with no application open');
@@ -249,9 +249,9 @@ if (savePath && !onlyCat) {
     if (ctx.ARCHIVE_FINDER.type !== 'DelS') fail('saved game', 'Cythera Data reopened as ' + JSON.stringify(ctx.ARCHIVE_FINDER));
     if (REGISTRY.get('categorySelect').value !== 'WORLD') fail('saved game', 'Cythera Data did not land back on the world');
     // On the scenario the price gives the two shop helpers' starting values,
-    // each a link to its line: 0xEA5's for selling to you, 0xEA9's for
-    // buying from you.
-    if (!/Prices start at <button[^>]*jumpToScriptAt\(3749,\d+\)[^>]*>20<\/button> when the hero buys and at <button[^>]*jumpToScriptAt\(3753,\d+\)[^>]*>10<\/button> when the hero sells/.test(ctx.charEditHTML(1)))
+    // each a link to its line: 0xEA5's for a purchase (a markup under 9 is
+    // 20), 0xEA9's for a sale to a merchant (a markup of 0 is 10).
+    if (!/A markup under <button[^>]*jumpToScriptAt\(3749,\d+\)[^>]*>9<\/button> counts as <button[^>]*jumpToScriptAt\(3749,\d+\)[^>]*>20<\/button> on a purchase\. A markup of 0 counts as <button[^>]*jumpToScriptAt\(3753,\d+\)[^>]*>10<\/button> on a sale/.test(ctx.charEditHTML(1)))
       fail('record form', 'on the scenario byte 23 does not give the shops’ starting values off their lines');
   } catch (e) { fail('saved game', e); }
 }

@@ -1860,11 +1860,29 @@ function lockRules() {
 }
 
 /* SHOPS. Every vendor calls one helper, 0xEA5, with a name for the shop, a
-   list of goods -- each a prop word, a name, a price and a count -- and
-   four bargaining figures. The helper's arithmetic is the
-   game's; what is shown is what each vendor lists and at what price, and
-   that the Haggling skill (0xCC) subtracts a further roll of 0 to 5 from
-   the vendor's figure, as the helper's code shows. */
+   list of goods -- each a prop word, a name, a price and a count -- the
+   vendor's price figure (byte 23 of its character record, field 39) and
+   four bargaining figures, the terms.
+
+   The listed price is not the price on the counter. That price is the
+   listed price times the figure over ten, rounded up ((price * figure + 9)
+   / 10), and a figure under 9 counts as 20, twice the listed price. Each
+   haggling line the hero picks is one of four kinds of excuse. Its term,
+   minus a roll of 0 to 9, minus half of how far the figure has already come
+   down, and minus a further roll of 0 to 4 with the Haggling skill (0xCC),
+   is the vendor's answer. At 0 or below the figure drops by one (two when
+   the answer is under -5), and at 10 it drops no further, so the listed
+   price is the lowest a counter goes. Above 5 the vendor is offended and
+   closes the shop, and the figure goes up by one. The helper returns the
+   figure and the vendor's script stores it back.
+
+   Until 23 November 2026 this sheet had "bargains down from the listed
+   price by the four amounts under terms". Milcom charged 77 for the Sword
+   listed at 45, on Mac OS 8.5 and in the fork alike: his figure in the
+   shipped file is 17, and (45 * 17 + 9) / 10 is 77. Every vendor in a new
+   game starts at a figure from 10 to 18 in the shipped file, so the first
+   price is computed per vendor here, from the character record, and none
+   is typed in. */
 function shopRules() {
   const shops = [];
   for (const site of dvmCallSites(0xEA5)) {
@@ -1875,14 +1893,37 @@ function shopRules() {
     const goods = (gb ? gb.value : []).filter(g => Array.isArray(g) && g.length >= 3)
       .map(g => ({ word: g[0], name: String(g[1]), price: g[2], count: g[3], src: { resid, at: gb.at } }));
     const tb = blocks.find(b => Array.isArray(b.value) && b.value.length === 4 && b.value.every(x => typeof x === 'number')) || null;
-    if (goods.length) shops.push({ resid, character: subn === 23 ? resid & 0xFF : null, title, goods, terms: tb ? tb.value : null, termsSrc: tb ? { resid, at: tb.at } : null });
+    const character = subn === 23 ? resid & 0xFF : null;
+    const rec = character !== null ? characterRecord(character) : null;
+    if (goods.length) shops.push({ resid, character, title, goods, figure: rec && rec.raw ? rec.raw[23] : null, terms: tb ? tb.value : null, termsSrc: tb ? { resid, at: tb.at } : null });
   }
-  // Haggling: after GetSkill of skill 0xCC, a Random(0, n) taken off the figure.
   const ho = dvmOpsOf(dvmScriptEntry(0xEA5));
+  // Haggling: after GetSkill of skill 0xCC, a Random(0, n) taken off the answer.
   const hi = ho.findIndex(o => /^short (?:0x00CC|204)$/i.test(o.text));
   const hg = hi < 0 ? null : dvmSeqFirst(ho.slice(hi, hi + 12), [/^sys Random$/, /^byte (?:0x00|0)$/, DVM_NUM]);
   const haggling = hg ? dvmVal(0xEA5, hg[2]) : null;
-  return { shops, haggling };
+  // The counter price: if figure < under, figure = start; then
+  // (listed * figure + add) / div.
+  const st = dvmSeqFirst(ho, [/^arg Arg02$/, DVM_NUM, /^lt$/, /^then /, /^set_local 0x32$/, DVM_NUM]);
+  const pr = dvmSeqFirst(ho, [/^index$/, /^arg Arg02$/, /^mul$/, DVM_NUM, /^add$/, DVM_NUM, /^div$/]);
+  // The vendor's answer to a haggling line: term - Random(0, roll) - ...;
+  // at or below 0 the figure falls, to no lower than floor (the test before
+  // "This is the best I can do"); above offended the shop closes.
+  const rl = dvmSeqFirst(ho, [/^sys Random$/, /^byte (?:0x00|0)$/, DVM_NUM, /^end$/, /^sub$/, /^arg Arg02$/]);
+  const fl = dvmSeqFirst(ho, [/^arg Arg02$/, DVM_NUM, /^le$/, /^then /, /^set_field 0x3D$/]);
+  const bi = ho.findIndex(o => /best I can do/.test(o.text));
+  const of = bi < 0 ? null : dvmSeqFirst(ho, [/^local Var17$/, DVM_NUM, /^gt$/], bi);
+  const price = st && pr ? { under: dvmVal(0xEA5, st[1]), start: dvmVal(0xEA5, st[5]), add: dvmVal(0xEA5, pr[3]), div: dvmVal(0xEA5, pr[5]) } : null;
+  const haggle = rl && fl && of ? { roll: dvmVal(0xEA5, rl[2]), floor: dvmVal(0xEA5, fl[1]), offended: dvmVal(0xEA5, of[1]) } : null;
+  return { shops, haggling, price, haggle };
+}
+// The first price on a vendor's counter for a thing listed at `listed`,
+// from the vendor's price figure, or null when either is unknown.
+function shopCounterPrice(rules, figure, listed) {
+  const p = rules && rules.price;
+  if (!p || figure === null || figure === undefined) return null;
+  const f = figure < p.under.v ? p.start.v : figure;
+  return Math.floor((listed * f + p.add.v) / p.div.v);
 }
 
 /* TRAINING. Every teacher calls one helper, 0xEB1, with the pupil, their

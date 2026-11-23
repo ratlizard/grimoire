@@ -340,6 +340,16 @@ if (take()) try {
   else if (!(ctx.statusRules().applies.get('Sleep') || []).some(a => a.duration === 4096) || !(ctx.statusRules().cures.get('Poisoned') || new Set()).size) fail('mechanics', 'status effects were not read: sleep for 4096, poison cleared');
   else if (!(ctx.lockRules().rule && ctx.lockRules().rule.formula && ctx.lockRules().requiresSkill) || !ctx.lockRules().classes.some(c => c.name === 'chest' && c.words[0] === 15)) fail('mechanics', 'the lock rule or the chest’s parameter was not read');
   else if (!ctx.shopRules().shops.some(sp => sp.character === 30 && sp.goods.some(g => g.name === 'Sword' && g.price === 45)) || !ctx.shopRules().haggling) fail('mechanics', 'Milcom’s sword at 45 or the haggling roll was not read');
+  // The price on the counter, which Mac OS 8.5 and the fork both charged on
+  // 23 November 2026. Milcom's markup is 17 in the shipped file, so the
+  // Sword listed at 45 costs (45 * 17 + 9) / 10 = 77. A vendor with a
+  // markup under 9 would charge 90, and one at the listed price 45, so a
+  // reader that drops the markup or the rounding fails here.
+  else if ((function () { const sh = ctx.shopRules(), m = sh.shops.find(sp => sp.character === 30), p = sh.price, h = sh.haggle;
+    return !(m && m.figure === 17 && ctx.shopCounterPrice(sh, m.figure, 45) === 77 && ctx.shopCounterPrice(sh, 5, 45) === 90 && ctx.shopCounterPrice(sh, null, 45) === null &&
+      p && p.under.v === 9 && p.start.v === 20 && p.add.v === 9 && p.div.v === 10 && h && h.roll.v === 10 && h.floor.v === 10 && h.offended.v === 5 &&
+      /77 \/ <button[^>]*jumpToScriptAt[^>]*>45<\/button>/.test(html) && /The hero can buy a Sword from Milcom in [^.]*for 77 oboloi\. Haggling brings the price down to 45 oboloi\./.test(html)); })())
+    fail('mechanics', 'the counter price was not read, ' + JSON.stringify((() => { const sh = ctx.shopRules(); return [sh.price, sh.haggle, (sh.shops.find(sp => sp.character === 30) || {}).figure]; })()));
   else if (!ctx.trainingRules().teachers.some(t => t.character === 101 && t.skills.has(0xC5) && t.skills.has(0xC6)) || ctx.trainingRules().points.atStart !== 4 || !ctx.trainingRules().points.perLevel) fail('mechanics', 'Thersites’ axe and mace or the training points were not read: ' + JSON.stringify(ctx.trainingRules().points));
   // The figures, and the models under them. Everything below this line was
   // added with the charts on 6 September 2026: a figure that silently draws
@@ -1340,6 +1350,10 @@ if (take()) try {
     ['the level base', xp && xp.base && link(0xE8B, xp.base.at)],
     ['the lock base', lk && lk.numbers && link(0xE43, lk.numbers.base.at)],
     ['the haggling roll', sh.haggling && link(0xEA5, sh.haggling.at)],
+    ['the markup divisor', sh.price && link(0xEA5, sh.price.div.at)],
+    ['the markup start', sh.price && link(0xEA5, sh.price.start.at)],
+    ['the haggling floor', sh.haggle && link(0xEA5, sh.haggle.floor.at)],
+    ['the offense threshold', sh.haggle && link(0xEA5, sh.haggle.offended.at)],
     ['the attacker’s roll', cb && cb.roll && link(0xE88, cb.roll.at)],
     ['a blow word threshold', cb && cb.words[0] && link(0xE87, cb.words[0].val.at)],
     ['the bed divisor', sl && sl.div && link(0xE93, sl.div.at)],
@@ -1353,7 +1367,7 @@ if (take()) try {
   const names = peek('PROP_TYPE_NAMES') || {};
   const gone = ['CYTHERA_CHARACTERS', 'ZONES', 'RESOURCE_LABELS', 'TILE_SHEET_HINTS', 'DVM_FLAG_NAMES'].filter(n => peek('typeof ' + n) !== 'undefined');
   if (unlinked.length) fail('file figures', 'not a link to the line it is on: ' + unlinked.join(', '));
-  else if (!/Haggling<\/b> lowers it by a further random amount from 0 to (?:<button[^>]*>)?4(?:<\/button>)?/.test(html)) fail('file figures', 'the haggling roll is not 0 to 4, one short of its operand of 5');
+  else if (!/Haggling<\/b> lowers the answer by a further 0 to (?:<button[^>]*>)?4(?:<\/button>)?/.test(html)) fail('file figures', 'the haggling roll is not 0 to 4, one short of its operand of 5');
   else if (/capped at <b>65,535|up to <b>65,535/.test(html) || /\(random 0 to 29\)/.test(html)) fail('file figures', 'a figure is typed into its sentence rather than read');
   else if (Object.keys(names).length || gone.length) fail('names', 'typed name tables are back: ' + JSON.stringify({ props: Object.keys(names), tables: gone }));
   else if (!/^Tile Sheet 35: unlit torch, lit torch/.test(ctx.labelFor(0x8E23) || '') || ctx.labelFor(0x8F0A) !== 'General Graphic 10: chest, coffer')

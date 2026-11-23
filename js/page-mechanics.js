@@ -587,9 +587,9 @@ function mechShopFigure(sh) {
   const dear = goods.slice().sort((a, b) => b.price - a.price).slice(0, 8)
     .map(g => ({ label: g.name, value: g.price, text: g.price + ' ob', color: MECH_INK.warm }));
   return mechFig('Shop prices of ' + goods.length + ' items', mechColumns(bins, { height: 80 }),
-    'Items by price in oboloi.') +
+    'Items by listed price in oboloi.') +
     mechFig('The most expensive things on any counter', mechBars(dear),
-      'Prices before bargaining.');
+      'Listed prices. Haggling goes no lower.');
 }
 
 // A lesson costs a point, a level earns a few, and mastery is fifteen
@@ -4394,11 +4394,18 @@ function renderMechanicsSheet(value) {
   const sh = shopRules();
   add('shops', 'Shops', null, src('the counter', 0xEA5),
     sh.shops.length ? sh.shops.length + ' shops, what each sells, and at what price.' : 'No script in this file opens a shop.',
-    sh.shops.length ? ['Each vendor bargains down from the listed price by the four amounts under terms' + (sh.haggling ? '. <b>Haggling</b> lowers it by a further random amount from 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) : '') + '.'] : [],
+    sh.shops.length ? [
+      sh.price ? 'A vendor charges the listed price × its <b>markup</b> ÷ ' + srcNum(sh.price.div) + ', rounded up. A markup under ' + srcNum(sh.price.under) + ' counts as ' + srcNum(sh.price.start) + ', which doubles the listed price. Each vendor starts a new game at the markup in its character record. The table gives the first price that markup puts on the counter.' : '',
+      sh.haggle ? 'Each haggling line is one of four kinds of excuse. The vendor answers with its term for that kind minus a roll of 0 to ' + srcNum(sh.haggle.roll, sh.haggle.roll.v - 1) + '.' +
+        (sh.haggling ? ' <b>Haggling</b> lowers the answer by a further 0 to ' + srcNum(sh.haggling, sh.haggling.v - 1) + '.' : '') +
+        ' The answer rises by half of how far the markup has come down. At 0 or below the markup drops by one. It never drops under ' + srcNum(sh.haggle.floor) + ', so the listed price is the lowest a vendor goes. Above ' + srcNum(sh.haggle.offended) + ' the vendor closes the shop and raises the markup by one. A vendor stays at the markup haggling leaves.' : ''
+    ].filter(Boolean) : [],
     mechShopFigure(sh) +
-    table(['vendor', 'goods and listed prices in oboloi', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.character !== null && characterRecord(spn.character) ? characterChip(spn.character) : svChip(spn.resid)) +
+    table(['vendor', 'goods with first and listed price in oboloi', '#markup', '#terms'], sh.shops.map(spn => '<tr><td>' + (spn.character !== null && characterRecord(spn.character) ? characterChip(spn.character) : svChip(spn.resid)) +
       (spn.title ? '<div class="inspDim">“' + svEsc(spn.title) + '”</div>' : '') + '</td><td>' +
-      spn.goods.map(g => svEsc(g.name) + ' <span class="mechPrice">' + srcNum(g.src, g.price) + (g.count > 1 ? ' for ' + g.count : '') + '</span>').join(', ') + '</td>' + (spn.terms ? srcCell(spn.termsSrc, spn.terms.join(' ')) : num('')) + '</tr>')) +
+      spn.goods.map(g => { const first = shopCounterPrice(sh, spn.figure, g.price);
+        return svEsc(g.name) + ' <span class="mechPrice">' + (first !== null && first !== g.price ? first + ' / ' : '') + srcNum(g.src, g.price) + (g.count > 1 ? ' for ' + g.count : '') + '</span>'; }).join(', ') + '</td>' +
+      num(spn.figure !== null ? spn.figure : '') + (spn.terms ? srcCell(spn.termsSrc, spn.terms.join(' ')) : num('')) + '</tr>')) +
       searchSentences(searchShopSentences(sh)), '');
 
   // ---- training ----
