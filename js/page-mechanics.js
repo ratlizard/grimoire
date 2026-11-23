@@ -4226,9 +4226,11 @@ function renderMechanicsSheet(value) {
         (xp.rule.doubling && xp.rule.base ? ' The level rises by one when experience passes' +
           mechEq('threshold = ' + srcNum(xp.rule.base) + ' × 2<sup>level − ' + srcNum(xp.rule.less, xp.rule.less ? xp.rule.less.v : '') + '</sup>') +
           'The thresholds are ' + [2, 3, 4, 5, 6].map(l => mechLevelThreshold(l - 1, xp.rule.base.v).toLocaleString('en-US') + (l === 2 ? ' for level 2' : l < 5 ? ' for ' + l : '')).join(', ') + ', doubling.' : ''),
-      xp.rule.healthReflexDiv && xp.rule.healthMul && xp.rule.healthDiv ? 'At each new level the game sets full health and full magic.' +
+      xp.rule.healthReflexDiv && xp.rule.healthMul && xp.rule.healthDiv ? 'At each new level the game sets full health' +
+        (xp.rule.magicKept ? ', and full magic for a character ' + srcNum(xp.rule.magicKept, 'who already has some') + '. A new level never gives a character magic.' : ' and full magic.') +
         mechEq('full health = body + ' + mechFrac('reflex', srcNum(xp.rule.healthReflexDiv)) + ' + level + ' + mechFrac('Defense × ' + srcNum(xp.rule.healthMul) + ' × reflex', srcNum(xp.rule.healthDiv))) +
-        mechEq('full magic = mind + Mana') : '',
+        mechEq('full magic = mind + Mana') +
+        (xp.rule.magicZero ? 'A character with no Mana and no stand-in for it has full magic ' + srcNum(xp.rule.magicZero) + ', whatever their mind.' : '') : '',
       xp.rule.defenseStandIn && xp.rule.manaStandIn ? (function () {
         const d = xp.rule.defenseStandIn, m = xp.rule.manaStandIn;
         return 'A character ' + srcNum(d.call, 'without Defense') + ' counts it as nothing, ' + srcNum(d.half, 'half their level') + ', ' + srcNum(d.same, 'their level') + ' or ' + srcNum(d.dbl, 'twice their level') +
@@ -4247,7 +4249,8 @@ function renderMechanicsSheet(value) {
     km.writes.length ? 'A number the game raises and lowers during play and checks at certain points.' : 'No script in this file changes karma.',
     km.writes.length ? [
       start ? 'It starts at <b>' + srcNum(start.val, start.set) + '</b> for a new character.' : '',
-      km.byAlignment ? 'A kill changes it by the victim’s alignment: <b>' + srcNum(km.byAlignmentSrc, km.byAlignment.map(v => (v > 0 ? '+' : '') + v).join(', ')) + '</b> for alignments 0 to ' + (km.byAlignment.length - 1) + '.' : '',
+      km.byAlignment ? 'A kill ' + (km.heroOnly ? srcNum(km.heroOnly, 'by the hero') + ' ' : '') + 'changes it by the victim’s alignment, <b>' + srcNum(km.byAlignmentSrc, km.byAlignment.map(v => (v > 0 ? '+' : '') + v).join(', ')) + '</b> for alignments 0 to ' + (km.byAlignment.length - 1) + '.' +
+        (km.heroOnly ? ' A kill by a companion leaves it unchanged.' : '') : '',
       /* Who has which alignment, off the character table (byte 25 of each
          record, the byte the kill table indexes), so the sentence above can
          say what a kill of a townsperson does. The board recorded killing
@@ -4287,8 +4290,8 @@ function renderMechanicsSheet(value) {
     fd.foods.length && hungerNotes().ceiling !== null && model ? (function () {
       const hn = hungerNotes(), mins = mechPeriodMinutes(model, model.hungerIndex);
       return ['Nutrition falls by ' + srcNum(clk.fall) + ' every ' + period(model.hungerIndex).replace(/^(<button[^>]*>)(an |a )?/, '$1') +
-        (clk.fall.v === 1 && mins === 60 ? '. A food’s nutrition is then the hours it lasts' : '') + '. A stomach is full at <b>' + srcNum(hn.ceilingVal) + '</b> (about ' +
-        Math.round(hn.ceiling * mins / clk.fall.v / 60 / 24) + ' days).'];
+        (clk.fall.v === 1 && mins === 60 ? '. A food’s nutrition is then the hours it lasts' : '') + '. Fresh water stops at <b>' + srcNum(hn.ceilingVal) + '</b> (about ' +
+        Math.round(hn.ceiling * mins / clk.fall.v / 60 / 24) + ' days). Food has no limit. Past 255 the total starts again from 0.'];
     })() : [],
     mechFoodTable(fd), '');
 
@@ -4303,7 +4306,11 @@ function renderMechanicsSheet(value) {
       try { cures = chanceCures(); } catch (e) { cures = []; }
       try { grants = grantRules(); } catch (e) { grants = []; }
       for (const c of cures) rules.push('<b>' + svEsc(c.name) + '</b> cures ' + svEsc(c.flag || 'a status') + ' only ' + srcNum(c.is, 'one time in ' + (c.hi.v - c.lo.v)) + '.');
-      if (grants.length) rules.push('Some worn items give a status: ' + grants.map(g => svLink(g.name, 'showItemDetail(' + g.pt + ')') + ' ' + srcNum(g.flag, g.flagName || ('flag ' + g.flag.v))).join(', ') + '.');
+      // Only the grants made by Wear are worn items. The poison trap's comes
+      // from its UseOn, and this sentence listed it as worn until
+      // 23 November 2026; the table below has every grant with its method.
+      const worn = grants.filter(g => /^Wear$/.test(g.method));
+      if (worn.length) rules.push('The worn items that give a status are ' + worn.map(g => svLink(g.name, 'showItemDetail(' + g.pt + ')') + ' ' + srcNum(g.flag, g.flagName || ('flag ' + g.flag.v))).join(', ') + '.');
       return rules;
     })(),
     mechStatusFigure(st, perHour) + table(['status', 'applied by', 'cleared by'], [...statusNames].sort().map(nm => '<tr><td>' + svEsc(nm) + '</td><td>' +
@@ -4335,7 +4342,7 @@ function renderMechanicsSheet(value) {
   // the complaint and the ceiling, off the archive.
   const hg = hungerNotes();
   add('hunger', 'Hunger and Healing', null, '',
-    'Each character’s nutrition' + (hg.ceiling !== null ? ' runs from 0 to ' + srcNum(hg.ceilingVal) + '. It' : '') + ' falls as time passes. A fed character slowly heals.' + (model ? '' : ' ' + noApp),
+    'Each character’s nutrition falls as time passes. A fed character slowly heals.' + (model ? '' : ' ' + noApp),
     [
       model ? 'Nutrition falls by ' + srcNum(clk.fall) + ' every ' + period(model.hungerIndex).replace(/^(<button[^>]*>)(an |a )?/, '$1') + ' for every character on the map.' : '',
       (hg.complains !== null ? 'A character complains of hunger below <b>' + srcNum(hg.complainsVal) + '</b>.' : ''),
@@ -4347,7 +4354,7 @@ function renderMechanicsSheet(value) {
       (hg.ceiling !== null ? (function () {
         // An item class script is named for its prop type, a spell for itself.
         const names = hg.ceilingBy.map(r => svLink((r >= 0x1000 && r < 0x1200 ? propDisplayName(r - 0x1000) : labelFor(r)) || ('0x' + r.toString(16).toUpperCase()), 'jumpToResource(' + r + ')'));
-        return names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names[names.length - 1] + ' only fill nutrition up to <b>' + srcNum(hg.ceilingVal) + '</b>. Other food adds the amounts listed above.';
+        return names.slice(0, -1).join(', ') + (names.length > 1 ? ' and ' : '') + names[names.length - 1] + ' only fill nutrition up to <b>' + srcNum(hg.ceilingVal) + '</b>. Other food adds the amounts listed above with no limit. The game stores nutrition in one byte. A total above 255 starts again from 0 and leaves a character almost starving.';
       })() : ''),
       model && clk.healthBytes && clk.magicBytes && clk.healStep ? 'While nutrition is above ' + srcNum(clk.fedGate, '0') + ', <b>health and magic each rise by ' + srcNum(clk.healStep) + '</b> at a rate set by level: ' +
         Array.from({ length: model.levelCap + 1 }, (_, i) => {
@@ -4356,9 +4363,9 @@ function renderMechanicsSheet(value) {
         }).join(', ') + '. Both stop at full.' : '',
       model ? 'At 0 there is no healing. Hunger does no damage.' : ''
     ].filter(Boolean),
-    '<div class="mechStats">' + (hg.ceiling !== null ? '<span class="mechStat"><b>' + srcNum(hg.ceilingVal) + '</b> nutrition at most</span>' : '') +
+    '<div class="mechStats">' + (hg.ceiling !== null ? '<span class="mechStat"><b>' + srcNum(hg.ceilingVal) + '</b> nutrition at most from water</span>' : '') +
       (model ? '<span class="mechStat"><b>' + srcNum(clk.fall) + '</b> each time ' + period(model.hungerIndex) + ' passes</span>' : '') +
-      (model && hg.ceiling !== null ? stat('about ' + Math.round(hg.ceiling * mechPeriodMinutes(model, model.hungerIndex) / 60 / 24) + ' days', 'from full to empty') : '') + '</div>' +
+      (model && hg.ceiling !== null ? stat('about ' + Math.round(hg.ceiling * mechPeriodMinutes(model, model.hungerIndex) / 60 / 24) + ' days', 'from ' + hg.ceiling + ' to empty') : '') + '</div>' +
     mechHungerFigure(hg.ceiling, model), '');
 
   // ---- locks ----
@@ -4415,7 +4422,7 @@ function renderMechanicsSheet(value) {
     tr.teachers.length ? [
       'A lesson raises the skill one level' + (tr.points.perLesson !== null ? ' and costs <b>' + srcNum(tr.points.perLessonVal) + ' training point' + (tr.points.perLesson === 1 ? '' : 's') + '</b>' : '') + '.',
       (tr.points.atStart !== null ? 'A new character starts with <b>' + srcNum(tr.points.atStartVal) + '</b>' : '') + (tr.points.perLevel ? (tr.points.atStart !== null ? ' and gains ' : 'A character gains ') + '<b>' + srcNum(tr.points.perLevel) + '</b> with each level' : '') + '.',
-      tr.points.mastery !== null ? 'A character masters a skill at level <b>' + srcNum(tr.points.masteryVal) + '</b>. A teacher marked <i>to mastery</i> can teach beyond the first lessons.' : ''
+      tr.points.mastery !== null ? 'A character masters a skill at level <b>' + srcNum(tr.points.masteryVal) + '</b>. A teacher marked <i>to mastery</i> raises a skill one level a lesson up to that. Any other teacher gives only the first lesson to a character without the skill.' : ''
     ].filter(Boolean) : [],
     mechTrainingFigure(tr) +
     table(['teacher', 'teaches'], tr.teachers.map(t => '<tr><td>' + (t.character !== null && characterRecord(t.character) ? characterChip(t.character) : svChip(t.resid)) + '</td><td>' +

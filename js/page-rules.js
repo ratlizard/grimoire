@@ -1011,7 +1011,13 @@ function karmaRules() {
       }
     }
   } catch (e) { byAlignment = null; }
-  return { writes, reads, byAlignment, byAlignmentSrc };
+  // The kill table applies only when the current character is the hero
+  // (`if CurrentCharacter == Hero`), so a companion's kill leaves karma
+  // alone; the card had every kill until 23 November 2026.
+  const ko = dvmScriptEntry(0xE8D) ? dvmOpsOf(dvmScriptEntry(0xE8D)) : [];
+  const hk = dvmSeqFirst(ko, [/^global CurrentCharacter\b/, /^word Character\.Hero$/, /^eq$/]);
+  const heroOnly = hk ? { resid: 0xE8D, at: hk[0].at } : null;
+  return { writes, reads, byAlignment, byAlignmentSrc, heroOnly };
 }
 
 /* EXPERIENCE AND LEVELS. One helper, GainExp (0xE8B), handles every award:
@@ -1107,10 +1113,20 @@ function experienceRules() {
     const eb = dvmScriptEntry(0xEB8) ? dvmOpsOf(dvmScriptEntry(0xEB8)) : [];
     const gap = dvmSeqFirst(eb, [/^get_field level/, /^local Var\w+$/, /^get_field level/, /^sub$/, DVM_NUM, /^add$/]);
     const past = dvmSeqAll(eb, [/^call_resource GainExp\b/, /^local Var\w+$/, DVM_NUM, /^end$/])[0] || null;
+    /* Full magic has two conditions the card left out until 23 November
+       2026. 0xE83 returns mind + Mana only when Mana (or its stand-in) is
+       above 0, and 0 otherwise, not mind. And 0xE86 recomputes full magic
+       at a new level only when it is already above 0
+       (`if full_magic then ...`), so a level never gives a character
+       magic. Each is read with its line, to link. */
+    const noMana = dvmSeqFirst(mh, [/^get_field mind\b/, /^local Var00$/, /^add$/, /^end$/, /^return$/, /^byte (?:0x00|0)$/]);
+    const lvo = dvmScriptEntry(0xE86) ? dvmOpsOf(dvmScriptEntry(0xE86)) : [];
+    const keptMagic = dvmSeqFirst(lvo, [/^get_field full_magic\b/, /^end$/, /^if_not$/, /^local Var00$/, /^then /]);
     rule = { cap: cap ? dvmVal(0xE8B, cap[1]) : null, doubling: !!dbl, base: dbl ? dvmVal(0xE8B, dbl[6]) : null, less: dbl ? dvmVal(0xE8B, dbl[3]) : null,
              healthReflexDiv: half ? dvmVal(0xE82, half[1]) : null, healthMul: def ? dvmVal(0xE82, def[1]) : null, healthDiv: def ? dvmVal(0xE82, def[6]) : null,
              gapAdd: gap ? dvmVal(0xEB8, gap[4]) : null, pastGap: past ? dvmVal(0xEB8, past[2]) : null,
-             defenseStandIn: standIn(0xE95, fh), manaStandIn: standIn(0xE96, mh) };
+             defenseStandIn: standIn(0xE95, fh), manaStandIn: standIn(0xE96, mh),
+             magicZero: noMana ? dvmVal(0xE83, noMana[5]) : null, magicKept: keptMagic ? { resid: 0xE86, at: keptMagic[2].at } : null };
   }
   const awards = [];
   for (const e of idx) {

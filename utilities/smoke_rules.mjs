@@ -350,6 +350,22 @@ if (take()) try {
       p && p.under.v === 9 && p.start.v === 20 && p.add.v === 9 && p.div.v === 10 && h && h.roll.v === 10 && h.floor.v === 10 && h.offended.v === 5 &&
       /77 \/ <button[^>]*jumpToScriptAt[^>]*>45<\/button>/.test(html) && /The hero can buy a Sword from Milcom in [^.]*for 77 oboloi\. Haggling brings the price down to 45 oboloi\./.test(html)); })())
     fail('mechanics', 'the counter price was not read, ' + JSON.stringify((() => { const sh = ctx.shopRules(); return [sh.price, sh.haggle, (sh.shops.find(sp => sp.character === 30) || {}).figure]; })()));
+  // Four cards corrected on 23 November 2026, each against its script and
+  // the overeating run in the fork (nutrition 254 + 4 read 2). Karma moves
+  // only on the hero's kills (0xE8D tests CurrentCharacter). Full magic is 0
+  // without Mana or a stand-in (0xE83), and a level recomputes it only when
+  // it is above 0 (0xE86). The poison trap's grant comes from UseOn, so the
+  // worn-items sentence leaves it out. Food has no ceiling and nutrition
+  // wraps past 255. Each is a link to its line, so a reader that loses its
+  // pattern drops the sentence and fails here.
+  else if ((function () { const xr = ctx.experienceRules().rule, km = ctx.karmaRules();
+    return !(km.heroOnly && xr && xr.magicZero && xr.magicZero.v === 0 && xr.magicKept &&
+      new RegExp('A kill <button[^>]*jumpToScriptAt\\(' + 0xE8D + ',' + km.heroOnly.at + '\\)[^>]*>by the hero</button> changes it').test(html) && /A kill by a companion leaves it unchanged\./.test(html) &&
+      /who already has some<\/button>\. A new level never gives a character magic\./.test(html) && /has full magic <button[^>]*>0<\/button>, whatever their mind\./.test(html) &&
+      /The worn items that give a status are /.test(html) && !/The worn items that give a status are [^.]*poison trap/.test(html) &&
+      /with no limit\. The game stores nutrition in one byte\. A total above 255 starts again from 0/.test(html) &&
+      /Any other teacher gives only the first lesson/.test(html)); })())
+    fail('mechanics', 'the karma, full magic, worn items, food or training sentences are not as corrected on 23 November 2026');
   else if (!ctx.trainingRules().teachers.some(t => t.character === 101 && t.skills.has(0xC5) && t.skills.has(0xC6)) || ctx.trainingRules().points.atStart !== 4 || !ctx.trainingRules().points.perLevel) fail('mechanics', 'Thersites’ axe and mace or the training points were not read: ' + JSON.stringify(ctx.trainingRules().points));
   // The figures, and the models under them. Everything below this line was
   // added with the charts on 6 September 2026: a figure that silently draws
