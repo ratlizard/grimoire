@@ -3949,7 +3949,22 @@ function renderCombatAISheet(which) {
    are which. 0xF009's are delvmod's, worked out by diffing saves, with
    nutrition read out of the executable. A prop list's are
    parseDelverPropList's. 0xF000 is one halfword a prop type and needs no
-   map. */
+   map.
+
+   0xF004, the tile names, joined the tables on 24 November 2026 (the
+   maintainer, closing the question of which other tables belong here
+   under grimoire/linking-round-jcwoaj). It is the game's name for every
+   tile, the word Look prints and the name the map gives a place, which is
+   a table of things in the game like the other three. The composition
+   table (0xF013) stays drawn as Composite Tiles under Scenario > Scenery,
+   where the maintainer put it on 20 September 2026.
+
+   Its records are not one length. Each is a big-endian halfword, the LAST
+   tile of a run, then the run's name code ending in a NUL, so a table
+   with `runs` set has no stride and recordSpans walks it instead. The
+   walk stops where the values stop rising, as loadTerrainNames does: past
+   the 0x7FFF catch-all the resource is 0x0000 padding, which is no
+   record. */
 function recordTables() {
   const out = [];
   const has = id => { try { return !!getResourceBytes(ARCHIVE, id); } catch (e) { return false; } };
@@ -3959,6 +3974,8 @@ function recordTables() {
     note: 'One record per character. In a saved game it also has the current state of the world.' });
   if (has(0xF000)) out.push({ resid: 0xF000, stride: 2, label: 'Prop tiles',
     note: 'One two-byte value per prop type: the first tile of its frames.' });
+  if (has(0xF004)) out.push({ resid: 0xF004, runs: true, label: 'Tile names',
+    note: 'One record per run of tiles. Each gives the last tile of the run and the name of every tile in it. The run starts after the record before it.' });
   for (let z = 0; z < 0x100; z++) {
     if (!refExists(0x8100 + z)) continue;
     out.push({ resid: 0x8100 + z, stride: 16, label: 'Prop list, ' + (zoneDisplayName(z) || ('zone ' + z)),
@@ -3967,9 +3984,45 @@ function recordTables() {
   return out;
 }
 
+// Where each record of a table starts and how long it is. A fixed table is
+// cut at its stride; a table of runs (0xF004) is walked record by record.
+function recordSpans(t, d) {
+  const out = [];
+  if (!d) return out;
+  if (!t.runs) {
+    for (let i = 0; i + t.stride <= d.length; i += t.stride) out.push({ start: i, len: t.stride });
+    return out;
+  }
+  let i = 0, prev = -1;
+  while (i + 3 <= d.length) {
+    const last = (d[i] << 8) | d[i + 1];
+    if (last < prev) break;
+    prev = last;
+    let end = i + 2;
+    while (end < d.length && d[end] !== 0) end++;
+    out.push({ start: i, len: end + 1 - i, last });
+    i = end + 1;
+  }
+  return out;
+}
+
+// The size line under a table's name, and a text field read as the game
+// stores it: a name code up to its NUL, backslash and plural ending kept,
+// since the page reproduces the file's text and never tidies it.
+function recordSizeText(t) { return t.runs ? 'a name a record' : t.stride + ' bytes a record'; }
+function recordText(d, at, width) {
+  let end = at;
+  while (end < at + width && d[end]) end++;
+  return decodeMacRoman(d.subarray(at, end));
+}
+
 // The fields of one table, as offsets into a record. `src` is where the
 // map itself was read, so a name can be checked rather than believed.
-function recordFieldMap(resid) {
+// `len` is the record's length, which only a table of runs needs.
+function recordFieldMap(resid, len) {
+  if (resid === 0xF004) return [
+    { off: 0, width: 2, name: 'Last tile of the run' },
+    { off: 2, width: Math.max(1, (len || 3) - 2), name: 'Name', text: true }];
   if (resid === 0xF008) {
     const mf = appImage() ? exeMonsterFields() : null;
     // The flags are one long to the program, served as two fields: the top
@@ -4023,15 +4076,15 @@ function renderRecordsSheet() {
   for (const t of tables) {
     if (q && !t.label.toLowerCase().includes(q) && !('0x' + t.resid.toString(16)).includes(q)) continue;
     shown++;
-    let len = 0;
-    try { len = (getResourceBytes(ARCHIVE, t.resid) || []).length; } catch (e) { len = 0; }
+    let count = 0;
+    try { count = recordSpans(t, getResourceBytes(ARCHIVE, t.resid)).length; } catch (e) { quiet(e); }
     const cell = document.createElement('div');
     cell.className = 'cell propCell';
     const wrap = document.createElement('div');
     wrap.className = 'cellimgwrap';
     const icon = document.createElement('div');
     icon.style.cssText = 'font-size:1.375rem;color:#cfc4a0';
-    icon.textContent = Math.floor(len / t.stride) + '';
+    icon.textContent = count + '';
     wrap.appendChild(icon);
     cell.appendChild(wrap);
     const lbl = document.createElement('div');
@@ -4040,7 +4093,7 @@ function renderRecordsSheet() {
     cell.appendChild(lbl);
     const sub = document.createElement('div');
     sub.className = 'resid';
-    sub.textContent = propWordHex(t.resid) + ' · ' + t.stride + ' bytes a record';
+    sub.textContent = propWordHex(t.resid) + ' · ' + recordSizeText(t);
     cell.appendChild(sub);
     cell.onclick = () => showRecordDetail(t.resid, 0);
     grid.appendChild(cell);
@@ -4070,16 +4123,27 @@ function showRecordDetail(resid, byte) {
   back.onclick = () => { window.RECORD_AT = null; renderRecordsSheet(); };
   grid.appendChild(back);
 
-  const n = Math.floor(d.length / t.stride);
-  const idx = Math.max(0, Math.min(n - 1, Math.floor(byte / t.stride)));
-  const start = idx * t.stride;
+  const spans = recordSpans(t, d);
+  const n = spans.length;
+  if (!n) { out.textContent = 'No records in ' + propWordHex(resid) + '.'; return; }
+  // The requested byte is in the last record starting at or before it,
+  // which for a fixed table is the byte over the stride.
+  let idx = 0;
+  while (idx + 1 < n && spans[idx + 1].start <= byte) idx++;
+  const start = spans[idx].start, size = spans[idx].len;
   const panel = document.createElement('div');
   panel.style.cssText = 'width:100%;max-width:560px;margin:12px auto;text-align:left';
 
   let h = '<div style="font-size:1.25rem;color:#fff">' + svEsc(t.label) + '</div>' +
     '<div style="font-size:0.75rem;color:#f0ede4;margin-bottom:10px">record ' + idx + ' of ' + n +
-    ' · ' + propWordHex(resid) + ' · ' + t.stride + ' bytes a record</div>' +
+    ' · ' + propWordHex(resid) + ' · ' + recordSizeText(t) + '</div>' +
     '<div class="sv-note" style="margin-top:0">' + svEsc(t.note) + '</div>';
+  // A run's first tile is one past the record before it.
+  const runFirst = resid === 0xF004 ? (idx ? spans[idx - 1].last + 1 : 0) : 0;
+  if (resid === 0xF004) {
+    const last = spans[idx].last;
+    h += '<div class="sv-note">' + (runFirst === last ? 'Tile ' + propWordHex(last) : 'Tiles ' + propWordHex(runFirst) + ' to ' + propWordHex(last)) + '.</div>';
+  }
   panel.innerHTML = h;
 
   // Up to what the record describes, and down to the bytes in the fork.
@@ -4094,11 +4158,29 @@ function showRecordDetail(resid, byte) {
   } else if (resid === 0xF000) {
     ways.push(relChip({ js: 'openPropType(' + idx + ')', main: propDisplayName(idx) || ('prop type ' + idx),
       sub: 'the prop type this describes', icon: relIconURL({ icon: idx }), title: tabTrail(TAB_LEAF_FOR.get('PROPS')) }));
+  } else if (resid === 0xF004) {
+    // Up from a run of tiles: every prop type whose first frame is in the
+    // run, and the tile sheets with the run's pictures. A tile from 0x1000
+    // up is a composite and on no sheet, and the catch-all run at the end
+    // reaches 0x7FFF, so sheets are offered only for a run over four or
+    // fewer of them. A base tile of 0 is an unused prop type's, and the
+    // shipped file has hundreds, so tile 0's run offers none.
+    const last = spans[idx].last;
+    getPropTileList().forEach((base, pt) => {
+      if (!base || base < runFirst || base > last) return;
+      ways.push(relChip({ js: 'openPropType(' + pt + ')', main: propDisplayName(pt) || ('prop type ' + pt),
+        sub: 'a prop type in this run', icon: relIconURL({ icon: pt }), title: tabTrail(TAB_LEAF_FOR.get('PROPS')) }));
+    });
+    const lo = runFirst >> 4, hi = Math.min(last, 0xFFF) >> 4;
+    if (runFirst < 0x1000 && hi - lo < 4)
+      for (let s = lo; s <= hi; s++) if (refExists(0x8E00 + s))
+        ways.push(relChip({ resid: 0x8E00 + s, main: 'Tile sheet ' + propWordHex(0x8E00 + s), sub: 'the pictures of this run',
+          icon: relIconURL({ tile: Math.max(runFirst, s << 4) }), title: trailForResid(0x8E00 + s) }));
   } else if (t.zone !== undefined) {
     ways.push(relChip({ resid: 0x8000 + t.zone, main: zoneDisplayName(t.zone) || ('zone ' + t.zone),
       sub: 'the map these stand on', title: trailForResid(0x8000 + t.zone) }));
   }
-  ways.push(relChip({ js: 'jumpToForkBytes(' + resid + ',' + start + ',' + t.stride + ')',
+  ways.push(relChip({ js: 'jumpToForkBytes(' + resid + ',' + start + ',' + size + ')',
     main: 'The bytes in the fork', sub: propWordHex(resid) + ' at ' + start,
     title: tabTrail(TAB_LEAF_FOR.get('DATAFORK')) }));
   const strip = document.createElement('div');
@@ -4106,7 +4188,7 @@ function showRecordDetail(resid, byte) {
   panel.appendChild(strip);
 
   // The record itself.
-  const map = recordFieldMap(resid);
+  const map = recordFieldMap(resid, size);
   const hex = k => d[start + k] === undefined ? '--' : d[start + k].toString(16).padStart(2, '0');
   const val = (off, w) => { let v = 0; for (let k = 0; k < w; k++) v = (v * 256) + (d[start + off + k] || 0); return v; };
   let rows = '';
@@ -4119,9 +4201,10 @@ function showRecordDetail(resid, byte) {
       (f.field !== null && f.field !== undefined ? ' <span style="color:#dcd8cc;font-size:0.6875rem">field ' +
         (f.at ? srcNum({ exe: f.at }, String(f.field)) : f.field) + '</span>' : '') +
       (f.note ? ' <span style="color:#dcd8cc;font-size:0.6875rem">' + svEsc(f.note) + '</span>' : '') + '</td>' +
-      '<td class="num">' + val(f.off, f.width) + '</td>' +
+      (f.text ? '<td>' + (recordText(d, start + f.off, f.width) ? svEsc(recordText(d, start + f.off, f.width)) : '<span style="color:#dcd8cc">empty</span>') + '</td>'
+              : '<td class="num">' + val(f.off, f.width) + '</td>') +
       '<td class="num" style="font-family:ui-monospace,Menlo,monospace">' +
-      srcNum({ resid, byte: start + f.off, stride: t.stride, what: f.name || ('byte ' + f.off) }, bytes.join(' ')) + '</td></tr>';
+      srcNum({ resid, byte: start + f.off, stride: size, what: f.name || ('byte ' + f.off) }, bytes.join(' ')) + '</td></tr>';
   }
   const tbl = document.createElement('div');
   tbl.innerHTML = '<table class="mechTable" style="margin-top:12px"><thead><tr><th class="num">byte</th><th>field</th><th class="num">value</th><th class="num">hex</th></tr></thead><tbody>' + rows + '</tbody></table>';
@@ -4146,7 +4229,7 @@ function showRecordDetail(resid, byte) {
     const b = document.createElement('button');
     b.className = 'secondary';
     b.textContent = label;
-    b.onclick = () => showRecordDetail(resid, to * t.stride);
+    b.onclick = () => showRecordDetail(resid, spans[to].start);
     b.disabled = to < 0 || to >= n;
     nav.appendChild(b);
   };

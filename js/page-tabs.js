@@ -974,7 +974,7 @@ const VIEW_DATA_FROM_ARCHIVE = {
   SKILLS: () => skillCatalog().length > 0,
   SCHEDULES: () => loadSchedules().length > 0,
   BARKS: () => buildBarkCatalog().length > 0,
-  RECORDS: () => refExists(0xF000) || refExists(0xF008) || refExists(0xF009),
+  RECORDS: () => refExists(0xF000) || refExists(0xF004) || refExists(0xF008) || refExists(0xF009),
   MECHANICS: anyScripts, HACKERY: anyScripts,
   MECH_PROGRESS: anyScripts, MECH_STATUS: anyScripts, MECH_INTERACT: anyScripts,
   MECH_PUZZLES: anyScripts, MECH_COMBAT: anyScripts, MECH_ECONOMY: anyScripts
