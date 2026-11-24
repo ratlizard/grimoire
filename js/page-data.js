@@ -3964,7 +3964,18 @@ function renderCombatAISheet(which) {
    with `runs` set has no stride and recordSpans walks it instead. The
    walk stops where the values stop rising, as loadTerrainNames does: past
    the 0x7FFF catch-all the resource is 0x0000 padding, which is no
-   record. */
+   record.
+
+   The draw offsets, 0xF011 (x) and 0xF012 (y), joined them the same day,
+   beside Prop tiles (the maintainer's choice over Graphics > Tilesets):
+   like 0xF000 they are drawing data with one entry per prop type. Each is
+   32 bytes a prop type, one byte per aspect, indexed (type << 5) + aspect
+   as propOffsetFor reads them, and a byte is the pixels the map moves the
+   sprite up or left of its square. They are read unsigned, as
+   propOffsetFor and delvmod do. Two tables rather than one record of 64
+   bytes, because a record here is one run of bytes in one resource and
+   its fork link opens that run; each record links to the other axis. */
+const DRAW_OFFSET_TABLES = { 0xF011: 'x', 0xF012: 'y' };
 function recordTables() {
   const out = [];
   const has = id => { try { return !!getResourceBytes(ARCHIVE, id); } catch (e) { return false; } };
@@ -3976,6 +3987,9 @@ function recordTables() {
     note: 'One two-byte value per prop type: the first tile of its frames.' });
   if (has(0xF004)) out.push({ resid: 0xF004, runs: true, label: 'Tile names',
     note: 'One record per run of tiles. Each gives the last tile of the run and the name of every tile in it. The run starts after the record before it.' });
+  for (const [id, axis] of Object.entries(DRAW_OFFSET_TABLES))
+    if (has(+id)) out.push({ resid: +id, stride: 32, label: 'Draw offsets ' + axis,
+      note: 'One record per prop type with a byte for each of its aspects. The game draws the sprite this many pixels ' + (axis === 'x' ? 'left of' : 'above') + ' its square.' });
   for (let z = 0; z < 0x100; z++) {
     if (!refExists(0x8100 + z)) continue;
     out.push({ resid: 0x8100 + z, stride: 16, label: 'Prop list, ' + (zoneDisplayName(z) || ('zone ' + z)),
@@ -4060,6 +4074,7 @@ function recordFieldMap(resid, len) {
     { off: 7, width: 1, name: 'Data2' }, { off: 8, width: 2, name: 'Store reference' },
     { off: 10, width: 6, name: null }];
   if (resid === 0xF000) return [{ off: 0, width: 2, name: 'Base tile' }];
+  if (DRAW_OFFSET_TABLES[resid]) return Array.from({ length: 32 }, (_, a) => ({ off: a, width: 1, name: 'Aspect ' + a }));
   return [];
 }
 
@@ -4158,6 +4173,12 @@ function showRecordDetail(resid, byte) {
   } else if (resid === 0xF000) {
     ways.push(relChip({ js: 'openPropType(' + idx + ')', main: propDisplayName(idx) || ('prop type ' + idx),
       sub: 'the prop type this describes', icon: relIconURL({ icon: idx }), title: tabTrail(TAB_LEAF_FOR.get('PROPS')) }));
+  } else if (DRAW_OFFSET_TABLES[resid]) {
+    ways.push(relChip({ js: 'openPropType(' + idx + ')', main: propDisplayName(idx) || ('prop type ' + idx),
+      sub: 'the prop type this describes', icon: relIconURL({ icon: idx }), title: tabTrail(TAB_LEAF_FOR.get('PROPS')) }));
+    const other = resid === 0xF011 ? 0xF012 : 0xF011;
+    if (refExists(other)) ways.push(relChip({ js: 'showRecordDetail(' + other + ',' + start + ')', main: 'Draw offsets ' + DRAW_OFFSET_TABLES[other],
+      sub: 'the same prop type', title: tabTrail(TAB_LEAF_FOR.get('RECORDS')) }));
   } else if (resid === 0xF004) {
     // Up from a run of tiles: every prop type whose first frame is in the
     // run, and the tile sheets with the run's pictures. A tile from 0x1000
