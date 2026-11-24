@@ -2578,6 +2578,59 @@ const DATA_FIXES = [
      fails, now has Use answer and UseOn reject, so the cast task's
      method 0x43 on the target now runs for these failed casts too, as it
      always ran for every cast that succeeded. Not played. */
+  // Nutrition stops at 255 (23 November 2026, at the maintainer's word).
+  // Nutrition is byte 27 of the character record, and SetField stores it
+  // with stb, so a sum past 255 is cut to its low byte: a character at 254
+  // who eats a flatbread worth 4 is at 2, almost starving, and the default
+  // EveryTurn (0x3020) then has them eat from the pack immediately. Played
+  // in the fork on 23 November 2026 (workbench bugs.md, *Food past 255
+  // nutrition leaves a character almost starving*). The adds with no
+  // ceiling are flatbread and its kin (0x1045), the mushroom steak
+  // (0x10D5), hand-baked bread (0x10E7) and the meal of five innkeepers
+  // (0x1828, 0x1829, 0x182A, 0x182D, 0x182E: up to 20 or 24, and 1 or 2
+  // more above it). The apple (0x1159) sets 255, "suddenly feeling sated",
+  // which is why 255 is the ceiling: an inn meal after the apple wrapped
+  // to 0. The fountain (0x1036) and Nutrient (0x1A11) add only below 100
+  // and cannot pass 255. This fix skips them by that test (`byte 0x64`,
+  // `lt` on nutrition earlier in the function).
+  // Each add becomes: if the sum is above 255, store 255, and otherwise
+  // store the sum as the shipped script does. The sum is worked out twice,
+  // which needs no new local; none of its parts has a side effect. GetField
+  // reads the byte unsigned (lbz, 0x0924BC), so the test sees the whole sum.
+  // Stage `cost`, after `apart`: eat-to-heal replaces the three foods'
+  // adds by their offsets, so this edit, put first, would move them. Found
+  // by instructions, it then finds only the inn meals' adds. Not `further`,
+  // which comes before `apart` for the same reason.
+  { id: 'nutrition-cap', group: 'items', stage: 'cost', title: 'Food and inn meals now stop at full, instead of a character who eats past it ending up almost starving',
+    played: 'in part. Fork, 68K, 23 November 2026, alone and with every fix. The hero ate a pomegranate at nutrition 254 and was at 255, against 2 unpatched, and at 100 ate one and was at 104 either way. The inn meals, the hand-baked bread and the mushroom steak were not played',
+    plan: (s) => {
+      const edits = [];
+      for (const resid of [0x1045, 0x10D5, 0x10E7, 0x1828, 0x1829, 0x182A, 0x182D, 0x182E, 0x1036, 0x1A11]) {
+        if (!getResourceBytes(s.arc, resid)) continue;
+        const L = dataPatchListing(s, resid);
+        L.ops.forEach((o, i) => {
+          if (!o.text.startsWith('set_field nutrition')) return;
+          const t = k => L.ops[i + k] && L.ops[i + k].text;
+          // set_field nutrition, the character, end, the character again,
+          // get_field nutrition, the amount, add, end.
+          if (t(2) !== 'end' || t(3) !== t(1) || !(t(4) || '').startsWith('get_field nutrition')) return;
+          let j = 5; while (t(j) !== undefined && t(j) !== 'end') j++;
+          if (t(j - 1) !== 'add') return;
+          const fn = L.fns.find(f => o.at >= f.st && o.at < f.en);
+          const before = L.ops.filter(p => p.at >= fn.st && p.at < o.at).map(p => p.text);
+          if (before.some((x, k) => x.startsWith('get_field nutrition') && before[k + 1] === 'byte 0x64' && before[k + 2] === 'lt')) return;
+          // The character, get_field nutrition, the amount and the add.
+          const sum = Array.from({ length: j - 3 }, (_, k) => t(3 + k));
+          const kept = Array.from({ length: j + 1 }, (_, k) => t(k));
+          const expect = {}; for (let k = 0; k <= j; k++) expect[L.ops[i + k].at] = t(k);
+          edits.push({ what: 'nutrition stops at 255 in 0x' + resid.toString(16).toUpperCase(), resid, at: o.at, to: L.ops[i + j + 1] ? L.ops[i + j + 1].at : fn.en, expect,
+            code: ['if_not', ...sum, 'word 0x00FF', 'gt', 'then -> sum', t(0), t(1), 'end', 'word 0x00FF', 'end', 'branch done', 'sum:', ...kept, 'done:'].join('\n') });
+        });
+      }
+      // Higher offsets first within a resource, as applyDataEdits needs.
+      edits.sort((a, b) => a.resid - b.resid || b.at - a.at);
+      return { edits };
+    } },
   // Eating to heal (9 October 2026, at the maintainer's word). The helper
   // 0xE46(thing, worth, quality) is an earlier way of eating that no script
   // of any release calls: the player alone eats, a meal raises health by
