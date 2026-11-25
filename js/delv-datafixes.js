@@ -2429,45 +2429,49 @@ const DATA_FIXES = [
       } },
     ] },
   // The Abydos ghost (0x1121), the vision the flatbread offering calls up
-  // (0x10E7), the wishing fountain (0x1036), the riddle switch (0x1110) and
-  // Omen (126) are named "Nothing" by the conversation box when they speak
-  // (seen on the 2019 livestream at 1:17:45, 1:56:30 and 2:09:00; bugs.md,
-  // Found checking the 2019 livestream). The first four speak as characters
-  // 187, 188, 189 and 191 (TalkParticipant). TConversation::ShowPortrait
-  // identifies a speaker through GetCharacterName, which reads the name
-  // table (0x0201) only when the character's flag 7, the name known, is set
-  // (byte 8, bit 0x80), and otherwise gives the tile name of the record's
-  // prop type. These records are empty, prop type 0, whose tile is
-  // "Nothing". The Degree Hall door (190, 0x1114) has the flag and the name
-  // "Door", and was always right. Omen's record has prop type 0 too; his
-  // conversation (0x1801) sets his flag 7 at 0x0639, after his first speech,
-  // which ends "I am Omen", so that one box is headed "Nothing".
+  // (0x10E7), the riddle switch (0x1110) and Omen (126) are named "Nothing"
+  // by the conversation box when they speak (seen on the 2019 livestream at
+  // 1:17:45, 1:56:30 and 2:09:00; bugs.md, Found checking the 2019
+  // livestream). The first three speak as characters 187, 188 and 191
+  // (TalkParticipant). TConversation::ShowPortrait identifies a speaker
+  // through GetCharacterName, which reads the name table (0x0201) only when
+  // the character's flag 7, the name known, is set (byte 8, bit 0x80), and
+  // otherwise gives the tile name of the record's prop type. These records
+  // are empty, prop type 0, whose tile is "Nothing". The Degree Hall door
+  // (190, 0x1114) has the flag and the name "Door", and was always right.
+  // So is the wishing fountain (189, 0x1036): its record is empty too, but
+  // its script calls SetCharacterFlag(189, 7) before each of its two
+  // speeches (0x0156 and 0x02D7), so the box reads "Fountain". It was in
+  // this fix until 25 November 2026, when that call was read; the flag the
+  // fix set on it changed nothing shown. Omen's record has prop type 0 too;
+  // his conversation (0x1801) sets his flag 7 at 0x0639, after his first
+  // speech, which ends "I am Omen", so that one box is headed "Nothing".
   // THE CHANGE, in two parts, one fix since 20 October 2026 (they were
   // nobody-speakers and blank-name, and the second alone already headed the
-  // four "???"):
-  //  - flag 7 set on the four, so the name table speaks: "???" for the
-  //    ghost, the vision and the switch, which the maintainer chose to keep
-  //    (19 October 2026), and "Fountain". Omen is not given the flag, which
-  //    would name him before he is introduced. A saved game has a separate
-  //    character table, so this part reaches new games only.
+  // three "???"):
+  //  - flag 7 set on the three, so the name table speaks: "???", which the
+  //    maintainer chose to keep (19 October 2026). Omen is not given the
+  //    flag, which would name him before he is introduced. A saved game has
+  //    a separate character table, so this part reaches new games only.
   //  - tile 0, the first entry of 0xF004, renamed "???", the name table's
   //    word for the other unnamed speakers, which heads Omen's first box.
   //    The tile names are read from Cythera Data and not the save, so this
-  //    part reaches saved games too, where the four are headed "???" as
-  //    well, the fountain included. Nothing else is shown with tile 0's name
+  //    part reaches saved games too, where the three are headed "???" as
+  //    well. Nothing else is shown with tile 0's name
   //    once the corner body is gone (the program's fix corner-body): it was
   //    the one thing of type 0 a player could Look at. The table is four
   //    bytes shorter; this comes after hydra-name, whose place it finds by
   //    offset, in the stage order.
-  { id: 'nobody-speakers', newGame: true, group: 'talk', stage: 'apart', title: 'The Abydos ghost, the vision, the wishing fountain, the riddle switch and Omen are no longer called \u201cNothing\u201d when they speak',
+  { id: 'nobody-speakers', newGame: true, group: 'talk', stage: 'apart', title: 'The Abydos ghost, the vision, the riddle switch and Omen are no longer called \u201cNothing\u201d when they speak',
+    played: 'in part: fork, PowerPC, 25 November 2026, alone and with every fix the Patches section has on by default. A new game played through Alaric\u2019s talk, \u201cbye\u201d and Magpie\u2019s tour to Omen\u2019s first vision, whose first box is headed \u201c???\u201d, against \u201cNothing\u201d on the shipped file. The Abydos ghost, the flatbread offering’s vision and the riddle switch are not played',
     dataEdits: [
-      { what: 'speakers 187, 188, 189 and 191 known by name', resid: 0xF009, fn: (b) => {
-          for (const n of [187, 188, 189, 191]) {
+      { what: 'speakers 187, 188 and 191 known by name', resid: 0xF009, fn: (b) => {
+          for (const n of [187, 188, 191]) {
             const r = b.subarray(n * 32, n * 32 + 32);
             if (r.some(x => x !== 0)) throw new Error('record ' + n + ' is not the empty record this fix expects');
           }
-          for (const n of [187, 188, 189, 191]) b[n * 32 + 8] |= 0x80;
-          return 'records 187, 188, 189 and 191, byte 8: flag 7 set';
+          for (const n of [187, 188, 191]) b[n * 32 + 8] |= 0x80;
+          return 'records 187, 188 and 191, byte 8: flag 7 set';
       } },
       { what: 'tile 0 named \u201c???\u201d', resid: 0xF004, fn: (b) => {
           const expected = [0, 0, 0x4E, 0x6F, 0x74, 0x68, 0x69, 0x6E, 0x67, 0];
