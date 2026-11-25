@@ -2446,33 +2446,25 @@ const DATA_FIXES = [
   // fix set on it changed nothing shown. Omen's record has prop type 0 too;
   // his conversation (0x1801) sets his flag 7 at 0x0639, after his first
   // speech, which ends "I am Omen", so that one box is headed "Nothing".
-  // THE CHANGE, in two parts, one fix since 20 October 2026 (they were
-  // nobody-speakers and blank-name, and the second alone already headed the
-  // three "???"):
-  //  - flag 7 set on the three, so the name table speaks: "???", which the
-  //    maintainer chose to keep (19 October 2026). Omen is not given the
-  //    flag, which would name him before he is introduced. A saved game has
-  //    a separate character table, so this part reaches new games only.
-  //  - tile 0, the first entry of 0xF004, renamed "???", the name table's
-  //    word for the other unnamed speakers, which heads Omen's first box.
-  //    The tile names are read from Cythera Data and not the save, so this
-  //    part reaches saved games too, where the three are headed "???" as
-  //    well. Nothing else is shown with tile 0's name
-  //    once the corner body is gone (the program's fix corner-body): it was
-  //    the one thing of type 0 a player could Look at. The table is four
-  //    bytes shorter; this comes after hydra-name, whose place it finds by
-  //    offset, in the stage order.
-  { id: 'nobody-speakers', newGame: true, group: 'talk', stage: 'apart', title: 'The Abydos ghost, the vision, the riddle switch and Omen are no longer called \u201cNothing\u201d when they speak',
-    played: 'in part: fork, PowerPC, 25 November 2026, alone and with every fix the Patches section has on by default. A new game played through Alaric\u2019s talk, \u201cbye\u201d and Magpie\u2019s tour to Omen\u2019s first vision, whose first box is headed \u201c???\u201d, against \u201cNothing\u201d on the shipped file. The Abydos ghost, the flatbread offering’s vision and the riddle switch are not played',
+  // THE CHANGE: tile 0, the first entry of 0xF004, renamed "???", the name
+  // table's word for these speakers (entries 187, 188 and 191), which the
+  // maintainer chose to keep (19 October 2026). The tile names are read
+  // from Cythera Data and not the save, so it reaches saved games and new
+  // ones alike, and Omen's first box reads "???" too. Once the corner body
+  // is gone (the program's fix corner-body), nothing else a player can Look
+  // at shows tile 0's name. The table is four bytes shorter; this comes
+  // after hydra-name, whose place it finds by offset, in the stage order.
+  // Until 25 November 2026 the fix also set flag 7 on 187, 188, 189 and
+  // 191 (they were two fixes, nobody-speakers and blank-name, made one on
+  // 20 October), for new games only, since a save has a separate character
+  // table. With the tile renamed, the flag gave the same "???" from the
+  // name table, and its one visible effect, "Fountain", the fountain's
+  // script gives already. So it went, and the fix reaches saved games in
+  // full. Omen was never given the flag, which would name him ahead of his
+  // introduction.
+  { id: 'nobody-speakers', group: 'talk', stage: 'apart', title: 'The Abydos ghost, the vision, the riddle switch and Omen are no longer called \u201cNothing\u201d when they speak',
+    played: 'in part: fork, 25 November 2026, alone and with every fix the Patches section has on by default, against \u201cNothing\u201d on the shipped file. PowerPC, a new game played through Alaric\u2019s talk, \u201cbye\u201d and Magpie\u2019s tour to Omen\u2019s first vision, whose first box is headed \u201c???\u201d. The riddle switch in the Hall of Truth used, headed \u201c???\u201d, on PowerPC in a new game reached by the cheat jump and on 68K in a saved game. The Abydos ghost and the flatbread offering\u2019s vision are not played',
     dataEdits: [
-      { what: 'speakers 187, 188 and 191 known by name', resid: 0xF009, fn: (b) => {
-          for (const n of [187, 188, 191]) {
-            const r = b.subarray(n * 32, n * 32 + 32);
-            if (r.some(x => x !== 0)) throw new Error('record ' + n + ' is not the empty record this fix expects');
-          }
-          for (const n of [187, 188, 191]) b[n * 32 + 8] |= 0x80;
-          return 'records 187, 188 and 191, byte 8: flag 7 set';
-      } },
       { what: 'tile 0 named \u201c???\u201d', resid: 0xF004, fn: (b) => {
           const expected = [0, 0, 0x4E, 0x6F, 0x74, 0x68, 0x69, 0x6E, 0x67, 0];
           if (expected.some((v, i) => b[i] !== v)) throw new Error('the first entry is not tile 0 "Nothing"');
