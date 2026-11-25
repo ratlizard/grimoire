@@ -2463,7 +2463,7 @@ const DATA_FIXES = [
   // full. Omen was never given the flag, which would name him ahead of his
   // introduction.
   { id: 'nobody-speakers', group: 'talk', stage: 'apart', title: 'The Abydos ghost, the vision, the riddle switch and Omen are no longer called \u201cNothing\u201d when they speak',
-    played: 'in part: fork, 25 November 2026, alone and with every fix the Patches section has on by default, against \u201cNothing\u201d on the shipped file. PowerPC, a new game played through Alaric\u2019s talk, \u201cbye\u201d and Magpie\u2019s tour to Omen\u2019s first vision, whose first box is headed \u201c???\u201d. The riddle switch in the Hall of Truth used, headed \u201c???\u201d, on PowerPC in a new game reached by the cheat jump and on 68K in a saved game. The Abydos ghost and the flatbread offering\u2019s vision are not played',
+    played: 'Fork, 25 November 2026, alone and with every fix the Patches section has on by default, each box headed \u201c???\u201d against \u201cNothing\u201d on the shipped file. PowerPC, a new game played through Alaric\u2019s talk, \u201cbye\u201d and Magpie\u2019s tour to Omen\u2019s first vision. The riddle switch in the Hall of Truth used, on PowerPC in a new game reached by the cheat jump and on 68K in a saved game. On 68K in saved games, a ghost of Abydos talked to at night, and hand-baked bread dragged onto Jinrai\u2019s pedestal in the volcano for the vision. Not played on Mac OS 8.5',
     dataEdits: [
       { what: 'tile 0 named \u201c???\u201d', resid: 0xF004, fn: (b) => {
           const expected = [0, 0, 0x4E, 0x6F, 0x74, 0x68, 0x69, 0x6E, 0x67, 0];
