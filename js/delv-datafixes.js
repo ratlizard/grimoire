@@ -1886,8 +1886,14 @@ const DATA_FIXES = [
   // against the rock. The type-4096 branch beside it (`& 8`, the spikes)
   // is left as it is, since whether it was meant for the feet alone is an
   // inference and slots 8 and 9 both pass it.
+  // Counted on 25 November 2026 (the workbench's tools/rock-count/): the
+  // hero's ResistDamage called 3,000 times with the rock's damage, in the
+  // fork from a save. Unpatched the counts fit no armor at all, though the
+  // hero wore a cuirass and a buckler too; with the fix they fit armor 6
+  // under the mystic helmet and 1 under the leather helmet, the two
+  // helmets' ArmorValue, and nothing from the rest.
   { id: 'rock-helmet', group: 'rules', stage: 'found', title: 'A helmet now softens a rock falling from a loose roof, instead of no armor counting against it',
-    played: 'in part, Mac OS 8.5, 18 November 2026, alone. A hero in a mystic helmet stepped under the five loose roofs of zone 9. The rocks took 2, 0, 12, 6 and 1 health with the fix, 21 in all, and 5, 10, 0, 13 and 10 unpatched, 38 in all. Five rolls a side lean the right way and do not settle it',
+    played: 'Mac OS 8.5, 18 November 2026, alone. A hero in a mystic helmet stepped under the five loose roofs of zone 9. The rocks took 2, 0, 12, 6 and 1 health with the fix, 21 in all, and 5, 10, 0, 13 and 10 unpatched, 38 in all. In the fork, 25 November 2026, alone, 3,000 rocks a side. A rock took 2.8 health on average in a mystic helmet with the fix and 4.8 unpatched, and 4.4 in a leather helmet with the fix. Unpatched, the leather helmet and the mystic helmet gave the same rolls',
     edits: [
       { what: 'the head’s armor against a falling rock', resid: 0xE81, at: 0x005D, replaceOp: true,
         expect: { 0x0058: 'class_member 0x2600', 0x005B: 'byte 0x00', 0x005D: 'bitwise_and' }, code: 'eq' },
