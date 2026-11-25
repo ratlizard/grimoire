@@ -636,9 +636,22 @@ const APP_FIXES = [
   // FindFirstStep through the cursor table at TOC -3258), then MoveAll,
   // which moves everyone else and draws. It stops beside the target, when
   // FindPath finds nothing nearer (32767), when a step leaves the hero on
-  // the same square, when the mouse button is down (ISButton, as the held
-  // walk of MouseRoutine reads it, so a tap stops the walk), or after 40
-  // steps. FindPath looks no further than 15 squares from the view's
+  // the same square, when a button is down at a step, or after 40 steps.
+  // The button test is the one TDroppableWindow::MouseRoutine's held walk
+  // makes (0x287B0): StillDown for the mouse, or ISButton, which is
+  // InputSprocket's and reads a game controller's three buttons
+  // (ISpElement_GetSimpleState), never the mouse. Until 24 November 2026
+  // the walk tested ISButton alone, so on Mac OS 8.5 a mouse press during
+  // the walk, held from 0.06 s after the click or made at 1 s, did not
+  // stop it. StillDown would not do here, since it is false once the
+  // click's mouse-up is queued, so the walk calls Button (its glue at
+  // 0xC30D8), which reads the button as it is. The walk begins while the
+  // click itself is still held, and a first build that stopped on Button
+  // alone ended every walk after one step. So the walk stops only on a
+  // press after a step has seen the button up, a flag at 68(1) of
+  // approach's frame, and a tap has to still be down when a step begins.
+  // The mouse-down of the press stays in the queue and acts as a click
+  // after the walk stops. FindPath looks no further than 15 squares from the view's
   // center, which ends a long walk before the count does. A fight does not
   // stop it: MoveAll lets every creature act each step, as walking by the
   // keys does, and a tap stops the walk.
@@ -648,7 +661,7 @@ const APP_FIXES = [
   // short of the thing; that step goes nowhere the walk could not reach.
   { id: 'walk-path', kind: 'change', title: 'A command chosen by its key and clicked on something out of reach walks the hero there one step a turn and then acts, instead of taking one step a click',
     needs: ['walk-to'],
-    played: 'in part, Mac OS 8.5, 18 November 2026, with the walk-to fix applied too. In Land King Hall, G and a click on dough three squares off walked the hero there and took it, and the stock program did nothing. The tap that stops a walk is unplayed, since a three-step walk ended before a press reached it',
+    played: 'Mac OS 8.5, 18 and 24 November 2026, with the walk-to fix applied too. In Land King Hall, G and a click on dough three squares off walked the hero there and took it, and the stock program did nothing. G and a click on a pail four squares off walked the hero there and took it, and a mouse press half a second into the walk stopped it short with nothing taken, where the build before 24 November walked on and took the pail',
     sites: [{ at: 0x2722C, was: [0x80A28B28], asm: ['b @cave               ; was lwz 5, -29912(2)'] },
             { at: 0x55418, was: [0x48000014], asm: ['b @tooFar             ; was b 0x5542C'] },
             { at: 0x5542C, was: [0x800100A8], asm: ['b @attackEnd          ; was lwz 0, 168(1)'] }],
@@ -683,13 +696,18 @@ const APP_FIXES = [
            'approach:', 'mflr 0', 'stw 0, 8(1)', 'stwu 1, -96(1)', 'stmw 26, 72(1)',
            'mr 30, 3', 'mr 31, 4                ; the target', 'stw 5, 64(1)          ; the window’s port',
            'mr 29, 6                ; the character to follow, or 0', 'li 28, 40              ; steps at most',
+           'li 7, 0', 'stw 7, 68(1)          ; the button not seen up since the click',
            'step:', 'cmpwi 29, 0', 'beq @fixed', 'mr 3, 29', 'bl @squareOf', 'mr 30, 3', 'mr 31, 4',
            'fixed:', 'bl @here', 'mr 26, 3', 'mr 27, 4',
            'subf 5, 30, 3', 'srawi 6, 5, 31', 'xor 5, 5, 6', 'subf 5, 6, 5', 'cmpwi 5, 1', 'bgt @far',
            'subf 5, 31, 4', 'srawi 6, 5, 31', 'xor 5, 5, 6', 'subf 5, 6, 5', 'cmpwi 5, 1', 'bgt @far',
            'li 3, 1', 'cmpwi 28, 40', 'bne @out', 'li 3, 2', 'b @out',
            'far:', 'cmpwi 28, 0', 'beq @stop', 'addi 28, 28, -1',
-           'bl @ISButton__Fv', 'clrlwi. 3, 3, 24', 'bne @stop             ; a tap',
+           'bl @ISButton__Fv', 'clrlwi. 3, 3, 24', 'bne @stop             ; a controller’s button',
+           'bl @0xC30D8            ; Button', 'lwz 2, 20(1)', 'clrlwi. 3, 3, 24', 'bne @held',
+           'li 7, 1', 'stw 7, 68(1)          ; up since the click', 'b @go',
+           'held:', 'lwz 7, 68(1)', 'cmpwi 7, 0', 'bne @stop             ; down again after the click, a tap',
+           'go:',
            'lwz 3, -30412(2)', 'li 4, 0', 'mr 5, 26', 'mr 6, 27', 'mr 7, 30', 'mr 8, 31',
            'bl @FindPath__11TPathFinderFP14TActiveMonsterssss',
            'extsh 3, 3', 'cmpwi 3, 32767', 'beq @stop',
