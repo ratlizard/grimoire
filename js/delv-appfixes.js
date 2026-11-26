@@ -1032,6 +1032,7 @@ const APP_FIXES = [
   // to the shipped clears.
   { id: 'name-fit', kind: 'fix', title: 'A long name under a conversation portrait shrinks until it fits, instead of squeezing until its letters overlap',
     bug: 'A long name under a conversation portrait squeezes until its letters overlap',
+    played: 'Mac OS 8.5, 26 November 2026, the program with the fix alone, with name-clear and stock, a hero named "RULEZ TRADEMARK" at Hadrian\'s training menu. The stock program squeezed the name until its letters ran together, and the fixed one drew it a smaller size, whole and readable, the same with name-clear',
     sites: [
       { at: 0x3DE90, was: [0x38800054, 0x4BFFDAA1], asm: ['b @fit                ; was li 4, 84', 'nop                   ; was bl FitText'] },
       { at: 0x3DF68, was: [0x38600000, 0x480856C5, 0x80410014], asm: ['b @restore            ; was li 3, 0', 'nop                   ; was bl CharExtra', 'nop                   ; was lwz 2, 20(1)'] }],
@@ -1118,7 +1119,8 @@ const APP_FIXES = [
     bug: 'The end of a long name under a conversation portrait is cut off when a menu or a line of narration appears',
     sites: [
       { at: 0x3C988, was: [0x38000068], asm: ['li 0, 113             ; was 104: the work area\'s left edge'] },
-      { at: 0x3D714, was: [0x38800067], asm: ['li 4, 111             ; was 103: the clear with no speech, from 111'] }] },
+      { at: 0x3D714, was: [0x38800067], asm: ['li 4, 111             ; was 103: the clear with no speech, from 111'] }],
+    played: 'Mac OS 8.5, 26 November 2026, the program with the fix alone beside the stock one. The hero stood west of Hadrian in Land King Hall, talked to him and typed "train". At the menu and after "Attack" the stock program drew "Bellerophor", and the fixed one drew "Bellerophon" whole and left nothing of the menu behind' },
 
   // ---- Hooks ----------------------------------------------------------------
   { id: 'hook-take', kind: 'hook', method: 241, title: 'Scripts can refuse a thing being moved somewhere, or let it in without weighing it',
