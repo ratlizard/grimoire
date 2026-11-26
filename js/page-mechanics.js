@@ -2750,6 +2750,14 @@ function renderDataFixMaker() {
   const host = document.getElementById('dataFixMaker');
   if (!host) return;
   host.innerHTML = '';
+  /* The Utility Mods list is drawn in the Utility Mods section under
+     Content Patches (the maintainer, 26 November 2026: "move them out of
+     the bug fixes area"), with the same rows and the same state, so a mod
+     still goes into the Patch in Progress beside the fixes. The search and
+     the count of what is chosen stay with the fixes' section. */
+  const modsHost = document.getElementById('utilityMods');
+  if (modsHost) modsHost.innerHTML = '';
+  const apart = g => !!modsHost && g.id === 'mods';
   const el = (tag, cls, text) => { const d = document.createElement(tag); if (cls) d.className = cls; if (text !== undefined) d.textContent = text; return d; };
   const on = window.DATAFIX_STATE.on, appSt = window.APPFIX_STATE;
   /* A trial of every program fix on the program open, so each can show
@@ -2783,7 +2791,7 @@ function renderDataFixMaker() {
     presets.appendChild(c);
   }
   host.appendChild(presets);
-  const offLists = DATA_FIX_GROUPS.filter(g => g.off).map(g => g.title);
+  const offLists = DATA_FIX_GROUPS.filter(g => g.off && !apart(g)).map(g => g.title);
   const offListsNote = (offLists.length > 1 ? offLists.slice(0, -1).join(', ') + ' and ' + offLists[offLists.length - 1] : offLists.join('')) + ' are off until chosen.';
   host.appendChild(el('p', 'mechSub', now === 'all' ? 'Every fix including the untested ones. ' + offListsNote
     : now === 'tested' ? 'Every fix seen working in the game. ' + offListsNote : ''));
@@ -2819,8 +2827,8 @@ function renderDataFixMaker() {
     gb.setAttribute('aria-label', 'every fix under ' + g.title);
     gb.onchange = function () { dataFixGroup(g.id, gb.checked); };
     fold.sum.appendChild(gb); fold.sum.appendChild(fold.t); fold.sum.appendChild(fold.n);
-    host.appendChild(fold.d);
-    if (g.note) fold.d.appendChild(el('div', 'mechSub', g.note));
+    (apart(g) ? modsHost : host).appendChild(fold.d);
+    if (g.note && !apart(g)) fold.d.appendChild(el('div', 'mechSub', g.note));
     /* A fix is its title, and under it a quiet line: the file it changes,
        how far it is tested as a badge, and its "changes" (the maintainer,
        16 October 2026). The marks were asides in brackets after the title,
@@ -4973,6 +4981,17 @@ function renderMechanicsSheet(value) {
     const note = document.createElement('div');
     note.className = 'mechSub'; note.id = 'dataFixNote';
     sec.appendChild(note);
+  }
+
+  // ---- the Utility Mods, drawn by renderDataFixMaker into #utilityMods ----
+  {
+    add('utilitymods', 'Utility Mods', null, '',
+      'Choose a mod to add it to the Patch in Progress. These mods skip or change parts of the game. None is on until chosen.',
+      [], '');
+    const sec = sections[sections.length - 1].el;
+    const host = document.createElement('div');
+    host.id = 'utilityMods';
+    sec.appendChild(host);
   }
 
   // ---- the replacers that live beside what they replace ----

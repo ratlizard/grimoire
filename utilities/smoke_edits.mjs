@@ -1472,6 +1472,12 @@ if (take()) try {
 if (take()) try {
   ctx.showCategory('PATCHES');
   if (!REGISTRY.get('dataFixMaker')) throw new Error('no host for the section');
+  // The Utility Mods are drawn in their section under Content Patches and
+  // not in the fixes' list (the maintainer, 26 November 2026).
+  if (!REGISTRY.get('utilityMods')) throw new Error('no host for the Utility Mods');
+  const modsApart = peek(`(() => { renderDataFixMaker(); const t = id => document.getElementById(id).textContent || '';
+    return { inMods: t('utilityMods').includes('Richie rich'), inFixes: t('dataFixMaker').includes('Richie rich'), fixesThere: t('dataFixMaker').includes('Spells, skills and fighting') }; })()`);
+  if (!modsApart.inMods || modsApart.inFixes || !modsApart.fixesThere) throw new Error('the Utility Mods are not drawn apart from the fixes (' + JSON.stringify(modsApart) + ')');
   ctx.dataFixClear();
   const none = peek('dataFixPatch()');
   ctx.dataFixToggle('text-land-king', true);
