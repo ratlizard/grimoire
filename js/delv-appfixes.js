@@ -1492,7 +1492,7 @@ const APP_FIXES = [
   // every command hand HeartBeat their costs elsewhere. A new game opens
   // on the king's welcome with it as without (the two frames are the same).
   { id: 'load-cost', kind: 'change', title: 'Starting or opening a game costs no time, so a game opens on the moment it was saved, instead of fifteen ticks later with everyone moved',
-    played: 'fork, PowerPC, 9 October 2026: a save of Cademia opened and saved again has the same clock, where the unpatched program writes it fifteen units on; a new game opens on the king\u2019s welcome as before',
+    played: 'fork, PowerPC, 9 October 2026: a save of Cademia opened and saved again has the same clock, where the unpatched program writes it fifteen units on; a new game opens on the king\u2019s welcome as before. Mac OS 8.5, 26 November 2026, the fix alone beside stock, the same save opened and saved twice with no key between. The clock stayed at 37527 units with the fix, and the stock program saved 37542 both times',
     sites: [{ at: 0x14634, was: [0x3880000F], asm: ['li 4, 0                ; nothing for HeartBeat to spend'] }] },
   // The difficulty level, as the game was made to have it. Alaric's
   // keywords (0x1802) set the script global DifficultyLevel, 17, to 0 for
