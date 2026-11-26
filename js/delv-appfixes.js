@@ -486,7 +486,7 @@ const APP_FIXES = [
   // workbench's bugs.md, Found reading the program's script callbacks).
   { id: 'afternoon', kind: 'fix', title: 'People say "Good afternoon" from noon to six, instead of "Good evening" all afternoon',
     bug: '"Good afternoon" is never printed',
-    played: 'fork, PowerPC and 68K, 24 October 2026, from the pinned save, with sixteen option-t presses to 13:00, a jump to the square south of Laodice in zone 13 and Talk. The stock program has "Good evening, citizen." and the fix alone and every fix "Good afternoon, citizen." At 19:00 the stock program and the fix alone both have "Good evening, citizen." Not played on Mac OS',
+    played: 'fork, PowerPC and 68K, 24 October 2026, from the pinned save, with sixteen option-t presses to 13:00, a jump to the square south of Laodice in zone 13 and Talk. The stock program has "Good evening, citizen." and the fix alone and every fix "Good afternoon, citizen." At 19:00 the stock program and the fix alone both have "Good evening, citizen." Mac OS 8.5, 26 November 2026, the fix alone beside stock, the same steps to 13:09. Laodice\'s greeting is "Good evening, citizen." on the stock program and "Good afternoon, citizen." with the fix',
     sites: [{ at: 0x93D70, was: [0x2C1F0006], asm: ['cmpwi 31, 18          ; was 6'] }] },
 
   // GMSIdle, run at every idle, calls GMSTune::Idle to learn whether the spot
