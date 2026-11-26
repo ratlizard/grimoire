@@ -2085,7 +2085,7 @@ const DATA_FIXES = [
   // with the fix the button's Use does nothing when whoever uses it stands
   // west of it.
   { id: 'hall-button-side', group: 'world', stage: 'found', title: 'The Hall of Truth’s last pattern button works only from the room it faces, instead of also from the corridor behind its wall',
-    played: 'fork, 22 October 2026, alone, the hero put in zone 19, on the 68K and PowerPC slices: from the corridor at (34,37), U and the right arrow, or U and a click on the button, leave the door at (28,56) shut, where unpatched both open it; from the room at (36,37), U and the left arrow, or U and a click, open it patched and unpatched. Not played on Mac OS',
+    played: 'fork, 22 October 2026, alone, the hero put in zone 19, on the 68K and PowerPC slices. From the corridor at (34,37), U and the right arrow, or U and a click on the button, leave the door at (28,56) shut, where unpatched both open it. From the room at (36,37), U and the left arrow, or U and a click, open it patched and unpatched. Mac OS 8.5, 26 November 2026, the fix alone beside stock, the hero put there by the cheat jump and a turn passed, then U and the arrow. From the corridor the door stays shut with the fix and opens unpatched, and from the room it opens on both. With no turn passed after the jump, the fixed button does nothing from either side',
     edits: [
       { what: 'the button looks at who presses it', resid: 0x1107, at: 0x003E,
         expect: { 0x003E: 'if_not', 0x003F: 'arg Arg00', 0x0040: 'get_field data1' },
