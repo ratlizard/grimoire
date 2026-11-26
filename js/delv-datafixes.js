@@ -2210,7 +2210,7 @@ const DATA_FIXES = [
      markup either way. The bow shop's title, "Handcrafted bows & arrows!",
      shows whole in the same game and is left. */
   { id: 'ampersand', group: 'text', stage: 'text', title: 'The book Aloiphos B and Eurybates’s answer to “job” appear in full, instead of stopping at an “&”',
-    played: 'fork, PowerPC, 24 October 2026, alone and in “All Fixes”. Aloiphos B, used on its shelf in Pnyx, goes on past "lapis lazuli and jasper are there", and Eurybates answers "job" with "I’m the cook and hunter for the camp.", against "lapis lazuli" and "I’m the cook" unpatched',
+    played: 'fork, PowerPC, 24 October 2026, alone and in “All Fixes”. Aloiphos B, used on its shelf in Pnyx, goes on past "lapis lazuli and jasper are there", and Eurybates answers "job" with "I’m the cook and hunter for the camp.", against "lapis lazuli" and "I’m the cook" unpatched. Mac OS 8.5, 26 November 2026, the fix alone beside stock. Eurybates answers "job" with "I’m the cook and hunter for the camp.", against "I’m the cook" on the shipped file',
     plan: () => ({ textEdits: [
       dataFixT('Aloiphos B, "lapis lazuli & jasper"', 0x021D, 'lapis lazuli & jasper', 'lapis lazuli and jasper', 1),
       dataFixT('Aloiphos B, "jasmine & rose"', 0x021D, 'jasmine  & rose', 'jasmine  and rose', 1),
