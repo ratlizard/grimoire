@@ -1412,7 +1412,7 @@ const DATA_FIXES = [
   // with no test, so away from his yard every topic of his was open without
   // the Demodocus keyword. The eating branch is given the yard's test.
   { id: 'neoptolemus-eating', group: 'talk', stage: 'further', title: 'Neoptolemus stays closed while eating until the hero mentions Demodocus, as he does in his yard',
-    played: 'fork, 68K, 22 October 2026, alone and on “All Fixes”: at six in the evening, at his table at (44,101), "name" drew "None of your business!", then "neop" and "demo" opened him and "name" drew "Neoptolemus - and show a little respect to your elders!", against that line at the first "name" unpatched. Not played on Mac OS',
+    played: 'fork, 68K, 22 October 2026, alone and on “All Fixes”. At six in the evening, at his table at (44,101), "name" drew "None of your business!", then "neop" and "demo" opened him and "name" drew "Neoptolemus - and show a little respect to your elders!", against that line at the first "name" unpatched. Mac OS 8.5, 26 November 2026, the fix alone beside stock, the same words while he ate. The first "name" drew "None of your business!" with the fix and his name on the shipped file',
     plan: (s) => {
       const what = 'Neoptolemus eating, opened by flag 7', p = dataPatchPlace(s, what, 0x1821,
         ['string(implicit) "\\"What do you', 'set_local 0x00', 'word False', 'end', 'exit']);
