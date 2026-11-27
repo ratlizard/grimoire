@@ -1398,7 +1398,7 @@ const DATA_FIXES = [
   // the test, the call every other guard in the scripts makes; this is the
   // one place a setter stands in a guard.
   { id: 'halos-kidnapping', group: 'talk', stage: 'further', title: 'Halos gives experience for his account of the kidnapping once, instead of on every telling',
-    played: 'fork, 68K, 22 October 2026, alone and on “All Fixes”: quest value 1 set and the flags of Halos (1) and Mantinea (1) by edits, the clock at eleven, "kidn" to Halos twice in one conversation, the hero’s experience 20 after, against 40 unpatched; both tellings print in full on all three. Not played on Mac OS',
+    played: 'fork, 68K, 22 October 2026, alone and on “All Fixes”. Quest value 1 set and the flags of Halos (1) and Mantinea (1) by edits, the clock at eleven, and "kidn" to Halos twice in one conversation leave the hero’s experience at 20, against 40 unpatched. Both tellings print in full on all three. Mac OS 8.5, 26 November 2026, the fix alone beside stock, the same staging and words, the hero’s experience 20 with the fix against 40 on the shipped file',
     plan: (s) => ({ edits: [
       dataFixReplaceOp(s, 'Halos tests his flag 3', 0x183E,
         ['if_not', 'call_resource SetCharacterFlag', 'arg Arg00', 'byte 0x03', 'end', 'not', 'then ->', 'call_resource GainExp'], 1, 'call_resource 0xF02'),
