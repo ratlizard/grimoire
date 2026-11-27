@@ -2886,7 +2886,7 @@ const DATA_FIXES = [
   // 0xD07 ignores signals 320 and 321 altogether, which is how a companion's
   // cry at a theft sets the guards on the hero.
   { id: 'love-bellerophon', newGame: true, group: 'mods', stage: 'mods', name: 'Everybody loves Bellerophon',
-    played: 'in part, fork, 68K, 31 October 2026, Hector attacked twice in Land King Hall and the turns passed, the hero losing 69 of 255 health to him on the shipped file and none with the fix, and a skeleton on behavior 8 two squares off hit a hero of alignment 2 and left a hero of alignment 0 alone (a save edited by hand, with the new game’s hero at 0 in the saved game). The guards’ answer to a theft and the three area spells are unplayed',
+    played: 'in part, fork, 68K, 31 October 2026, Hector attacked twice in Land King Hall and the turns passed, the hero losing 69 of 255 health to him on the shipped file and none with the fix, and a skeleton on behavior 8 two squares off hit a hero of alignment 2 and left a hero of alignment 0 alone (a save edited by hand, with the new game’s hero at 0 in the saved game). The guards’ answer to a theft and the three area spells are unplayed. Mac OS 8.5, 26 November 2026, the mod alone beside stock in a saved game. The hero attacked Hadrian twice and passed 24 turns, and Hadrian struck back about forty times on the shipped file, leaving 60 of 250 health, and never with the mod, leaving 250. A new game with the four mods saved the hero at alignment 0',
     title: 'Nobody turns on the hero, whatever the hero does, instead of creatures hunting the hero and people fighting back or calling the guards',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'a hit character answers the hero', 0x3043, ['set_field 0x2A', 'arg Arg00', 'end', 'arg Arg01', 'end', 'set_field behavior'], 0,
@@ -2910,7 +2910,7 @@ const DATA_FIXES = [
   // wound, so a blow that lands prints its line and does nothing. Companions
   // are not covered: the test is the hero.
   { id: 'cant-touch-this', group: 'mods', stage: 'mods', name: 'Can’t touch this',
-    played: 'fork, PowerPC, 31 October 2026, a skeleton on behavior 8 two squares off and twelve turns passed, "Skeleton hit Bellerophon very hard" and the hero’s health 255 of 255, against 223 on the shipped file',
+    played: 'fork, PowerPC, 31 October 2026, a skeleton on behavior 8 two squares off and twelve turns passed, "Skeleton hit Bellerophon very hard" and the hero’s health 255 of 255, against 223 on the shipped file. Mac OS 8.5, 26 November 2026, the mod alone beside stock, a ruffian hatched beside the hero in Cademia and 24 turns passed. The ruffian’s blows landed on both, and the hero ended at 200 of 250 health with the mod against 106 on the shipped file',
     title: 'Nothing can now damage the hero, instead of every blow, spell and trap wounding them',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'damage to the hero', 0x3041, ['set_local 0x00', 'arg Arg00', 'cast Character', 'end', 'if_not', 'local Var00', 'then ->'], 4,
@@ -2937,6 +2937,7 @@ const DATA_FIXES = [
   // limit, so a long enough game can still pass the limit.
   { id: 'richie-rich', group: 'mods', stage: 'mods', name: 'Richie rich',
     title: 'A new game now starts with 20,000 oboloi, which weigh nothing, instead of none',
+    played: 'Mac OS 8.5, 26 November 2026, a new game with the four mods, saved after Alaric’s talk with a stack of 20,000 oboloi in the hero’s pack. From that save, 100 oboloi and a sword laid beside the hero were picked up. The 100 joined the stack, making 20,100, and the sword went into the pack. The same save on the shipped file, where the oboloi weigh 1 each, answered "There isn\'t room." to both',
     plan: (s) => ({ edits: [
       dataFixInsert(s, 'the starting oboloi', 0x1802, ['sys SetStateFlag', 'byte 0x00', 'word True', 'end', 'set_local 0x04', 'word True'], 0,
         ['sys Create', 'short 0x0001', 'short 0x0082', 'byte 0x00', 'short 0x4E20', 'end'].join('\n')),
