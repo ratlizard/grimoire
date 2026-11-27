@@ -2851,7 +2851,7 @@ const DATA_FIXES = [
   // and the talk ends. No egg is made, so no vision comes; Omen's later
   // visions are other eggs, which other scripts make.
   { id: 'skip-intro', group: 'mods', stage: 'mods', name: 'No time to waste',
-    played: 'fork, PowerPC, 31 October 2026, a new game with all four mods and one without, each saved at once, the two saves differing in quest flag 31, the To Do list (the same two entries that change after Omen’s Test in the playthrough kit), Omen’s flag 7, and the amulet, the map and the starting things in the hero’s pack, with the hero on the triangle at (19,23)',
+    played: 'fork, PowerPC, 31 October 2026, a new game with all four mods and one without, each saved immediately. The two saves differ in quest flag 31, the To Do list (the same two entries that change after Omen’s Test in the playthrough kit), Omen’s flag 7, and the amulet, the map and the starting things in the hero’s pack, with the hero on the triangle at (19,23). Mac OS 8.5, 26 November 2026, a new game with the four mods beside one on the shipped file, saved after Alaric’s talk. The mods’ hero stood on the triangle at (19,23) with the amulet and the map, and the shipped file’s at (18,38) after Magpie’s tour with the amulet alone',
     title: 'A new game now starts with Alaric’s briefing, Magpie’s tour and Omen’s Test already done and the amulet in the hero’s pack, instead of playing through them',
     plan: (s) => {
       const what = 'Alaric’s first talk', p = dataPatchPlace(s, what, 0x1802, [
