@@ -2107,7 +2107,7 @@ const DATA_FIXES = [
   // spent or whole by how long the test had run. It is given 0, as the
   // others have.
   { id: 'omens-torch', newGame: [40], group: 'items', stage: 'found', title: 'The torch in the crate at the end of Omen’s Test is no longer spent before the hero finds it',
-    played: 'in part: fork, 68K, 22 October 2026, the behaviour in a save from Omen’s Test: with the torch’s Data1 3, as shipped, 110 passed turns leave it saved spent, aspect 2, still unlit in its crate; with Data1 0 set by an edit, saved whole. A save made inside the test already has the zone’s list, so the patched file changes the torch only for a new game, which was not played. Not played on Mac OS',
+    played: 'fork, 68K, 22 October 2026, the torch in a save from Omen’s Test. With the torch’s Data1 3, as shipped, 110 passed turns leave it saved spent, aspect 2, still unlit in its crate, and with Data1 0 set by an edit it is saved whole. A save made inside the test already has the zone’s list, so the patched file changes the torch only for a new game. Mac OS 8.5, 26 November 2026, a new game on the fix alone beside one on the shipped file, through Alaric’s talk and Magpie’s tour, then 110 turns, in which Omen’s vision sent the hero into the test. The torch was saved whole, aspect 0, with the fix, and spent, aspect 2, on the shipped file',
     dataEdits: [
       { what: 'the torch in Omen’s crate', resid: 0x8128, fn: (b) => {
           const r = b.subarray(97 * 16, 97 * 16 + 16);
