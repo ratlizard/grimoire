@@ -4757,15 +4757,22 @@ function renderMechanicsSheet(value) {
                November 2026 (Patches has the fix, drop-vanish). The game
                prints no message and leaves no pieces, so the line reads
                vanish, not break. 0x100 is not in the copy: DoTicks reads the word from each
-               placed thing's class itself on the hour and sends
-               message 257 to one that has it, which the lamp post
-               answers by lighting or going out and the easel by changing
-               its picture. */
+               placed thing's class itself each time the hour's period
+               passes and sends message 257 to one that has it, which the
+               lamp post answers by lighting or going out and the easel by
+               changing its picture. DoTicks shifts each period by a
+               quarter of itself, so the hour's boundary falls at a quarter
+               to each hour. Played in the fork on 27 November 2026: lamp
+               posts set to a picture the script never chooses kept it
+               while the clock passed from 16.98 to 17.07, took the lit
+               picture when it passed a quarter to 18, and took the unlit
+               one at a quarter to 15. Every lamp post of the zone changed,
+               the one 33 squares from the hero among them. */
             bitText(0x20, 'is a light that burns down as time passes (the ' + eg(0x20, 'torch') + ', the ' + eg(0x20, 'lamp') + ', the ' + eg(0x20, 'candle') + ').') + ' ' +
             bitText(0x800, 'counts down the same way but faster (the ' + eg(0x800, 'hourglass') + ' and the ' + eg(0x800, 'bomb') + ').') + ' ' +
             bitText(0x40, 'turns a thing to face the way the hero pushes it (the ' + eg(0x40, 'chair') + ').') + ' ' +
             bitText(0x10, 'makes a thing vanish when the hero drops it from a companion’s pack while the companion stands more than a square away (the ' + eg(0x10, 'plate') + ', the ' + eg(0x10, 'glass') + ', the ' + eg(0x10, 'bell') + ').') + ' ' +
-            bitText(0x100, 'signals a thing each time the hour changes (the ' + eg(0x100, 'lamp post') + ', which lights at night, and the ' + eg(0x100, 'easel') + ').');
+            bitText(0x100, 'signals a thing at a quarter to each hour (the ' + eg(0x100, 'lamp post') + ', which lights at night, and the ' + eg(0x100, 'easel') + ').');
         })() : MECH_NO_APP,
         ic ? 'The last table below shows how a chair seats a character. The zone maps seat their people by it.' : ''
       ].filter(Boolean),
